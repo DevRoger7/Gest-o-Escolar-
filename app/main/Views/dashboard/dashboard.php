@@ -1,3 +1,9 @@
+<?php
+require_once('../../Models/sessao/sessions.php');
+$session = new sessions();
+$session->autenticar_session();
+$session->tempo_session();
+?>
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
@@ -87,8 +93,8 @@
                     </svg>
                 </div>
                 <div>
-                    <p class="text-sm font-medium text-gray-800" id="userName">Carregando...</p>
-                    <p class="text-xs text-gray-500">Professor Multi-Escolas</p>
+                    <p class="text-sm font-medium text-gray-800" id="userName"><?= $_SESSION['nome'] ?? 'Usuário' ?></p>
+                    <p class="text-xs text-gray-500"><?= $_SESSION['setor'] ?? 'Professor' ?></p>
                 </div>
             </div>
         </div>
@@ -145,6 +151,46 @@
                         <span>Merenda</span>
                     </a>
                 </li>
+                <?php if (isset($_SESSION['Gerenciador de Usuarios'])) { ?>
+                <li>
+                    <a href="../../subsystems/gerenciador_usuario/index.php" class="menu-item flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z"></path>
+                        </svg>
+                        <span>Gerenciador de Usuários</span>
+                    </a>
+                </li>
+                <?php } ?>
+                <?php if (isset($_SESSION['Estoque'])) { ?>
+                <li>
+                    <a href="../../subsystems/controle_de_estoque/default.php" class="menu-item flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path>
+                        </svg>
+                        <span>Controle de Estoque</span>
+                    </a>
+                </li>
+                <?php } ?>
+                <?php if (isset($_SESSION['Biblioteca'])) { ?>
+                <li>
+                    <a href="../../subsystems/biblioteca/default.php" class="menu-item flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.746 0 3.332.477 4.5 1.253v13C19.832 18.477 18.246 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path>
+                        </svg>
+                        <span>Biblioteca</span>
+                    </a>
+                </li>
+                <?php } ?>
+                <?php if (isset($_SESSION['Entrada/saída'])) { ?>
+                <li>
+                    <a href="../../subsystems/entradasaida/app/main/views/inicio.php" class="menu-item flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1"></path>
+                        </svg>
+                        <span>Entrada/Saída</span>
+                    </a>
+                </li>
+                <?php } ?>
                 <li>
                     <a href="#" class="menu-item flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700">
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -158,12 +204,12 @@
 
         <!-- Footer do Sidebar -->
         <div class="absolute bottom-0 left-0 right-0 p-4 border-t border-gray-200">
-            <button onclick="logout()" class="w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700 hover:bg-red-50 hover:text-red-600 transition-all duration-200">
+            <a href="../../Models/sessao/sessions.php?sair" class="w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700 hover:bg-red-50 hover:text-red-600 transition-all duration-200">
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path>
                 </svg>
                 <span>Sair</span>
-            </button>
+            </a>
         </div>
     </div>
 
@@ -181,7 +227,7 @@
                     <!-- Escola Atual -->
                     <div class="flex items-center space-x-4">
                         <div class="text-right">
-                            <p class="text-sm font-medium text-gray-800" id="currentSchool">Carregando...</p>
+                            <p class="text-sm font-medium text-gray-800" id="currentSchool"><?= $_SESSION['escola_atual'] ?? 'Escola Municipal' ?></p>
                             <p class="text-xs text-gray-500">Escola Atual</p>
                         </div>
                         <div class="w-10 h-10 bg-gradient-to-br from-accent-orange to-warm-orange rounded-full flex items-center justify-center">
@@ -447,22 +493,7 @@
         let currentUser = null;
         let selectedSchool = null;
 
-        // Verificar se o usuário está logado
-        function checkAuth() {
-            const user = localStorage.getItem('user');
-            const school = localStorage.getItem('selectedSchool');
-            
-            if (!user) {
-                window.location.href = 'login.html';
-                return;
-            }
-            
-            currentUser = JSON.parse(user);
-            selectedSchool = school ? JSON.parse(school) : null;
-            
-            updateUserInfo();
-            loadDashboardData();
-        }
+       
 
         // Atualizar informações do usuário
         function updateUserInfo() {
@@ -484,13 +515,6 @@
             document.getElementById('totalTurmas').textContent = '8';
             document.getElementById('frequenciaHoje').textContent = '94%';
             document.getElementById('mediaGeral').textContent = '8.2';
-        }
-
-        // Logout
-        function logout() {
-            localStorage.removeItem('user');
-            localStorage.removeItem('selectedSchool');
-            window.location.href = 'login.html';
         }
 
         // Inicializar quando a página carregar
