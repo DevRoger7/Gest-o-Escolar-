@@ -1,3 +1,8 @@
+<?php
+if (!defined('BASE_URL')) {
+    define('BASE_URL', 'http://localhost/GitHub/Gest-o-Escolar-');
+}
+?>
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
@@ -6,9 +11,9 @@
     <title>Dashboard - SIGEM</title>
     
     <!-- Favicon -->
-    <link rel="icon" href="../assets/icons/favicon.png" type="image/png">
-    <link rel="shortcut icon" href="../assets/icons/favicon.png" type="image/png">
-    <link rel="apple-touch-icon" href="../assets/icons/favicon.png">
+    <link rel="icon" href="<?php echo BASE_URL; ?>/assets/icons/favicon.png" type="image/png">
+    <link rel="shortcut icon" href="<?php echo BASE_URL; ?>/assets/icons/favicon.png" type="image/png">
+    <link rel="apple-touch-icon" href="<?php echo BASE_URL; ?>/assets/icons/favicon.png">
     
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
@@ -89,7 +94,7 @@
         <!-- Logo e Header -->
         <div class="p-6 border-b border-gray-200">
             <div class="flex items-center space-x-3">
-                <img src="../assets/img/brasao_maranguape.png" alt="Brasão de Maranguape" class="w-10 h-10 object-contain">
+                <img src="<?php echo BASE_URL; ?>/assets/img/brasao_maranguape.png" alt="Brasão de Maranguape" class="w-10 h-10 object-contain">
                 <div>
                     <h1 class="text-lg font-bold text-gray-800">SIGEM</h1>
                     <p class="text-xs text-gray-500">Maranguape</p>
@@ -169,6 +174,30 @@
                         <span>Relatórios</span>
                     </a>
                 </li>
+                <li id="escolas-menu">
+                    <a href="#" onclick="showSection('escolas')" class="menu-item flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700">
+                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path>
+                         </svg>
+                        <span>Escolas</span>
+                    </a>
+                </li>
+                <li id="usuarios-menu">
+                    <a href="#" onclick="showSection('usuarios')" class="menu-item flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700">
+                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z"></path>
+                         </svg>
+                        <span>Usuários</span>
+                    </a>
+                </li>
+                <li id="estoque-central-menu">
+                    <a href="#" onclick="showSection('estoque-central')" class="menu-item flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700">
+                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path>
+                         </svg>
+                        <span>Estoque Central</span>
+                    </a>
+                </li>
             </ul>
         </nav>
 
@@ -199,7 +228,7 @@
                     
                     <!-- Page Title - Centered on mobile -->
                     <div class="absolute left-1/2 transform -translate-x-1/2 lg:relative lg:left-auto lg:transform-none flex items-center">
-                        <img src="../assets/img/brasao_maranguape.png" alt="Brasão de Maranguape" class="w-8 h-8 object-contain lg:hidden">
+                        <img src="<?php echo BASE_URL; ?>/assets/img/brasao_maranguape.png" alt="Brasão de Maranguape" class="w-8 h-8 object-contain lg:hidden">
                         <h1 class="hidden sm:block text-xl font-semibold text-gray-800" id="pageTitle">Dashboard</h1>
                     </div>
                     
@@ -1090,7 +1119,7 @@
         // Logout function
         function logout() {
             localStorage.removeItem('user');
-            window.location.href = 'login.html';
+            window.location.href = '../auth/login.php';
         }
         
         // Handle window resize
