@@ -11,9 +11,9 @@ if (!defined('BASE_URL')) {
     <title>Login - SIGEM | Sistema Integrado de Gestão Educacional Municipal</title>
     
     <!-- Favicon -->
-    <link rel="icon" href="<?php echo BASE_URL; ?>/assets/icons/favicon.png" type="image/png">
-    <link rel="shortcut icon" href="<?php echo BASE_URL; ?>/assets/icons/favicon.png" type="image/png">
-    <link rel="apple-touch-icon" href="<?php echo BASE_URL; ?>/assets/icons/favicon.png">
+    <link rel="icon" href="<?php echo BASE_URL; ?>/assets/img/Brasão_de_Maranguape.png" type="image/png">
+    <link rel="shortcut icon" href="<?php echo BASE_URL; ?>/assets/img/Brasão_de_Maranguape.png" type="image/png">
+    <link rel="apple-touch-icon" href="<?php echo BASE_URL; ?>/assets/img/Brasão_de_Maranguape.png">
     
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
