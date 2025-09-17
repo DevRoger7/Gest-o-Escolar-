@@ -41,6 +41,33 @@
             min-height: 100vh;
             position: relative;
         }
+
+        /* Mobile: fundo sólido sem imagem */
+        @media (max-width: 1023px) {
+            .professional-bg {
+                background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+                background-attachment: scroll;
+            }
+            
+            .login-container {
+                background: transparent;
+                border: none;
+                box-shadow: none;
+                backdrop-filter: none;
+                min-height: auto;
+                flex-direction: column;
+            }
+            
+            .mobile-login {
+                background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+                border-radius: 1.5rem;
+                padding: 2rem;
+                box-shadow: 0 20px 40px -10px rgba(0, 0, 0, 0.1);
+                max-width: 24rem;
+                margin: 0 auto;
+                border: 1px solid rgba(255, 255, 255, 0.2);
+            }
+        }
         .slide-in {
             animation: slideIn 0.6s ease-out;
         }
@@ -138,10 +165,11 @@
     <!-- Floating Background Elements -->
     <div class="floating-elements"></div>
     
-    <div class="w-full max-w-5xl mx-auto">
+    <!-- Desktop Layout -->
+    <div class="hidden lg:block w-full max-w-5xl mx-auto">
         <div class="login-container rounded-2xl overflow-hidden min-h-[500px] flex">
             <!-- Painel Esquerdo - Informações -->
-            <div class="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-primary-green to-secondary-green p-8 flex-col justify-between relative">
+            <div class="lg:w-1/2 bg-gradient-to-br from-primary-green to-secondary-green p-8 flex-col justify-between relative">
                 
                 <div class="relative z-10">
                     <div class="mb-8">
@@ -296,14 +324,121 @@
                             <p class="text-blue-600 mt-2">Professor lotado em 4 escolas</p>
                         </div>
                     </div>
+                </div>
+            </div>
+        </div>
+    </div>
 
-                    <!-- Versão mobile - Botão cadastrar -->
-                    <div class="lg:hidden mt-4">
-                        <button class="w-full bg-transparent border-2 border-primary-green text-primary-green font-semibold py-3 px-6 rounded-xl hover:bg-primary-green hover:text-white transition-all duration-300 text-sm">
-                            CADASTRAR
+    <!-- Mobile Layout -->
+    <div class="lg:hidden w-full max-w-md mx-auto px-4">
+        <div class="mobile-login">
+            <!-- Logo e Branding -->
+            <div class="text-center mb-8">
+                <img src="../assets/img/brasao_maranguape.png" alt="Brasão de Maranguape" class="w-16 h-16 mx-auto mb-4 object-contain">
+                <h1 class="text-2xl font-bold text-gray-800 mb-2">Sistema de Gestão Escolar</h1>
+                <p class="text-gray-600 text-sm">Maranguape</p>
+            </div>
+
+            <!-- Mensagem de Boas-vindas -->
+            <div class="text-center mb-8">
+                <h2 class="text-xl font-bold text-gray-800 mb-2">Bem-vindo de volta!</h2>
+                <p class="text-gray-600 text-sm">Entre na sua conta do sistema</p>
+            </div>
+
+            <!-- Mensagem de erro -->
+            <div id="errorMessageMobile" class="mb-4 bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-lg text-sm hidden">
+                <span id="errorTextMobile"></span>
+            </div>
+
+            <!-- Formulário -->
+            <form id="loginFormMobile" class="space-y-4">
+                <!-- Campo CPF/Usuário -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">CPF ou Usuário</label>
+                    <input 
+                        type="text" 
+                        id="cpfMobile" 
+                        name="cpf" 
+                        placeholder="seu@email.com" 
+                        class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-green focus:border-transparent transition-all duration-200"
+                        required
+                    >
+                </div>
+
+                <!-- Campo Senha -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Senha</label>
+                    <div class="relative">
+                        <input 
+                            type="password" 
+                            id="senhaMobile"
+                            name="senha" 
+                            placeholder="Sua senha" 
+                            class="w-full px-4 py-3 pr-12 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-green focus:border-transparent transition-all duration-200"
+                            required
+                        >
+                        <button 
+                            type="button" 
+                            onclick="togglePasswordMobile()"
+                            class="absolute inset-y-0 right-0 pr-4 flex items-center text-gray-400 hover:text-primary-green transition-colors duration-200"
+                        >
+                            <svg id="eye-open-mobile" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
+                            </svg>
+                            <svg id="eye-closed-mobile" class="w-5 h-5 hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.878 9.878L3 3m6.878 6.878L21 21"></path>
+                            </svg>
                         </button>
                     </div>
                 </div>
+
+                <!-- Opções adicionais -->
+                <div class="flex items-center justify-between">
+                    <label class="flex items-center">
+                        <input type="checkbox" class="w-4 h-4 text-primary-green border-gray-300 rounded focus:ring-primary-green">
+                        <span class="ml-2 text-sm text-gray-600">Lembrar de mim</span>
+                    </label>
+                    <a href="#" class="text-sm text-primary-green hover:text-secondary-green transition-colors duration-200">
+                        Esqueceu a senha?
+                    </a>
+                </div>
+
+                <!-- Botão de Login -->
+                <button 
+                    type="submit" 
+                    class="w-full bg-primary-green text-white font-semibold py-3 px-6 rounded-lg hover:bg-secondary-green transition-all duration-200"
+                >
+                    Entrar
+                </button>
+            </form>
+
+            <!-- Links adicionais -->
+            <div class="mt-6 text-center">
+                <p class="text-gray-600 text-sm">Não tem uma conta?</p>
+                <a href="#" class="text-primary-green hover:text-secondary-green font-semibold transition-colors duration-200 text-sm">
+                    Solicitar acesso
+                </a>
+            </div>
+
+            <!-- Dados de Teste -->
+            <div class="mt-6 bg-blue-100 border border-blue-200 rounded-lg p-4">
+                <h4 class="text-blue-800 font-semibold text-sm mb-2">Dados para Teste:</h4>
+                <div class="text-blue-700 text-xs space-y-1">
+                    <p><strong>CPF:</strong> 12345678901</p>
+                    <p><strong>Senha:</strong> 123456</p>
+                    <p class="text-blue-600 mt-2">Professor lotado em 4 escolas</p>
+                </div>
+            </div>
+
+            <!-- Link Voltar -->
+            <div class="mt-6 text-center">
+                <a href="#" class="inline-flex items-center text-gray-500 hover:text-gray-700 transition-colors duration-200 text-sm">
+                    <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
+                    </svg>
+                    Voltar ao início
+                </a>
             </div>
         </div>
     </div>
@@ -350,7 +485,7 @@
             ]
         };
 
-        // Função para mostrar/ocultar senha
+        // Função para mostrar/ocultar senha (Desktop)
         function togglePassword() {
             const senhaInput = document.getElementById('senha');
             const eyeOpen = document.getElementById('eye-open');
@@ -367,7 +502,24 @@
             }
         }
 
-        // Função para mostrar erro
+        // Função para mostrar/ocultar senha (Mobile)
+        function togglePasswordMobile() {
+            const senhaInput = document.getElementById('senhaMobile');
+            const eyeOpen = document.getElementById('eye-open-mobile');
+            const eyeClosed = document.getElementById('eye-closed-mobile');
+            
+            if (senhaInput.type === 'password') {
+                senhaInput.type = 'text';
+                eyeOpen.classList.add('hidden');
+                eyeClosed.classList.remove('hidden');
+            } else {
+                senhaInput.type = 'password';
+                eyeOpen.classList.remove('hidden');
+                eyeClosed.classList.add('hidden');
+            }
+        }
+
+        // Função para mostrar erro (Desktop)
         function showError(message) {
             const errorDiv = document.getElementById('errorMessage');
             const errorText = document.getElementById('errorText');
@@ -375,9 +527,23 @@
             errorDiv.classList.remove('hidden');
         }
 
-        // Função para ocultar erro
+        // Função para mostrar erro (Mobile)
+        function showErrorMobile(message) {
+            const errorDiv = document.getElementById('errorMessageMobile');
+            const errorText = document.getElementById('errorTextMobile');
+            errorText.textContent = message;
+            errorDiv.classList.remove('hidden');
+        }
+
+        // Função para ocultar erro (Desktop)
         function hideError() {
             const errorDiv = document.getElementById('errorMessage');
+            errorDiv.classList.add('hidden');
+        }
+
+        // Função para ocultar erro (Mobile)
+        function hideErrorMobile() {
+            const errorDiv = document.getElementById('errorMessageMobile');
             errorDiv.classList.add('hidden');
         }
 
@@ -391,7 +557,7 @@
             return false;
         }
 
-        // Event listener do formulário
+        // Event listener do formulário (Desktop)
         document.getElementById('loginForm').addEventListener('submit', function(e) {
             e.preventDefault();
             
@@ -405,6 +571,23 @@
                 window.location.href = 'hub.html';
             } else {
                 showError('CPF ou senha incorretos');
+            }
+        });
+
+        // Event listener do formulário (Mobile)
+        document.getElementById('loginFormMobile').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const cpf = document.getElementById('cpfMobile').value;
+            const senha = document.getElementById('senhaMobile').value;
+            
+            hideErrorMobile();
+            
+            if (authenticate(cpf, senha)) {
+                // Redirecionar para o hub
+                window.location.href = 'hub.html';
+            } else {
+                showErrorMobile('CPF ou senha incorretos');
             }
         });
 
