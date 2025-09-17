@@ -1,14 +1,19 @@
+<?php
+if (!defined('BASE_URL')) {
+    define('BASE_URL', 'http://localhost/GitHub/Gest-o-Escolar-');
+}
+?>
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Login - Sistema de Gestão Escolar Maranguape</title>
+    <title>Login - SIGEM | Sistema Integrado de Gestão Educacional Municipal</title>
     
     <!-- Favicon -->
-    <link rel="icon" href="../assets/icons/favicon.png" type="image/png">
-    <link rel="shortcut icon" href="../assets/icons/favicon.png" type="image/png">
-    <link rel="apple-touch-icon" href="../assets/icons/favicon.png">
+    <link rel="icon" href="<?php echo BASE_URL; ?>/assets/icons/favicon.png" type="image/png">
+    <link rel="shortcut icon" href="<?php echo BASE_URL; ?>/assets/icons/favicon.png" type="image/png">
+    <link rel="apple-touch-icon" href="<?php echo BASE_URL; ?>/assets/icons/favicon.png">
     
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
@@ -34,7 +39,7 @@
     <style>
         .professional-bg {
             background: linear-gradient(135deg, rgba(0, 0, 0, 0.85) 0%, rgba(0, 0, 0, 0.75) 100%), 
-                        url('https://www.opovo.com.br/_midias/jpg/2024/01/10/_pontos_turisticos_maranguape_anuario__3-24969493.jpg');
+                        url('<?php echo BASE_URL; ?>/assets/img/maranguape-bg.jpg');
             background-size: cover;
             background-position: center;
             background-attachment: fixed;
@@ -56,6 +61,7 @@
                 backdrop-filter: none;
                 min-height: auto;
                 flex-direction: column;
+                z-index: 1;
             }
             
             .mobile-login {
@@ -66,6 +72,8 @@
                 max-width: 24rem;
                 margin: 0 auto;
                 border: 1px solid rgba(255, 255, 255, 0.2);
+                position: relative;
+                z-index: 10;
             }
         }
         .slide-in {
@@ -111,111 +119,95 @@
             box-shadow: 0 12px 35px -5px rgba(45, 90, 39, 0.4);
         }
 
-        .floating-elements {
-            position: absolute;
-            width: 100%;
-            height: 100%;
-            overflow: hidden;
-            pointer-events: none;
-            z-index: 0;
-        }
-
-        .floating-elements::before,
-        .floating-elements::after {
-            content: '';
-            position: absolute;
-            width: 200px;
-            height: 200px;
-            background: linear-gradient(45deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.02));
-            border-radius: 50%;
-            animation: float 6s ease-in-out infinite;
-        }
-
-        .floating-elements::before {
-            top: -100px;
-            right: -100px;
-            animation-delay: -3s;
-        }
-
-        .floating-elements::after {
-            bottom: -100px;
-            left: -100px;
-            animation-delay: -1.5s;
-        }
-
-        @keyframes float {
-            0%, 100% {
-                transform: translateY(0px) rotate(0deg);
-            }
-            50% {
-                transform: translateY(-20px) rotate(180deg);
-            }
-        }
         .login-container {
             background: rgba(255, 255, 255, 0.95);
             border: 1px solid rgba(255, 255, 255, 0.2);
             box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
             backdrop-filter: blur(20px);
             position: relative;
-            z-index: 2;
+            z-index: 10;
         }
     </style>
 </head>
 <body class="min-h-screen professional-bg flex items-center justify-center p-4">
-    <!-- Floating Background Elements -->
-    <div class="floating-elements"></div>
     
     <!-- Desktop Layout -->
     <div class="hidden lg:block w-full max-w-5xl mx-auto">
         <div class="login-container rounded-2xl overflow-hidden min-h-[500px] flex">
             <!-- Painel Esquerdo - Informações -->
-            <div class="lg:w-1/2 bg-gradient-to-br from-primary-green to-secondary-green p-8 flex-col justify-between relative">
+            <div class="lg:w-1/2 bg-gradient-to-br from-primary-green via-secondary-green to-primary-green p-10 flex flex-col justify-between relative">
                 
                 <div class="relative z-10">
                     <div class="mb-8">
-                        <h1 class="text-2xl font-semibold text-white mb-3 tracking-wide">
-                            BEM-VINDO AO
-                        </h1>
-                        <h2 class="text-3xl font-bold text-white mb-4 tracking-wide">
-                            SISTEMA DE GESTÃO ESCOLAR
-                        </h2>
-                        <p class="text-base text-white text-opacity-90 leading-relaxed font-light">
-                            Centralize e automatize todos os processos acadêmicos e de merenda em um único ambiente moderno e eficiente.
-                        </p>
+                        
+                        <div class="mb-8">
+                            <h1 class="text-3xl font-light text-white mb-2 tracking-wider opacity-90">
+                                BEM-VINDO AO
+                            </h1>
+                            <h2 class="text-6xl font-black text-white mb-4 tracking-tight leading-none">
+                                SIGEM
+                            </h2>
+                            <div class="w-16 h-1 bg-accent-orange rounded-full mb-6"></div>
+                            <p class="text-white text-opacity-95 text-lg mb-6 font-semibold leading-relaxed">
+                                Sistema Integrado de Gestão Educacional Municipal
+                            </p>
+                            <p class="text-white text-opacity-85 leading-relaxed font-light text-base">
+                                Plataforma oficial para gestão completa da rede municipal de ensino, integrando processos pedagógicos, administrativos e de merenda escolar.
+                            </p>
+                        </div>
                     </div>
                     
-                    <div class="space-y-4">
-                        <div class="flex items-center text-white text-opacity-90 text-sm font-medium">
-                            <svg class="w-4 h-4 mr-3 text-accent-orange flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
-                                <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path>
-                            </svg>
-                            Gestão completa de turmas e alunos
+                    <div class="space-y-5 mb-10">
+                        <div class="flex items-center text-white text-opacity-95 text-base font-medium group">
+                            <div class="w-8 h-8 bg-accent-orange rounded-lg flex items-center justify-center mr-4 flex-shrink-0 group-hover:scale-110 transition-transform duration-200">
+                                <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.746 0 3.332.477 4.5 1.253v13C19.832 18.477 18.246 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path>
+                                </svg>
+                            </div>
+                            <span class="group-hover:text-accent-orange transition-colors duration-200">Gestão pedagógica e acadêmica</span>
                         </div>
-                        <div class="flex items-center text-white text-opacity-90 text-sm font-medium">
-                            <svg class="w-4 h-4 mr-3 text-accent-orange flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
-                                <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path>
-                            </svg>
-                            Controle de frequência e notas
+                        <div class="flex items-center text-white text-opacity-95 text-base font-medium group">
+                            <div class="w-8 h-8 bg-accent-orange rounded-lg flex items-center justify-center mr-4 flex-shrink-0 group-hover:scale-110 transition-transform duration-200">
+                                <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"></path>
+                                </svg>
+                            </div>
+                            <span class="group-hover:text-accent-orange transition-colors duration-200">Controle de frequência e avaliações</span>
                         </div>
-                        <div class="flex items-center text-white text-opacity-90 text-sm font-medium">
-                            <svg class="w-4 h-4 mr-3 text-accent-orange flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
-                                <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path>
-                            </svg>
-                            Gestão de merenda escolar
+                        <div class="flex items-center text-white text-opacity-95 text-base font-medium group">
+                            <div class="w-8 h-8 bg-accent-orange rounded-lg flex items-center justify-center mr-4 flex-shrink-0 group-hover:scale-110 transition-transform duration-200">
+                                <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4m0 0L7 13m0 0l-2.5 5M7 13l2.5 5m6-5v6a2 2 0 01-2 2H9a2 2 0 01-2-2v-6m8 0V9a2 2 0 00-2-2H9a2 2 0 00-2 2v4.01"></path>
+                                </svg>
+                            </div>
+                            <span class="group-hover:text-accent-orange transition-colors duration-200">Gestão de merenda e recursos</span>
                         </div>
-                        <div class="flex items-center text-white text-opacity-90 text-sm font-medium">
-                            <svg class="w-4 h-4 mr-3 text-accent-orange flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
-                                <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path>
-                            </svg>
-                            Relatórios e transparência
+                        <div class="flex items-center text-white text-opacity-95 text-base font-medium group">
+                            <div class="w-8 h-8 bg-accent-orange rounded-lg flex items-center justify-center mr-4 flex-shrink-0 group-hover:scale-110 transition-transform duration-200">
+                                <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
+                                </svg>
+                            </div>
+                            <span class="group-hover:text-accent-orange transition-colors duration-200">Relatórios e transparência pública</span>
                         </div>
                     </div>
                 </div>
                 
-                <div class="relative z-10">
-                    <button class="w-full bg-transparent border-2 border-white text-white font-semibold py-3 px-6 rounded-xl hover:bg-white hover:text-primary-green transition-all duration-300 btn-hover text-sm">
-                        CADASTRAR
+                <div class="relative z-10 space-y-4">
+                    <button class="w-full bg-white bg-opacity-25 border-2 border-white border-opacity-50 text-white font-bold py-4 px-6 rounded-2xl hover:bg-white hover:text-primary-green hover:border-white hover:shadow-2xl hover:shadow-white hover:shadow-opacity-25 transition-all duration-300 transform hover:scale-105 backdrop-blur-sm group">
+                        <div class="flex items-center justify-center">
+                            <svg class="w-5 h-5 mr-3 group-hover:rotate-12 transition-transform duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"></path>
+                            </svg>
+                            <span class="text-base tracking-wide">CADASTRAR</span>
+                        </div>
                     </button>
+                    <div class="text-center">
+                        <p class="text-white text-opacity-75 text-sm font-light leading-relaxed">
+                            Para professores, gestores e funcionários da rede municipal
+                        </p>
+                        <div class="w-12 h-px bg-white bg-opacity-30 mx-auto mt-3"></div>
+                    </div>
                 </div>
             </div>
 
@@ -224,7 +216,7 @@
                 <div class="max-w-md mx-auto w-full">
                     <!-- Logo -->
                     <div class="text-center mb-6">
-                        <img src="../assets/img/brasao_maranguape.png" alt="Brasão de Maranguape" class="w-20 h-20 mx-auto mb-4 object-contain logo-container">
+                        <img src="<?php echo BASE_URL; ?>/assets/img/brasao_maranguape.png" alt="Brasão de Maranguape" class="w-20 h-20 mx-auto mb-4 object-contain logo-container">
                     </div>
                     
                     <!-- Header -->
@@ -258,6 +250,8 @@
                                 name="cpf" 
                                 placeholder="CPF ou Usuário" 
                                 class="w-full pl-12 pr-4 py-3 rounded-xl focus:outline-none form-input text-sm"
+                                maxlength="14"
+                                oninput="formatCPF(this)"
                                 required
                             >
                         </div>
@@ -320,15 +314,6 @@
                         </a>
                     </div>
 
-                    <!-- Dados de Teste -->
-                    <div class="mt-6 bg-blue-50 border border-blue-200 rounded-lg p-4">
-                        <h4 class="text-blue-800 font-semibold text-sm mb-2">Dados para Teste:</h4>
-                        <div class="text-blue-700 text-xs space-y-1">
-                            <p><strong>CPF:</strong> 12345678901</p>
-                            <p><strong>Senha:</strong> 123456</p>
-                            <p class="text-blue-600 mt-2">Professor lotado em 4 escolas</p>
-                        </div>
-                    </div>
                 </div>
             </div>
         </div>
@@ -339,9 +324,10 @@
         <div class="mobile-login">
             <!-- Logo e Branding -->
             <div class="text-center mb-8">
-                <img src="../assets/img/brasao_maranguape.png" alt="Brasão de Maranguape" class="w-16 h-16 mx-auto mb-4 object-contain">
-                <h1 class="text-2xl font-bold text-gray-800 mb-2">Sistema de Gestão Escolar</h1>
-                <p class="text-gray-600 text-sm">Maranguape</p>
+                <img src="<?php echo BASE_URL; ?>/assets/img/brasao_maranguape.png" alt="Brasão de Maranguape" class="w-16 h-16 mx-auto mb-4 object-contain">
+                <h1 class="text-2xl font-bold text-gray-800 mb-1">SIGEM</h1>
+                <p class="text-gray-600 text-sm font-medium mb-1">Sistema Integrado de Gestão Educacional Municipal</p>
+                <p class="text-gray-500 text-xs">Prefeitura Municipal de Maranguape</p>
             </div>
 
             <!-- Mensagem de Boas-vindas -->
@@ -361,7 +347,7 @@
             </div>
 
             <!-- Formulário -->
-            <form id="loginFormMobile" class="space-y-4">
+            <form id="loginFormMobile" action="../../Controllers/autenticacao/controllerLogin.php" method="post" class="space-y-4">
                 <!-- Campo CPF/Usuário -->
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-2">CPF ou Usuário</label>
@@ -369,8 +355,10 @@
                         type="text" 
                         id="cpfMobile" 
                         name="cpf" 
-                        placeholder="seu@email.com" 
+                        placeholder="CPF ou Usuário" 
                         class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-green focus:border-transparent transition-all duration-200"
+                        maxlength="14"
+                        oninput="formatCPF(this)"
                         required
                     >
                 </div>
@@ -425,21 +413,18 @@
 
             <!-- Links adicionais -->
             <div class="mt-6 text-center">
-                <p class="text-gray-600 text-sm">Não tem uma conta?</p>
-                <a href="#" class="text-primary-green hover:text-secondary-green font-semibold transition-colors duration-200 text-sm">
-                    Solicitar acesso
-                </a>
+                <p class="text-gray-600 text-sm mb-2">Não tem uma conta?</p>
+                <button class="bg-primary-green text-white font-semibold py-2 px-4 rounded-lg hover:bg-secondary-green transition-all duration-200 text-sm">
+                    <div class="flex items-center justify-center">
+                        <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"></path>
+                        </svg>
+                        Cadastrar
+                    </div>
+                </button>
+                <p class="text-gray-500 text-xs mt-2">Para funcionários da rede municipal</p>
             </div>
 
-            <!-- Dados de Teste -->
-            <div class="mt-6 bg-blue-100 border border-blue-200 rounded-lg p-4">
-                <h4 class="text-blue-800 font-semibold text-sm mb-2">Dados para Teste:</h4>
-                <div class="text-blue-700 text-xs space-y-1">
-                    <p><strong>CPF:</strong> 12345678901</p>
-                    <p><strong>Senha:</strong> 123456</p>
-                    <p class="text-blue-600 mt-2">Professor lotado em 4 escolas</p>
-                </div>
-            </div>
 
             <!-- Link Voltar -->
             <div class="mt-6 text-center">
@@ -454,46 +439,21 @@
     </div>
 
     <script>
-        // Dados de teste do professor
-        const testUser = {
-            cpf: '12345678901',
-            senha: '123456',
-            nome: 'João Silva Santos',
-            escolas: [
-                {
-                    id: 1,
-                    nome: 'Antonio Luiz Coelho',
-                    endereco: 'Rua das Flores, 123 - Centro',
-                    telefone: '(85) 3333-1111',
-                    codigo: 'ALC001',
-                    logo: 'antonio_luiz_coelho.jpg'
-                },
-                {
-                    id: 2,
-                    nome: 'Clóvis Monteiro',
-                    endereco: 'Av. Principal, 456 - Bairro Novo',
-                    telefone: '(85) 3333-2222',
-                    codigo: 'CM002',
-                    logo: 'clovis_monteiro.jpg'
-                },
-                {
-                    id: 3,
-                    nome: 'José Fernandes Vieira',
-                    endereco: 'Rua da Escola, 789 - Vila Nova',
-                    telefone: '(85) 3333-3333',
-                    codigo: 'JFV003',
-                    logo: 'jose_fernandes_vieira.jpg'
-                },
-                {
-                    id: 4,
-                    nome: 'Nilo Pinheiro Campelo',
-                    endereco: 'Rua dos Estudantes, 321 - Centro',
-                    telefone: '(85) 3333-4444',
-                    codigo: 'NPC004',
-                    logo: 'nilo_pinheiro_campelo.jpg'
-                }
-            ]
-        };
+
+        // Função para formatar CPF
+        function formatCPF(input) {
+            // Remove tudo que não é dígito
+            let value = input.value.replace(/\D/g, '');
+            
+            // Aplica a máscara do CPF
+            if (value.length <= 11) {
+                value = value.replace(/(\d{3})(\d)/, '$1.$2');
+                value = value.replace(/(\d{3})(\d)/, '$1.$2');
+                value = value.replace(/(\d{3})(\d{1,2})$/, '$1-$2');
+            }
+            
+            input.value = value;
+        }
 
         // Função para mostrar/ocultar senha (Desktop)
         function togglePassword() {
@@ -547,7 +507,57 @@
             setTimeout(() => {
                 document.body.style.opacity = '1';
             }, 100);
+            
+            // Garantir que os formulários funcionem corretamente
+            const loginForm = document.getElementById('loginForm');
+            const loginFormMobile = document.getElementById('loginFormMobile');
+            
+            if (loginForm) {
+                loginForm.addEventListener('submit', function(e) {
+                    // Validação básica
+                    const cpf = document.getElementById('cpf').value.trim();
+                    const senha = document.getElementById('senha').value.trim();
+                    
+                    if (!cpf || !senha) {
+                        e.preventDefault();
+                        showError('Por favor, preencha todos os campos.');
+                    }
+                });
+            }
+            
+            if (loginFormMobile) {
+                loginFormMobile.addEventListener('submit', function(e) {
+                    // Validação básica
+                    const cpf = document.getElementById('cpfMobile').value.trim();
+                    const senha = document.getElementById('senhaMobile').value.trim();
+                    
+                    if (!cpf || !senha) {
+                        e.preventDefault();
+                        showErrorMobile('Por favor, preencha todos os campos.');
+                    }
+                });
+            }
         });
+        
+        // Função para mostrar erro no desktop
+        function showError(message) {
+            const errorDiv = document.getElementById('errorMessage');
+            const errorText = document.getElementById('errorText');
+            if (errorDiv && errorText) {
+                errorText.textContent = message;
+                errorDiv.classList.remove('hidden');
+            }
+        }
+        
+        // Função para mostrar erro no mobile
+        function showErrorMobile(message) {
+            const errorDiv = document.getElementById('errorMessageMobile');
+            const errorText = document.getElementById('errorTextMobile');
+            if (errorDiv && errorText) {
+                errorText.textContent = message;
+                errorDiv.classList.remove('hidden');
+            }
+        }
     </script>
 </body>
 </html>
