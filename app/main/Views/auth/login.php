@@ -1,8 +1,3 @@
-<?php
-if (!defined('BASE_URL')) {
-    define('BASE_URL', 'http://localhost/GitHub/Gest-o-Escolar-');
-}
-?>
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
@@ -11,9 +6,9 @@ if (!defined('BASE_URL')) {
     <title>Login - Sistema de Gestão Escolar Maranguape</title>
     
     <!-- Favicon -->
-    <link rel="icon" href="<?php echo BASE_URL; ?>/assets/icons/favicon.png" type="image/png">
-    <link rel="shortcut icon" href="<?php echo BASE_URL; ?>/assets/icons/favicon.png" type="image/png">
-    <link rel="apple-touch-icon" href="<?php echo BASE_URL; ?>/assets/icons/favicon.png">
+    <link rel="icon" href="../assets/icons/favicon.png" type="image/png">
+    <link rel="shortcut icon" href="../assets/icons/favicon.png" type="image/png">
+    <link rel="apple-touch-icon" href="../assets/icons/favicon.png">
     
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
@@ -64,13 +59,13 @@ if (!defined('BASE_URL')) {
             }
             
             .mobile-login {
-                background: transparent;
+                background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
                 border-radius: 1.5rem;
                 padding: 2rem;
-                box-shadow: none;
+                box-shadow: 0 20px 40px -10px rgba(0, 0, 0, 0.1);
                 max-width: 24rem;
                 margin: 0 auto;
-                border: none;
+                border: 1px solid rgba(255, 255, 255, 0.2);
             }
         }
         .slide-in {
@@ -182,14 +177,14 @@ if (!defined('BASE_URL')) {
                             BEM-VINDO AO
                         </h1>
                         <h2 class="text-3xl font-bold text-white mb-4 tracking-wide">
-                            SIGEM
+                            SISTEMA DE GESTÃO ESCOLAR
                         </h2>
                         <p class="text-base text-white text-opacity-90 leading-relaxed font-light">
                             Centralize e automatize todos os processos acadêmicos e de merenda em um único ambiente moderno e eficiente.
                         </p>
                     </div>
                     
-                    <div class="space-y-4 mb-8">
+                    <div class="space-y-4">
                         <div class="flex items-center text-white text-opacity-90 text-sm font-medium">
                             <svg class="w-4 h-4 mr-3 text-accent-orange flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
                                 <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path>
@@ -218,7 +213,7 @@ if (!defined('BASE_URL')) {
                 </div>
                 
                 <div class="relative z-10">
-                    <button class="w-full bg-white text-primary-green font-bold py-4 px-8 rounded-2xl hover:bg-gray-100 hover:scale-105 transition-all duration-300 shadow-lg hover:shadow-xl text-base">
+                    <button class="w-full bg-transparent border-2 border-white text-white font-semibold py-3 px-6 rounded-xl hover:bg-white hover:text-primary-green transition-all duration-300 btn-hover text-sm">
                         CADASTRAR
                     </button>
                 </div>
@@ -229,7 +224,7 @@ if (!defined('BASE_URL')) {
                 <div class="max-w-md mx-auto w-full">
                     <!-- Logo -->
                     <div class="text-center mb-6">
-                        <img src="<?php echo BASE_URL; ?>/assets/img/brasao_maranguape.png" alt="Brasão de Maranguape" class="w-20 h-20 mx-auto mb-4 object-contain logo-container">
+                        <img src="../assets/img/brasao_maranguape.png" alt="Brasão de Maranguape" class="w-20 h-20 mx-auto mb-4 object-contain logo-container">
                     </div>
                     
                     <!-- Header -->
@@ -238,16 +233,13 @@ if (!defined('BASE_URL')) {
                         <p class="text-gray-600 text-sm">Acesse sua conta para continuar</p>
                         
                         <!-- Mensagem de erro -->
-                        <?php if (isset($_SESSION['login_error'])): ?>
-                            <div class="mt-4 bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-lg text-sm">
-                                <?php echo htmlspecialchars($_SESSION['login_error']); ?>
-                            </div>
-                            <?php unset($_SESSION['login_error']); ?>
-                        <?php endif; ?>
+                        <div id="errorMessage" class="mt-4 bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-lg text-sm hidden">
+                            <span id="errorText"></span>
+                        </div>
                     </div>
 
                     <!-- Formulário -->
-                    <form method="POST" action="/login" class="space-y-5">
+                    <form id="loginForm" action="../../Controllers/autenticacao/controllerLogin.php" method="post" class="space-y-5">
                         <!-- Campo CPF/Usuário -->
                         <div class="relative">
                             <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
@@ -257,6 +249,7 @@ if (!defined('BASE_URL')) {
                             </div>
                             <input 
                                 type="text" 
+                                id="cpf" 
                                 name="cpf" 
                                 placeholder="CPF ou Usuário" 
                                 class="w-full pl-12 pr-4 py-3 rounded-xl focus:outline-none form-input text-sm"
@@ -273,8 +266,8 @@ if (!defined('BASE_URL')) {
                             </div>
                             <input 
                                 type="password" 
-                                name="senha" 
                                 id="senha"
+                                name="senha" 
                                 placeholder="Senha" 
                                 class="w-full pl-12 pr-14 py-3 rounded-xl focus:outline-none form-input text-sm"
                                 required
@@ -316,7 +309,20 @@ if (!defined('BASE_URL')) {
 
                     <!-- Links adicionais -->
                     <div class="mt-8 text-center">
-                        <p class="text-gray-600 text-sm">Não tem uma conta?</p>
+                        <p class="text-gray-600 mb-3 text-sm">Não tem uma conta?</p>
+                        <a href="#" class="text-primary-green hover:text-secondary-green font-semibold transition-colors duration-200 text-sm">
+                            Solicitar acesso
+                        </a>
+                    </div>
+
+                    <!-- Dados de Teste -->
+                    <div class="mt-6 bg-blue-50 border border-blue-200 rounded-lg p-4">
+                        <h4 class="text-blue-800 font-semibold text-sm mb-2">Dados para Teste:</h4>
+                        <div class="text-blue-700 text-xs space-y-1">
+                            <p><strong>CPF:</strong> 12345678901</p>
+                            <p><strong>Senha:</strong> 123456</p>
+                            <p class="text-blue-600 mt-2">Professor lotado em 4 escolas</p>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -328,8 +334,8 @@ if (!defined('BASE_URL')) {
         <div class="mobile-login">
             <!-- Logo e Branding -->
             <div class="text-center mb-8">
-                <img src="<?php echo BASE_URL; ?>/assets/img/brasao_maranguape.png" alt="Brasão de Maranguape" class="w-16 h-16 mx-auto mb-4 object-contain">
-                <h1 class="text-2xl font-bold text-gray-800 mb-2">SIGEM</h1>
+                <img src="../assets/img/brasao_maranguape.png" alt="Brasão de Maranguape" class="w-16 h-16 mx-auto mb-4 object-contain">
+                <h1 class="text-2xl font-bold text-gray-800 mb-2">Sistema de Gestão Escolar</h1>
                 <p class="text-gray-600 text-sm">Maranguape</p>
             </div>
 
@@ -340,20 +346,18 @@ if (!defined('BASE_URL')) {
             </div>
 
             <!-- Mensagem de erro -->
-            <?php if (isset($_SESSION['login_error'])): ?>
-                <div class="mb-4 bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-lg text-sm">
-                    <?php echo htmlspecialchars($_SESSION['login_error']); ?>
-                </div>
-                <?php unset($_SESSION['login_error']); ?>
-            <?php endif; ?>
+            <div id="errorMessageMobile" class="mb-4 bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-lg text-sm hidden">
+                <span id="errorTextMobile"></span>
+            </div>
 
             <!-- Formulário -->
-            <form method="POST" action="/login" class="space-y-4">
+            <form id="loginFormMobile" class="space-y-4">
                 <!-- Campo CPF/Usuário -->
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-2">CPF ou Usuário</label>
                     <input 
                         type="text" 
+                        id="cpfMobile" 
                         name="cpf" 
                         placeholder="seu@email.com" 
                         class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-green focus:border-transparent transition-all duration-200"
@@ -367,8 +371,8 @@ if (!defined('BASE_URL')) {
                     <div class="relative">
                         <input 
                             type="password" 
-                            name="senha" 
                             id="senhaMobile"
+                            name="senha" 
                             placeholder="Sua senha" 
                             class="w-full px-4 py-3 pr-12 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-green focus:border-transparent transition-all duration-200"
                             required
@@ -412,6 +416,19 @@ if (!defined('BASE_URL')) {
             <!-- Links adicionais -->
             <div class="mt-6 text-center">
                 <p class="text-gray-600 text-sm">Não tem uma conta?</p>
+                <a href="#" class="text-primary-green hover:text-secondary-green font-semibold transition-colors duration-200 text-sm">
+                    Solicitar acesso
+                </a>
+            </div>
+
+            <!-- Dados de Teste -->
+            <div class="mt-6 bg-blue-100 border border-blue-200 rounded-lg p-4">
+                <h4 class="text-blue-800 font-semibold text-sm mb-2">Dados para Teste:</h4>
+                <div class="text-blue-700 text-xs space-y-1">
+                    <p><strong>CPF:</strong> 12345678901</p>
+                    <p><strong>Senha:</strong> 123456</p>
+                    <p class="text-blue-600 mt-2">Professor lotado em 4 escolas</p>
+                </div>
             </div>
 
             <!-- Link Voltar -->
@@ -427,6 +444,47 @@ if (!defined('BASE_URL')) {
     </div>
 
     <script>
+        // Dados de teste do professor
+        const testUser = {
+            cpf: '12345678901',
+            senha: '123456',
+            nome: 'João Silva Santos',
+            escolas: [
+                {
+                    id: 1,
+                    nome: 'Antonio Luiz Coelho',
+                    endereco: 'Rua das Flores, 123 - Centro',
+                    telefone: '(85) 3333-1111',
+                    codigo: 'ALC001',
+                    logo: 'antonio_luiz_coelho.jpg'
+                },
+                {
+                    id: 2,
+                    nome: 'Clóvis Monteiro',
+                    endereco: 'Av. Principal, 456 - Bairro Novo',
+                    telefone: '(85) 3333-2222',
+                    codigo: 'CM002',
+                    logo: 'clovis_monteiro.jpg'
+                },
+                {
+                    id: 3,
+                    nome: 'José Fernandes Vieira',
+                    endereco: 'Rua da Escola, 789 - Vila Nova',
+                    telefone: '(85) 3333-3333',
+                    codigo: 'JFV003',
+                    logo: 'jose_fernandes_vieira.jpg'
+                },
+                {
+                    id: 4,
+                    nome: 'Nilo Pinheiro Campelo',
+                    endereco: 'Rua dos Estudantes, 321 - Centro',
+                    telefone: '(85) 3333-4444',
+                    codigo: 'NPC004',
+                    logo: 'nilo_pinheiro_campelo.jpg'
+                }
+            ]
+        };
+
         // Função para mostrar/ocultar senha (Desktop)
         function togglePassword() {
             const senhaInput = document.getElementById('senha');
