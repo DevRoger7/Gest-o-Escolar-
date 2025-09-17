@@ -4,17 +4,13 @@
  * Sistema de Gestão Escolar
  */
 
-require_once APP_PATH . '/Core/Controller.php';
-
-class HomeController extends Controller {
+class HomeController {
     
     public function index() {
-        $data = [
-            'title' => 'Bem-vindo ao Sistema de Gestão Escolar',
-            'message' => 'Sistema funcionando corretamente!'
-        ];
+        $title = 'Bem-vindo ao Sistema de Gestão Escolar';
+        $message = 'Sistema funcionando corretamente!';
         
-        $this->view('home/index', $data);
+        include_once __DIR__ . '/../Views/home/index.php';
     }
 }
 ?>

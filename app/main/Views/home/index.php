@@ -1,9 +1,18 @@
+<?php
+// Incluir configurações
+if (!defined('BASE_URL')) {
+    define('BASE_URL', 'http://localhost/GitHub/Gest-o-Escolar-');
+}
+?>
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?php echo isset($title) ? $title : 'Sistema de Gestão Escolar'; ?></title>
+    <link rel="icon" href="<?php echo BASE_URL; ?>/assets/icons/favicon.png" type="image/png">
+    <link rel="shortcut icon" href="<?php echo BASE_URL; ?>/assets/icons/favicon.png" type="image/png">
+    <link rel="apple-touch-icon" href="<?php echo BASE_URL; ?>/assets/icons/favicon.png">
     <style>
         body {
             font-family: Arial, sans-serif;

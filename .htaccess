@@ -1,38 +1,27 @@
-# Sistema de Gestão Escolar - Configurações Apache
-
-# Habilitar reescrita de URL
 RewriteEngine On
 
-# Redirecionar todas as requisições para index.php
+# Permitir acesso direto a arquivos de teste
+RewriteCond %{REQUEST_FILENAME} -f
+RewriteRule ^(test\.php|info\.php)$ - [L]
+
+# Redirecionar outras requisições para o index.php
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d
 RewriteRule ^(.*)$ index.php [QSA,L]
 
 # Configurações de segurança
+<Files "*.php">
+    Order Allow,Deny
+    Allow from all
+</Files>
+
 # Bloquear acesso a arquivos sensíveis
-<Files "*.ini">
-    Order allow,deny
+<FilesMatch "\.(htaccess|htpasswd|ini|log|sh|inc|bak)$">
+    Order Allow,Deny
     Deny from all
-</Files>
+</FilesMatch>
 
-<Files "*.log">
-    Order allow,deny
-    Deny from all
-</Files>
-
-<Files "config.php">
-    Order allow,deny
-    Deny from all
-</Files>
-
-# Bloquear acesso direto a pastas do sistema
-RedirectMatch 403 ^/app/.*$
-RedirectMatch 403 ^/config/.*$
-RedirectMatch 403 ^/database/.*$
-RedirectMatch 403 ^/logs/.*$
-RedirectMatch 403 ^/vendor/.*$
-
-# Configurações de cache para assets
+# Configurações de cache para assets estáticos
 <IfModule mod_expires.c>
     ExpiresActive On
     ExpiresByType text/css "access plus 1 month"
@@ -56,15 +45,3 @@ RedirectMatch 403 ^/vendor/.*$
     AddOutputFilterByType DEFLATE application/javascript
     AddOutputFilterByType DEFLATE application/x-javascript
 </IfModule>
-
-# Configurações de charset
-AddDefaultCharset UTF-8
-
-# Desabilitar listagem de diretórios
-Options -Indexes
-
-# Configurações de upload
-php_value upload_max_filesize 5M
-php_value post_max_size 5M
-php_value max_execution_time 300
-php_value max_input_time 300
