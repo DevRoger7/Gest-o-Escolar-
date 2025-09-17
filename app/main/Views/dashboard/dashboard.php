@@ -1,4 +1,9 @@
-
+<?php
+require_once('../../Models/sessao/sessions.php');
+$session = new sessions();
+$session->autenticar_session();
+$session->tempo_session();
+?>
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
