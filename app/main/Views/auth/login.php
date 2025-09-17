@@ -216,7 +216,7 @@ if (!defined('BASE_URL')) {
                 <div class="max-w-md mx-auto w-full">
                     <!-- Logo -->
                     <div class="text-center mb-6">
-                        <img src="<?php echo BASE_URL; ?>/assets/img/brasao_maranguape.png" alt="Brasão de Maranguape" class="w-20 h-20 mx-auto mb-4 object-contain logo-container">
+                        <img src="<?php echo BASE_URL; ?>/assets/img/Brasão_de_Maranguape.png" alt="Brasão de Maranguape" class="w-20 h-20 mx-auto mb-4 object-contain logo-container">
                     </div>
                     
                     <!-- Header -->
@@ -324,7 +324,7 @@ if (!defined('BASE_URL')) {
         <div class="mobile-login">
             <!-- Logo e Branding -->
             <div class="text-center mb-8">
-                <img src="<?php echo BASE_URL; ?>/assets/img/brasao_maranguape.png" alt="Brasão de Maranguape" class="w-16 h-16 mx-auto mb-4 object-contain">
+                <img src="<?php echo BASE_URL; ?>/assets/img/Brasão_de_Maranguape.png" alt="Brasão de Maranguape" class="w-16 h-16 mx-auto mb-4 object-contain">
                 <h1 class="text-2xl font-bold text-gray-800 mb-1">SIGEM</h1>
                 <p class="text-gray-600 text-sm font-medium mb-1">Sistema Integrado de Gestão Educacional Municipal</p>
                 <p class="text-gray-500 text-xs">Prefeitura Municipal de Maranguape</p>
