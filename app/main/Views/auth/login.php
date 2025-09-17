@@ -9,9 +9,12 @@ if (!defined('BASE_URL')) {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Login - Sistema de Gestão Escolar Maranguape</title>
+    
+    <!-- Favicon -->
     <link rel="icon" href="<?php echo BASE_URL; ?>/assets/icons/favicon.png" type="image/png">
     <link rel="shortcut icon" href="<?php echo BASE_URL; ?>/assets/icons/favicon.png" type="image/png">
     <link rel="apple-touch-icon" href="<?php echo BASE_URL; ?>/assets/icons/favicon.png">
+    
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
         tailwind.config = {
@@ -34,95 +37,179 @@ if (!defined('BASE_URL')) {
     </script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
-        .gradient-bg {
-            background: linear-gradient(135deg, #2D5A27 0%, #4A7C59 50%, #FF6B35 100%);
+        .professional-bg {
+            background: linear-gradient(135deg, rgba(0, 0, 0, 0.85) 0%, rgba(0, 0, 0, 0.75) 100%), 
+                        url('https://www.opovo.com.br/_midias/jpg/2024/01/10/_pontos_turisticos_maranguape_anuario__3-24969493.jpg');
+            background-size: cover;
+            background-position: center;
+            background-attachment: fixed;
+            min-height: 100vh;
+            position: relative;
         }
-        .glass-effect {
-            backdrop-filter: blur(10px);
-            background: rgba(255, 255, 255, 0.1);
-            border: 1px solid rgba(255, 255, 255, 0.2);
-        }
-        .floating-animation {
-            animation: float 6s ease-in-out infinite;
-        }
-        @keyframes float {
-            0%, 100% { transform: translateY(0px); }
-            50% { transform: translateY(-20px); }
+
+        /* Mobile: fundo sólido sem imagem */
+        @media (max-width: 1023px) {
+            .professional-bg {
+                background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+                background-attachment: scroll;
+            }
+            
+            .login-container {
+                background: transparent;
+                border: none;
+                box-shadow: none;
+                backdrop-filter: none;
+                min-height: auto;
+                flex-direction: column;
+            }
+            
+            .mobile-login {
+                background: transparent;
+                border-radius: 1.5rem;
+                padding: 2rem;
+                box-shadow: none;
+                max-width: 24rem;
+                margin: 0 auto;
+                border: none;
+            }
         }
         .slide-in {
-            animation: slideIn 0.8s ease-out;
+            animation: slideIn 0.6s ease-out;
         }
         @keyframes slideIn {
-            from { opacity: 0; transform: translateX(50px); }
+            from { opacity: 0; transform: translateX(30px); }
             to { opacity: 1; transform: translateX(0); }
         }
         .input-focus:focus {
-            transform: translateY(-2px);
-            box-shadow: 0 10px 25px rgba(45, 90, 39, 0.2);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(45, 90, 39, 0.15);
         }
         .btn-hover:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 15px 35px rgba(45, 90, 39, 0.4);
+            transform: translateY(-1px);
+            box-shadow: 0 6px 20px rgba(45, 90, 39, 0.25);
         }
         .logo-container {
             filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.1));
-            transition: transform 0.3s ease;
         }
-        .logo-container:hover {
-            transform: scale(1.05);
+
+        .form-input {
+            background: rgba(255, 255, 255, 0.9);
+            border: 2px solid rgba(45, 90, 39, 0.2);
+            transition: all 0.3s ease;
+        }
+
+        .form-input:focus {
+            background: rgba(255, 255, 255, 1);
+            border-color: #2D5A27;
+            box-shadow: 0 0 0 3px rgba(45, 90, 39, 0.1);
+        }
+
+        .login-button {
+            background: linear-gradient(135deg, #2D5A27 0%, #4A7C59 100%);
+            transition: all 0.3s ease;
+            box-shadow: 0 8px 25px -5px rgba(45, 90, 39, 0.3);
+        }
+
+        .login-button:hover {
+            background: linear-gradient(135deg, #1e3f1a 0%, #3a6348 100%);
+            transform: translateY(-2px);
+            box-shadow: 0 12px 35px -5px rgba(45, 90, 39, 0.4);
+        }
+
+        .floating-elements {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .floating-elements::before,
+        .floating-elements::after {
+            content: '';
+            position: absolute;
+            width: 200px;
+            height: 200px;
+            background: linear-gradient(45deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.02));
+            border-radius: 50%;
+            animation: float 6s ease-in-out infinite;
+        }
+
+        .floating-elements::before {
+            top: -100px;
+            right: -100px;
+            animation-delay: -3s;
+        }
+
+        .floating-elements::after {
+            bottom: -100px;
+            left: -100px;
+            animation-delay: -1.5s;
+        }
+
+        @keyframes float {
+            0%, 100% {
+                transform: translateY(0px) rotate(0deg);
+            }
+            50% {
+                transform: translateY(-20px) rotate(180deg);
+            }
+        }
+        .login-container {
+            background: rgba(255, 255, 255, 0.95);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+            backdrop-filter: blur(20px);
+            position: relative;
+            z-index: 2;
         }
     </style>
 </head>
-<body class="min-h-screen gradient-bg flex items-center justify-center p-4">
-    <!-- Elementos decorativos de fundo -->
-    <div class="absolute inset-0 overflow-hidden">
-        <div class="absolute -top-40 -right-40 w-80 h-80 bg-white bg-opacity-10 rounded-full floating-animation"></div>
-        <div class="absolute -bottom-40 -left-40 w-96 h-96 bg-accent-orange bg-opacity-20 rounded-full floating-animation" style="animation-delay: -3s;"></div>
-        <div class="absolute top-1/2 left-1/4 w-64 h-64 bg-light-green bg-opacity-15 rounded-full floating-animation" style="animation-delay: -1.5s;"></div>
-    </div>
-
-    <div class="relative z-10 w-full max-w-6xl mx-auto">
-        <div class="bg-white rounded-3xl shadow-2xl overflow-hidden min-h-[580px] flex">
+<body class="min-h-screen professional-bg flex items-center justify-center p-4">
+    <!-- Floating Background Elements -->
+    <div class="floating-elements"></div>
+    
+    <!-- Desktop Layout -->
+    <div class="hidden lg:block w-full max-w-5xl mx-auto">
+        <div class="login-container rounded-2xl overflow-hidden min-h-[500px] flex">
             <!-- Painel Esquerdo - Informações -->
-            <div class="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-primary-green to-secondary-green p-10 flex-col justify-between relative overflow-hidden">
-                <!-- Elementos decorativos -->
-                <div class="absolute top-0 right-0 w-32 h-32 bg-white bg-opacity-10 rounded-full -translate-y-16 translate-x-16"></div>
-                <div class="absolute bottom-0 left-0 w-24 h-24 bg-accent-orange bg-opacity-20 rounded-full translate-y-12 -translate-x-12"></div>
+            <div class="lg:w-1/2 bg-gradient-to-br from-primary-green to-secondary-green p-8 flex-col justify-between relative">
                 
                 <div class="relative z-10">
                     <div class="mb-8">
-                        <h1 class="text-2xl font-bold text-white mb-3">
-                            Bem-Vindo ao
+                        <h1 class="text-2xl font-semibold text-white mb-3 tracking-wide">
+                            BEM-VINDO AO
                         </h1>
-                        <h2 class="text-3xl font-extrabold text-white mb-4">
-                            Sistema de Gestão Escolar
+                        <h2 class="text-3xl font-bold text-white mb-4 tracking-wide">
+                            SIGEM
                         </h2>
-                        <p class="text-lg text-white text-opacity-90 leading-relaxed">
+                        <p class="text-base text-white text-opacity-90 leading-relaxed font-light">
                             Centralize e automatize todos os processos acadêmicos e de merenda em um único ambiente moderno e eficiente.
                         </p>
                     </div>
                     
-                    <div class="space-y-4">
-                        <div class="flex items-center text-white text-opacity-90 text-sm">
-                            <svg class="w-4 h-4 mr-3 text-accent-orange" fill="currentColor" viewBox="0 0 20 20">
+                    <div class="space-y-4 mb-8">
+                        <div class="flex items-center text-white text-opacity-90 text-sm font-medium">
+                            <svg class="w-4 h-4 mr-3 text-accent-orange flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
                                 <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path>
                             </svg>
                             Gestão completa de turmas e alunos
                         </div>
-                        <div class="flex items-center text-white text-opacity-90 text-sm">
-                            <svg class="w-4 h-4 mr-3 text-accent-orange" fill="currentColor" viewBox="0 0 20 20">
+                        <div class="flex items-center text-white text-opacity-90 text-sm font-medium">
+                            <svg class="w-4 h-4 mr-3 text-accent-orange flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
                                 <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path>
                             </svg>
                             Controle de frequência e notas
                         </div>
-                        <div class="flex items-center text-white text-opacity-90 text-sm">
-                            <svg class="w-4 h-4 mr-3 text-accent-orange" fill="currentColor" viewBox="0 0 20 20">
+                        <div class="flex items-center text-white text-opacity-90 text-sm font-medium">
+                            <svg class="w-4 h-4 mr-3 text-accent-orange flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
                                 <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path>
                             </svg>
                             Gestão de merenda escolar
                         </div>
-                        <div class="flex items-center text-white text-opacity-90 text-sm">
-                            <svg class="w-4 h-4 mr-3 text-accent-orange" fill="currentColor" viewBox="0 0 20 20">
+                        <div class="flex items-center text-white text-opacity-90 text-sm font-medium">
+                            <svg class="w-4 h-4 mr-3 text-accent-orange flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
                                 <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path>
                             </svg>
                             Relatórios e transparência
@@ -131,22 +218,26 @@ if (!defined('BASE_URL')) {
                 </div>
                 
                 <div class="relative z-10">
-                    <button class="w-full bg-transparent border-2 border-white text-white font-semibold py-3 px-6 rounded-xl hover:bg-white hover:text-primary-green transition-all duration-300 btn-hover text-sm">
+                    <button class="w-full bg-white text-primary-green font-bold py-4 px-8 rounded-2xl hover:bg-gray-100 hover:scale-105 transition-all duration-300 shadow-lg hover:shadow-xl text-base">
                         CADASTRAR
                     </button>
                 </div>
             </div>
 
-            <div class="w-full lg:w-1/2 p-8 lg:p-10 flex flex-col justify-center slide-in">
+            <!-- Painel Direito - Formulário de Login -->
+            <div class="w-full lg:w-1/2 p-6 lg:p-8 flex flex-col justify-center slide-in">
                 <div class="max-w-md mx-auto w-full">
+                    <!-- Logo -->
                     <div class="text-center mb-6">
                         <img src="<?php echo BASE_URL; ?>/assets/img/brasao_maranguape.png" alt="Brasão de Maranguape" class="w-20 h-20 mx-auto mb-4 object-contain logo-container">
                     </div>
-                
+                    
+                    <!-- Header -->
                     <div class="text-center mb-8">
                         <h1 class="text-2xl font-bold text-primary-green mb-2">LOGIN</h1>
                         <p class="text-gray-600 text-sm">Acesse sua conta para continuar</p>
                         
+                        <!-- Mensagem de erro -->
                         <?php if (isset($_SESSION['login_error'])): ?>
                             <div class="mt-4 bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-lg text-sm">
                                 <?php echo htmlspecialchars($_SESSION['login_error']); ?>
@@ -155,7 +246,9 @@ if (!defined('BASE_URL')) {
                         <?php endif; ?>
                     </div>
 
-                    <form class="space-y-5" method="POST" action="/login">
+                    <!-- Formulário -->
+                    <form method="POST" action="/login" class="space-y-5">
+                        <!-- Campo CPF/Usuário -->
                         <div class="relative">
                             <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
                                 <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -166,7 +259,7 @@ if (!defined('BASE_URL')) {
                                 type="text" 
                                 name="cpf" 
                                 placeholder="CPF ou Usuário" 
-                                class="w-full pl-12 pr-4 py-3 border-2 border-gray-200 rounded-xl focus:border-primary-green focus:outline-none transition-all duration-300 input-focus bg-gray-50 focus:bg-white text-sm"
+                                class="w-full pl-12 pr-4 py-3 rounded-xl focus:outline-none form-input text-sm"
                                 required
                             >
                         </div>
@@ -183,7 +276,7 @@ if (!defined('BASE_URL')) {
                                 name="senha" 
                                 id="senha"
                                 placeholder="Senha" 
-                                class="w-full pl-12 pr-14 py-3 border-2 border-gray-200 rounded-xl focus:border-primary-green focus:outline-none transition-all duration-300 input-focus bg-gray-50 focus:bg-white text-sm"
+                                class="w-full pl-12 pr-14 py-3 rounded-xl focus:outline-none form-input text-sm"
                                 required
                             >
                             <button 
@@ -215,7 +308,7 @@ if (!defined('BASE_URL')) {
                         <!-- Botão de Login -->
                         <button 
                             type="submit" 
-                            class="w-full bg-gradient-to-r from-primary-green to-secondary-green text-white font-semibold py-3 px-6 rounded-xl hover:from-secondary-green hover:to-primary-green transition-all duration-300 btn-hover shadow-lg text-sm"
+                            class="w-full text-white font-semibold py-3 px-6 rounded-xl login-button text-sm"
                         >
                             ENTRAR
                         </button>
@@ -223,29 +316,139 @@ if (!defined('BASE_URL')) {
 
                     <!-- Links adicionais -->
                     <div class="mt-8 text-center">
-                        <p class="text-gray-600 mb-3 text-sm">Não tem uma conta?</p>
-                        <a href="#" class="text-primary-green hover:text-secondary-green font-semibold transition-colors duration-200 text-sm">
-                            Solicitar acesso
-                        </a>
-                    </div>
-
-
-                    <!-- Versão mobile - Botão cadastrar -->
-                    <div class="lg:hidden mt-4">
-                        <button class="w-full bg-transparent border-2 border-primary-green text-primary-green font-semibold py-3 px-6 rounded-xl hover:bg-primary-green hover:text-white transition-all duration-300 text-sm">
-                            CADASTRAR
-                        </button>
+                        <p class="text-gray-600 text-sm">Não tem uma conta?</p>
                     </div>
                 </div>
             </div>
         </div>
     </div>
 
+    <!-- Mobile Layout -->
+    <div class="lg:hidden w-full max-w-md mx-auto px-4">
+        <div class="mobile-login">
+            <!-- Logo e Branding -->
+            <div class="text-center mb-8">
+                <img src="<?php echo BASE_URL; ?>/assets/img/brasao_maranguape.png" alt="Brasão de Maranguape" class="w-16 h-16 mx-auto mb-4 object-contain">
+                <h1 class="text-2xl font-bold text-gray-800 mb-2">SIGEM</h1>
+                <p class="text-gray-600 text-sm">Maranguape</p>
+            </div>
+
+            <!-- Mensagem de Boas-vindas -->
+            <div class="text-center mb-8">
+                <h2 class="text-xl font-bold text-gray-800 mb-2">Bem-vindo de volta!</h2>
+                <p class="text-gray-600 text-sm">Entre na sua conta do sistema</p>
+            </div>
+
+            <!-- Mensagem de erro -->
+            <?php if (isset($_SESSION['login_error'])): ?>
+                <div class="mb-4 bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-lg text-sm">
+                    <?php echo htmlspecialchars($_SESSION['login_error']); ?>
+                </div>
+                <?php unset($_SESSION['login_error']); ?>
+            <?php endif; ?>
+
+            <!-- Formulário -->
+            <form method="POST" action="/login" class="space-y-4">
+                <!-- Campo CPF/Usuário -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">CPF ou Usuário</label>
+                    <input 
+                        type="text" 
+                        name="cpf" 
+                        placeholder="seu@email.com" 
+                        class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-green focus:border-transparent transition-all duration-200"
+                        required
+                    >
+                </div>
+
+                <!-- Campo Senha -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Senha</label>
+                    <div class="relative">
+                        <input 
+                            type="password" 
+                            name="senha" 
+                            id="senhaMobile"
+                            placeholder="Sua senha" 
+                            class="w-full px-4 py-3 pr-12 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-green focus:border-transparent transition-all duration-200"
+                            required
+                        >
+                        <button 
+                            type="button" 
+                            onclick="togglePasswordMobile()"
+                            class="absolute inset-y-0 right-0 pr-4 flex items-center text-gray-400 hover:text-primary-green transition-colors duration-200"
+                        >
+                            <svg id="eye-open-mobile" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
+                            </svg>
+                            <svg id="eye-closed-mobile" class="w-5 h-5 hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.878 9.878L3 3m6.878 6.878L21 21"></path>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Opções adicionais -->
+                <div class="flex items-center justify-between">
+                    <label class="flex items-center">
+                        <input type="checkbox" class="w-4 h-4 text-primary-green border-gray-300 rounded focus:ring-primary-green">
+                        <span class="ml-2 text-sm text-gray-600">Lembrar de mim</span>
+                    </label>
+                    <a href="#" class="text-sm text-primary-green hover:text-secondary-green transition-colors duration-200">
+                        Esqueceu a senha?
+                    </a>
+                </div>
+
+                <!-- Botão de Login -->
+                <button 
+                    type="submit" 
+                    class="w-full bg-primary-green text-white font-semibold py-3 px-6 rounded-lg hover:bg-secondary-green transition-all duration-200"
+                >
+                    Entrar
+                </button>
+            </form>
+
+            <!-- Links adicionais -->
+            <div class="mt-6 text-center">
+                <p class="text-gray-600 text-sm">Não tem uma conta?</p>
+            </div>
+
+            <!-- Link Voltar -->
+            <div class="mt-6 text-center">
+                <a href="#" class="inline-flex items-center text-gray-500 hover:text-gray-700 transition-colors duration-200 text-sm">
+                    <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
+                    </svg>
+                    Voltar ao início
+                </a>
+            </div>
+        </div>
+    </div>
+
     <script>
+        // Função para mostrar/ocultar senha (Desktop)
         function togglePassword() {
             const senhaInput = document.getElementById('senha');
             const eyeOpen = document.getElementById('eye-open');
             const eyeClosed = document.getElementById('eye-closed');
+            
+            if (senhaInput.type === 'password') {
+                senhaInput.type = 'text';
+                eyeOpen.classList.add('hidden');
+                eyeClosed.classList.remove('hidden');
+            } else {
+                senhaInput.type = 'password';
+                eyeOpen.classList.remove('hidden');
+                eyeClosed.classList.add('hidden');
+            }
+        }
+
+        // Função para mostrar/ocultar senha (Mobile)
+        function togglePasswordMobile() {
+            const senhaInput = document.getElementById('senhaMobile');
+            const eyeOpen = document.getElementById('eye-open-mobile');
+            const eyeClosed = document.getElementById('eye-closed-mobile');
             
             if (senhaInput.type === 'password') {
                 senhaInput.type = 'text';
