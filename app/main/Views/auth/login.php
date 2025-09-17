@@ -233,6 +233,11 @@
                         <p class="text-gray-600 text-sm">Acesse sua conta para continuar</p>
                         
                         <!-- Mensagem de erro -->
+                        <?php if(isset($_GET['erro']) && $_GET['erro'] == '1'): ?>
+                        <div class="mt-4 bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-lg text-sm">
+                            <span>CPF ou senha incorretos. Tente novamente.</span>
+                        </div>
+                        <?php endif; ?>
                         <div id="errorMessage" class="mt-4 bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-lg text-sm hidden">
                             <span id="errorText"></span>
                         </div>
@@ -346,6 +351,11 @@
             </div>
 
             <!-- Mensagem de erro -->
+            <?php if(isset($_GET['erro']) && $_GET['erro'] == '1'): ?>
+            <div class="mb-4 bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-lg text-sm">
+                <span>CPF ou senha incorretos. Tente novamente.</span>
+            </div>
+            <?php endif; ?>
             <div id="errorMessageMobile" class="mb-4 bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-lg text-sm hidden">
                 <span id="errorTextMobile"></span>
             </div>

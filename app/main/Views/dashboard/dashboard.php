@@ -1,7 +1,8 @@
 <?php
-if (!defined('BASE_URL')) {
-    define('BASE_URL', 'http://localhost/GitHub/Gest-o-Escolar-');
-}
+require_once('../../Models/sessao/sessions.php');
+$session = new sessions();
+$session->autenticar_session();
+$session->tempo_session();
 ?>
 <!DOCTYPE html>
 <html lang="pt-BR">
@@ -11,9 +12,9 @@ if (!defined('BASE_URL')) {
     <title>Dashboard - SIGEM</title>
     
     <!-- Favicon -->
-    <link rel="icon" href="<?php echo BASE_URL; ?>/assets/icons/favicon.png" type="image/png">
-    <link rel="shortcut icon" href="<?php echo BASE_URL; ?>/assets/icons/favicon.png" type="image/png">
-    <link rel="apple-touch-icon" href="<?php echo BASE_URL; ?>/assets/icons/favicon.png">
+    <link rel="icon" href="../assets/icons/favicon.png" type="image/png">
+    <link rel="shortcut icon" href="../assets/icons/favicon.png" type="image/png">
+    <link rel="apple-touch-icon" href="../assets/icons/favicon.png">
     
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
@@ -94,7 +95,7 @@ if (!defined('BASE_URL')) {
         <!-- Logo e Header -->
         <div class="p-6 border-b border-gray-200">
             <div class="flex items-center space-x-3">
-                <img src="<?php echo BASE_URL; ?>/assets/img/brasao_maranguape.png" alt="Brasão de Maranguape" class="w-10 h-10 object-contain">
+                <img src="../assets/img/brasao_maranguape.png" alt="Brasão de Maranguape" class="w-10 h-10 object-contain">
                 <div>
                     <h1 class="text-lg font-bold text-gray-800">SIGEM</h1>
                     <p class="text-xs text-gray-500">Maranguape</p>
@@ -109,8 +110,8 @@ if (!defined('BASE_URL')) {
                     <span class="text-white font-semibold text-sm" id="userInitials">JS</span>
                 </div>
                 <div>
-                    <p class="text-sm font-medium text-gray-800" id="userName">João Silva Santos</p>
-                    <p class="text-xs text-gray-500">Professor</p>
+                    <p class="text-sm font-medium text-gray-800" id="userName"><?= $_SESSION['usuario_nome'] ?? 'Usuário' ?></p>
+                    <p class="text-xs text-gray-500"><?= $_SESSION['usuario_tipo'] ?? 'Funcionário' ?></p>
                 </div>
             </div>
         </div>
@@ -166,36 +167,52 @@ if (!defined('BASE_URL')) {
                         <span>Merenda</span>
                     </a>
                 </li>
-                <li id="relatorios-menu">
-                    <a href="#" onclick="showSection('relatorios')" class="menu-item flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700">
-                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
-                         </svg>
+                <?php if (isset($_SESSION['Gerenciador de Usuarios'])) { ?>
+                <li>
+                    <a href="../../subsystems/gerenciador_usuario/index.php" class="menu-item flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z"></path>
+                        </svg>
+                        <span>Gerenciador de Usuários</span>
+                    </a>
+                </li>
+                <?php } ?>
+                <?php if (isset($_SESSION['Estoque'])) { ?>
+                <li>
+                    <a href="../../subsystems/controle_de_estoque/default.php" class="menu-item flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path>
+                        </svg>
+                        <span>Controle de Estoque</span>
+                    </a>
+                </li>
+                <?php } ?>
+                <?php if (isset($_SESSION['Biblioteca'])) { ?>
+                <li>
+                    <a href="../../subsystems/biblioteca/default.php" class="menu-item flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.746 0 3.332.477 4.5 1.253v13C19.832 18.477 18.246 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path>
+                        </svg>
+                        <span>Biblioteca</span>
+                    </a>
+                </li>
+                <?php } ?>
+                <?php if (isset($_SESSION['Entrada/saída'])) { ?>
+                <li>
+                    <a href="../../subsystems/entradasaida/app/main/views/inicio.php" class="menu-item flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1"></path>
+                        </svg>
+                        <span>Entrada/Saída</span>
+                    </a>
+                </li>
+                <?php } ?>
+                <li>
+                    <a href="#" class="menu-item flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                        </svg>
                         <span>Relatórios</span>
-                    </a>
-                </li>
-                <li id="escolas-menu">
-                    <a href="#" onclick="showSection('escolas')" class="menu-item flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700">
-                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path>
-                         </svg>
-                        <span>Escolas</span>
-                    </a>
-                </li>
-                <li id="usuarios-menu">
-                    <a href="#" onclick="showSection('usuarios')" class="menu-item flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700">
-                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z"></path>
-                         </svg>
-                        <span>Usuários</span>
-                    </a>
-                </li>
-                <li id="estoque-central-menu">
-                    <a href="#" onclick="showSection('estoque-central')" class="menu-item flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700">
-                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path>
-                         </svg>
-                        <span>Estoque Central</span>
                     </a>
                 </li>
             </ul>
@@ -204,12 +221,12 @@ if (!defined('BASE_URL')) {
         
         <!-- Logout -->
         <div class="absolute bottom-0 left-0 right-0 p-4 border-t border-gray-200">
-            <button onclick="confirmLogout()" class="w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-left text-red-600 hover:bg-red-50 transition-colors duration-200">
+            <a href="../../Models/sessao/sessions.php?sair" class="w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700 hover:bg-red-50 hover:text-red-600 transition-all duration-200">
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path>
                 </svg>
-                <span class="font-medium">Sair</span>
-            </button>
+                <span>Sair</span>
+            </a>
         </div>
     </aside>
     
@@ -228,20 +245,21 @@ if (!defined('BASE_URL')) {
                     
                     <!-- Page Title - Centered on mobile -->
                     <div class="absolute left-1/2 transform -translate-x-1/2 lg:relative lg:left-auto lg:transform-none flex items-center">
-                        <img src="<?php echo BASE_URL; ?>/assets/img/brasao_maranguape.png" alt="Brasão de Maranguape" class="w-8 h-8 object-contain lg:hidden">
+                        <img src="../assets/img/brasao_maranguape.png" alt="Brasão de Maranguape" class="w-8 h-8 object-contain lg:hidden">
                         <h1 class="hidden sm:block text-xl font-semibold text-gray-800" id="pageTitle">Dashboard</h1>
                     </div>
                     
                     <!-- User Actions -->
                     <div class="flex items-center space-x-4">
-                        <!-- Notifications -->
-                        <button class="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-full focus:outline-none focus:ring-2 focus:ring-primary-green relative" aria-label="Notificações">
-                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path>
+                        <div class="text-right">
+                            <p class="text-sm font-medium text-gray-800" id="currentSchool"><?= $_SESSION['escola_atual'] ?? 'Escola Municipal' ?></p>
+                            <p class="text-xs text-gray-500">Escola Atual</p>
+                        </div>
+                        <div class="w-10 h-10 bg-gradient-to-br from-accent-orange to-warm-orange rounded-full flex items-center justify-center">
+                            <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path>
                             </svg>
-                            <!-- Notification Badge -->
-                            <span class="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full"></span>
-                        </button>
+                        </div>
                         
                         <!-- School Info (Desktop Only) -->
                         <div class="hidden lg:block">
@@ -258,7 +276,7 @@ if (!defined('BASE_URL')) {
                         <!-- User Profile Button -->
                         <button onclick="openUserProfile()" class="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-full focus:outline-none focus:ring-2 focus:ring-primary-green" aria-label="Perfil do Usuário">
                             <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"></path>
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
                             </svg>
                         </button>
                     </div>
@@ -286,7 +304,7 @@ if (!defined('BASE_URL')) {
                             <div class="flex items-center justify-between mb-3 md:mb-4">
                                 <div class="p-2 md:p-3 bg-blue-100 rounded-xl">
                                     <svg class="w-5 h-5 md:w-6 md:h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path>
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z"></path>
                                     </svg>
                                 </div>
                                 <span class="text-xs bg-green-100 text-green-800 px-2 py-1 rounded-full">+12%</span>
@@ -403,7 +421,7 @@ if (!defined('BASE_URL')) {
                         <div class="grid grid-cols-2 gap-4">
                             <button class="p-4 bg-gradient-to-br from-blue-500 to-blue-600 text-white rounded-xl hover:from-blue-600 hover:to-blue-700 transition-all duration-200 shadow-lg hover:shadow-xl">
                                 <svg class="w-6 h-6 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z"></path>
                                 </svg>
                                 <p class="text-sm font-medium">Novo Aluno</p>
                             </button>
@@ -976,31 +994,6 @@ if (!defined('BASE_URL')) {
                  'usuarios': document.getElementById('usuarios-menu'),
                  'estoque-central': document.getElementById('estoque-central-menu')
              };
-
-            Object.keys(menuItems).forEach(section => {
-                if (menuItems[section]) {
-                    if (permissions[section]) {
-                        menuItems[section].style.display = 'block';
-                    } else {
-                        menuItems[section].style.display = 'none';
-                    }
-                }
-            });
-
-            // Update user role display
-            const roleNames = {
-                [USER_TYPES.ADM_SME]: 'ADM SME',
-                [USER_TYPES.GESTOR]: 'Gestor',
-                [USER_TYPES.PROFESSOR]: 'Professor',
-                [USER_TYPES.NUTRICIONISTA]: 'Nutricionista',
-                [USER_TYPES.ADM_MERENDA]: 'ADM Merenda',
-                [USER_TYPES.ALUNO]: 'Aluno'
-            };
-
-            const roleElement = document.querySelector('.text-xs.text-gray-500');
-            if (roleElement) {
-                roleElement.textContent = roleNames[userType] || 'Professor';
-            }
         }
         
         // Toggle sidebar on mobile
