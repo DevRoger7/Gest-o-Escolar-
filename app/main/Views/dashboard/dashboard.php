@@ -1,5 +1,10 @@
 
 <?php
+require_once('../../Models/sessao/sessions.php');
+$session = new sessions();
+$session->autenticar_session();
+$session->tempo_session();
+
 if (!defined('BASE_URL')) {
     define('BASE_URL', 'http://localhost/GitHub/Gest-o-Escolar-');
 }
