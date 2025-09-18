@@ -1,0 +1,742 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - LacTech</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.39.0/dist/umd/supabase.min.js"></script>
+    <script src="config.js"></script>
+    <script src="assets/js/modal-system.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="icon" href="https://upload.wikimedia.org/wikipedia/commons/thumb/1/19/Bras%C3%A3o_de_Maranguape.png/250px-Bras%C3%A3o_de_Maranguape.png" type="image/x-icon">
+    <link rel="stylesheet" href="assets/css/style.css">
+    <style>
+        .error-message {
+            background-color: #fef2f2;
+            border: 1px solid #fecaca;
+            color: #dc2626;
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 16px;
+            display: none;
+        }
+
+        .success-message {
+            background-color: #f0fdf4;
+            border: 1px solid #bbf7d0;
+            color: #166534;
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 16px;
+            display: none;
+        }
+    </style>
+    <script>
+        // ==================== CACHE SYSTEM ====================
+        const CacheManager = {
+            cache: new Map(),
+            userData: null,
+            farmData: null,
+            lastUserFetch: 0,
+            lastFarmFetch: 0,
+            CACHE_DURATION: 5 * 60 * 1000, // 5 minutos
+            
+            // Cache de dados do usuário
+            async getUserData(forceRefresh = false) {
+                const now = Date.now();
+                if (!forceRefresh && this.userData && (now - this.lastUserFetch) < this.CACHE_DURATION) {
+                    console.log('📋 Usando dados do usuário do cache');
+                    return this.userData;
+                }
+                
+                console.log('🔄 Buscando dados do usuário no Supabase');
+                const supabase = createSupabaseClient();
+                const { data: { user } } = await supabase.auth.getUser();
+                
+                if (user) {
+                    const { data: userData } = await supabase
+                        .from('users')
+                        .select('id, name, email, role, farm_id, profile_photo')
+                        .eq('id', user.id)
+                        .single();
+                    
+                    this.userData = { ...user, ...userData };
+                    this.lastUserFetch = now;
+                    console.log('✅ Dados do usuário cacheados');
+                }
+                
+                return this.userData;
+            },
+            
+            // Cache de dados da fazenda
+            async getFarmData(forceRefresh = false) {
+                const now = Date.now();
+                if (!forceRefresh && this.farmData && (now - this.lastFarmFetch) < this.CACHE_DURATION) {
+                    console.log('📋 Usando dados da fazenda do cache');
+                    return this.farmData;
+                }
+                
+                console.log('🔄 Buscando dados da fazenda no Supabase');
+                const userData = await this.getUserData();
+                if (userData?.farm_id) {
+                    const supabase = createSupabaseClient();
+                    const { data: farmData } = await supabase
+                        .from('farms')
+                        .select('id, name, location')
+                        .eq('id', userData.farm_id)
+                        .single();
+                    
+                    this.farmData = farmData;
+                    this.lastFarmFetch = now;
+                    console.log('✅ Dados da fazenda cacheados');
+                }
+                
+                return this.farmData;
+            },
+            
+            // Cache genérico
+            set(key, data, ttl = this.CACHE_DURATION) {
+                this.cache.set(key, {
+                    data,
+                    timestamp: Date.now(),
+                    ttl
+                });
+            },
+            
+            get(key) {
+                const item = this.cache.get(key);
+                if (!item) return null;
+                
+                const now = Date.now();
+                if (now - item.timestamp > item.ttl) {
+                    this.cache.delete(key);
+                    return null;
+                }
+                
+                return item.data;
+            },
+            
+            // Limpar cache específico
+            clear(key) {
+                if (key) {
+                    this.cache.delete(key);
+                } else {
+                    this.cache.clear();
+                    this.userData = null;
+                    this.farmData = null;
+                }
+            },
+            
+            // Invalidar cache de dados críticos
+            invalidateUserData() {
+                this.userData = null;
+                this.farmData = null;
+                this.lastUserFetch = 0;
+                this.lastFarmFetch = 0;
+            }
+        };
+        
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        'forest': {
+                            50: '#f0f9f0', 100: '#dcf2dc', 200: '#bce5bc', 300: '#8dd18d',
+                            400: '#5bb85b', 500: '#369e36', 600: '#2a7f2a', 700: '#236523',
+                            800: '#1f511f', 900: '#1a431a',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="gradient-mesh min-h-screen">
+    <!-- Mobile Layout -->
+    <div class="md:hidden min-h-screen flex flex-col">
+        <div class="flex-1 bg-white p-6 pt-12">
+            <!-- Logo e título no topo -->
+            <div class="text-center mb-8">
+                <img src="https://i.postimg.cc/vmrkgDcB/lactech.png" alt="Logo Fazenda" class="w-16 h-16 rounded-2xl shadow-lg object-cover mx-auto mb-4">
+                <h1 class="text-2xl font-bold text-slate-900 mb-1">LacTech</h1>
+                <p class="text-slate-600 text-sm mb-6">Sistema de Gestão Leiteira</p>
+                <h2 class="text-2xl font-bold text-slate-900 mb-2">Bem-vindo de volta!</h2>
+                <p class="text-slate-600">Acesse sua conta para continuar</p>
+            </div>
+
+            <!-- Error/Success Messages -->
+            <div id="errorMessage" class="error-message">
+                <div class="flex items-center">
+                    <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                    </svg>
+                    <span id="errorText">Erro no login</span>
+                </div>
+            </div>
+
+            <div id="successMessage" class="success-message">
+                <div class="flex items-center">
+                    <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                    </svg>
+                    <span id="successText">Login realizado com sucesso!</span>
+                </div>
+            </div>
+
+            <form id="loginForm" class="space-y-6">
+                <div>
+                    <label class="block text-sm font-semibold text-slate-700 mb-2">Email</label>
+                    <input type="email" required name="email" class="w-full px-4 py-3 border border-slate-200 rounded-xl focus:border-forest-500 focus:ring-2 focus:ring-forest-100 focus:outline-none" placeholder="seu@email.com">
+                </div>
+                
+                <div>
+                    <label class="block text-sm font-semibold text-slate-700 mb-2">Senha</label>
+                    <div class="relative">
+                        <input type="password" required name="password" id="password" class="w-full px-4 py-3 border border-slate-200 rounded-xl focus:border-forest-500 focus:ring-2 focus:ring-forest-100 focus:outline-none pr-12" placeholder="Sua senha">
+                        <button type="button" onclick="togglePassword()" class="absolute right-3 top-1/2 transform -translate-y-1/2 text-slate-400 hover:text-slate-600">
+                            <svg id="eyeIcon" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="flex items-center justify-between">
+                    <label class="flex items-center">
+                        <input type="checkbox" name="remember" class="w-4 h-4 text-forest-600 border-slate-300 rounded focus:ring-forest-500">
+                        <span class="ml-2 text-sm text-slate-600">Lembrar de mim</span>
+                    </label>
+                    <a href="#" onclick="showForgotPassword(); return false;" class="text-sm text-forest-600 hover:text-forest-700 font-medium">Esqueceu a senha?</a>
+                </div>
+
+                <button type="submit" id="loginBtn" class="w-full bg-forest-600 text-white py-3 px-4 rounded-xl font-semibold hover:bg-forest-700 hover:shadow-lg transition-all">
+                    <span class="loading-spinner" id="loadingSpinner" style="display: none;"></span>
+                    <span id="loginText">Entrar</span>
+                </button>
+            </form>
+
+            <div class="mt-8 text-center">
+                <p class="text-slate-600 text-sm">
+                    Não tem uma conta? 
+                    <a href="register.html" class="text-forest-600 hover:text-forest-700 font-semibold">Criar conta</a>
+                </p>
+                <button onclick="window.location.href='inicio.html'" class="mt-4 text-slate-500 hover:text-slate-700 text-sm">
+                    <svg class="w-4 h-4 inline mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
+                    </svg>
+                    Voltar ao início
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div class="hidden md:flex min-h-screen">
+        <div class="flex-1 relative bg-cover bg-center" style="background-image: url('https://i.postimg.cc/dtn35crz/maranguape-bg.jpg');">
+            <div class="absolute inset-0 bg-black bg-opacity-40"></div>
+            <div class="absolute inset-0 flex items-center justify-center">
+                <div class="text-center text-white p-8">
+                    <div class="w-20 h-20 rounded-2xl flex items-center justify-center mx-auto mb-2">
+                        <img src="https://i.postimg.cc/j5RDSqbd/brasao2-marangupe.png" alt="Logo" class="w-30 h-30 object-contain" />
+                    </div>
+                    <h1 class="text-4xl font-bold mb-4">SIGEM</h1>
+                    <p class="text-xl text-white/90"> Sistema Integrado de Gestão Educacional Municipal</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Side - Form -->
+        <div class="flex-1 flex items-center justify-center p-8">
+            <div class="w-full max-w-md">
+                <!-- Logo acima do bem-vindo -->
+                <div class="text-center mb-8">
+                    <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/1/19/Bras%C3%A3o_de_Maranguape.png/250px-Bras%C3%A3o_de_Maranguape.png" alt="Logo Fazenda" class="w-16 h-16 rounded-2xl shadow-lg object-cover mx-auto mb-4">
+                    <h2 class="text-3xl font-bold text-slate-900 mb-2">Bem-vindo(a)!</h2>
+                    <p class="text-slate-600">Acesse sua conta para continuar</p>
+                </div>
+
+                <!-- Error/Success Messages Desktop -->
+                <div id="errorMessageDesktop" class="error-message">
+                    <div class="flex items-center">
+                        <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                        </svg>
+                        <span id="errorTextDesktop">Erro no login</span>
+                    </div>
+                </div>
+
+                <div id="successMessageDesktop" class="success-message">
+                    <div class="flex items-center">
+                        <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                        </svg>
+                        <span id="successTextDesktop">Login realizado com sucesso!</span>
+                    </div>
+                </div>
+
+                <form id="loginFormDesktop" class="space-y-6">
+                    <div>
+                        <label class="block text-sm font-semibold text-slate-700 mb-2">Email</label>
+                        <input type="email" required name="email" class="w-full px-4 py-3 border border-slate-200 rounded-xl focus:border-forest-500 focus:ring-2 focus:ring-forest-100 focus:outline-none" placeholder="seu@email.com">
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-semibold text-slate-700 mb-2">Senha</label>
+                        <div class="relative">
+                            <input type="password" required name="password" id="passwordDesktop" class="w-full px-4 py-3 border border-slate-200 rounded-xl focus:border-forest-500 focus:ring-2 focus:ring-forest-100 focus:outline-none pr-12" placeholder="Sua senha">
+                            <button type="button" onclick="togglePasswordDesktop()" class="absolute right-3 top-1/2 transform -translate-y-1/2 text-slate-400 hover:text-slate-600">
+                                <svg id="eyeIconDesktop" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="flex items-center justify-between">
+                        <label class="flex items-center">
+                            <input type="checkbox" name="remember" class="w-4 h-4 text-forest-600 border-slate-300 rounded focus:ring-forest-500">
+                            <span class="ml-2 text-sm text-slate-600">Lembrar de mim</span>
+                        </label>
+                        <a href="#" onclick="showForgotPassword(); return false;" class="text-sm text-forest-600 hover:text-forest-700 font-medium">Esqueceu a senha?</a>
+                    </div>
+
+                    <button type="submit" id="loginBtnDesktop" class="w-full bg-forest-600 text-white py-3 px-4 rounded-xl font-semibold hover:bg-forest-700 hover:shadow-lg transition-all">
+                        <span class="loading-spinner" id="loadingSpinnerDesktop" style="display: none;"></span>
+                        <span id="loginTextDesktop">Entrar</span>
+                    </button>
+                </form>
+
+                <!-- <div class="mt-8 text-center">
+                    <p class="text-slate-600 text-sm">
+                        Não tem uma conta? 
+                        <a class='text-forest-600 hover:text-forest-700 font-semibold' href='/primeiroacesso'>Criar conta</a>
+                    </p>
+                </div> -->
+            </div>
+        </div>
+    </div>
+
+    <script>
+
+        // Global variables for authentication state
+        let isAuthenticating = false;
+        let supabaseClient = null;
+
+        // Initialize Supabase client immediately
+        function initializeSupabaseClient() {
+            if (window.supabase && window.supabase.createClient) {
+                return window.supabase.createClient(
+                    'https://tmaamwuyucaspqcrhuck.supabase.co',
+                    'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRtYWFtd3V5dWNhc3BxY3JodWNrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTY2OTY1MzMsImV4cCI6MjA3MjI3MjUzM30.AdDXp0xrX_xKutFHQrJ47LhFdLTtanTSku7fcK1eTB0'
+                );
+            }
+            return null;
+        }
+
+        // Try to initialize immediately
+        supabaseClient = initializeSupabaseClient();
+
+        // If not initialized immediately, try again after a short delay
+        if (!supabaseClient) {
+            setTimeout(() => {
+                supabaseClient = initializeSupabaseClient();
+            }, 100);
+        }
+
+        // Wait for Supabase to be available
+        function waitForSupabase() {
+            return new Promise((resolve, reject) => {
+                let attempts = 0;
+                const maxAttempts = 200; // 10 seconds max
+                
+                const checkSupabase = () => {
+                    attempts++;
+                    
+                    // If we already have a client, use it
+                    if (supabaseClient && supabaseClient.auth) {
+                        resolve(supabaseClient);
+                        return;
+                    }
+                    
+                    // Try to initialize
+                    const client = initializeSupabaseClient();
+                    if (client && client.auth) {
+                        supabaseClient = client;
+                        resolve(client);
+                        return;
+                    }
+                    
+                    if (attempts >= maxAttempts) {
+                        reject(new Error('Timeout: Supabase não foi inicializado em 10 segundos'));
+                    } else {
+                        setTimeout(checkSupabase, 50);
+                    }
+                };
+                checkSupabase();
+            });
+        }
+
+        // Supabase initialization is handled in the main DOMContentLoaded listener below
+
+        // Password toggle functions
+        function togglePassword() {
+            const password = document.getElementById('password');
+            const eyeIcon = document.getElementById('eyeIcon');
+            
+            if (password.type === 'password') {
+                password.type = 'text';
+                eyeIcon.innerHTML = `
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.878 9.878L3 3m6.878 6.878L21 21"></path>
+                `;
+            } else {
+                password.type = 'password';
+                eyeIcon.innerHTML = `
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
+                `;
+            }
+        }
+
+        function togglePasswordDesktop() {
+            const password = document.getElementById('passwordDesktop');
+            const eyeIcon = document.getElementById('eyeIconDesktop');
+            
+            if (password.type === 'password') {
+                password.type = 'text';
+                eyeIcon.innerHTML = `
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.878 9.878L3 3m6.878 6.878L21 21"></path>
+                `;
+            } else {
+                password.type = 'password';
+                eyeIcon.innerHTML = `
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
+                `;
+            }
+        }
+
+        // Show/hide messages
+        function showError(message, isDesktop = false) {
+            const errorDiv = document.getElementById(isDesktop ? 'errorMessageDesktop' : 'errorMessage');
+            const errorText = document.getElementById(isDesktop ? 'errorTextDesktop' : 'errorText');
+            const successDiv = document.getElementById(isDesktop ? 'successMessageDesktop' : 'successMessage');
+            
+            errorText.textContent = message;
+            errorDiv.style.display = 'block';
+            successDiv.style.display = 'none';
+            
+            // Auto-hide after 5 seconds
+            setTimeout(() => {
+                errorDiv.style.display = 'none';
+            }, 5000);
+        }
+
+        function showSuccess(message, isDesktop = false) {
+            const successDiv = document.getElementById(isDesktop ? 'successMessageDesktop' : 'successMessage');
+            const successText = document.getElementById(isDesktop ? 'successTextDesktop' : 'successText');
+            const errorDiv = document.getElementById(isDesktop ? 'errorMessageDesktop' : 'errorMessage');
+            
+            successText.textContent = message;
+            successDiv.style.display = 'block';
+            errorDiv.style.display = 'none';
+        }
+
+        function hideMessages(isDesktop = false) {
+            const errorDiv = document.getElementById(isDesktop ? 'errorMessageDesktop' : 'errorMessage');
+            const successDiv = document.getElementById(isDesktop ? 'successMessageDesktop' : 'successMessage');
+            
+            errorDiv.style.display = 'none';
+            successDiv.style.display = 'none';
+        }
+
+        // Set loading state
+        function setLoadingState(isLoading, isDesktop = false) {
+            const loginBtn = document.getElementById(isDesktop ? 'loginBtnDesktop' : 'loginBtn');
+            const loadingSpinner = document.getElementById(isDesktop ? 'loadingSpinnerDesktop' : 'loadingSpinner');
+            const loginText = document.getElementById(isDesktop ? 'loginTextDesktop' : 'loginText');
+            
+            if (isLoading) {
+                loginBtn.disabled = true;
+                loadingSpinner.style.display = 'inline-block';
+                loginText.textContent = 'Entrando...';
+                isAuthenticating = true;
+            } else {
+                loginBtn.disabled = false;
+                loadingSpinner.style.display = 'none';
+                loginText.textContent = 'Entrar';
+                isAuthenticating = false;
+            }
+        }
+
+        // Authenticate user with direct database login
+        async function authenticateUser(email, password) {
+            try {
+                // Ensure Supabase is ready
+                if (!supabaseClient || !supabaseClient.auth) {
+                    supabaseClient = await waitForSupabase();
+                }
+                
+                // Verify client is valid
+                if (!supabaseClient || !supabaseClient.auth) {
+                    throw new Error('Supabase client not available');
+                }
+                
+                // First try Supabase Auth
+                const { data: authData, error: authError } = await supabaseClient.auth.signInWithPassword({
+                    email: email,
+                    password: password
+                });
+                
+                if (authError) {
+                    throw new Error('Invalid login credentials');
+                }
+                
+                // Get user profile from database - SEMPRE PEGAR A CONTA PRIMÁRIA
+                const { data: usersData, error: usersError } = await supabaseClient
+                    .from('users')
+                    .select('*')
+                    .eq('email', email)
+                    .eq('is_active', true)
+                    .order('created_at', { ascending: true }); // Primeira conta criada = primária
+                
+                if (usersError || !usersData || usersData.length === 0) {
+                    throw new Error('Usuário não encontrado no sistema. Complete o cadastro primeiro.');
+                }
+                
+                // Sempre usar a conta primária (primeira criada)
+                const userData = usersData[0];
+                
+                // Get farm information
+                const { data: farmData, error: farmError } = await supabaseClient
+                    .from('farms')
+                    .select('*')
+                    .eq('id', userData.farm_id)
+                    .single();
+                
+                if (farmError) {
+                    // Farm data not critical, continue without it
+                }
+                
+                // Create user session object
+                return {
+                    user: {
+                        id: userData.id,
+                        email: userData.email,
+                        email_confirmed_at: new Date().toISOString()
+                    },
+                    profile: {
+                        id: userData.id,
+                        email: userData.email,
+                        name: userData.name || userData.email.split('@')[0],
+                        user_type: userData.role || 'gerente',
+                        farm_id: userData.farm_id,
+                        farm_name: farmData ? farmData.name : 'Minha Fazenda',
+                        status: 'active'
+                    }
+                };
+                
+            } catch (error) {
+                throw error;
+            }
+        }
+
+        // Store user session
+        function storeUserSession(userData, remember) {
+            const storage = remember ? localStorage : sessionStorage;
+            
+            // Store user data
+            storage.setItem('userData', JSON.stringify({
+                id: userData.user.id,
+                email: userData.user.email,
+                userType: userData.profile.user_type,
+                name: userData.profile.name,
+                farmId: userData.profile.farm_id,
+                loginTime: new Date().toISOString()
+            }));
+        }
+
+        // Get redirect URL based on user type
+        function getRedirectUrl(userType) {
+            const redirectMap = {
+                'proprietario': 'proprietario.html',
+                'gerente': 'gerente.html',
+                'funcionario': 'funcionario.html',
+                'veterinario': 'veterinario.html'
+            };
+            
+            return redirectMap[userType] || 'gerente.html'; // Default fallback
+        }
+
+        // Handle form submission
+        document.getElementById('loginForm')?.addEventListener('submit', function(e) {
+            e.preventDefault();
+            handleLogin(this, false);
+        });
+
+        document.getElementById('loginFormDesktop')?.addEventListener('submit', function(e) {
+            e.preventDefault();
+            handleLogin(this, true);
+        });
+
+        async function handleLogin(form, isDesktop) {
+            if (isAuthenticating) return;
+            
+            // Ensure Supabase is ready
+            if (!supabaseClient || !supabaseClient.auth) {
+                try {
+                    supabaseClient = await waitForSupabase();
+                } catch (error) {
+                    console.error('Error getting Supabase client:', error);
+                    showError('Erro de conexão. Por favor, recarregue a página.', isDesktop);
+                    return;
+                }
+            }
+            
+            const formData = new FormData(form);
+            const email = formData.get('email');
+            const password = formData.get('password');
+            const remember = formData.get('remember') === 'on';
+            
+            // Validate inputs
+            if (!email || !password) {
+                showError('Por favor, preencha todos os campos.', isDesktop);
+                return;
+            }
+            
+            // Hide previous messages and show loading
+            hideMessages(isDesktop);
+            setLoadingState(true, isDesktop);
+            
+            try {
+                // Attempt authentication
+                const userData = await authenticateUser(email, password);
+                
+                // Store session data
+                storeUserSession(userData, remember);
+                
+                // Show success message
+                showSuccess('Login realizado com sucesso! Redirecionando...', isDesktop);
+                
+                // Redirect after short delay
+                setTimeout(() => {
+                    const redirectUrl = getRedirectUrl(userData.profile.user_type);
+                    window.location.href = redirectUrl;
+                }, 1500);
+                
+            } catch (error) {
+                console.error('Login error:', error);
+                setLoadingState(false, isDesktop);
+                
+                // Show specific error messages
+                if (error.message.includes('Invalid login credentials')) {
+                    showError('Email ou senha incorretos. Tente novamente.', isDesktop);
+                } else if (error.message.includes('Email not confirmed')) {
+                    showError('Conta criada recentemente. Tentando acesso direto...', isDesktop);
+                    // Try again after a short delay for newly created accounts
+                    setTimeout(() => {
+                        handleLogin(form, isDesktop);
+                    }, 2000);
+                    return;
+                } else {
+                    showError('Erro no servidor. Tente novamente em alguns minutos.', isDesktop);
+                }
+            }
+        }
+
+        // Forgot password functionality - redirect to recovery request page
+        function showForgotPassword() {
+            console.log('🔍 Iniciando processo de recuperação de senha...');
+            
+            // Get the email from the login form - tentar múltiplos seletores
+            let emailInput = document.querySelector('input[type="email"]');
+            
+            // Se não encontrar, tentar por name
+            if (!emailInput) {
+                emailInput = document.querySelector('input[name="email"]');
+            }
+            
+            // Se ainda não encontrar, tentar por placeholder
+            if (!emailInput) {
+                emailInput = document.querySelector('input[placeholder*="email"]');
+            }
+            
+            console.log('📧 Campo de email encontrado:', emailInput);
+            
+            const email = emailInput ? emailInput.value.trim() : '';
+            console.log('📧 Email capturado:', email);
+            
+            // Redirect to the password recovery request page with email parameter
+            if (email) {
+                const url = `solicitar-alteracao-senha.html?email=${encodeURIComponent(email)}`;
+                console.log('🔗 Redirecionando para:', url);
+                window.location.href = url;
+            } else {
+                console.log('🔗 Redirecionando sem email');
+                window.location.href = 'solicitar-alteracao-senha.html';
+            }
+        }
+
+        // Check if user is already logged in
+        function checkExistingSession() {
+            const userData = localStorage.getItem('userData') || sessionStorage.getItem('userData');
+            
+            if (userData) {
+                try {
+                    const user = JSON.parse(userData);
+                    
+                    // Verificar se os dados são válidos
+                    if (!user || !user.id || !user.userType) {
+                        localStorage.removeItem('userData');
+                        sessionStorage.removeItem('userData');
+                        return;
+                    }
+                    
+                    const loginTime = new Date(user.loginTime);
+                    const now = new Date();
+                    const hoursSinceLogin = (now - loginTime) / (1000 * 60 * 60);
+                    
+                    // Check if session is still valid (24 hours for localStorage, 8 hours for sessionStorage)
+                    const maxHours = localStorage.getItem('userData') ? 24 : 8;
+                    
+                    if (hoursSinceLogin < maxHours) {
+                        // Session is still valid, redirect to appropriate page
+                        const redirectUrl = getRedirectUrl(user.userType);
+                        window.location.replace(redirectUrl);
+                        return;
+                    } else {
+                        // Session expired, clear storage
+                        localStorage.removeItem('userData');
+                        sessionStorage.removeItem('userData');
+                    }
+                } catch (error) {
+                    // Clear corrupted session data
+                    localStorage.removeItem('userData');
+                    sessionStorage.removeItem('userData');
+                }
+            }
+        }
+
+        // Initialize page
+        document.addEventListener('DOMContentLoaded', async function() {
+            // Wait for config.js and Supabase to be ready
+            try {
+                // Wait longer for config.js to load and initialize LacTechAPI
+                await new Promise(resolve => setTimeout(resolve, 800));
+            
+                if (!supabaseClient) {
+                    supabaseClient = await waitForSupabase();
+                }
+                
+                // Check if user is already logged in
+                checkExistingSession();
+                
+            checkExistingSession();
+            } catch (error) {
+                console.error('Error initializing page:', error);
+            }
+        });
+    </script>
+</body>
+</html>
