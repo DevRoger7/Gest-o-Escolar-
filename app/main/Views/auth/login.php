@@ -11,9 +11,9 @@ if (!defined('BASE_URL')) {
     <title>Login - SIGEM | Sistema Integrado de Gestão Educacional Municipal</title>
     
     <!-- Favicon -->
-    <link rel="icon" href="<?php echo BASE_URL; ?>/assets/img/Brasão_de_Maranguape.png" type="image/png">
-    <link rel="shortcut icon" href="<?php echo BASE_URL; ?>/assets/img/Brasão_de_Maranguape.png" type="image/png">
-    <link rel="apple-touch-icon" href="<?php echo BASE_URL; ?>/assets/img/Brasão_de_Maranguape.png">
+    <link rel="icon" href="https://upload.wikimedia.org/wikipedia/commons/thumb/1/19/Bras%C3%A3o_de_Maranguape.png/250px-Bras%C3%A3o_de_Maranguape.png" type="image/png">
+    <link rel="shortcut icon" href="https://upload.wikimedia.org/wikipedia/commons/thumb/1/19/Bras%C3%A3o_de_Maranguape.png/250px-Bras%C3%A3o_de_Maranguape.png" type="image/png">
+    <link rel="apple-touch-icon" href="https://upload.wikimedia.org/wikipedia/commons/thumb/1/19/Bras%C3%A3o_de_Maranguape.png/250px-Bras%C3%A3o_de_Maranguape.png">
     
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
@@ -39,7 +39,7 @@ if (!defined('BASE_URL')) {
     <style>
         .professional-bg {
             background: linear-gradient(135deg, rgba(0, 0, 0, 0.85) 0%, rgba(0, 0, 0, 0.75) 100%), 
-                        url('<?php echo BASE_URL; ?>/assets/img/maranguape-bg.jpg');
+                        url('https://i.postimg.cc/dtn35crz/maranguape-bg.jpg');
             background-size: cover;
             background-position: center;
             background-attachment: fixed;
@@ -196,7 +196,7 @@ if (!defined('BASE_URL')) {
                 <div class="max-w-md mx-auto w-full">
                     <!-- Logo -->
                     <div class="text-center mb-6">
-                        <img src="<?php echo BASE_URL; ?>/assets/img/Brasão_de_Maranguape.png" alt="Brasão de Maranguape" class="w-20 h-20 mx-auto mb-4 object-contain logo-container">
+                        <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/1/19/Bras%C3%A3o_de_Maranguape.png/250px-Bras%C3%A3o_de_Maranguape.png" alt="Brasão de Maranguape" class="w-20 h-20 mx-auto mb-4 object-contain logo-container">
                     </div>
                     
                     <!-- Header -->
@@ -301,7 +301,7 @@ if (!defined('BASE_URL')) {
     <div class="lg:hidden w-full max-w-md mx-auto px-4 py-8">
         <!-- Logo e Branding -->
         <div class="text-center mb-8">
-            <img src="<?php echo BASE_URL; ?>/assets/img/Brasão_de_Maranguape.png" alt="Brasão de Maranguape" class="w-16 h-16 mx-auto mb-4 object-contain">
+            <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/1/19/Bras%C3%A3o_de_Maranguape.png/250px-Bras%C3%A3o_de_Maranguape.png" alt="Brasão de Maranguape" class="w-16 h-16 mx-auto mb-4 object-contain">
             <h1 class="text-2xl font-bold text-gray-800 mb-1">SIGEM</h1>
             <p class="text-gray-600 text-sm font-medium mb-1">Sistema Integrado de Gestão Educacional Municipal</p>
             <p class="text-gray-500 text-xs">Prefeitura Municipal de Maranguape</p>
