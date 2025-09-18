@@ -182,14 +182,6 @@ if (!defined('BASE_URL')) {
                 </div>
                 
                 <div class="relative z-10 space-y-4">
-                    <button class="w-full bg-white bg-opacity-25 border-2 border-white border-opacity-50 text-white font-bold py-4 px-6 rounded-2xl hover:bg-white hover:text-primary-green hover:border-white hover:shadow-2xl hover:shadow-white hover:shadow-opacity-25 transition-all duration-300 transform hover:scale-105 backdrop-blur-sm group">
-                        <div class="flex items-center justify-center">
-                            <svg class="w-5 h-5 mr-3 group-hover:rotate-12 transition-transform duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"></path>
-                            </svg>
-                            <span class="text-base tracking-wide">CADASTRAR</span>
-                        </div>
-                    </button>
                     <div class="text-center">
                         <p class="text-white text-opacity-75 text-sm font-light leading-relaxed">
                             Para professores, gestores e funcionários da rede municipal
@@ -296,10 +288,8 @@ if (!defined('BASE_URL')) {
 
                     <!-- Links adicionais -->
                     <div class="mt-8 text-center">
-                        <p class="text-gray-600 mb-3 text-sm">Não tem uma conta?</p>
-                        <a href="#" class="text-primary-green hover:text-secondary-green font-semibold transition-colors duration-200 text-sm">
-                            Solicitar acesso
-                        </a>
+                        <p class="text-gray-600 mb-3 text-sm">Acesso restrito a funcionários cadastrados</p>
+                        <p class="text-gray-500 text-xs">Entre em contato com a administração para solicitar acesso</p>
                     </div>
 
                 </div>
@@ -400,27 +390,10 @@ if (!defined('BASE_URL')) {
 
         <!-- Links adicionais -->
         <div class="mt-6 text-center">
-            <p class="text-gray-600 text-sm mb-2">Não tem uma conta?</p>
-            <button class="bg-primary-green text-white font-semibold py-2 px-4 rounded-lg hover:bg-secondary-green transition-all duration-200 text-sm">
-                <div class="flex items-center justify-center">
-                    <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"></path>
-                    </svg>
-                    Cadastrar
-                </div>
-            </button>
-            <p class="text-gray-500 text-xs mt-2">Para funcionários da rede municipal</p>
+            <p class="text-gray-600 text-sm mb-2">Acesso restrito a funcionários cadastrados</p>
+            <p class="text-gray-500 text-xs">Entre em contato com a administração para solicitar acesso</p>
         </div>
 
-        <!-- Link Voltar -->
-        <div class="mt-6 text-center">
-            <a href="#" class="inline-flex items-center text-gray-500 hover:text-gray-700 transition-colors duration-200 text-sm">
-                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
-                </svg>
-                Voltar ao início
-            </a>
-        </div>
     </div>
 
     <script>
