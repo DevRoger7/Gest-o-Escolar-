@@ -15,9 +15,9 @@ if (!defined('BASE_URL')) {
     <title>Dashboard - SIGEM</title>
     
     <!-- Favicon -->
-    <link rel="icon" href="<?php echo BASE_URL; ?>/assets/img/Brasão_de_Maranguape.png" type="image/png">
-    <link rel="shortcut icon" href="<?php echo BASE_URL; ?>/assets/img/Brasão_de_Maranguape.png" type="image/png">
-    <link rel="apple-touch-icon" href="<?php echo BASE_URL; ?>/assets/img/Brasão_de_Maranguape.png">
+    <link rel="icon" href="https://upload.wikimedia.org/wikipedia/commons/thumb/1/19/Bras%C3%A3o_de_Maranguape.png/250px-Bras%C3%A3o_de_Maranguape.png" type="image/png">
+    <link rel="shortcut icon" href="https://upload.wikimedia.org/wikipedia/commons/thumb/1/19/Bras%C3%A3o_de_Maranguape.png/250px-Bras%C3%A3o_de_Maranguape.png" type="image/png">
+    <link rel="apple-touch-icon" href="https://upload.wikimedia.org/wikipedia/commons/thumb/1/19/Bras%C3%A3o_de_Maranguape.png/250px-Bras%C3%A3o_de_Maranguape.png">
     
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
@@ -673,7 +673,7 @@ if (!defined('BASE_URL')) {
         <!-- Logo e Header -->
         <div class="p-6 border-b border-gray-200">
             <div class="flex items-center space-x-3">
-                <img src="<?php echo BASE_URL; ?>/assets/img/Brasão_de_Maranguape.png" alt="Brasão de Maranguape" class="w-10 h-10 object-contain">
+                <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/1/19/Bras%C3%A3o_de_Maranguape.png/250px-Bras%C3%A3o_de_Maranguape.png" alt="Brasão de Maranguape" class="w-10 h-10 object-contain">
                 <div>
                     <h1 class="text-lg font-bold text-gray-800">SIGEM</h1>
                     <p class="text-xs text-gray-500">Maranguape</p>
@@ -823,7 +823,7 @@ if (!defined('BASE_URL')) {
                     
                     <!-- Page Title - Centered on mobile -->
                     <div class="absolute left-1/2 transform -translate-x-1/2 lg:relative lg:left-auto lg:transform-none flex items-center">
-                        <img src="<?php echo BASE_URL; ?>/assets/img/Brasão_de_Maranguape.png" alt="Brasão de Maranguape" class="w-8 h-8 object-contain lg:hidden">
+                        <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/1/19/Bras%C3%A3o_de_Maranguape.png/250px-Bras%C3%A3o_de_Maranguape.png" alt="Brasão de Maranguape" class="w-8 h-8 object-contain lg:hidden">
                         <h1 class="hidden sm:block text-xl font-semibold text-gray-800" id="pageTitle">Dashboard</h1>
                     </div>
                     
