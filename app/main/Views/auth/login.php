@@ -236,7 +236,7 @@ if (!defined('BASE_URL')) {
                                 type="text" 
                                 id="cpf" 
                                 name="cpf" 
-                                placeholder="CPF ou Usuário" 
+                                placeholder="CPF" 
                                 class="w-full pl-12 pr-4 py-3 rounded-xl focus:outline-none form-input text-sm"
                                 maxlength="14"
                                 oninput="formatCPF(this)"
@@ -337,12 +337,12 @@ if (!defined('BASE_URL')) {
         <form id="loginFormMobile" action="../../Controllers/autenticacao/controllerLogin.php" method="post" class="space-y-5">
             <!-- Campo CPF/Usuário -->
             <div>
-                <label class="block text-sm font-medium text-gray-700 mb-2">CPF ou Usuário</label>
+                <label class="block text-sm font-medium text-gray-700 mb-2">CPF</label>
                 <input 
                     type="text" 
                     id="cpfMobile" 
                     name="cpf" 
-                    placeholder="CPF ou Usuário" 
+                    placeholder="CPF" 
                     class="w-full px-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:border-primary-green focus:ring-1 focus:ring-primary-green transition-all duration-200 bg-white"
                     maxlength="14"
                     oninput="formatCPF(this)"
