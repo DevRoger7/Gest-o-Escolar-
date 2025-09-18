@@ -47,10 +47,10 @@ if (!defined('BASE_URL')) {
             position: relative;
         }
 
-        /* Mobile: fundo sólido sem imagem */
+        /* Mobile: fundo branco limpo */
         @media (max-width: 1023px) {
             .professional-bg {
-                background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+                background: #ffffff;
                 background-attachment: scroll;
             }
             
@@ -62,18 +62,6 @@ if (!defined('BASE_URL')) {
                 min-height: auto;
                 flex-direction: column;
                 z-index: 1;
-            }
-            
-            .mobile-login {
-                background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
-                border-radius: 1.5rem;
-                padding: 2rem;
-                box-shadow: 0 20px 40px -10px rgba(0, 0, 0, 0.1);
-                max-width: 24rem;
-                margin: 0 auto;
-                border: 1px solid rgba(255, 255, 255, 0.2);
-                position: relative;
-                z-index: 10;
             }
         }
         .slide-in {
@@ -320,21 +308,20 @@ if (!defined('BASE_URL')) {
     </div>
 
     <!-- Mobile Layout -->
-    <div class="lg:hidden w-full max-w-md mx-auto px-4">
-        <div class="mobile-login">
-            <!-- Logo e Branding -->
-            <div class="text-center mb-8">
-                <img src="<?php echo BASE_URL; ?>/assets/img/Brasão_de_Maranguape.png" alt="Brasão de Maranguape" class="w-16 h-16 mx-auto mb-4 object-contain">
-                <h1 class="text-2xl font-bold text-gray-800 mb-1">SIGEM</h1>
-                <p class="text-gray-600 text-sm font-medium mb-1">Sistema Integrado de Gestão Educacional Municipal</p>
-                <p class="text-gray-500 text-xs">Prefeitura Municipal de Maranguape</p>
-            </div>
+    <div class="lg:hidden w-full max-w-md mx-auto px-4 py-8">
+        <!-- Logo e Branding -->
+        <div class="text-center mb-8">
+            <img src="<?php echo BASE_URL; ?>/assets/img/Brasão_de_Maranguape.png" alt="Brasão de Maranguape" class="w-16 h-16 mx-auto mb-4 object-contain">
+            <h1 class="text-2xl font-bold text-gray-800 mb-1">SIGEM</h1>
+            <p class="text-gray-600 text-sm font-medium mb-1">Sistema Integrado de Gestão Educacional Municipal</p>
+            <p class="text-gray-500 text-xs">Prefeitura Municipal de Maranguape</p>
+        </div>
 
-            <!-- Mensagem de Boas-vindas -->
-            <div class="text-center mb-8">
-                <h2 class="text-xl font-bold text-gray-800 mb-2">Bem-vindo de volta!</h2>
-                <p class="text-gray-600 text-sm">Entre na sua conta do sistema</p>
-            </div>
+        <!-- Mensagem de Boas-vindas -->
+        <div class="text-center mb-8">
+            <h2 class="text-xl font-bold text-gray-800 mb-2">Bem-vindo de volta!</h2>
+            <p class="text-gray-600 text-sm">Entre na sua conta do sistema</p>
+        </div>
 
             <!-- Mensagem de erro -->
             <?php if(isset($_GET['erro']) && $_GET['erro'] == '1'): ?>
@@ -346,95 +333,93 @@ if (!defined('BASE_URL')) {
                 <span id="errorTextMobile"></span>
             </div>
 
-            <!-- Formulário -->
-            <form id="loginFormMobile" action="../../Controllers/autenticacao/controllerLogin.php" method="post" class="space-y-4">
-                <!-- Campo CPF/Usuário -->
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-2">CPF ou Usuário</label>
+        <!-- Formulário -->
+        <form id="loginFormMobile" action="../../Controllers/autenticacao/controllerLogin.php" method="post" class="space-y-5">
+            <!-- Campo CPF/Usuário -->
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">CPF ou Usuário</label>
+                <input 
+                    type="text" 
+                    id="cpfMobile" 
+                    name="cpf" 
+                    placeholder="CPF ou Usuário" 
+                    class="w-full px-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:border-primary-green focus:ring-1 focus:ring-primary-green transition-all duration-200 bg-white"
+                    maxlength="14"
+                    oninput="formatCPF(this)"
+                    required
+                >
+            </div>
+
+            <!-- Campo Senha -->
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">Senha</label>
+                <div class="relative">
                     <input 
-                        type="text" 
-                        id="cpfMobile" 
-                        name="cpf" 
-                        placeholder="CPF ou Usuário" 
-                        class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-green focus:border-transparent transition-all duration-200"
-                        maxlength="14"
-                        oninput="formatCPF(this)"
+                        type="password" 
+                        id="senhaMobile"
+                        name="senha" 
+                        placeholder="Sua senha" 
+                        class="w-full px-4 py-3 pr-12 border border-gray-200 rounded-lg focus:outline-none focus:border-primary-green focus:ring-1 focus:ring-primary-green transition-all duration-200 bg-white"
                         required
                     >
-                </div>
-
-                <!-- Campo Senha -->
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-2">Senha</label>
-                    <div class="relative">
-                        <input 
-                            type="password" 
-                            id="senhaMobile"
-                            name="senha" 
-                            placeholder="Sua senha" 
-                            class="w-full px-4 py-3 pr-12 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-green focus:border-transparent transition-all duration-200"
-                            required
-                        >
-                        <button 
-                            type="button" 
-                            onclick="togglePasswordMobile()"
-                            class="absolute inset-y-0 right-0 pr-4 flex items-center text-gray-400 hover:text-primary-green transition-colors duration-200"
-                        >
-                            <svg id="eye-open-mobile" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
-                            </svg>
-                            <svg id="eye-closed-mobile" class="w-5 h-5 hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.878 9.878L3 3m6.878 6.878L21 21"></path>
-                            </svg>
-                        </button>
-                    </div>
-                </div>
-
-                <!-- Opções adicionais -->
-                <div class="flex items-center justify-between">
-                    <label class="flex items-center">
-                        <input type="checkbox" class="w-4 h-4 text-primary-green border-gray-300 rounded focus:ring-primary-green">
-                        <span class="ml-2 text-sm text-gray-600">Lembrar de mim</span>
-                    </label>
-                    <a href="#" class="text-sm text-primary-green hover:text-secondary-green transition-colors duration-200">
-                        Esqueceu a senha?
-                    </a>
-                </div>
-
-                <!-- Botão de Login -->
-                <button 
-                    type="submit" 
-                    class="w-full bg-primary-green text-white font-semibold py-3 px-6 rounded-lg hover:bg-secondary-green transition-all duration-200"
-                >
-                    Entrar
-                </button>
-            </form>
-
-            <!-- Links adicionais -->
-            <div class="mt-6 text-center">
-                <p class="text-gray-600 text-sm mb-2">Não tem uma conta?</p>
-                <button class="bg-primary-green text-white font-semibold py-2 px-4 rounded-lg hover:bg-secondary-green transition-all duration-200 text-sm">
-                    <div class="flex items-center justify-center">
-                        <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"></path>
+                    <button 
+                        type="button" 
+                        onclick="togglePasswordMobile()"
+                        class="absolute inset-y-0 right-0 pr-4 flex items-center text-gray-400 hover:text-primary-green transition-colors duration-200"
+                    >
+                        <svg id="eye-open-mobile" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
                         </svg>
-                        Cadastrar
-                    </div>
-                </button>
-                <p class="text-gray-500 text-xs mt-2">Para funcionários da rede municipal</p>
+                        <svg id="eye-closed-mobile" class="w-5 h-5 hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.878 9.878L3 3m6.878 6.878L21 21"></path>
+                        </svg>
+                    </button>
+                </div>
             </div>
 
-
-            <!-- Link Voltar -->
-            <div class="mt-6 text-center">
-                <a href="#" class="inline-flex items-center text-gray-500 hover:text-gray-700 transition-colors duration-200 text-sm">
-                    <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
-                    </svg>
-                    Voltar ao início
+            <!-- Opções adicionais -->
+            <div class="flex items-center justify-between">
+                <label class="flex items-center">
+                    <input type="checkbox" class="w-4 h-4 text-primary-green border-gray-300 rounded focus:ring-primary-green">
+                    <span class="ml-2 text-sm text-gray-600">Lembrar de mim</span>
+                </label>
+                <a href="#" class="text-sm text-primary-green hover:text-secondary-green transition-colors duration-200">
+                    Esqueceu a senha?
                 </a>
             </div>
+
+            <!-- Botão de Login -->
+            <button 
+                type="submit" 
+                class="w-full bg-primary-green text-white font-semibold py-3 px-6 rounded-lg hover:bg-secondary-green transition-all duration-200"
+            >
+                Entrar
+            </button>
+        </form>
+
+        <!-- Links adicionais -->
+        <div class="mt-6 text-center">
+            <p class="text-gray-600 text-sm mb-2">Não tem uma conta?</p>
+            <button class="bg-primary-green text-white font-semibold py-2 px-4 rounded-lg hover:bg-secondary-green transition-all duration-200 text-sm">
+                <div class="flex items-center justify-center">
+                    <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"></path>
+                    </svg>
+                    Cadastrar
+                </div>
+            </button>
+            <p class="text-gray-500 text-xs mt-2">Para funcionários da rede municipal</p>
+        </div>
+
+        <!-- Link Voltar -->
+        <div class="mt-6 text-center">
+            <a href="#" class="inline-flex items-center text-gray-500 hover:text-gray-700 transition-colors duration-200 text-sm">
+                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
+                </svg>
+                Voltar ao início
+            </a>
         </div>
     </div>
 
