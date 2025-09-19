@@ -4,9 +4,12 @@ if(isset($_POST["cpf"]) && isset($_POST["senha"]))
 {
     $cpf = $_POST["cpf"];
     $senha = $_POST["senha"];
+    $cpfSemFormatacao = preg_replace('/\D/', '', $cpf); 
+
+    print_r($cpfSemFormatacao);
     require_once("../../Models/autenticacao/modelLogin.php");
     $modelLogin = new ModelLogin();
-    $resultado = $modelLogin->login($cpf, $senha);
+    $resultado = $modelLogin->login($cpfSemFormatacao, $senha);
     
     if($resultado)
     {

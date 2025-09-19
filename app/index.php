@@ -1,4 +1,4 @@
 <?php
-    header("Location: main/views/auth/login.php");     
+    header("Location: main/Views/auth/login.php");     
     exit();
 ?>
