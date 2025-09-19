@@ -9,16 +9,17 @@ if (!defined('BASE_URL')) {
 ?>
 <!DOCTYPE html>
 <html lang="pt-BR">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dashboard - SIGEM</title>
-    
+
     <!-- Favicon -->
     <link rel="icon" href="https://upload.wikimedia.org/wikipedia/commons/thumb/1/19/Bras%C3%A3o_de_Maranguape.png/250px-Bras%C3%A3o_de_Maranguape.png" type="image/png">
     <link rel="shortcut icon" href="https://upload.wikimedia.org/wikipedia/commons/thumb/1/19/Bras%C3%A3o_de_Maranguape.png/250px-Bras%C3%A3o_de_Maranguape.png" type="image/png">
     <link rel="apple-touch-icon" href="https://upload.wikimedia.org/wikipedia/commons/thumb/1/19/Bras%C3%A3o_de_Maranguape.png/250px-Bras%C3%A3o_de_Maranguape.png">
-    
+
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
         tailwind.config = {
@@ -40,7 +41,7 @@ if (!defined('BASE_URL')) {
         }
     </script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    
+
     <!-- VLibras -->
     <div vw class="enabled">
         <div vw-access-button class="active"></div>
@@ -52,94 +53,98 @@ if (!defined('BASE_URL')) {
     <script>
         new window.VLibras.Widget('https://vlibras.gov.br/app');
     </script>
-    
+
     <style>
         .sidebar-transition {
             transition: all 0.3s ease-in-out;
         }
-        
+
         .content-transition {
             transition: margin-left 0.3s ease-in-out;
         }
-        
+
         /* Tema Claro Melhorado */
         body {
             background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
             min-height: 100vh;
         }
-        
+
         .card-hover {
             transition: all 0.3s ease;
             background: linear-gradient(145deg, #ffffff 0%, #f8fafc 100%);
             border: 1px solid #e2e8f0;
         }
-        
+
         .card-hover:hover {
             transform: translateY(-2px);
             box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
             background: linear-gradient(145deg, #ffffff 0%, #f1f5f9 100%);
         }
-        
+
         /* Sidebar tema claro */
         #sidebar {
             background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
             border-right: 1px solid #e2e8f0;
         }
-        
+
         .menu-item {
             transition: all 0.2s ease;
         }
-        
+
         .menu-item:hover {
             background: linear-gradient(90deg, rgba(45, 90, 39, 0.08) 0%, rgba(45, 90, 39, 0.04) 100%);
             transform: translateX(4px);
         }
-        
+
         .menu-item.active {
             background: linear-gradient(90deg, rgba(45, 90, 39, 0.12) 0%, rgba(45, 90, 39, 0.06) 100%);
             border-right: 3px solid #2D5A27;
         }
-        
+
         /* Header tema claro */
         header {
             background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
             border-bottom: 1px solid #e2e8f0;
         }
-        
+
         /* Botões melhorados */
         button {
             transition: all 0.2s ease;
         }
-        
+
         button:hover {
             transform: translateY(-1px);
         }
-        
+
         /* Inputs melhorados */
-        input, select, textarea {
+        input,
+        select,
+        textarea {
             transition: all 0.2s ease;
         }
-        
-        input:focus, select:focus, textarea:focus {
+
+        input:focus,
+        select:focus,
+        textarea:focus {
             box-shadow: 0 0 0 3px rgba(45, 90, 39, 0.1);
         }
-        
+
         .mobile-menu-overlay {
             backdrop-filter: blur(4px);
         }
-        
-        
-        
+
+
+
         @media (max-width: 1023px) {
             .sidebar-mobile {
                 transform: translateX(-100%);
             }
-            
+
             .sidebar-mobile.open {
                 transform: translateX(0);
             }
         }
-        
+
         /* Acessibilidade - Tema Escuro */
         [data-theme="dark"] {
             --bg-primary: #0f0f0f;
@@ -164,156 +169,156 @@ if (!defined('BASE_URL')) {
             --error: #ef4444;
             --info: #3b82f6;
         }
-        
+
         [data-theme="dark"] body {
             background: linear-gradient(135deg, var(--bg-primary) 0%, var(--bg-secondary) 100%);
             color: var(--text-primary);
             min-height: 100vh;
         }
-        
+
         [data-theme="dark"] .bg-white {
             background: linear-gradient(145deg, var(--bg-secondary) 0%, var(--bg-tertiary) 100%) !important;
             color: var(--text-primary) !important;
             border: 1px solid var(--border-color) !important;
         }
-        
+
         [data-theme="dark"] .text-gray-800 {
             color: var(--text-primary) !important;
         }
-        
+
         [data-theme="dark"] .text-gray-600 {
             color: var(--text-secondary) !important;
         }
-        
+
         [data-theme="dark"] .text-gray-500 {
             color: var(--text-muted) !important;
         }
-        
+
         [data-theme="dark"] .text-gray-400 {
             color: var(--text-muted) !important;
         }
-        
+
         [data-theme="dark"] .border-gray-200 {
             border-color: var(--border-color) !important;
         }
-        
+
         [data-theme="dark"] .bg-gray-50 {
             background: linear-gradient(145deg, var(--bg-tertiary) 0%, var(--bg-quaternary) 100%) !important;
             border: 1px solid var(--border-light) !important;
         }
-        
+
         [data-theme="dark"] .bg-gray-100 {
             background-color: var(--bg-quaternary) !important;
         }
-        
+
         [data-theme="dark"] .shadow-lg {
             box-shadow: var(--shadow-lg) !important;
         }
-        
+
         [data-theme="dark"] .shadow-sm {
             box-shadow: var(--shadow) !important;
         }
-        
+
         /* Cores específicas do tema escuro */
         [data-theme="dark"] .bg-primary-green {
             background: linear-gradient(135deg, var(--primary-green) 0%, var(--primary-green-hover) 100%) !important;
             color: white !important;
         }
-        
+
         [data-theme="dark"] .text-primary-green {
             color: var(--primary-green) !important;
         }
-        
+
         [data-theme="dark"] .bg-blue-100 {
             background-color: rgba(59, 130, 246, 0.2) !important;
         }
-        
+
         [data-theme="dark"] .text-blue-600 {
             color: var(--accent-blue) !important;
         }
-        
+
         [data-theme="dark"] .bg-green-100 {
             background-color: rgba(34, 197, 94, 0.2) !important;
         }
-        
+
         [data-theme="dark"] .text-green-600 {
             color: var(--success) !important;
         }
-        
+
         [data-theme="dark"] .bg-orange-100 {
             background-color: rgba(245, 158, 11, 0.2) !important;
         }
-        
+
         [data-theme="dark"] .text-orange-600 {
             color: var(--accent-orange) !important;
         }
-        
+
         [data-theme="dark"] .bg-purple-100 {
             background-color: rgba(139, 92, 246, 0.2) !important;
         }
-        
+
         [data-theme="dark"] .text-purple-600 {
             color: var(--accent-purple) !important;
         }
-        
+
         [data-theme="dark"] .bg-red-100 {
             background-color: rgba(239, 68, 68, 0.2) !important;
         }
-        
+
         [data-theme="dark"] .text-red-600 {
             color: var(--error) !important;
         }
-        
+
         /* Gradientes especiais para o tema escuro */
         [data-theme="dark"] .card-hover {
             background: linear-gradient(145deg, var(--bg-secondary) 0%, var(--bg-tertiary) 100%);
             border: 1px solid var(--border-color);
             transition: all 0.3s ease;
         }
-        
+
         [data-theme="dark"] .card-hover:hover {
             background: linear-gradient(145deg, var(--bg-tertiary) 0%, var(--bg-quaternary) 100%);
             border-color: var(--border-light);
             transform: translateY(-2px);
             box-shadow: var(--shadow-lg);
         }
-        
+
         /* Sidebar tema escuro */
         [data-theme="dark"] #sidebar {
             background: linear-gradient(180deg, var(--bg-secondary) 0%, var(--bg-primary) 100%);
             border-right: 1px solid var(--border-color);
         }
-        
+
         [data-theme="dark"] .menu-item {
             color: var(--text-secondary) !important;
         }
-        
+
         [data-theme="dark"] .menu-item:hover {
             background: linear-gradient(90deg, rgba(34, 197, 94, 0.1) 0%, rgba(34, 197, 94, 0.05) 100%);
             color: var(--text-primary) !important;
         }
-        
+
         [data-theme="dark"] .menu-item.active {
             background: linear-gradient(90deg, rgba(34, 197, 94, 0.2) 0%, rgba(34, 197, 94, 0.1) 100%);
             border-right: 3px solid var(--primary-green);
             color: var(--text-primary) !important;
         }
-        
+
         /* Header tema escuro */
         [data-theme="dark"] header {
             background: linear-gradient(135deg, var(--bg-secondary) 0%, var(--bg-tertiary) 100%);
             border-bottom: 1px solid var(--border-color);
         }
-        
+
         /* Botões tema escuro */
         [data-theme="dark"] button {
             transition: all 0.2s ease;
         }
-        
+
         [data-theme="dark"] button:hover {
             transform: translateY(-1px);
         }
-        
+
         /* Inputs tema escuro */
         [data-theme="dark"] input,
         [data-theme="dark"] select,
@@ -322,153 +327,153 @@ if (!defined('BASE_URL')) {
             border-color: var(--border-color) !important;
             color: var(--text-primary) !important;
         }
-        
+
         [data-theme="dark"] input:focus,
         [data-theme="dark"] select:focus,
         [data-theme="dark"] textarea:focus {
             border-color: var(--primary-green) !important;
             box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.1) !important;
         }
-        
+
         /* Correção para cards de atividades no tema escuro */
         [data-theme="dark"] .bg-gradient-to-r {
             background: linear-gradient(145deg, var(--bg-tertiary) 0%, var(--bg-quaternary) 100%) !important;
             border: 1px solid var(--border-color) !important;
         }
-        
+
         [data-theme="dark"] .from-blue-50,
         [data-theme="dark"] .to-blue-100 {
             background: linear-gradient(145deg, rgba(59, 130, 246, 0.1) 0%, rgba(59, 130, 246, 0.2) 100%) !important;
         }
-        
+
         [data-theme="dark"] .from-green-50,
         [data-theme="dark"] .to-green-100 {
             background: linear-gradient(145deg, rgba(34, 197, 94, 0.1) 0%, rgba(34, 197, 94, 0.2) 100%) !important;
         }
-        
+
         [data-theme="dark"] .from-orange-50,
         [data-theme="dark"] .to-orange-100 {
             background: linear-gradient(145deg, rgba(245, 158, 11, 0.1) 0%, rgba(245, 158, 11, 0.2) 100%) !important;
         }
-        
+
         /* Texto dos cards de atividades no tema escuro */
         [data-theme="dark"] .text-gray-800 {
             color: var(--text-primary) !important;
         }
-        
+
         [data-theme="dark"] .text-gray-600 {
             color: var(--text-secondary) !important;
         }
-        
+
         [data-theme="dark"] .text-gray-500 {
             color: var(--text-muted) !important;
         }
-        
+
         /* Ícones dos cards de atividades no tema escuro */
         [data-theme="dark"] .bg-blue-500 {
             background-color: var(--accent-blue) !important;
         }
-        
+
         [data-theme="dark"] .bg-green-500 {
             background-color: var(--success) !important;
         }
-        
+
         [data-theme="dark"] .bg-orange-500 {
             background-color: var(--accent-orange) !important;
         }
-        
+
         [data-theme="dark"] .text-white {
             color: var(--text-primary) !important;
         }
-        
+
         /* Correção para botões de ações rápidas no tema escuro */
         [data-theme="dark"] .from-blue-500,
         [data-theme="dark"] .to-blue-600 {
             background: linear-gradient(135deg, var(--accent-blue) 0%, #2563eb 100%) !important;
         }
-        
+
         [data-theme="dark"] .from-green-500,
         [data-theme="dark"] .to-green-600 {
             background: linear-gradient(135deg, var(--success) 0%, #059669 100%) !important;
         }
-        
+
         [data-theme="dark"] .from-orange-500,
         [data-theme="dark"] .to-orange-600 {
             background: linear-gradient(135deg, var(--accent-orange) 0%, #d97706 100%) !important;
         }
-        
+
         [data-theme="dark"] .from-purple-500,
         [data-theme="dark"] .to-purple-600 {
             background: linear-gradient(135deg, var(--accent-purple) 0%, #7c3aed 100%) !important;
         }
-        
+
         /* Correção para hover dos botões no tema escuro */
         [data-theme="dark"] .hover\:from-blue-600:hover,
         [data-theme="dark"] .hover\:to-blue-700:hover {
             background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%) !important;
         }
-        
+
         [data-theme="dark"] .hover\:from-green-600:hover,
         [data-theme="dark"] .hover\:to-green-700:hover {
             background: linear-gradient(135deg, #059669 0%, #047857 100%) !important;
         }
-        
+
         [data-theme="dark"] .hover\:from-orange-600:hover,
         [data-theme="dark"] .hover\:to-orange-700:hover {
             background: linear-gradient(135deg, #d97706 0%, #b45309 100%) !important;
         }
-        
+
         [data-theme="dark"] .hover\:from-purple-600:hover,
         [data-theme="dark"] .hover\:to-purple-700:hover {
             background: linear-gradient(135deg, #7c3aed 0%, #6d28d9 100%) !important;
         }
-        
+
         /* Correção para o banner de boas-vindas no tema escuro */
         [data-theme="dark"] .text-green-100 {
             color: var(--text-secondary) !important;
         }
-        
+
         /* Estilos para seção de acessibilidade no tema escuro */
         [data-theme="dark"] .bg-gradient-to-br.from-gray-50.to-gray-100 {
             background: linear-gradient(145deg, var(--bg-tertiary) 0%, var(--bg-quaternary) 100%) !important;
             border-color: var(--border-color) !important;
         }
-        
+
         [data-theme="dark"] .bg-white {
             background-color: var(--bg-secondary) !important;
             border-color: var(--border-color) !important;
         }
-        
+
         [data-theme="dark"] .bg-gradient-to-r.from-blue-50.to-indigo-50 {
             background: linear-gradient(135deg, rgba(59, 130, 246, 0.1) 0%, rgba(99, 102, 241, 0.1) 100%) !important;
             border-color: var(--border-color) !important;
         }
-        
+
         [data-theme="dark"] .border-blue-200 {
             border-color: var(--border-color) !important;
         }
-        
+
         [data-theme="dark"] .bg-gray-100 {
             background-color: var(--bg-quaternary) !important;
         }
-        
+
         [data-theme="dark"] .text-gray-600 {
             color: var(--text-muted) !important;
         }
-        
+
         [data-theme="dark"] .text-gray-700 {
             color: var(--text-secondary) !important;
         }
-        
+
         /* Toggle switches no tema escuro */
         [data-theme="dark"] .peer-checked\:bg-primary-green:checked {
             background-color: var(--primary-green) !important;
         }
-        
+
         [data-theme="dark"] .bg-gray-200 {
             background-color: var(--bg-quaternary) !important;
         }
-        
+
         /* Acessibilidade - Alto Contraste */
         [data-contrast="high"] {
             --contrast-bg: #000000;
@@ -476,44 +481,44 @@ if (!defined('BASE_URL')) {
             --contrast-border: #ffffff;
             --contrast-accent: #ffff00;
         }
-        
+
         [data-contrast="high"] body {
             background-color: var(--contrast-bg);
             color: var(--contrast-text);
         }
-        
+
         [data-contrast="high"] .bg-white,
         [data-contrast="high"] .bg-gray-50 {
             background-color: var(--contrast-bg) !important;
             color: var(--contrast-text) !important;
             border: 2px solid var(--contrast-border) !important;
         }
-        
+
         [data-contrast="high"] .text-gray-800,
         [data-contrast="high"] .text-gray-600,
         [data-contrast="high"] .text-gray-500 {
             color: var(--contrast-text) !important;
         }
-        
+
         [data-contrast="high"] .border-gray-200 {
             border-color: var(--contrast-border) !important;
         }
-        
+
         [data-contrast="high"] .bg-primary-green {
             background-color: var(--contrast-accent) !important;
             color: var(--contrast-bg) !important;
         }
-        
+
         [data-contrast="high"] .text-primary-green {
             color: var(--contrast-accent) !important;
         }
-        
+
         /* Acessibilidade - Foco Visível */
         .focus-visible:focus {
             outline: 3px solid #4A90E2 !important;
             outline-offset: 2px !important;
         }
-        
+
         /* Acessibilidade - Redução de Movimento */
         @media (prefers-reduced-motion: reduce) {
             * {
@@ -522,152 +527,154 @@ if (!defined('BASE_URL')) {
                 transition-duration: 0.01ms !important;
             }
         }
-        
+
         /* Acessibilidade - Tamanho de Fonte */
         [data-font-size="large"] {
             font-size: 1.125rem;
         }
-        
+
         [data-font-size="larger"] {
             font-size: 1.25rem;
         }
-        
+
         [data-font-size="largest"] {
             font-size: 1.5rem;
         }
-        
+
         /* Scrollbar personalizada para tema escuro */
         [data-theme="dark"] ::-webkit-scrollbar {
             width: 8px;
         }
-        
+
         [data-theme="dark"] ::-webkit-scrollbar-track {
             background: var(--bg-secondary);
         }
-        
+
         [data-theme="dark"] ::-webkit-scrollbar-thumb {
             background: var(--bg-quaternary);
             border-radius: 4px;
         }
-        
+
         [data-theme="dark"] ::-webkit-scrollbar-thumb:hover {
             background: var(--border-light);
         }
-        
+
         /* Efeitos especiais para o tema escuro */
         [data-theme="dark"] .glass-effect {
             background: rgba(255, 255, 255, 0.05);
             backdrop-filter: blur(10px);
             border: 1px solid rgba(255, 255, 255, 0.1);
         }
-        
+
         /* Melhorias nos modais do tema escuro */
         [data-theme="dark"] .modal-content {
             background: linear-gradient(145deg, var(--bg-secondary) 0%, var(--bg-tertiary) 100%);
             border: 1px solid var(--border-color);
         }
-        
+
         /* Hover effects melhorados para tema escuro */
         [data-theme="dark"] .hover-lift {
             transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         }
-        
+
         [data-theme="dark"] .hover-lift:hover {
             transform: translateY(-4px);
             box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.6);
         }
-        
+
         /* Gradientes especiais para cards no tema escuro */
         [data-theme="dark"] .gradient-card {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
         }
-        
+
         [data-theme="dark"] .gradient-card-green {
             background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
         }
-        
+
         [data-theme="dark"] .gradient-card-orange {
             background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
         }
-        
+
         [data-theme="dark"] .gradient-card-blue {
             background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
         }
-        
+
         /* Scrollbar personalizada para tema claro */
         ::-webkit-scrollbar {
             width: 8px;
         }
-        
+
         ::-webkit-scrollbar-track {
             background: #f1f1f1;
             border-radius: 4px;
         }
-        
+
         ::-webkit-scrollbar-thumb {
             background: #c1c1c1;
             border-radius: 4px;
         }
-        
+
         ::-webkit-scrollbar-thumb:hover {
             background: #a8a8a8;
         }
-        
+
         /* Melhorias visuais extras para tema claro */
         .glass-effect {
             background: rgba(255, 255, 255, 0.1);
             backdrop-filter: blur(10px);
             border: 1px solid rgba(255, 255, 255, 0.2);
         }
-        
+
         /* Animações suaves */
         @keyframes fadeInUp {
             from {
                 opacity: 0;
                 transform: translateY(20px);
             }
+
             to {
                 opacity: 1;
                 transform: translateY(0);
             }
         }
-        
+
         .fade-in-up {
             animation: fadeInUp 0.6s ease-out;
         }
-        
+
         /* Hover effects melhorados */
         .hover-lift {
             transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         }
-        
+
         .hover-lift:hover {
             transform: translateY(-4px);
             box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
         }
-        
+
         /* Gradientes especiais para cards */
         .gradient-card {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
         }
-        
+
         .gradient-card-green {
             background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
         }
-        
+
         .gradient-card-orange {
             background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
         }
-        
+
         .gradient-card-blue {
             background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
         }
     </style>
 </head>
+
 <body class="bg-gray-50 font-sans">
     <!-- Mobile Menu Overlay -->
     <div id="mobileOverlay" class="fixed inset-0 bg-black bg-opacity-50 z-40 hidden mobile-menu-overlay lg:hidden"></div>
-    
+
     <!-- Sidebar -->
     <aside id="sidebar" class="fixed left-0 top-0 h-full w-64 bg-white shadow-lg sidebar-transition z-50 lg:translate-x-0 sidebar-mobile">
         <!-- Logo e Header -->
@@ -680,12 +687,24 @@ if (!defined('BASE_URL')) {
                 </div>
             </div>
         </div>
-        
+
         <!-- User Info -->
         <div class="p-4 border-b border-gray-200">
             <div class="flex items-center space-x-3">
                 <div class="w-10 h-10 bg-primary-green rounded-full flex items-center justify-center">
-                    <span class="text-white font-semibold text-sm" id="userInitials">JS</span>
+                    <span class="text-2 font-bold text-white" id="profileInitials"><?php
+                                                                                        // Pega as 2 primeiras letras do nome da sessão
+                                                                                        $nome = $_SESSION['nome'] ?? '';
+                                                                                        $iniciais = '';
+                                                                                        if (strlen($nome) >= 2) {
+                                                                                            $iniciais = strtoupper(substr($nome, 0, 2));
+                                                                                        } elseif (strlen($nome) == 1) {
+                                                                                            $iniciais = strtoupper($nome);
+                                                                                        } else {
+                                                                                            $iniciais = 'US'; // Fallback para "User"
+                                                                                        }
+                                                                                        echo $iniciais;
+                                                                                        ?></span>
                 </div>
                 <div>
                     <p class="text-sm font-medium text-gray-800" id="userName"><?= $_SESSION['usuario_nome'] ?? 'Usuário' ?></p>
@@ -693,7 +712,7 @@ if (!defined('BASE_URL')) {
                 </div>
             </div>
         </div>
-        
+
         <nav class="p-4">
             <ul class="space-y-2">
                 <li>
@@ -705,109 +724,121 @@ if (!defined('BASE_URL')) {
                         <span>Dashboard</span>
                     </a>
                 </li>
+                <?php if (isset($_SESSION['cadastrar_pessoas']) || isset($_SESSION['matricular_alunos']) || isset($_SESSION['acessar_registros'])) { ?>
                 <li id="alunos-menu">
                     <a href="#" onclick="showSection('alunos')" class="menu-item flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700">
-                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path>
-                         </svg>
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path>
+                        </svg>
                         <span>Alunos</span>
                     </a>
                 </li>
+                <?php } ?>
+                <?php if (isset($_SESSION['criar_turma']) || isset($_SESSION['acessar_registros'])) { ?>
                 <li id="turmas-menu">
                     <a href="#" onclick="showSection('turmas')" class="menu-item flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700">
-                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.746 0 3.332.477 4.5 1.253v13C19.832 18.477 18.246 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path>
-                         </svg>
-                        <span>Turmas</span>
-                    </a>
-                </li>
-                <li id="frequencia-menu">
-                    <a href="#" onclick="showSection('frequencia')" class="menu-item flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700">
-                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path>
-                         </svg>
-                        <span>Frequência</span>
-                    </a>
-                </li>
-                <li id="notas-menu">
-                    <a href="#" onclick="showSection('notas')" class="menu-item flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700">
-                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
-                         </svg>
-                        <span>Notas</span>
-                    </a>
-                </li>
-                <li id="merenda-menu">
-                    <a href="#" onclick="showSection('merenda')" class="menu-item flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700">
-                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path>
-                         </svg>
-                        <span>Merenda</span>
-                    </a>
-                </li>
-                <?php if (isset($_SESSION['Gerenciador de Usuarios'])) { ?>
-                <li>
-                    <a href="../../subsystems/gerenciador_usuario/index.php" class="menu-item flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z"></path>
-                        </svg>
-                        <span>Gerenciador de Usuários</span>
-                    </a>
-                </li>
-                <?php } ?>
-                <?php if (isset($_SESSION['Estoque'])) { ?>
-                <li>
-                    <a href="../../subsystems/controle_de_estoque/default.php" class="menu-item flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path>
-                        </svg>
-                        <span>Controle de Estoque</span>
-                    </a>
-                </li>
-                <?php } ?>
-                <?php if (isset($_SESSION['Biblioteca'])) { ?>
-                <li>
-                    <a href="../../subsystems/biblioteca/default.php" class="menu-item flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700">
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.746 0 3.332.477 4.5 1.253v13C19.832 18.477 18.246 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path>
                         </svg>
-                        <span>Biblioteca</span>
+                        <span>Turmas</span>
                     </a>
                 </li>
+                <?php } ?>
+                <?php if (isset($_SESSION['lancar_frequencia']) || isset($_SESSION['frequencia']) || isset($_SESSION['acessar_registros'])) { ?>
+                <li id="frequencia-menu">
+                    <a href="#" onclick="showSection('frequencia')" class="menu-item flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path>
+                        </svg>
+                        <span>Frequência</span>
+                    </a>
+                </li>
+                <?php } ?>
+                <?php if (isset($_SESSION['lancar_nota']) || isset($_SESSION['notas']) || isset($_SESSION['acessar_registros'])) { ?>
+                <li id="notas-menu">
+                    <a href="#" onclick="showSection('notas')" class="menu-item flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
+                        </svg>
+                        <span>Notas</span>
+                    </a>
+                </li>
+                <?php } ?>
+                <?php if (isset($_SESSION['adc_cardapio']) || isset($_SESSION['lista_insulmos']) || isset($_SESSION['env_pedidos']) || isset($_SESSION['gerenciar_estoque_produtos']) || isset($_SESSION['criar_pacotes/cestas']) || isset($_SESSION['pedidos_nutricionista']) || isset($_SESSION['movimentacoes_estoque'])) { ?>
+                <li id="merenda-menu">
+                    <a href="#" onclick="showSection('merenda')" class="menu-item flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path>
+                        </svg>
+                        <span>Merenda</span>
+                    </a>
+                </li>
+                <?php } ?>
+                <?php if (isset($_SESSION['Gerenciador de Usuarios'])) { ?>
+                    <li>
+                        <a href="../../subsystems/gerenciador_usuario/index.php" class="menu-item flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z"></path>
+                            </svg>
+                            <span>Gerenciador de Usuários</span>
+                        </a>
+                    </li>
+                <?php } ?>
+                <?php if (isset($_SESSION['Estoque'])) { ?>
+                    <li>
+                        <a href="../../subsystems/controle_de_estoque/default.php" class="menu-item flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path>
+                            </svg>
+                            <span>Controle de Estoque</span>
+                        </a>
+                    </li>
+                <?php } ?>
+                <?php if (isset($_SESSION['Biblioteca'])) { ?>
+                    <li>
+                        <a href="../../subsystems/biblioteca/default.php" class="menu-item flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.746 0 3.332.477 4.5 1.253v13C19.832 18.477 18.246 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path>
+                            </svg>
+                            <span>Biblioteca</span>
+                        </a>
+                    </li>
                 <?php } ?>
                 <?php if (isset($_SESSION['Entrada/saída'])) { ?>
-                <li>
-                    <a href="../../subsystems/entradasaida/app/main/views/inicio.php" class="menu-item flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1"></path>
-                        </svg>
-                        <span>Entrada/Saída</span>
-                    </a>
-                </li>
+                    <li>
+                        <a href="../../subsystems/entradasaida/app/main/views/inicio.php" class="menu-item flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1"></path>
+                            </svg>
+                            <span>Entrada/Saída</span>
+                        </a>
+                    </li>
                 <?php } ?>
-                <li>
-                    <a href="#" class="menu-item flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700">
+                <?php if (isset($_SESSION['relatorio_geral']) || isset($_SESSION['gerar_relatorios_pedagogicos'])) { ?>
+                <li id="relatorios-menu">
+                    <a href="#" onclick="showSection('relatorios')" class="menu-item flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700">
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
                         </svg>
                         <span>Relatórios</span>
                     </a>
                 </li>
+                <?php } ?>
             </ul>
         </nav>
 
-        
+
         <!-- Logout -->
         <div class="absolute bottom-0 left-0 right-0 p-4 border-t border-gray-200">
-            <button onclick="confirmLogout()" class="w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-red-600 hover:bg-red-50 hover:text-red-700 transition-all duration-200">
+            <a href="../../Models/sessao/sessions.php?sair" class="w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-red-600 hover:bg-red-50 hover:text-red-700 transition-all duration-200">
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path>
                 </svg>
                 <span>Sair</span>
-            </button>
+            </a>
         </div>
     </aside>
-    
+
     <!-- Main Content -->
     <main class="content-transition ml-0 lg:ml-64 min-h-screen">
         <!-- Header -->
@@ -820,20 +851,20 @@ if (!defined('BASE_URL')) {
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
                         </svg>
                     </button>
-                    
+
                     <!-- Page Title - Centered on mobile -->
                     <div class="absolute left-1/2 transform -translate-x-1/2 lg:relative lg:left-auto lg:transform-none flex items-center">
                         <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/1/19/Bras%C3%A3o_de_Maranguape.png/250px-Bras%C3%A3o_de_Maranguape.png" alt="Brasão de Maranguape" class="w-8 h-8 object-contain lg:hidden">
                         <h1 class="hidden sm:block text-xl font-semibold text-gray-800" id="pageTitle">Dashboard</h1>
                     </div>
-                    
+
                     <!-- User Actions -->
                     <div class="flex items-center space-x-4">
                         <div class="text-right hidden lg:block">
                             <p class="text-sm font-medium text-gray-800" id="currentSchool"><?= $_SESSION['escola_atual'] ?? 'Escola Municipal' ?></p>
                             <p class="text-xs text-gray-500">Escola Atual</p>
                         </div>
-                        
+
                         <!-- School Info (Desktop Only) -->
                         <div class="hidden lg:block">
                             <div class="bg-primary-green text-white px-4 py-2 rounded-lg shadow-sm">
@@ -845,7 +876,7 @@ if (!defined('BASE_URL')) {
                                 </div>
                             </div>
                         </div>
-                        
+
                         <!-- User Profile Button -->
                         <button onclick="openUserProfile()" class="p-2 text-gray-600 bg-gray-100 hover:text-gray-900 hover:bg-gray-200 rounded-full focus:outline-none focus:ring-2 focus:ring-primary-green transition-colors duration-200" aria-label="Abrir perfil do usuário e configurações de acessibilidade" title="Perfil e Acessibilidade (Alt+A)">
                             <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
@@ -856,7 +887,7 @@ if (!defined('BASE_URL')) {
                 </div>
             </div>
         </header>
-        
+
         <!-- Content Area -->
         <div class="p-4 sm:p-6 lg:p-8">
             <!-- Dashboard Section -->
@@ -868,8 +899,9 @@ if (!defined('BASE_URL')) {
                         <p class="text-green-100">Aqui está um resumo das suas atividades escolares</p>
                     </div>
                 </div>
-                
+
                 <!-- Stats Cards -->
+                <?php if (isset($_SESSION['acessar_registros']) || isset($_SESSION['relatorio_geral']) || isset($_SESSION['gerar_relatorios_pedagogicos'])) { ?>
                 <div class="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6 mb-8">
                     <div class="card-hover bg-white rounded-2xl p-4 md:p-6 shadow-lg border border-gray-100 relative overflow-hidden hover-lift fade-in-up">
                         <div class="absolute top-0 right-0 w-20 h-20 bg-blue-100 rounded-full -mr-10 -mt-10"></div>
@@ -887,7 +919,7 @@ if (!defined('BASE_URL')) {
                             <p class="text-xs text-gray-500 mt-1 hidden md:block">vs. mês anterior</p>
                         </div>
                     </div>
-                    
+
                     <div class="card-hover bg-white rounded-2xl p-4 md:p-6 shadow-lg border border-gray-100 relative overflow-hidden hover-lift fade-in-up" style="animation-delay: 0.1s">
                         <div class="absolute top-0 right-0 w-20 h-20 bg-green-100 rounded-full -mr-10 -mt-10"></div>
                         <div class="relative z-10">
@@ -904,7 +936,7 @@ if (!defined('BASE_URL')) {
                             <p class="text-xs text-gray-500 mt-1 hidden md:block">vs. mês anterior</p>
                         </div>
                     </div>
-                    
+
                     <div class="card-hover bg-white rounded-2xl p-4 md:p-6 shadow-lg border border-gray-100 relative overflow-hidden hover-lift fade-in-up" style="animation-delay: 0.2s">
                         <div class="absolute top-0 right-0 w-20 h-20 bg-orange-100 rounded-full -mr-10 -mt-10"></div>
                         <div class="relative z-10">
@@ -921,7 +953,7 @@ if (!defined('BASE_URL')) {
                             <p class="text-xs text-gray-500 mt-1">vs. mês anterior</p>
                         </div>
                     </div>
-                    
+
                     <div class="card-hover bg-white rounded-2xl p-4 md:p-6 shadow-lg border border-gray-100 relative overflow-hidden hover-lift fade-in-up" style="animation-delay: 0.3s">
                         <div class="absolute top-0 right-0 w-20 h-20 bg-purple-100 rounded-full -mr-10 -mt-10"></div>
                         <div class="relative z-10">
@@ -939,14 +971,14 @@ if (!defined('BASE_URL')) {
                         </div>
                     </div>
                 </div>
-                
+                <?php } ?>
+
                 <!-- Recent Activities -->
-                <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                    <div class="bg-white rounded-2xl p-6 shadow-lg border border-gray-100">
-                        <div class="flex items-center justify-between mb-6">
-                            <h3 class="text-lg font-semibold text-gray-800">Atividades Recentes</h3>
-                            <button class="text-primary-green hover:text-secondary-green text-sm font-medium">Ver todas</button>
-                        </div>
+                <div class="bg-white rounded-2xl p-6 shadow-lg border border-gray-100 mb-8">
+                    <div class="flex items-center justify-between mb-6">
+                        <h3 class="text-lg font-semibold text-gray-800">Atividades Recentes</h3>
+                        <button class="text-primary-green hover:text-secondary-green text-sm font-medium">Ver todas</button>
+                    </div>
                         <div class="space-y-4">
                             <div class="flex items-start space-x-4 p-4 bg-gradient-to-r from-blue-50 to-blue-100 rounded-xl">
                                 <div class="p-2 bg-blue-500 rounded-lg">
@@ -960,7 +992,7 @@ if (!defined('BASE_URL')) {
                                     <p class="text-xs text-gray-500 mt-1">Há 2 horas</p>
                                 </div>
                             </div>
-                            
+
                             <div class="flex items-start space-x-4 p-4 bg-gradient-to-r from-green-50 to-green-100 rounded-xl">
                                 <div class="p-2 bg-green-500 rounded-lg">
                                     <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -973,7 +1005,7 @@ if (!defined('BASE_URL')) {
                                     <p class="text-xs text-gray-500 mt-1">Há 4 horas</p>
                                 </div>
                             </div>
-                            
+
                             <div class="flex items-start space-x-4 p-4 bg-gradient-to-r from-orange-50 to-orange-100 rounded-xl">
                                 <div class="p-2 bg-orange-500 rounded-lg">
                                     <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -987,43 +1019,647 @@ if (!defined('BASE_URL')) {
                                 </div>
                             </div>
                         </div>
-                    </div>
-                    
-                    <div class="bg-white rounded-2xl p-6 shadow-lg border border-gray-100">
+                </div>
+
+                <!-- Quick Actions -->
+                <?php if (isset($_SESSION['cadastrar_pessoas']) || isset($_SESSION['matricular_alunos']) || isset($_SESSION['lancar_frequencia']) || isset($_SESSION['lancar_nota']) || isset($_SESSION['relatorio_geral']) || isset($_SESSION['gerar_relatorios_pedagogicos']) || isset($_SESSION['acessar_registros'])) { ?>
+                <div class="bg-white rounded-2xl p-6 shadow-lg border border-gray-100 mb-8">
                         <h3 class="text-lg font-semibold text-gray-800 mb-6">Ações Rápidas</h3>
                         <div class="grid grid-cols-2 gap-4">
+                            <?php if (isset($_SESSION['cadastrar_pessoas']) || isset($_SESSION['matricular_alunos']) || isset($_SESSION['acessar_registros'])) { ?>
                             <button class="p-4 bg-gradient-to-br from-blue-500 to-blue-600 text-white rounded-xl hover:from-blue-600 hover:to-blue-700 transition-all duration-200 shadow-lg hover:shadow-xl">
                                 <svg class="w-6 h-6 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"></path>
                                 </svg>
                                 <p class="text-sm font-medium">Novo Aluno</p>
                             </button>
-                            
+                            <?php } ?>
+
+                            <?php if (isset($_SESSION['lancar_frequencia']) || isset($_SESSION['acessar_registros'])) { ?>
                             <button class="p-4 bg-gradient-to-br from-green-500 to-green-600 text-white rounded-xl hover:from-green-600 hover:to-green-700 transition-all duration-200 shadow-lg hover:shadow-xl">
                                 <svg class="w-6 h-6 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"></path>
                                 </svg>
                                 <p class="text-sm font-medium">Registrar Frequência</p>
                             </button>
-                            
+                            <?php } ?>
+
+                            <?php if (isset($_SESSION['lancar_nota']) || isset($_SESSION['acessar_registros'])) { ?>
                             <button class="p-4 bg-gradient-to-br from-orange-500 to-orange-600 text-white rounded-xl hover:from-orange-600 hover:to-orange-700 transition-all duration-200 shadow-lg hover:shadow-xl">
                                 <svg class="w-6 h-6 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
                                 </svg>
                                 <p class="text-sm font-medium">Lançar Notas</p>
                             </button>
-                            
+                            <?php } ?>
+
+                            <?php if (isset($_SESSION['relatorio_geral']) || isset($_SESSION['gerar_relatorios_pedagogicos'])) { ?>
                             <button class="p-4 bg-gradient-to-br from-purple-500 to-purple-600 text-white rounded-xl hover:from-purple-600 hover:to-purple-700 transition-all duration-200 shadow-lg hover:shadow-xl">
                                 <svg class="w-6 h-6 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
                                 </svg>
                                 <p class="text-sm font-medium">Relatórios</p>
                             </button>
+                            <?php } ?>
                         </div>
-                    </div>
                 </div>
+                <?php } ?>
             </section>
-            
+
+            <!-- === INTERFACES DINÂMICAS BASEADAS NO TIPO DE USUÁRIO === -->
+            <?php
+            // Função para renderizar interfaces baseadas nas permissões do usuário
+            function renderUserInterface() {
+                $userType = $_SESSION['tipo'] ?? '';
+                
+                switch(strtolower($userType)) {
+                    case 'aluno':
+                        renderAlunoInterface();
+                        break;
+                    case 'professor':
+                        renderProfessorInterface();
+                        break;
+                    case 'nutricionista':
+                        renderNutricionistaInterface();
+                        break;
+                    case 'adm_merenda':
+                        renderAdmMerendaInterface();
+                        break;
+                    case 'gestao':
+                        renderGestaoInterface();
+                        break;
+                    case 'adm':
+                        renderAdministradorInterface();
+                        break;
+                    default:
+                        renderDefaultInterface();
+                        break;
+                }
+            }
+
+            // === INTERFACE DO ALUNO ===
+            function renderAlunoInterface() {
+                if (isset($_SESSION['notas']) || isset($_SESSION['frequencia']) || isset($_SESSION['comunicados'])) {
+                    echo '<section id="user-interface" class="content-section mt-8">';
+                    echo '<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">';
+                    
+                    // Card de Notas
+                    if (isset($_SESSION['notas'])) {
+                        echo '
+                        <div class="card-hover bg-white rounded-2xl p-6 shadow-lg border border-gray-100 hover-lift">
+                            <div class="flex items-center justify-between mb-4">
+                                <div class="p-3 bg-blue-100 rounded-xl">
+                                    <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                                    </svg>
+                                </div>
+                                <span class="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded-full">Atualizado</span>
+                            </div>
+                            <h3 class="text-xl font-bold text-gray-800 mb-2">Minhas Notas</h3>
+                            <p class="text-gray-600 text-sm mb-4">Visualize suas notas e conceitos por disciplina</p>
+                            <div class="space-y-2">
+                                <div class="flex justify-between items-center">
+                                    <span class="text-sm text-gray-600">Matemática</span>
+                                    <span class="text-sm font-semibold text-green-600">8.5</span>
+                                </div>
+                                <div class="flex justify-between items-center">
+                                    <span class="text-sm text-gray-600">Português</span>
+                                    <span class="text-sm font-semibold text-blue-600">9.0</span>
+                                </div>
+                                <div class="flex justify-between items-center">
+                                    <span class="text-sm text-gray-600">História</span>
+                                    <span class="text-sm font-semibold text-orange-600">7.8</span>
+                                </div>
+                            </div>
+                            <button class="w-full mt-4 bg-gradient-to-r from-blue-500 to-blue-600 text-white py-2 px-4 rounded-lg hover:from-blue-600 hover:to-blue-700 transition-all duration-200">
+                                Ver Todas as Notas
+                            </button>
+                        </div>';
+                    }
+                    
+                    // Card de Frequência
+                    if (isset($_SESSION['frequencia'])) {
+                        echo '
+                        <div class="card-hover bg-white rounded-2xl p-6 shadow-lg border border-gray-100 hover-lift">
+                            <div class="flex items-center justify-between mb-4">
+                                <div class="p-3 bg-green-100 rounded-xl">
+                                    <svg class="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                                    </svg>
+                                </div>
+                                <span class="text-xs bg-green-100 text-green-800 px-2 py-1 rounded-full">95%</span>
+                            </div>
+                            <h3 class="text-xl font-bold text-gray-800 mb-2">Minha Frequência</h3>
+                            <p class="text-gray-600 text-sm mb-4">Acompanhe sua presença nas aulas</p>
+                            <div class="space-y-2">
+                                <div class="flex justify-between items-center">
+                                    <span class="text-sm text-gray-600">Este mês</span>
+                                    <span class="text-sm font-semibold text-green-600">95%</span>
+                                </div>
+                                <div class="flex justify-between items-center">
+                                    <span class="text-sm text-gray-600">Faltas</span>
+                                    <span class="text-sm font-semibold text-red-600">2 dias</span>
+                                </div>
+                                <div class="flex justify-between items-center">
+                                    <span class="text-sm text-gray-600">Presenças</span>
+                                    <span class="text-sm font-semibold text-blue-600">38 dias</span>
+                                </div>
+                            </div>
+                            <button class="w-full mt-4 bg-gradient-to-r from-green-500 to-green-600 text-white py-2 px-4 rounded-lg hover:from-green-600 hover:to-green-700 transition-all duration-200">
+                                Ver Detalhes
+                            </button>
+                        </div>';
+                    }
+                    
+                    // Card de Comunicados
+                    if (isset($_SESSION['comunicados'])) {
+                        echo '
+                        <div class="card-hover bg-white rounded-2xl p-6 shadow-lg border border-gray-100 hover-lift">
+                            <div class="flex items-center justify-between mb-4">
+                                <div class="p-3 bg-orange-100 rounded-xl">
+                                    <svg class="w-6 h-6 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6h1.832c4.1 0 7.625-1.234 9.168-3v14c-1.543-1.766-5.067-3-9.168-3H7a3.988 3.988 0 01-1.564-.317z"></path>
+                                    </svg>
+                                </div>
+                                <span class="text-xs bg-red-100 text-red-800 px-2 py-1 rounded-full">3 novos</span>
+                            </div>
+                            <h3 class="text-xl font-bold text-gray-800 mb-2">Comunicados</h3>
+                            <p class="text-gray-600 text-sm mb-4">Avisos e informações da escola</p>
+                            <div class="space-y-2">
+                                <div class="p-2 bg-gray-50 rounded-lg">
+                                    <p class="text-xs text-gray-600">Hoje</p>
+                                    <p class="text-sm font-medium">Reunião de pais - 15/01</p>
+                                </div>
+                                <div class="p-2 bg-gray-50 rounded-lg">
+                                    <p class="text-xs text-gray-600">Ontem</p>
+                                    <p class="text-sm font-medium">Cardápio da semana</p>
+                                </div>
+                                <div class="p-2 bg-gray-50 rounded-lg">
+                                    <p class="text-xs text-gray-600">2 dias atrás</p>
+                                    <p class="text-sm font-medium">Feriado escolar</p>
+                                </div>
+                            </div>
+                            <button class="w-full mt-4 bg-gradient-to-r from-orange-500 to-orange-600 text-white py-2 px-4 rounded-lg hover:from-orange-600 hover:to-orange-700 transition-all duration-200">
+                                Ver Todos
+                            </button>
+                        </div>';
+                    }
+                    
+                    echo '</div>';
+                    echo '</section>';
+                }
+            }
+
+            // === INTERFACE DO PROFESSOR ===
+            function renderProfessorInterface() {
+                if (isset($_SESSION['resgistrar_plano_aula']) || isset($_SESSION['cadastrar_avaliacao']) || isset($_SESSION['lancar_frequencia']) || isset($_SESSION['lancar_nota'])) {
+                    echo '<section id="user-interface" class="content-section mt-8">';
+                    echo '<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">';
+                    
+                    // Card de Planos de Aula
+                    if (isset($_SESSION['resgistrar_plano_aula'])) {
+                        echo '
+                        <div class="card-hover bg-white rounded-2xl p-6 shadow-lg border border-gray-100 hover-lift">
+                            <div class="flex items-center justify-between mb-4">
+                                <div class="p-3 bg-purple-100 rounded-xl">
+                                    <svg class="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.746 0 3.332.477 4.5 1.253v13C19.832 18.477 18.246 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path>
+                                    </svg>
+                                </div>
+                                <span class="text-xs bg-purple-100 text-purple-800 px-2 py-1 rounded-full">5 esta semana</span>
+                            </div>
+                            <h3 class="text-lg font-bold text-gray-800 mb-2">Planos de Aula</h3>
+                            <p class="text-gray-600 text-sm mb-4">Criar e gerenciar planos de aula</p>
+                            <button class="w-full bg-gradient-to-r from-purple-500 to-purple-600 text-white py-2 px-4 rounded-lg hover:from-purple-600 hover:to-purple-700 transition-all duration-200">
+                                Gerenciar Planos
+                            </button>
+                        </div>';
+                    }
+                    
+                    // Card de Avaliações
+                    if (isset($_SESSION['cadastrar_avaliacao'])) {
+                        echo '
+                        <div class="card-hover bg-white rounded-2xl p-6 shadow-lg border border-gray-100 hover-lift">
+                            <div class="flex items-center justify-between mb-4">
+                                <div class="p-3 bg-blue-100 rounded-xl">
+                                    <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"></path>
+                                    </svg>
+                                </div>
+                                <span class="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded-full">3 pendentes</span>
+                            </div>
+                            <h3 class="text-lg font-bold text-gray-800 mb-2">Avaliações</h3>
+                            <p class="text-gray-600 text-sm mb-4">Criar provas e atividades</p>
+                            <button class="w-full bg-gradient-to-r from-blue-500 to-blue-600 text-white py-2 px-4 rounded-lg hover:from-blue-600 hover:to-blue-700 transition-all duration-200">
+                                Criar Avaliação
+                            </button>
+                        </div>';
+                    }
+                    
+                    // Card de Frequência
+                    if (isset($_SESSION['lancar_frequencia'])) {
+                        echo '
+                        <div class="card-hover bg-white rounded-2xl p-6 shadow-lg border border-gray-100 hover-lift">
+                            <div class="flex items-center justify-between mb-4">
+                                <div class="p-3 bg-green-100 rounded-xl">
+                                    <svg class="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                    </svg>
+                                </div>
+                                <span class="text-xs bg-green-100 text-green-800 px-2 py-1 rounded-full">Hoje</span>
+                            </div>
+                            <h3 class="text-lg font-bold text-gray-800 mb-2">Frequência</h3>
+                            <p class="text-gray-600 text-sm mb-4">Registrar presença dos alunos</p>
+                            <button class="w-full bg-gradient-to-r from-green-500 to-green-600 text-white py-2 px-4 rounded-lg hover:from-green-600 hover:to-green-700 transition-all duration-200">
+                                Lançar Frequência
+                            </button>
+                        </div>';
+                    }
+                    
+                    // Card de Notas
+                    if (isset($_SESSION['lancar_nota'])) {
+                        echo '
+                        <div class="card-hover bg-white rounded-2xl p-6 shadow-lg border border-gray-100 hover-lift">
+                            <div class="flex items-center justify-between mb-4">
+                                <div class="p-3 bg-orange-100 rounded-xl">
+                                    <svg class="w-6 h-6 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z"></path>
+                                    </svg>
+                                </div>
+                                <span class="text-xs bg-orange-100 text-orange-800 px-2 py-1 rounded-full">12 pendentes</span>
+                            </div>
+                            <h3 class="text-lg font-bold text-gray-800 mb-2">Notas</h3>
+                            <p class="text-gray-600 text-sm mb-4">Lançar notas e conceitos</p>
+                            <button class="w-full bg-gradient-to-r from-orange-500 to-orange-600 text-white py-2 px-4 rounded-lg hover:from-orange-600 hover:to-orange-700 transition-all duration-200">
+                                Lançar Notas
+                            </button>
+                        </div>';
+                    }
+                    
+                    echo '</div>';
+                    echo '</section>';
+                }
+            }
+
+            // === INTERFACE DO NUTRICIONISTA ===
+            function renderNutricionistaInterface() {
+                if (isset($_SESSION['adc_cardapio']) || isset($_SESSION['lista_insulmos']) || isset($_SESSION['env_pedidos'])) {
+                    echo '<section id="user-interface" class="content-section mt-8">';
+                    echo '<div class="grid grid-cols-1 md:grid-cols-3 gap-6">';
+                    
+                    // Card de Cardápios
+                    if (isset($_SESSION['adc_cardapio'])) {
+                        echo '
+                        <div class="card-hover bg-white rounded-2xl p-6 shadow-lg border border-gray-100 hover-lift">
+                            <div class="flex items-center justify-between mb-4">
+                                <div class="p-3 bg-green-100 rounded-xl">
+                                    <svg class="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 100 4m0-4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 100 4m0-4v2m0-6V4"></path>
+                                    </svg>
+                                </div>
+                                <span class="text-xs bg-green-100 text-green-800 px-2 py-1 rounded-full">Semanal</span>
+                            </div>
+                            <h3 class="text-xl font-bold text-gray-800 mb-2">Cardápios</h3>
+                            <p class="text-gray-600 text-sm mb-4">Criar e gerenciar cardápios escolares</p>
+                            <div class="space-y-2 mb-4">
+                                <div class="flex justify-between items-center">
+                                    <span class="text-sm text-gray-600">Esta semana</span>
+                                    <span class="text-xs bg-green-100 text-green-800 px-2 py-1 rounded-full">Aprovado</span>
+                                </div>
+                                <div class="flex justify-between items-center">
+                                    <span class="text-sm text-gray-600">Próxima semana</span>
+                                    <span class="text-xs bg-yellow-100 text-yellow-800 px-2 py-1 rounded-full">Pendente</span>
+                                </div>
+                            </div>
+                            <button class="w-full bg-gradient-to-r from-green-500 to-green-600 text-white py-2 px-4 rounded-lg hover:from-green-600 hover:to-green-700 transition-all duration-200">
+                                Gerenciar Cardápios
+                            </button>
+                        </div>';
+                    }
+                    
+                    // Card de Insumos
+                    if (isset($_SESSION['lista_insulmos'])) {
+                        echo '
+                        <div class="card-hover bg-white rounded-2xl p-6 shadow-lg border border-gray-100 hover-lift">
+                            <div class="flex items-center justify-between mb-4">
+                                <div class="p-3 bg-blue-100 rounded-xl">
+                                    <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path>
+                                    </svg>
+                                </div>
+                                <span class="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded-full">156 itens</span>
+                            </div>
+                            <h3 class="text-xl font-bold text-gray-800 mb-2">Insumos</h3>
+                            <p class="text-gray-600 text-sm mb-4">Consultar insumos disponíveis</p>
+                            <div class="space-y-2 mb-4">
+                                <div class="flex justify-between items-center">
+                                    <span class="text-sm text-gray-600">Arroz</span>
+                                    <span class="text-sm font-semibold text-green-600">50kg</span>
+                                </div>
+                                <div class="flex justify-between items-center">
+                                    <span class="text-sm text-gray-600">Feijão</span>
+                                    <span class="text-sm font-semibold text-orange-600">15kg</span>
+                                </div>
+                            </div>
+                            <button class="w-full bg-gradient-to-r from-blue-500 to-blue-600 text-white py-2 px-4 rounded-lg hover:from-blue-600 hover:to-blue-700 transition-all duration-200">
+                                Ver Estoque
+                            </button>
+                        </div>';
+                    }
+                    
+                    // Card de Pedidos
+                    if (isset($_SESSION['env_pedidos'])) {
+                        echo '
+                        <div class="card-hover bg-white rounded-2xl p-6 shadow-lg border border-gray-100 hover-lift">
+                            <div class="flex items-center justify-between mb-4">
+                                <div class="p-3 bg-orange-100 rounded-xl">
+                                    <svg class="w-6 h-6 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"></path>
+                                    </svg>
+                                </div>
+                                <span class="text-xs bg-orange-100 text-orange-800 px-2 py-1 rounded-full">3 pendentes</span>
+                            </div>
+                            <h3 class="text-xl font-bold text-gray-800 mb-2">Pedidos</h3>
+                            <p class="text-gray-600 text-sm mb-4">Solicitar produtos e ingredientes</p>
+                            <div class="space-y-2 mb-4">
+                                <div class="p-2 bg-gray-50 rounded-lg">
+                                    <p class="text-xs text-gray-600">Pedido #001</p>
+                                    <p class="text-sm font-medium">Verduras e legumes</p>
+                                </div>
+                                <div class="p-2 bg-gray-50 rounded-lg">
+                                    <p class="text-xs text-gray-600">Pedido #002</p>
+                                    <p class="text-sm font-medium">Proteínas</p>
+                                </div>
+                            </div>
+                            <button class="w-full bg-gradient-to-r from-orange-500 to-orange-600 text-white py-2 px-4 rounded-lg hover:from-orange-600 hover:to-orange-700 transition-all duration-200">
+                                Fazer Pedido
+                            </button>
+                        </div>';
+                    }
+                    
+                    echo '</div>';
+                    echo '</section>';
+                }
+            }
+
+            // === INTERFACE DO ADMINISTRADOR DE MERENDA ===
+            function renderAdmMerendaInterface() {
+                if (isset($_SESSION['gerenciar_estoque_produtos']) || isset($_SESSION['criar_pacotes/cestas']) || isset($_SESSION['pedidos_nutricionista'])) {
+                    echo '<section id="user-interface" class="content-section mt-8">';
+                    echo '<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">';
+                    
+                    // Card de Estoque
+                    if (isset($_SESSION['gerenciar_estoque_produtos'])) {
+                        echo '
+                        <div class="card-hover bg-white rounded-2xl p-6 shadow-lg border border-gray-100 hover-lift">
+                            <div class="flex items-center justify-between mb-4">
+                                <div class="p-3 bg-indigo-100 rounded-xl">
+                                    <svg class="w-6 h-6 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path>
+                                    </svg>
+                                </div>
+                                <span class="text-xs bg-indigo-100 text-indigo-800 px-2 py-1 rounded-full">245 itens</span>
+                            </div>
+                            <h3 class="text-lg font-bold text-gray-800 mb-2">Estoque</h3>
+                            <p class="text-gray-600 text-sm mb-4">Controlar produtos</p>
+                            <button class="w-full bg-gradient-to-r from-indigo-500 to-indigo-600 text-white py-2 px-4 rounded-lg hover:from-indigo-600 hover:to-indigo-700 transition-all duration-200">
+                                Gerenciar
+                            </button>
+                        </div>';
+                    }
+                    
+                    // Card de Pacotes/Cestas
+                    if (isset($_SESSION['criar_pacotes/cestas'])) {
+                        echo '
+                        <div class="card-hover bg-white rounded-2xl p-6 shadow-lg border border-gray-100 hover-lift">
+                            <div class="flex items-center justify-between mb-4">
+                                <div class="p-3 bg-green-100 rounded-xl">
+                                    <svg class="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"></path>
+                                    </svg>
+                                </div>
+                                <span class="text-xs bg-green-100 text-green-800 px-2 py-1 rounded-full">12 criados</span>
+                            </div>
+                            <h3 class="text-lg font-bold text-gray-800 mb-2">Pacotes</h3>
+                            <p class="text-gray-600 text-sm mb-4">Montar kits alimentação</p>
+                            <button class="w-full bg-gradient-to-r from-green-500 to-green-600 text-white py-2 px-4 rounded-lg hover:from-green-600 hover:to-green-700 transition-all duration-200">
+                                Criar Pacote
+                            </button>
+                        </div>';
+                    }
+                    
+                    // Card de Pedidos do Nutricionista
+                    if (isset($_SESSION['pedidos_nutricionista'])) {
+                        echo '
+                        <div class="card-hover bg-white rounded-2xl p-6 shadow-lg border border-gray-100 hover-lift">
+                            <div class="flex items-center justify-between mb-4">
+                                <div class="p-3 bg-orange-100 rounded-xl">
+                                    <svg class="w-6 h-6 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"></path>
+                                    </svg>
+                                </div>
+                                <span class="text-xs bg-red-100 text-red-800 px-2 py-1 rounded-full">5 novos</span>
+                            </div>
+                            <h3 class="text-lg font-bold text-gray-800 mb-2">Pedidos</h3>
+                            <p class="text-gray-600 text-sm mb-4">Receber solicitações</p>
+                            <button class="w-full bg-gradient-to-r from-orange-500 to-orange-600 text-white py-2 px-4 rounded-lg hover:from-orange-600 hover:to-orange-700 transition-all duration-200">
+                                Ver Pedidos
+                            </button>
+                        </div>';
+                    }
+                    
+                    // Card de Movimentações
+                    if (isset($_SESSION['movimentacoes_estoque'])) {
+                        echo '
+                        <div class="card-hover bg-white rounded-2xl p-6 shadow-lg border border-gray-100 hover-lift">
+                            <div class="flex items-center justify-between mb-4">
+                                <div class="p-3 bg-purple-100 rounded-xl">
+                                    <svg class="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"></path>
+                                    </svg>
+                                </div>
+                                <span class="text-xs bg-purple-100 text-purple-800 px-2 py-1 rounded-full">23 hoje</span>
+                            </div>
+                            <h3 class="text-lg font-bold text-gray-800 mb-2">Movimentações</h3>
+                            <p class="text-gray-600 text-sm mb-4">Registrar movimentos</p>
+                            <button class="w-full bg-gradient-to-r from-purple-500 to-purple-600 text-white py-2 px-4 rounded-lg hover:from-purple-600 hover:to-purple-700 transition-all duration-200">
+                                Ver Histórico
+                            </button>
+                        </div>';
+                    }
+                    
+                    echo '</div>';
+                    echo '</section>';
+                }
+            }
+
+            // === INTERFACE DE GESTÃO ===
+            function renderGestaoInterface() {
+                if (isset($_SESSION['criar_turma']) || isset($_SESSION['matricular_alunos']) || isset($_SESSION['gerar_relatorios_pedagogicos'])) {
+                    echo '<section id="user-interface" class="content-section mt-8">';
+                    echo '<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">';
+                    
+                    // Card de Turmas
+                    if (isset($_SESSION['criar_turma'])) {
+                        echo '
+                        <div class="card-hover bg-white rounded-2xl p-6 shadow-lg border border-gray-100 hover-lift">
+                            <div class="flex items-center justify-between mb-4">
+                                <div class="p-3 bg-blue-100 rounded-xl">
+                                    <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path>
+                                    </svg>
+                                </div>
+                                <span class="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded-full">12 ativas</span>
+                            </div>
+                            <h3 class="text-xl font-bold text-gray-800 mb-2">Turmas</h3>
+                            <p class="text-gray-600 text-sm mb-4">Formar e organizar turmas escolares</p>
+                            <div class="space-y-2 mb-4">
+                                <div class="flex justify-between items-center">
+                                    <span class="text-sm text-gray-600">1º Ano A</span>
+                                    <span class="text-sm font-semibold text-green-600">25 alunos</span>
+                                </div>
+                                <div class="flex justify-between items-center">
+                                    <span class="text-sm text-gray-600">2º Ano B</span>
+                                    <span class="text-sm font-semibold text-blue-600">28 alunos</span>
+                                </div>
+                            </div>
+                            <button class="w-full bg-gradient-to-r from-blue-500 to-blue-600 text-white py-2 px-4 rounded-lg hover:from-blue-600 hover:to-blue-700 transition-all duration-200">
+                                Gerenciar Turmas
+                            </button>
+                        </div>';
+                    }
+                    
+                    // Card de Matrículas
+                    if (isset($_SESSION['matricular_alunos'])) {
+                        echo '
+                        <div class="card-hover bg-white rounded-2xl p-6 shadow-lg border border-gray-100 hover-lift">
+                            <div class="flex items-center justify-between mb-4">
+                                <div class="p-3 bg-green-100 rounded-xl">
+                                    <svg class="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"></path>
+                                    </svg>
+                                </div>
+                                <span class="text-xs bg-green-100 text-green-800 px-2 py-1 rounded-full">15 pendentes</span>
+                            </div>
+                            <h3 class="text-xl font-bold text-gray-800 mb-2">Matrículas</h3>
+                            <p class="text-gray-600 text-sm mb-4">Realizar matrículas de estudantes</p>
+                            <div class="space-y-2 mb-4">
+                                <div class="p-2 bg-gray-50 rounded-lg">
+                                    <p class="text-xs text-gray-600">Hoje</p>
+                                    <p class="text-sm font-medium">5 novas matrículas</p>
+                                </div>
+                                <div class="p-2 bg-gray-50 rounded-lg">
+                                    <p class="text-xs text-gray-600">Esta semana</p>
+                                    <p class="text-sm font-medium">23 matrículas</p>
+                                </div>
+                            </div>
+                            <button class="w-full bg-gradient-to-r from-green-500 to-green-600 text-white py-2 px-4 rounded-lg hover:from-green-600 hover:to-green-700 transition-all duration-200">
+                                Nova Matrícula
+                            </button>
+                        </div>';
+                    }
+                    
+                    // Card de Relatórios
+                    if (isset($_SESSION['gerar_relatorios_pedagogicos'])) {
+                        echo '
+                        <div class="card-hover bg-white rounded-2xl p-6 shadow-lg border border-gray-100 hover-lift">
+                            <div class="flex items-center justify-between mb-4">
+                                <div class="p-3 bg-purple-100 rounded-xl">
+                                    <svg class="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
+                                    </svg>
+                                </div>
+                                <span class="text-xs bg-purple-100 text-purple-800 px-2 py-1 rounded-full">Mensal</span>
+                            </div>
+                            <h3 class="text-xl font-bold text-gray-800 mb-2">Relatórios</h3>
+                            <p class="text-gray-600 text-sm mb-4">Relatórios de desempenho e frequência</p>
+                            <div class="space-y-2 mb-4">
+                                <div class="flex justify-between items-center">
+                                    <span class="text-sm text-gray-600">Frequência</span>
+                                    <span class="text-sm font-semibold text-green-600">94.2%</span>
+                                </div>
+                                <div class="flex justify-between items-center">
+                                    <span class="text-sm text-gray-600">Aprovação</span>
+                                    <span class="text-sm font-semibold text-blue-600">87.5%</span>
+                                </div>
+                            </div>
+                            <button class="w-full bg-gradient-to-r from-purple-500 to-purple-600 text-white py-2 px-4 rounded-lg hover:from-purple-600 hover:to-purple-700 transition-all duration-200">
+                                Gerar Relatório
+                            </button>
+                        </div>';
+                    }
+                    
+                    echo '</div>';
+                    echo '</section>';
+                }
+            }
+
+            // === INTERFACE DO ADMINISTRADOR ===
+            function renderAdministradorInterface() {
+                echo '<section id="user-interface" class="content-section mt-8">';
+                echo '<div class="mb-6">';
+                echo '<h2 class="text-2xl font-bold text-gray-800 mb-2">Painel Administrativo</h2>';
+                echo '<p class="text-gray-600">Acesso completo a todas as funcionalidades do sistema</p>';
+                echo '</div>';
+                echo '<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">';
+                
+                // Cards principais do administrador
+                $adminCards = [
+                    ['title' => 'Usuários', 'desc' => 'Gerenciar usuários do sistema', 'icon' => 'users', 'color' => 'blue', 'count' => '156'],
+                    ['title' => 'Escolas', 'desc' => 'Administrar dados das escolas', 'icon' => 'building', 'color' => 'green', 'count' => '12'],
+                    ['title' => 'Relatórios', 'desc' => 'Relatórios completos do sistema', 'icon' => 'chart', 'color' => 'purple', 'count' => '45'],
+                    ['title' => 'Estoque', 'desc' => 'Controle total do estoque', 'icon' => 'box', 'color' => 'orange', 'count' => '2.5k']
+                ];
+                
+                $icons = [
+                    'users' => '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-2.239"></path>',
+                    'building' => '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path>',
+                    'chart' => '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>',
+                    'box' => '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path>'
+                ];
+                
+                foreach ($adminCards as $card) {
+                    echo '
+                    <div class="card-hover bg-white rounded-2xl p-6 shadow-lg border border-gray-100 hover-lift">
+                        <div class="flex items-center justify-between mb-4">
+                            <div class="p-3 bg-'.$card['color'].'-100 rounded-xl">
+                                <svg class="w-6 h-6 text-'.$card['color'].'-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    '.$icons[$card['icon']].'
+                                </svg>
+                            </div>
+                            <span class="text-xs bg-'.$card['color'].'-100 text-'.$card['color'].'-800 px-2 py-1 rounded-full">'.$card['count'].'</span>
+                        </div>
+                        <h3 class="text-lg font-bold text-gray-800 mb-2">'.$card['title'].'</h3>
+                        <p class="text-gray-600 text-sm mb-4">'.$card['desc'].'</p>
+                        <button class="w-full bg-gradient-to-r from-'.$card['color'].'-500 to-'.$card['color'].'-600 text-white py-2 px-4 rounded-lg hover:from-'.$card['color'].'-600 hover:to-'.$card['color'].'-700 transition-all duration-200">
+                            Gerenciar
+                        </button>
+                    </div>';
+                }
+                
+                echo '</div>';
+                echo '</section>';
+            }
+
+            // === INTERFACE PADRÃO ===
+            function renderDefaultInterface() {
+                echo '<section id="user-interface" class="content-section mt-8">';
+                echo '<div class="bg-white rounded-2xl p-6 shadow-lg border border-gray-100 text-center">';
+                echo '<div class="p-4 bg-gray-100 rounded-xl inline-block mb-4">';
+                echo '<svg class="w-8 h-8 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">';
+                echo '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>';
+                echo '</svg>';
+                echo '</div>';
+                echo '<h3 class="text-xl font-bold text-gray-800 mb-2">Interface não configurada</h3>';
+                echo '<p class="text-gray-600">Nenhuma interface específica foi configurada para este tipo de usuário.</p>';
+                echo '</div>';
+                echo '</section>';
+            }
+
+            // Renderizar a interface do usuário atual
+            renderUserInterface();
+            ?>
+
             <!-- Alunos Section -->
             <section id="alunos" class="content-section hidden">
                 <div class="bg-white rounded-2xl p-6 shadow-lg border border-gray-100">
@@ -1031,7 +1667,7 @@ if (!defined('BASE_URL')) {
                     <p class="text-gray-600">Aqui você pode gerenciar todos os alunos da escola.</p>
                 </div>
             </section>
-            
+
             <!-- Turmas Section -->
             <section id="turmas" class="content-section hidden">
                 <div class="bg-white rounded-2xl p-6 shadow-lg border border-gray-100">
@@ -1039,7 +1675,7 @@ if (!defined('BASE_URL')) {
                     <p class="text-gray-600">Aqui você pode gerenciar as turmas e suas configurações.</p>
                 </div>
             </section>
-            
+
             <!-- Frequência Section -->
             <section id="frequencia" class="content-section hidden">
                 <div class="bg-white rounded-2xl p-6 shadow-lg border border-gray-100">
@@ -1047,7 +1683,7 @@ if (!defined('BASE_URL')) {
                     <p class="text-gray-600">Aqui você pode registrar e acompanhar a frequência dos alunos.</p>
                 </div>
             </section>
-            
+
             <!-- Notas Section -->
             <section id="notas" class="content-section hidden">
                 <div class="bg-white rounded-2xl p-6 shadow-lg border border-gray-100">
@@ -1055,7 +1691,7 @@ if (!defined('BASE_URL')) {
                     <p class="text-gray-600">Aqui você pode lançar e gerenciar as notas dos alunos.</p>
                 </div>
             </section>
-            
+
             <!-- Relatórios Section -->
             <section id="relatorios" class="content-section hidden">
                 <div class="bg-white rounded-2xl p-6 shadow-lg border border-gray-100">
@@ -1063,7 +1699,7 @@ if (!defined('BASE_URL')) {
                     <p class="text-gray-600">Aqui você pode gerar e visualizar relatórios diversos.</p>
                 </div>
             </section>
-            
+
             <!-- Merenda Section -->
             <section id="merenda" class="content-section hidden">
                 <div class="space-y-6">
@@ -1082,7 +1718,7 @@ if (!defined('BASE_URL')) {
                             </button>
                         </div>
                     </div>
-                    
+
                     <!-- Stats Cards -->
                     <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
                         <div class="bg-white rounded-2xl p-6 shadow-lg border border-gray-100">
@@ -1098,7 +1734,7 @@ if (!defined('BASE_URL')) {
                                 </div>
                             </div>
                         </div>
-                        
+
                         <div class="bg-white rounded-2xl p-6 shadow-lg border border-gray-100">
                             <div class="flex items-center justify-between">
                                 <div>
@@ -1112,7 +1748,7 @@ if (!defined('BASE_URL')) {
                                 </div>
                             </div>
                         </div>
-                        
+
                         <div class="bg-white rounded-2xl p-6 shadow-lg border border-gray-100">
                             <div class="flex items-center justify-between">
                                 <div>
@@ -1127,14 +1763,14 @@ if (!defined('BASE_URL')) {
                             </div>
                         </div>
                     </div>
-                    
+
                     <!-- Products Table -->
                     <div class="bg-white rounded-2xl shadow-lg border border-gray-100 overflow-hidden">
                         <div class="p-6 border-b border-gray-200">
                             <h3 class="text-lg font-semibold text-gray-900">Controle de Estoque</h3>
                             <p class="text-sm text-gray-600 mt-1">Gerencie produtos e suas datas de validade</p>
                         </div>
-                        
+
                         <div class="overflow-x-auto">
                             <table class="w-full">
                                 <thead class="bg-gray-50">
@@ -1154,7 +1790,7 @@ if (!defined('BASE_URL')) {
                     </div>
                 </div>
             </section>
-            
+
             <!-- Escolas Section (ADM SME Only) -->
             <section id="escolas" class="content-section hidden">
                 <div class="space-y-6">
@@ -1172,7 +1808,7 @@ if (!defined('BASE_URL')) {
                             </button>
                         </div>
                     </div>
-                    
+
                     <div class="bg-white rounded-2xl shadow-lg border border-gray-100 overflow-hidden">
                         <div class="p-6 border-b border-gray-200">
                             <h3 class="text-lg font-semibold text-gray-900">Escolas Cadastradas</h3>
@@ -1183,7 +1819,7 @@ if (!defined('BASE_URL')) {
                     </div>
                 </div>
             </section>
-            
+
             <!-- Usuários Section (ADM SME Only) -->
             <section id="usuarios" class="content-section hidden">
                 <div class="space-y-6">
@@ -1201,7 +1837,7 @@ if (!defined('BASE_URL')) {
                             </button>
                         </div>
                     </div>
-                    
+
                     <div class="bg-white rounded-2xl shadow-lg border border-gray-100 overflow-hidden">
                         <div class="p-6 border-b border-gray-200">
                             <h3 class="text-lg font-semibold text-gray-900">Usuários do Sistema</h3>
@@ -1212,7 +1848,7 @@ if (!defined('BASE_URL')) {
                     </div>
                 </div>
             </section>
-            
+
             <!-- Estoque Central Section (ADM SME e ADM Merenda) -->
             <section id="estoque-central" class="content-section hidden">
                 <div class="space-y-6">
@@ -1230,7 +1866,7 @@ if (!defined('BASE_URL')) {
                             </button>
                         </div>
                     </div>
-                    
+
                     <div class="bg-white rounded-2xl shadow-lg border border-gray-100 overflow-hidden">
                         <div class="p-6 border-b border-gray-200">
                             <h3 class="text-lg font-semibold text-gray-900">Controle Central de Estoque</h3>
@@ -1243,7 +1879,7 @@ if (!defined('BASE_URL')) {
             </section>
         </div>
     </main>
-    
+
     <!-- Logout Confirmation Modal -->
     <div id="logoutModal" class="fixed inset-0 bg-black bg-opacity-50 z-[60] hidden flex items-center justify-center p-4">
         <div class="bg-white rounded-2xl p-6 max-w-md w-full mx-4 shadow-2xl">
@@ -1268,7 +1904,7 @@ if (!defined('BASE_URL')) {
             </div>
         </div>
     </div>
-    
+
     <!-- User Profile Modal -->
     <div id="userProfileModal" class="fixed inset-0 bg-white z-50 hidden">
         <div class="h-full w-full overflow-hidden">
@@ -1278,11 +1914,23 @@ if (!defined('BASE_URL')) {
                     <div class="flex items-center justify-between">
                         <div class="flex items-center space-x-4">
                             <div class="w-16 h-16 bg-white bg-opacity-20 rounded-full flex items-center justify-center">
-                                <span class="text-2xl font-bold text-white" id="profileInitials">JS</span>
+                                <span class="text-2xl font-bold text-white" id="profileInitials"><?php
+                                                                                                    // Pega as 2 primeiras letras do nome da sessão
+                                                                                                    $nome = $_SESSION['nome'] ?? '';
+                                                                                                    $iniciais = '';
+                                                                                                    if (strlen($nome) >= 2) {
+                                                                                                        $iniciais = strtoupper(substr($nome, 0, 2));
+                                                                                                    } elseif (strlen($nome) == 1) {
+                                                                                                        $iniciais = strtoupper($nome);
+                                                                                                    } else {
+                                                                                                        $iniciais = 'US'; // Fallback para "User"
+                                                                                                    }
+                                                                                                    echo $iniciais;
+                                                                                                    ?></span>
                             </div>
                             <div>
-                                <h2 class="text-2xl font-bold" id="profileName">João Silva Santos</h2>
-                                <p class="text-green-100" id="profileRole">Professor</p>
+                                <h2 class="text-2xl font-bold" id="profileName"><?php echo $_SESSION['nome']; ?></h2>
+                                <p class="text-green-100" id="profileRole"><?php echo $_SESSION['tipo']; ?></p>
                             </div>
                         </div>
                         <button onclick="closeUserProfile()" class="p-2 hover:bg-white hover:bg-opacity-20 rounded-full transition-colors duration-200">
@@ -1292,7 +1940,7 @@ if (!defined('BASE_URL')) {
                         </button>
                     </div>
                 </div>
-                
+
                 <!-- Modal Content -->
                 <div class="p-6 overflow-y-auto h-[calc(100vh-120px)]">
                     <!-- User Information -->
@@ -1301,23 +1949,23 @@ if (!defined('BASE_URL')) {
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div class="bg-gray-50 p-4 rounded-lg">
                                 <label class="text-sm font-medium text-gray-600">Nome Completo</label>
-                                <p class="text-gray-900 font-medium" id="profileFullName">João Silva Santos</p>
+                                <p class="text-gray-900 font-medium" id="profileFullName"><?php echo $_SESSION['nome']; ?></p>
                             </div>
                             <div class="bg-gray-50 p-4 rounded-lg">
                                 <label class="text-sm font-medium text-gray-600">CPF</label>
-                                <p class="text-gray-900 font-medium" id="profileCPF">123.456.789-00</p>
+                                <p class="text-gray-900 font-medium" id="profileCPF"><?php echo $_SESSION['cpf']; ?></p>
                             </div>
                             <div class="bg-gray-50 p-4 rounded-lg">
                                 <label class="text-sm font-medium text-gray-600">Email</label>
-                                <p class="text-gray-900 font-medium" id="profileEmail">joao.silva@escola.gov.br</p>
+                                <p class="text-gray-900 font-medium" id="profileEmail"><?php echo $_SESSION['email']; ?></p>
                             </div>
                             <div class="bg-gray-50 p-4 rounded-lg">
                                 <label class="text-sm font-medium text-gray-600">Telefone</label>
-                                <p class="text-gray-900 font-medium" id="profilePhone">(85) 99999-9999</p>
+                                <p class="text-gray-900 font-medium" id="profilePhone"><?php echo $_SESSION['telefone']; ?></p>
                             </div>
                         </div>
                     </div>
-                    
+
                     <!-- School Information -->
                     <div class="mb-8">
                         <h3 class="text-lg font-semibold text-gray-900 mb-4" id="schoolsTitle">Escola Atual</h3>
@@ -1325,7 +1973,7 @@ if (!defined('BASE_URL')) {
                             <!-- Schools will be dynamically loaded here -->
                         </div>
                     </div>
-                    
+
                     <!-- User Type Specific Information -->
                     <div class="mb-8">
                         <h3 class="text-lg font-semibold text-gray-900 mb-4">Informações Gerais</h3>
@@ -1350,7 +1998,7 @@ if (!defined('BASE_URL')) {
                             </div>
                         </div>
                     </div>
-                    
+
                     <!-- Configurações de Acessibilidade -->
                     <div class="mb-8">
                         <div class="flex items-center space-x-3 mb-6">
@@ -1364,7 +2012,7 @@ if (!defined('BASE_URL')) {
                                 <p class="text-sm text-gray-600">Personalize sua experiência para melhor usabilidade</p>
                             </div>
                         </div>
-                        
+
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                             <!-- Tema -->
                             <div class="bg-gradient-to-br from-gray-50 to-gray-100 p-6 rounded-2xl border border-gray-200 hover:shadow-lg transition-all duration-300">
@@ -1398,7 +2046,7 @@ if (!defined('BASE_URL')) {
                                     </button>
                                 </div>
                             </div>
-                            
+
                             <!-- Contraste -->
                             <div class="bg-gradient-to-br from-gray-50 to-gray-100 p-6 rounded-2xl border border-gray-200 hover:shadow-lg transition-all duration-300">
                                 <div class="flex items-center space-x-3 mb-4">
@@ -1422,7 +2070,7 @@ if (!defined('BASE_URL')) {
                                     </button>
                                 </div>
                             </div>
-                            
+
                             <!-- Tamanho da Fonte -->
                             <div class="bg-gradient-to-br from-gray-50 to-gray-100 p-6 rounded-2xl border border-gray-200 hover:shadow-lg transition-all duration-300">
                                 <div class="flex items-center space-x-3 mb-4">
@@ -1448,7 +2096,7 @@ if (!defined('BASE_URL')) {
                                     </button>
                                 </div>
                             </div>
-                            
+
                             <!-- Configurações Avançadas -->
                             <div class="bg-gradient-to-br from-gray-50 to-gray-100 p-6 rounded-2xl border border-gray-200 hover:shadow-lg transition-all duration-300">
                                 <div class="flex items-center space-x-3 mb-4">
@@ -1482,7 +2130,7 @@ if (!defined('BASE_URL')) {
                                             <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary-green peer-focus:ring-opacity-20 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary-green"></div>
                                         </label>
                                     </div>
-                                    
+
                                     <!-- Navegação por Teclado -->
                                     <div class="flex items-center justify-between p-3 bg-white rounded-lg border border-gray-200">
                                         <div class="flex items-center space-x-3">
@@ -1505,7 +2153,7 @@ if (!defined('BASE_URL')) {
                             </div>
                         </div>
                     </div>
-                    
+
                     <!-- Actions -->
                     <div class="flex space-x-3">
                         <button class="flex-1 px-4 py-2 text-primary-green border border-primary-green hover:bg-primary-green hover:text-white rounded-lg font-medium transition-colors duration-200">
@@ -1519,7 +2167,7 @@ if (!defined('BASE_URL')) {
             </div>
         </div>
     </div>
-    
+
     <!-- Add Product Modal -->
     <div id="addProductModal" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden flex items-center justify-center p-4">
         <div class="bg-white rounded-2xl p-6 max-w-md w-full mx-4 shadow-2xl">
@@ -1531,18 +2179,18 @@ if (!defined('BASE_URL')) {
                     </svg>
                 </button>
             </div>
-            
+
             <form id="addProductForm" class="space-y-4">
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-2">Nome do Produto</label>
                     <input type="text" id="productName" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-green focus:border-transparent" placeholder="Ex: Arroz" required>
                 </div>
-                
+
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-2">Quantidade</label>
                     <input type="number" id="productQuantity" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-green focus:border-transparent" placeholder="Ex: 50" min="1" required>
                 </div>
-                
+
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-2">Unidade</label>
                     <select id="productUnit" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-green focus:border-transparent" required>
@@ -1556,12 +2204,12 @@ if (!defined('BASE_URL')) {
                         <option value="pct">Pacote</option>
                     </select>
                 </div>
-                
+
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-2">Data de Validade</label>
                     <input type="date" id="productExpiry" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-green focus:border-transparent" required>
                 </div>
-                
+
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-2">Categoria</label>
                     <select id="productCategory" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-green focus:border-transparent" required>
@@ -1575,7 +2223,7 @@ if (!defined('BASE_URL')) {
                         <option value="outros">Outros</option>
                     </select>
                 </div>
-                
+
                 <div class="flex space-x-3 pt-4">
                     <button type="button" onclick="closeAddProductModal()" class="flex-1 px-4 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg font-medium transition-colors duration-200">
                         Cancelar
@@ -1587,7 +2235,7 @@ if (!defined('BASE_URL')) {
             </form>
         </div>
     </div>
-    
+
     <script>
         // User types and permissions
         const USER_TYPES = {
@@ -1682,18 +2330,18 @@ if (!defined('BASE_URL')) {
                 // Limit initials to first 2 names only
                 const initials = user.nome.split(' ').slice(0, 2).map(n => n[0]).join('').toUpperCase();
                 document.getElementById('userInitials').textContent = initials;
-                
+
                 // Setup permissions based on user type
                 setupUserPermissions(user.tipo || USER_TYPES.PROFESSOR);
-                
+
                 // Set dynamic page title based on user type
                 setDynamicPageTitle(user.tipo || USER_TYPES.PROFESSOR);
             }
-            
+
             // Load accessibility settings
             loadAccessibilitySettings();
         });
-        
+
         function setDynamicPageTitle(userType) {
             const pageTitle = document.getElementById('pageTitle');
             const roleNames = {
@@ -1704,63 +2352,64 @@ if (!defined('BASE_URL')) {
                 [USER_TYPES.ADM_MERENDA]: 'Dashboard ADM Merenda',
                 [USER_TYPES.ALUNO]: 'Dashboard Aluno'
             };
-            
+
             if (pageTitle) {
                 pageTitle.textContent = roleNames[userType] || 'Dashboard Professor';
             }
         }
 
-         function setupUserPermissions(userType) {
-             const permissions = PERMISSIONS[userType] || PERMISSIONS[USER_TYPES.PROFESSOR];
-             
-             // Hide/show menu items based on permissions
-             const menuItems = {
-                 'alunos': document.getElementById('alunos-menu'),
-                 'turmas': document.getElementById('turmas-menu'),
-                 'frequencia': document.getElementById('frequencia-menu'),
-                 'notas': document.getElementById('notas-menu'),
-                 'relatorios': document.getElementById('relatorios-menu'),
-                 'merenda': document.getElementById('merenda-menu'),
-                 'escolas': document.getElementById('escolas-menu'),
-                 'usuarios': document.getElementById('usuarios-menu'),
-                 'estoque-central': document.getElementById('estoque-central-menu')
-             };
+        function setupUserPermissions(userType) {
+            const permissions = PERMISSIONS[userType] || PERMISSIONS[USER_TYPES.PROFESSOR];
+
+            // Hide/show menu items based on permissions
+            const menuItems = {
+                'alunos': document.getElementById('alunos-menu'),
+                'turmas': document.getElementById('turmas-menu'),
+                'frequencia': document.getElementById('frequencia-menu'),
+                'notas': document.getElementById('notas-menu'),
+                'relatorios': document.getElementById('relatorios-menu'),
+                'merenda': document.getElementById('merenda-menu'),
+                'escolas': document.getElementById('escolas-menu'),
+                'usuarios': document.getElementById('usuarios-menu'),
+                'estoque-central': document.getElementById('estoque-central-menu')
+            };
         }
-        
+
         // Toggle sidebar on mobile
         function toggleSidebar() {
             const sidebar = document.getElementById('sidebar');
             const overlay = document.getElementById('mobileOverlay');
-            
+
             sidebar.classList.toggle('open');
             overlay.classList.toggle('hidden');
         }
-        
+
         // Close sidebar when clicking overlay
         document.getElementById('mobileOverlay').addEventListener('click', function() {
             toggleSidebar();
         });
-        
-        
+
+
         // Modal functions
         function confirmLogout() {
             document.getElementById('logoutModal').classList.remove('hidden');
         }
-        
+
         function closeLogoutModal() {
             document.getElementById('logoutModal').classList.add('hidden');
         }
-        
+
         function openUserProfile() {
             // Load user data into profile modal
             const user = JSON.parse(localStorage.getItem('user') || '{}');
             if (user.nome) {
                 document.getElementById('profileName').textContent = user.nome;
                 document.getElementById('profileFullName').textContent = user.nome;
-                // Limit initials to first 2 names only
-                const initials = user.nome.split(' ').slice(0, 2).map(n => n[0]).join('').toUpperCase();
+                // Pega as 2 primeiras letras do nome
+                const initials = user.nome.length >= 2 ? user.nome.substring(0, 2).toUpperCase() :
+                    user.nome.length === 1 ? user.nome.toUpperCase() : 'US';
                 document.getElementById('profileInitials').textContent = initials;
-                
+
                 // Update role in profile
                 const roleNames = {
                     [USER_TYPES.ADM_SME]: 'ADM SME',
@@ -1770,23 +2419,23 @@ if (!defined('BASE_URL')) {
                     [USER_TYPES.ADM_MERENDA]: 'ADM Merenda',
                     [USER_TYPES.ALUNO]: 'Aluno'
                 };
-                
+
                 const profileRole = document.getElementById('profileRole');
                 if (profileRole) {
                     profileRole.textContent = roleNames[user.tipo] || 'Professor';
                 }
-                
+
                 // Update schools section for multi-school users
                 updateSchoolsSection(user);
             }
             document.getElementById('userProfileModal').classList.remove('hidden');
         }
-        
+
         function updateSchoolsSection(user) {
             const schoolsContainer = document.getElementById('schoolsContainer');
             const schoolsTitle = document.getElementById('schoolsTitle');
             const totalSchoolsElement = document.getElementById('totalSchools');
-            
+
             if (schoolsContainer && user.escolas && user.escolas.length > 0) {
                 // Update title
                 if (user.escolas.length === 1) {
@@ -1794,7 +2443,7 @@ if (!defined('BASE_URL')) {
                 } else {
                     schoolsTitle.textContent = `Escolas (${user.escolas.length})`;
                 }
-                
+
                 // Update total schools in general info
                 if (totalSchoolsElement) {
                     if (user.escolas.length === 1) {
@@ -1803,15 +2452,15 @@ if (!defined('BASE_URL')) {
                         totalSchoolsElement.textContent = `${user.escolas.length} escolas`;
                     }
                 }
-                
+
                 // Clear container
                 schoolsContainer.innerHTML = '';
-                
+
                 // Create school cards
                 user.escolas.forEach((escola, index) => {
                     const schoolCard = document.createElement('div');
                     schoolCard.className = 'bg-primary-green bg-opacity-10 p-4 rounded-lg border border-primary-green border-opacity-20 mb-3';
-                    
+
                     schoolCard.innerHTML = `
                         <div class="flex items-center space-x-3">
                             <div class="flex-shrink-0">
@@ -1830,22 +2479,22 @@ if (!defined('BASE_URL')) {
                             </div>
                         </div>
                     `;
-                    
+
                     schoolsContainer.appendChild(schoolCard);
                 });
             }
         }
-        
+
         function closeUserProfile() {
             document.getElementById('userProfileModal').classList.add('hidden');
         }
-        
+
         // Logout function
         function logout() {
             localStorage.removeItem('user');
             window.location.href = '../../Models/sessao/sessions.php?sair';
         }
-        
+
         // Handle window resize
         window.addEventListener('resize', function() {
             if (window.innerWidth >= 1024) {
@@ -1853,21 +2502,21 @@ if (!defined('BASE_URL')) {
                 document.getElementById('sidebar').classList.remove('open');
             }
         });
-        
+
         // Close modals when clicking outside
         document.getElementById('logoutModal').addEventListener('click', function(e) {
             if (e.target === this) {
                 closeLogoutModal();
             }
         });
-        
-        
+
+
         document.getElementById('addProductModal').addEventListener('click', function(e) {
             if (e.target === this) {
                 closeAddProductModal();
             }
         });
-        
+
         // Close modals with Escape key
         document.addEventListener('keydown', function(e) {
             if (e.key === 'Escape') {
@@ -1876,14 +2525,13 @@ if (!defined('BASE_URL')) {
                 closeAddProductModal();
             }
         });
-        
+
         // Inventory Management Functions
         let products = JSON.parse(localStorage.getItem('products') || '[]');
-        
+
         // Sample data for demonstration
         if (products.length === 0) {
-            products = [
-                {
+            products = [{
                     id: 1,
                     name: 'Arroz',
                     quantity: 50,
@@ -1922,16 +2570,16 @@ if (!defined('BASE_URL')) {
             ];
             localStorage.setItem('products', JSON.stringify(products));
         }
-        
+
         function loadProducts() {
             const tbody = document.getElementById('productsTableBody');
             tbody.innerHTML = '';
-            
+
             products.forEach(product => {
                 const row = document.createElement('tr');
                 const statusBadge = getStatusBadge(product.status);
                 const daysUntilExpiry = getDaysUntilExpiry(product.expiryDate);
-                
+
                 row.innerHTML = `
                     <td class="px-6 py-4 whitespace-nowrap">
                         <div class="flex items-center">
@@ -1963,12 +2611,12 @@ if (!defined('BASE_URL')) {
                 `;
                 tbody.appendChild(row);
             });
-            
+
             updateStats();
         }
-        
+
         function getStatusBadge(status) {
-            switch(status) {
+            switch (status) {
                 case 'ok':
                     return '<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">OK</span>';
                 case 'expiring':
@@ -1979,7 +2627,7 @@ if (!defined('BASE_URL')) {
                     return '<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">-</span>';
             }
         }
-        
+
         function getDaysUntilExpiry(expiryDate) {
             const today = new Date();
             const expiry = new Date(expiryDate);
@@ -1987,31 +2635,31 @@ if (!defined('BASE_URL')) {
             const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
             return diffDays;
         }
-        
+
         function formatDate(dateString) {
             const date = new Date(dateString);
             return date.toLocaleDateString('pt-BR');
         }
-        
+
         function updateStats() {
             const total = products.length;
             const expiring = products.filter(p => getDaysUntilExpiry(p.expiryDate) <= 30 && getDaysUntilExpiry(p.expiryDate) > 0).length;
             const low = products.filter(p => p.quantity <= 10).length;
-            
+
             document.getElementById('totalProducts').textContent = total;
             document.getElementById('expiringProducts').textContent = expiring;
             document.getElementById('lowStockProducts').textContent = low;
         }
-        
+
         function openAddProductModal() {
             document.getElementById('addProductModal').classList.remove('hidden');
         }
-        
+
         function closeAddProductModal() {
             document.getElementById('addProductModal').classList.add('hidden');
             document.getElementById('addProductForm').reset();
         }
-        
+
         function editProduct(id) {
             const product = products.find(p => p.id === id);
             if (product) {
@@ -2023,7 +2671,7 @@ if (!defined('BASE_URL')) {
                 openAddProductModal();
             }
         }
-        
+
         function deleteProduct(id) {
             if (confirm('Tem certeza que deseja excluir este produto?')) {
                 products = products.filter(p => p.id !== id);
@@ -2031,27 +2679,27 @@ if (!defined('BASE_URL')) {
                 loadProducts();
             }
         }
-        
+
         // Handle add product form submission
         document.getElementById('addProductForm').addEventListener('submit', function(e) {
             e.preventDefault();
-            
+
             const name = document.getElementById('productName').value;
             const quantity = parseInt(document.getElementById('productQuantity').value);
             const unit = document.getElementById('productUnit').value;
             const expiryDate = document.getElementById('productExpiry').value;
             const category = document.getElementById('productCategory').value;
-            
+
             // Determine status based on quantity and expiry
             let status = 'ok';
             const daysUntilExpiry = getDaysUntilExpiry(expiryDate);
-            
+
             if (quantity <= 10) {
                 status = 'low';
             } else if (daysUntilExpiry <= 30 && daysUntilExpiry > 0) {
                 status = 'expiring';
             }
-            
+
             const newProduct = {
                 id: Date.now(),
                 name,
@@ -2061,40 +2709,40 @@ if (!defined('BASE_URL')) {
                 category,
                 status
             };
-            
+
             products.push(newProduct);
             localStorage.setItem('products', JSON.stringify(products));
             loadProducts();
             closeAddProductModal();
         });
-        
+
         // Load products when merenda section is shown
         function showSection(sectionId) {
             // Hide all sections
             document.querySelectorAll('.content-section').forEach(section => {
                 section.classList.add('hidden');
             });
-            
+
             // Show selected section
             document.getElementById(sectionId).classList.remove('hidden');
-            
+
             // Update active menu item
             document.querySelectorAll('.menu-item').forEach(item => {
                 item.classList.remove('active');
                 item.querySelector('svg').classList.remove('text-primary-green');
                 item.querySelector('svg').classList.add('text-gray-500');
             });
-            
+
             // Set active state
             const activeButton = event.target.closest('.menu-item');
             activeButton.classList.add('active');
             activeButton.querySelector('svg').classList.remove('text-gray-500');
             activeButton.querySelector('svg').classList.add('text-primary-green');
-            
+
             // Update page title
             const user = JSON.parse(localStorage.getItem('user') || '{}');
             const userType = user.tipo || USER_TYPES.PROFESSOR;
-            
+
             if (sectionId === 'dashboard') {
                 // For dashboard, show dynamic title based on user type
                 setDynamicPageTitle(userType);
@@ -2113,126 +2761,126 @@ if (!defined('BASE_URL')) {
                 };
                 document.getElementById('pageTitle').textContent = titles[sectionId] || 'Dashboard';
             }
-            
+
             // Load products if merenda section is shown
             if (sectionId === 'merenda') {
                 loadProducts();
             }
-            
+
             // Close mobile sidebar
             if (window.innerWidth < 1024) {
                 toggleSidebar();
             }
         }
-        
+
         // Accessibility Functions
         function loadAccessibilitySettings() {
             const settings = JSON.parse(localStorage.getItem('accessibilitySettings') || '{}');
-            
+
             // Apply theme
             if (settings.theme) {
                 setTheme(settings.theme);
             }
-            
+
             // Apply contrast
             if (settings.contrast) {
                 setContrast(settings.contrast);
             }
-            
+
             // Apply font size
             if (settings.fontSize) {
                 setFontSize(settings.fontSize);
             }
-            
+
             // Apply reduce motion
             if (settings.reduceMotion) {
                 document.getElementById('reduce-motion').checked = true;
                 setReduceMotion(true);
             }
-            
+
             // Apply keyboard navigation
             if (settings.keyboardNavigation) {
                 document.getElementById('keyboard-nav').checked = true;
                 setKeyboardNavigation(true);
             }
         }
-        
+
         function setTheme(theme) {
             document.documentElement.setAttribute('data-theme', theme);
-            
+
             // Update button states
             document.querySelectorAll('[id^="theme-"]').forEach(btn => {
                 btn.classList.remove('bg-primary-green', 'text-white');
                 btn.classList.add('border-gray-300');
             });
-            
+
             const activeBtn = document.getElementById(`theme-${theme}`);
             if (activeBtn) {
                 activeBtn.classList.add('bg-primary-green', 'text-white');
                 activeBtn.classList.remove('border-gray-300');
             }
-            
+
             // Save setting
             const settings = JSON.parse(localStorage.getItem('accessibilitySettings') || '{}');
             settings.theme = theme;
             localStorage.setItem('accessibilitySettings', JSON.stringify(settings));
         }
-        
+
         function setContrast(contrast) {
             document.documentElement.setAttribute('data-contrast', contrast);
-            
+
             // Update button states
             document.querySelectorAll('[id^="contrast-"]').forEach(btn => {
                 btn.classList.remove('bg-primary-green', 'text-white');
                 btn.classList.add('border-gray-300');
             });
-            
+
             const activeBtn = document.getElementById(`contrast-${contrast}`);
             if (activeBtn) {
                 activeBtn.classList.add('bg-primary-green', 'text-white');
                 activeBtn.classList.remove('border-gray-300');
             }
-            
+
             // Save setting
             const settings = JSON.parse(localStorage.getItem('accessibilitySettings') || '{}');
             settings.contrast = contrast;
             localStorage.setItem('accessibilitySettings', JSON.stringify(settings));
         }
-        
+
         function setFontSize(size) {
             document.documentElement.setAttribute('data-font-size', size);
-            
+
             // Update button states
             document.querySelectorAll('[id^="font-"]').forEach(btn => {
                 btn.classList.remove('bg-primary-green', 'text-white');
                 btn.classList.add('border-gray-300');
             });
-            
+
             const activeBtn = document.getElementById(`font-${size}`);
             if (activeBtn) {
                 activeBtn.classList.add('bg-primary-green', 'text-white');
                 activeBtn.classList.remove('border-gray-300');
             }
-            
+
             // Save setting
             const settings = JSON.parse(localStorage.getItem('accessibilitySettings') || '{}');
             settings.fontSize = size;
             localStorage.setItem('accessibilitySettings', JSON.stringify(settings));
         }
-        
+
         function setReduceMotion(enabled) {
             if (enabled) {
                 document.documentElement.setAttribute('data-reduce-motion', 'true');
             } else {
                 document.documentElement.removeAttribute('data-reduce-motion');
             }
-            
+
             // Save setting
             const settings = JSON.parse(localStorage.getItem('accessibilitySettings') || '{}');
             settings.reduceMotion = enabled;
             localStorage.setItem('accessibilitySettings', JSON.stringify(settings));
         }
-        
+
         function setKeyboardNavigation(enabled) {
             if (enabled) {
                 document.documentElement.setAttribute('data-keyboard-nav', 'true');
@@ -2247,13 +2895,13 @@ if (!defined('BASE_URL')) {
                     el.classList.remove('focus-visible');
                 });
             }
-            
+
             // Save setting
             const settings = JSON.parse(localStorage.getItem('accessibilitySettings') || '{}');
             settings.keyboardNavigation = enabled;
             localStorage.setItem('accessibilitySettings', JSON.stringify(settings));
         }
-        
+
         // Keyboard navigation support
         document.addEventListener('keydown', function(e) {
             // Alt + 1 to 9 for quick navigation
@@ -2265,13 +2913,13 @@ if (!defined('BASE_URL')) {
                     menuItems[index].click();
                 }
             }
-            
+
             // Alt + A for accessibility settings
             if (e.altKey && e.key.toLowerCase() === 'a') {
                 e.preventDefault();
                 openUserProfile();
             }
-            
+
             // Alt + T for theme toggle
             if (e.altKey && e.key.toLowerCase() === 't') {
                 e.preventDefault();
@@ -2281,4 +2929,5 @@ if (!defined('BASE_URL')) {
         });
     </script>
 </body>
+
 </html>

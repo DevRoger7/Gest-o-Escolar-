@@ -102,9 +102,28 @@ class sessions {
 
 // Verifica se foi solicitado logout
 if (isset($_GET['sair'])) {
-    $session = new sessions();
-    $session->destruir_session();
-    header('Location: ../../views/auth/login.php');
+    // Inicia a sessão se não estiver iniciada
+    if (session_status() == PHP_SESSION_NONE) {
+        session_start();
+    }
+    
+    // Destrói todas as variáveis de sessão
+    $_SESSION = array();
+    
+    // Se for desejado destruir a sessão, também delete o cookie de sessão
+    if (ini_get("session.use_cookies")) {
+        $params = session_get_cookie_params();
+        setcookie(session_name(), '', time() - 42000,
+            $params["path"], $params["domain"],
+            $params["secure"], $params["httponly"]
+        );
+    }
+    
+    // Finalmente, destrói a sessão
+    session_destroy();
+    
+    // Redireciona para o login
+    header('Location: ../../Views/auth/login.php');
     exit();
 }
 ?>
