@@ -2,7 +2,8 @@
 
 if(isset($_POST["cpf"]) && isset($_POST["senha"]))
 {
-    $cpf = $_POST["cpf"];
+    // Remove pontos e hífens do CPF, mantendo apenas números
+    $cpf = preg_replace('/[^0-9]/', '', $_POST["cpf"]);
     $senha = $_POST["senha"];
     require_once("../../Models/autenticacao/modelLogin.php");
     $modelLogin = new ModelLogin();

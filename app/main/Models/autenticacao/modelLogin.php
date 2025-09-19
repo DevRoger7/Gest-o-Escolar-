@@ -1,11 +1,16 @@
 <?php
 
+
+
 Class ModelLogin {
     public function login($cpf, $senha) {
         // Inicia a sessão se ainda não foi iniciada
         if (session_status() == PHP_SESSION_NONE) {
             session_start();
         }
+        
+        // Remove pontos e hífens do CPF, mantendo apenas números
+        $cpf = preg_replace('/[^0-9]/', '', $cpf);
         
         require_once("../../config/Database.php");
         $db = Database::getInstance();

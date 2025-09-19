@@ -466,23 +466,6 @@ if (!defined('BASE_URL')) {
                 document.body.style.opacity = '1';
             }, 100);
             
-            // Garantir que os formulários funcionem corretamente
-            const loginForm = document.getElementById('loginForm');
-            const loginFormMobile = document.getElementById('loginFormMobile');
-            
-            if (loginForm) {
-                loginForm.addEventListener('submit', function(e) {
-                    // Validação básica
-                    const cpf = document.getElementById('cpf').value.trim();
-                    const senha = document.getElementById('senha').value.trim();
-                    
-                    if (!cpf || !senha) {
-                        e.preventDefault();
-                        showError('Por favor, preencha todos os campos.');
-                    }
-                });
-            }
-            
             if (loginFormMobile) {
                 loginFormMobile.addEventListener('submit', function(e) {
                     // Validação básica
