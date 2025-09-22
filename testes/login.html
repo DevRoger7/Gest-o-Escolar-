@@ -1,9 +1,14 @@
+<?php
+if (!defined('BASE_URL')) {
+    define('BASE_URL', 'http://localhost/GitHub/Gest-o-Escolar-');
+}
+?>
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Login - SIGAE | Sistema Integrado de Gestão Educacional Municipal</title>
+    <title>Login - SIGAE | Sistema Integrado de Gestão Escolar e Alimentação Escolar</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="config.js"></script>
     <script src="assets/js/modal-system.js"></script>
@@ -64,7 +69,7 @@
         <div class="text-center mb-8">
             <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/1/19/Bras%C3%A3o_de_Maranguape.png/250px-Bras%C3%A3o_de_Maranguape.png" alt="Brasão de Maranguape" class="w-16 h-16 mx-auto mb-4 object-contain">
             <h1 class="text-2xl font-bold text-gray-800 mb-1">SIGAE</h1>
-            <p class="text-gray-600 text-sm font-medium mb-1">Sistema Integrado de Gestão Educacional Municipal</p>
+            <p class="text-gray-600 text-sm font-medium mb-1">Sistema Integrado de Gestão Escolar e Alimentação Escolar</p>
             <p class="text-gray-500 text-xs">Prefeitura Municipal de Maranguape</p>
         </div>
 
@@ -75,6 +80,11 @@
         </div>
 
         <!-- Error/Success Messages -->
+        <?php if(isset($_GET['erro']) && $_GET['erro'] == '1'): ?>
+        <div class="mb-4 bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-lg text-sm">
+            <span>CPF ou senha incorretos. Tente novamente.</span>
+        </div>
+        <?php endif; ?>
         <div id="errorMessage" class="error-message">
             <div class="flex items-center">
                 <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -94,7 +104,7 @@
             </div>
 
         <!-- Formulário -->
-        <form id="loginForm" class="space-y-5">
+        <form id="loginForm" action="../../Controllers/autenticacao/controllerLogin.php" method="post" class="space-y-5">
             <!-- Campo CPF -->
             <div>
                 <label class="block text-sm font-medium text-gray-700 mb-2">CPF</label>
@@ -176,7 +186,7 @@
                         <img src="https://i.postimg.cc/j5RDSqbd/brasao2-marangupe.png" alt="Logo" class="w-30 h-30 object-contain" />
                     </div>
                     <h1 class="text-4xl font-bold mb-4">SIGAE</h1>
-                    <p class="text-xl text-white/90"> Sistema Integrado de Gestão Educacional Municipal</p>
+                    <p class="text-xl text-white/90"> Sistema Integrado de Gestão Escolar e Alimentação Escolar</p>
                 </div>
             </div>
         </div>
@@ -192,6 +202,11 @@
                 </div>
 
                 <!-- Error/Success Messages Desktop -->
+                <?php if(isset($_GET['erro']) && $_GET['erro'] == '1'): ?>
+                <div class="mb-4 bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-lg text-sm">
+                    <span>CPF ou senha incorretos. Tente novamente.</span>
+                </div>
+                <?php endif; ?>
                 <div id="errorMessageDesktop" class="error-message">
                     <div class="flex items-center">
                         <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -210,7 +225,7 @@
                     </div>
                 </div>
 
-                <form id="loginFormDesktop" class="space-y-6">
+                <form id="loginFormDesktop" action="../../Controllers/autenticacao/controllerLogin.php" method="post" class="space-y-6">
                     <div>
                         <label class="block text-sm font-semibold text-slate-700 mb-2">CPF</label>
                         <input type="text" required name="cpf" id="cpfDesktop" class="w-full px-4 py-3 border border-slate-200 rounded-xl focus:border-forest-500 focus:ring-2 focus:ring-forest-100 focus:outline-none" placeholder="000.000.000-00" maxlength="14" oninput="formatCPF(this)">

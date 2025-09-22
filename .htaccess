@@ -1,27 +1,39 @@
+# Configurações do Apache para o SIGAE
+
+# Habilitar mod_rewrite
 RewriteEngine On
 
-# Permitir acesso direto a arquivos de teste
-RewriteCond %{REQUEST_FILENAME} -f
-RewriteRule ^(test\.php|info\.php)$ - [L]
+# Página de erro 404 personalizada
+ErrorDocument 404 /GitHub/Gest-o-Escolar-/404.php
 
-# Redirecionar outras requisições para o index.php
-RewriteCond %{REQUEST_FILENAME} !-f
-RewriteCond %{REQUEST_FILENAME} !-d
-RewriteRule ^(.*)$ index.php [QSA,L]
+# Página de erro 403 personalizada (acesso negado)
+ErrorDocument 403 /GitHub/Gest-o-Escolar-/404.php
+
+# Página de erro 500 personalizada (erro interno do servidor)
+ErrorDocument 500 /GitHub/Gest-o-Escolar-/404.php
+
+# Redirecionamentos para URLs amigáveis (opcional)
+# RewriteRule ^login/?$ app/main/Views/auth/login.php [L]
+# RewriteRule ^dashboard/?$ app/main/Views/dashboard/dashboard.php [L]
 
 # Configurações de segurança
-<Files "*.php">
-    Order Allow,Deny
-    Allow from all
-</Files>
-
-# Bloquear acesso a arquivos sensíveis
-<FilesMatch "\.(htaccess|htpasswd|ini|log|sh|inc|bak)$">
+# Impedir acesso direto a arquivos sensíveis
+<Files "*.sql">
     Order Allow,Deny
     Deny from all
-</FilesMatch>
+</Files>
 
-# Configurações de cache para assets estáticos
+<Files "*.log">
+    Order Allow,Deny
+    Deny from all
+</Files>
+
+<Files ".htaccess">
+    Order Allow,Deny
+    Deny from all
+</Files>
+
+# Configurações de cache (opcional)
 <IfModule mod_expires.c>
     ExpiresActive On
     ExpiresByType text/css "access plus 1 month"
@@ -33,7 +45,7 @@ RewriteRule ^(.*)$ index.php [QSA,L]
     ExpiresByType image/svg+xml "access plus 1 month"
 </IfModule>
 
-# Compressão GZIP
+# Compressão GZIP (opcional)
 <IfModule mod_deflate.c>
     AddOutputFilterByType DEFLATE text/plain
     AddOutputFilterByType DEFLATE text/html
