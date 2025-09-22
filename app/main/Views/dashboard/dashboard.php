@@ -878,7 +878,7 @@ if (!defined('BASE_URL')) {
                     </a>
                 </li>
                 <li id="usuarios-menu">
-                    <a href="#" onclick="showSection('usuarios')" class="menu-item flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700">
+                    <a href="gestao_usuarios.php" class="menu-item flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700">
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z"></path>
                         </svg>
@@ -1003,7 +1003,7 @@ if (!defined('BASE_URL')) {
                 </div>
 
                 <!-- Stats Cards -->
-                <?php if (isset($_SESSION['acessar_registros']) || isset($_SESSION['relatorio_geral']) || isset($_SESSION['gerar_relatorios_pedagogicos'])) { ?>
+                <?php if (isset($_SESSION['tipo']) && $_SESSION['tipo'] === 'GESTAO') { ?>
                 <div class="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6 mb-8">
                     <div class="card-hover bg-white rounded-2xl p-4 md:p-6 shadow-lg border border-gray-100 relative overflow-hidden hover-lift fade-in-up">
                         <div class="absolute top-0 right-0 w-20 h-20 bg-blue-100 rounded-full -mr-10 -mt-10"></div>
@@ -4312,33 +4312,7 @@ if (!defined('BASE_URL')) {
             </section>
 
             <!-- Usuários Section (ADM SME Only) -->
-            <section id="usuarios" class="content-section hidden">
-                <div class="space-y-6 mx-4 sm:mx-6 lg:mx-8">
-                    <div class="bg-white rounded-2xl p-6 shadow-lg border border-gray-100">
-                        <div class="flex items-center justify-between">
-                            <div>
-                                <h2 class="text-2xl font-bold text-gray-800">Gestão de Usuários</h2>
-                                <p class="text-gray-600 mt-1">Cadastro e administração de usuários do sistema</p>
-                            </div>
-                            <button class="bg-primary-green text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors duration-200 flex items-center space-x-2">
-                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
-                                </svg>
-                                <span>Novo Usuário</span>
-                            </button>
-                        </div>
-                    </div>
-
-                    <div class="bg-white rounded-2xl shadow-lg border border-gray-100 overflow-hidden">
-                        <div class="p-6 border-b border-gray-200">
-                            <h3 class="text-lg font-semibold text-gray-900">Usuários do Sistema</h3>
-                        </div>
-                        <div class="p-6">
-                            <p class="text-gray-600">Sistema de gestão de usuários em desenvolvimento...</p>
-                        </div>
-                    </div>
-                </div>
-            </section>
+            <!-- A seção de usuários foi movida para gestao_usuarios.php -->
 
             <!-- Estoque Central Section (ADM SME e ADM Merenda) -->
             <section id="estoque-central" class="content-section hidden">

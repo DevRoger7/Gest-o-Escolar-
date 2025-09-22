@@ -16,15 +16,30 @@ Class ModelLogin {
         $db = Database::getInstance();
         $conn = $db->getConnection();
         
+        // Primeiro, buscar o usuário apenas pelo CPF para obter o hash da senha
         $sql = "SELECT u.*, p.* FROM usuario u 
                 INNER JOIN pessoa p ON u.pessoa_id = p.id 
-                WHERE p.cpf = ? AND u.senha_hash = ?";
+                WHERE p.cpf = ?";
         
         $stmt = $conn->prepare($sql);
-        $stmt->execute([$cpf, $senha]);
+        $stmt->execute([$cpf]);
         $resultado = $stmt->fetch(PDO::FETCH_ASSOC);
         
-        if($resultado) {
+        // Verificar se o usuário existe e se a senha está correta usando password_verify
+        if ($resultado && password_verify($senha, $resultado['senha_hash'])) {
+            // Senha correta, continuar com o login
+            
+            // Definir o fuso horário para América/Sao_Paulo (GMT-3)
+            date_default_timezone_set('America/Sao_Paulo');
+            
+            // Atualizar o campo ultimo_login com a data e hora atual no fuso horário correto
+            $dataHoraAtual = date('Y-m-d H:i:s');
+            $sqlAtualizarLogin = "UPDATE usuario SET ultimo_login = :ultimo_login WHERE id = :id";
+            $stmtAtualizarLogin = $conn->prepare($sqlAtualizarLogin);
+            $stmtAtualizarLogin->bindParam(':ultimo_login', $dataHoraAtual);
+            $stmtAtualizarLogin->bindParam(':id', $resultado['id']);
+            $stmtAtualizarLogin->execute();
+            
             // Criar as sessões com os dados do usuário
             $_SESSION['logado'] = true;
             $_SESSION['usuario_id'] = $resultado['id'];
@@ -41,6 +56,7 @@ Class ModelLogin {
             
             return $resultado;
         } else {
+            // Usuário não encontrado ou senha incorreta
             return false;
         }
     }
