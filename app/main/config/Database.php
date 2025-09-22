@@ -26,7 +26,7 @@ class Database {
     private function connect() {
         try {
             $this->connection = new PDO(
-                "mysql:host={$this->host};dbname={$this->dbname};charset=utf8",
+                "mysql:host={$this->host};dbname={$this->dbname};charset=utf8;unix_socket=/Applications/XAMPP/xamppfiles/var/mysql/mysql.sock",
                 $this->username,
                 $this->password
             );
