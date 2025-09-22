@@ -1,0 +1,1084 @@
+<?php
+// Iniciar sessão
+session_start();
+
+// Verificar se o usuário está logado e tem permissão para acessar esta página
+if (!isset($_SESSION['tipo']) || $_SESSION['tipo'] !== 'ADM') {
+    header('Location: ../auth/login.php');
+    exit;
+}
+
+// Incluir arquivo de conexão com o banco de dados
+require_once('../../config/Database.php');
+
+// Funções para gerenciamento de escolas
+function listarEscolas($busca = '') {
+    $db = Database::getInstance();
+    $conn = $db->getConnection();
+    
+    $sql = "SELECT e.id, e.nome, e.endereco, e.telefone, e.email, e.municipio, e.cep, e.qtd_salas, e.obs, e.criado_em as data_criacao,
+                   p.nome as gestor_nome, p.email as gestor_email
+            FROM escola e 
+            LEFT JOIN gestor_lotacao gl ON e.id = gl.escola_id AND gl.responsavel = 1
+            LEFT JOIN gestor g ON gl.gestor_id = g.id
+            LEFT JOIN pessoa p ON g.pessoa_id = p.id
+            WHERE 1=1";
+    
+    if (!empty($busca)) {
+        $sql .= " AND (e.nome LIKE :busca OR e.endereco LIKE :busca OR e.email LIKE :busca OR e.municipio LIKE :busca OR p.nome LIKE :busca)";
+    }
+    
+    $sql .= " ORDER BY e.nome ASC";
+    
+    $stmt = $conn->prepare($sql);
+    
+    if (!empty($busca)) {
+        $busca = "%{$busca}%";
+        $stmt->bindParam(':busca', $busca);
+    }
+    
+    $stmt->execute();
+    return $stmt->fetchAll(PDO::FETCH_ASSOC);
+}
+
+function buscarGestores($busca = '') {
+    $db = Database::getInstance();
+    $conn = $db->getConnection();
+    
+    $sql = "SELECT u.id, p.nome, p.email, p.telefone, u.role
+            FROM usuario u 
+            JOIN pessoa p ON u.pessoa_id = p.id 
+            WHERE u.role = 'GESTAO' AND u.ativo = 1";
+    
+    if (!empty($busca)) {
+        $sql .= " AND (p.nome LIKE :busca OR p.email LIKE :busca)";
+    }
+    
+    $sql .= " ORDER BY p.nome ASC LIMIT 10";
+    
+    $stmt = $conn->prepare($sql);
+    
+    if (!empty($busca)) {
+        $busca = "%{$busca}%";
+        $stmt->bindParam(':busca', $busca);
+    }
+    
+    $stmt->execute();
+    return $stmt->fetchAll(PDO::FETCH_ASSOC);
+}
+
+function cadastrarEscola($dados) {
+    $db = Database::getInstance();
+    $conn = $db->getConnection();
+    
+    try {
+        $conn->beginTransaction();
+        
+        // Inserir escola
+        $stmt = $conn->prepare("INSERT INTO escola (nome, endereco, telefone, email, municipio, cep, qtd_salas, obs) 
+                                VALUES (:nome, :endereco, :telefone, :email, :municipio, :cep, :qtd_salas, :obs)");
+        
+        $stmt->bindParam(':nome', $dados['nome']);
+        $stmt->bindParam(':endereco', $dados['endereco']);
+        $stmt->bindParam(':telefone', $dados['telefone']);
+        $stmt->bindParam(':email', $dados['email']);
+        $stmt->bindParam(':municipio', $dados['municipio']);
+        $stmt->bindParam(':cep', $dados['cep']);
+        $stmt->bindParam(':qtd_salas', $dados['qtd_salas']);
+        $stmt->bindParam(':obs', $dados['obs']);
+        
+        $stmt->execute();
+        $escolaId = $conn->lastInsertId();
+        
+        // Se um gestor foi selecionado, criar a lotação
+        if (!empty($dados['gestor_id'])) {
+            $stmt = $conn->prepare("INSERT INTO gestor_lotacao (gestor_id, escola_id, inicio, responsavel) 
+                                    VALUES (:gestor_id, :escola_id, CURDATE(), 1)");
+            $stmt->bindParam(':gestor_id', $dados['gestor_id']);
+            $stmt->bindParam(':escola_id', $escolaId);
+            $stmt->execute();
+        }
+        
+        $conn->commit();
+        
+        return ['status' => true, 'mensagem' => 'Escola cadastrada com sucesso!'];
+    } catch (PDOException $e) {
+        $conn->rollBack();
+        return ['status' => false, 'mensagem' => 'Erro ao cadastrar escola: ' . $e->getMessage()];
+    }
+}
+
+function excluirEscola($id) {
+    $db = Database::getInstance();
+    $conn = $db->getConnection();
+    
+    try {
+        $conn->beginTransaction();
+        
+        $stmt = $conn->prepare("DELETE FROM escola WHERE id = :id");
+        $stmt->bindParam(':id', $id);
+        $stmt->execute();
+        
+        $conn->commit();
+        
+        return ['status' => true, 'mensagem' => 'Escola excluída com sucesso!'];
+    } catch (PDOException $e) {
+        $conn->rollBack();
+        return ['status' => false, 'mensagem' => 'Erro ao excluir escola: ' . $e->getMessage()];
+    }
+}
+
+// Processar formulários
+$mensagem = '';
+$tipoMensagem = '';
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    if (isset($_POST['acao'])) {
+        // Cadastrar nova escola
+        if ($_POST['acao'] === 'cadastrar') {
+            $dados = [
+                'nome' => $_POST['nome'] ?? '',
+                'endereco' => $_POST['endereco'] ?? '',
+                'telefone' => $_POST['telefone'] ?? '',
+                'email' => $_POST['email'] ?? '',
+                'municipio' => $_POST['municipio'] ?? '',
+                'cep' => $_POST['cep'] ?? '',
+                'qtd_salas' => $_POST['qtd_salas'] ?? null,
+                'obs' => $_POST['obs'] ?? '',
+                'gestor_id' => $_POST['gestor_id'] ?? null
+            ];
+            
+            $resultado = cadastrarEscola($dados);
+            $mensagem = $resultado['mensagem'];
+            $tipoMensagem = $resultado['status'] ? 'success' : 'error';
+        }
+        
+        // Excluir escola
+        if ($_POST['acao'] === 'excluir' && isset($_POST['id'])) {
+            $resultado = excluirEscola($_POST['id']);
+            $mensagem = $resultado['mensagem'];
+            $tipoMensagem = $resultado['status'] ? 'success' : 'error';
+        }
+    }
+}
+
+// Buscar escolas
+$busca = $_GET['busca'] ?? '';
+$escolas = listarEscolas($busca);
+?>
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gestão de Escolas - SIGAE</title>
+    
+    <!-- Favicon -->
+    <link rel="icon" href="https://upload.wikimedia.org/wikipedia/commons/thumb/1/19/Bras%C3%A3o_de_Maranguape.png/250px-Bras%C3%A3o_de_Maranguape.png" type="image/png">
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        'primary-green': '#2D5A27',
+                        'secondary-green': '#4A7C59',
+                        'accent-orange': '#FF6B35',
+                        'accent-red': '#D62828',
+                        'light-green': '#A8D5BA',
+                        'warm-orange': '#FF8C42'
+                    },
+                    fontFamily: {
+                        'sans': ['Inter', 'system-ui', 'sans-serif']
+                    }
+                }
+            }
+        }
+    </script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <style>
+        .tab-active {
+            border-bottom: 2px solid #2D5A27;
+            color: #2D5A27;
+            font-weight: 600;
+        }
+        
+        .tab-content {
+            display: none;
+        }
+        
+        .tab-content.active {
+            display: block;
+        }
+        
+        /* Estilos para o menu lateral */
+        .sidebar-transition {
+            transition: all 0.3s ease-in-out;
+        }
+
+        .content-transition {
+            transition: margin-left 0.3s ease-in-out;
+        }
+
+        #sidebar {
+            background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+            border-right: 1px solid #e2e8f0;
+        }
+
+        .menu-item {
+            transition: all 0.2s ease;
+        }
+
+        .menu-item:hover {
+            background: linear-gradient(90deg, rgba(45, 90, 39, 0.08) 0%, rgba(45, 90, 39, 0.04) 100%);
+            transform: translateX(4px);
+        }
+
+        .menu-item.active {
+            background: linear-gradient(90deg, rgba(45, 90, 39, 0.12) 0%, rgba(45, 90, 39, 0.06) 100%);
+            border-right: 3px solid #2D5A27;
+        }
+        
+        @media (max-width: 1023px) {
+            .sidebar-mobile {
+                transform: translateX(-100%);
+            }
+
+            .sidebar-mobile.open {
+                transform: translateX(0);
+            }
+        }
+    </style>
+</head>
+<body class="bg-gray-50 font-sans">
+    <!-- Mobile Menu Overlay -->
+    <div id="mobileOverlay" class="fixed inset-0 bg-black bg-opacity-50 z-40 hidden mobile-menu-overlay lg:hidden"></div>
+
+    <!-- Sidebar -->
+    <aside id="sidebar" class="fixed left-0 top-0 h-full w-64 bg-white shadow-lg sidebar-transition z-50 lg:translate-x-0 sidebar-mobile">
+        <!-- Logo e Header -->
+        <div class="p-6 border-b border-gray-200">
+            <div class="flex items-center space-x-3">
+                <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/1/19/Bras%C3%A3o_de_Maranguape.png/250px-Bras%C3%A3o_de_Maranguape.png" alt="Brasão de Maranguape" class="w-10 h-10 object-contain">
+                <div>
+                    <h1 class="text-lg font-bold text-gray-800">SIGAE</h1>
+                    <p class="text-xs text-gray-500">Maranguape</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- User Info -->
+        <div class="p-4 border-b border-gray-200">
+            <div class="flex items-center space-x-3">
+                <div class="w-10 h-10 bg-primary-green rounded-full flex items-center justify-center">
+                    <span class="text-2 font-bold text-white" id="profileInitials"><?php
+                                                                                    // Pega as 2 primeiras letras do nome da sessão
+                                                                                    $nome = $_SESSION['nome'] ?? '';
+                                                                                    $iniciais = '';
+                                                                                    if (strlen($nome) >= 2) {
+                                                                                        $iniciais = strtoupper(substr($nome, 0, 2));
+                                                                                    } elseif (strlen($nome) == 1) {
+                                                                                        $iniciais = strtoupper($nome);
+                                                                                    } else {
+                                                                                        $iniciais = 'US'; // Fallback para "User"
+                                                                                    }
+                                                                                    echo $iniciais;
+                                                                                    ?></span>
+                </div>
+                <div>
+                    <p class="text-sm font-medium text-gray-800" id="userName"><?= $_SESSION['nome'] ?? 'Usuário' ?></p>
+                    <p class="text-xs text-gray-500"><?= $_SESSION['tipo'] ?? 'Funcionário' ?></p>
+                </div>
+            </div>
+        </div>
+
+        <nav class="p-4">
+            <ul class="space-y-2">
+                <li>
+                    <a href="dashboard.php" class="menu-item flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2H5a2 2 0 00-2-2z"></path>
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5a2 2 0 012-2h4a2 2 0 012 2v2H8V5z"></path>
+                        </svg>
+                        <span>Dashboard</span>
+                    </a>
+                </li>
+                <?php if ($_SESSION['tipo'] === 'ADM') { ?>
+                <li id="escolas-menu">
+                    <a href="gestao_escolas.php" class="menu-item active flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path>
+                        </svg>
+                        <span>Escolas</span>
+                    </a>
+                </li>
+                <li id="usuarios-menu">
+                    <a href="gestao_usuarios.php" class="menu-item flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z"></path>
+                        </svg>
+                        <span>Usuários</span>
+                    </a>
+                </li>
+                <?php } ?>
+            </ul>
+        </nav>
+
+        <!-- Logout -->
+        <div class="absolute bottom-0 left-0 right-0 p-4 border-t border-gray-200">
+            <a href="../../Models/sessao/sessions.php?sair" class="w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-red-600 hover:bg-red-50 hover:text-red-700 transition-all duration-200">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path>
+                </svg>
+                <span>Sair</span>
+            </a>
+        </div>
+    </aside>
+
+    <div class="min-h-screen">
+        <!-- Header -->
+        <header class="bg-white shadow-sm border-b border-gray-200 sticky top-0 z-30 ml-0 lg:ml-64 content-transition">
+            <div class="px-4 sm:px-6 lg:px-8">
+                <div class="flex justify-between items-center h-16">
+                    <!-- Mobile Menu Button -->
+                    <button onclick="toggleSidebar()" class="lg:hidden p-2 rounded-md text-gray-600 hover:text-gray-900 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-primary-green" aria-label="Abrir menu">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
+                        </svg>
+                    </button>
+
+                    <div class="flex items-center">
+                        <h1 class="text-xl font-semibold text-gray-800">Gestão de Escolas</h1>
+                    </div>
+                    
+                    <div class="flex items-center space-x-4">
+                        <div class="text-right hidden lg:block">
+                            <p class="text-sm font-medium text-gray-800" id="currentSchool">
+                                <?php 
+                                if ($_SESSION['tipo'] === 'ADM') {
+                                    echo 'Secretaria Municipal da Educação';
+                                } else {
+                                    echo $_SESSION['escola_atual'] ?? 'Escola Municipal';
+                                }
+                                ?>
+                            </p>
+                            <p class="text-xs text-gray-500">
+                                <?php 
+                                if ($_SESSION['tipo'] === 'ADM') {
+                                    echo 'Órgão Central';
+                                } else {
+                                    echo 'Escola Atual';
+                                }
+                                ?>
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </header>
+        
+        <!-- Main Content -->
+        <main class="ml-0 lg:ml-64 content-transition px-4 sm:px-6 lg:px-8 py-8">
+            <?php if (!empty($mensagem)): ?>
+                <div class="mb-6 p-4 rounded-lg <?php echo $tipoMensagem === 'success' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'; ?>">
+                    <?php echo $mensagem; ?>
+                </div>
+            <?php endif; ?>
+            
+            <!-- Tabs -->
+            <div class="mb-6 border-b border-gray-200">
+                <div class="flex space-x-8">
+                    <button onclick="showTab('tab-listar')" class="tab-btn tab-active py-4 px-1 focus:outline-none">
+                        Listar Escolas
+                    </button>
+                    <button onclick="showTab('tab-cadastrar')" class="tab-btn py-4 px-1 focus:outline-none">
+                        Cadastrar Nova Escola
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Tab Contents -->
+            <div id="tab-listar" class="tab-content active">
+                <div class="p-6 border-b border-gray-200">
+                    <h2 class="text-xl font-semibold text-gray-900 mb-4">Lista de Escolas</h2>
+                    
+                    <!-- Search Box -->
+                    <form method="GET" class="mb-6">
+                        <div class="relative">
+                            <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                <svg class="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                                </svg>
+                            </div>
+                            <input type="text" name="busca" placeholder="Buscar por nome, endereço ou gestor..." 
+                                   value="<?php echo htmlspecialchars($busca); ?>"
+                                   class="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-primary-green focus:border-primary-green">
+                        </div>
+                    </form>
+                    
+                    <!-- Tabela de Escolas -->
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full divide-y divide-gray-200">
+                            <thead class="bg-gray-50">
+                                <tr>
+                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Nome</th>
+                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Endereço</th>
+                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Gestor</th>
+                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Contato</th>
+                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Salas</th>
+                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Data Criação</th>
+                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ações</th>
+                                </tr>
+                            </thead>
+                            <tbody class="bg-white divide-y divide-gray-200">
+                                <?php if (empty($escolas)): ?>
+                                <tr>
+                                    <td colspan="7" class="px-6 py-4 text-center text-sm text-gray-500">
+                                        Nenhuma escola encontrada
+                                    </td>
+                                </tr>
+                                <?php else: ?>
+                                    <?php foreach ($escolas as $escola): ?>
+                                    <tr class="hover:bg-gray-50 transition-colors duration-200">
+                                        <td class="px-6 py-4 whitespace-nowrap">
+                                            <div class="flex items-center">
+                                                <div class="flex-shrink-0 h-10 w-10 bg-primary-green rounded-full flex items-center justify-center">
+                                                    <span class="text-white font-medium"><?php echo substr($escola['nome'], 0, 1); ?></span>
+                                                </div>
+                                                <div class="ml-4">
+                                                    <div class="text-sm font-medium text-gray-900"><?php echo htmlspecialchars($escola['nome']); ?></div>
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                            <?php echo htmlspecialchars($escola['endereco']); ?>
+                                        </td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                            <?php echo $escola['gestor_nome'] ? htmlspecialchars($escola['gestor_nome']) : 'Não definido'; ?>
+                                        </td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                            <div>
+                                                <div><?php echo htmlspecialchars($escola['telefone']); ?></div>
+                                                <div class="text-xs text-gray-400"><?php echo htmlspecialchars($escola['email']); ?></div>
+                                            </div>
+                                        </td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                            <?php echo $escola['qtd_salas'] ? $escola['qtd_salas'] : 'N/A'; ?>
+                                        </td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                            <?php echo date('d/m/Y', strtotime($escola['data_criacao'])); ?>
+                                        </td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                                            <div class="flex space-x-2">
+                                                <button onclick="abrirModalEdicaoEscola(<?php echo $escola['id']; ?>, '<?php echo htmlspecialchars($escola['nome']); ?>')" class="text-blue-600 hover:text-blue-900">
+                                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
+                                                    </svg>
+                                                </button>
+                                                <button onclick="abrirModalExclusaoEscola(<?php echo $escola['id']; ?>, '<?php echo htmlspecialchars($escola['nome']); ?>')" class="text-red-600 hover:text-red-900">
+                                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                                                    </svg>
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    <?php endforeach; ?>
+                                <?php endif; ?>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tab Cadastrar -->
+            <div id="tab-cadastrar" class="tab-content hidden">
+                <div class="p-6">
+                    <h2 class="text-xl font-semibold text-gray-900 mb-6">Cadastrar Nova Escola</h2>
+                    
+                    <form method="POST" class="space-y-6">
+                        <input type="hidden" name="acao" value="cadastrar">
+                        
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div>
+                                <label for="nome" class="block text-sm font-medium text-gray-700 mb-2">Nome da Escola *</label>
+                                <input type="text" id="nome" name="nome" required
+                                       class="block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-primary-green focus:border-primary-green">
+                            </div>
+                            
+                            <div>
+                                <label for="telefone" class="block text-sm font-medium text-gray-700 mb-2">Telefone</label>
+                                <input type="text" id="telefone" name="telefone" placeholder="(00) 0000-0000"
+                                       class="block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-primary-green focus:border-primary-green">
+                            </div>
+                            
+                            <div class="md:col-span-2">
+                                <label for="endereco" class="block text-sm font-medium text-gray-700 mb-2">Endereço *</label>
+                                <input type="text" id="endereco" name="endereco" required
+                                       class="block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-primary-green focus:border-primary-green">
+                            </div>
+                            
+                            <div>
+                                <label for="email" class="block text-sm font-medium text-gray-700 mb-2">Email</label>
+                                <input type="email" id="email" name="email"
+                                       class="block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-primary-green focus:border-primary-green">
+                            </div>
+                            
+                            <div>
+                                <label for="municipio" class="block text-sm font-medium text-gray-700 mb-2">Município *</label>
+                                <input type="text" id="municipio" name="municipio" required
+                                       class="block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-primary-green focus:border-primary-green">
+                            </div>
+                            
+                            <div>
+                                <label for="cep" class="block text-sm font-medium text-gray-700 mb-2">CEP</label>
+                                <input type="text" id="cep" name="cep" placeholder="00000-000"
+                                       class="block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-primary-green focus:border-primary-green">
+                            </div>
+                            
+                            <div>
+                                <label for="qtd_salas" class="block text-sm font-medium text-gray-700 mb-2">Quantidade de Salas</label>
+                                <input type="number" id="qtd_salas" name="qtd_salas" min="0"
+                                       class="block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-primary-green focus:border-primary-green">
+                            </div>
+                            
+                            <div>
+                                <label for="gestor_search" class="block text-sm font-medium text-gray-700 mb-2">Selecionar Gestor</label>
+                                <div class="relative">
+                                    <input type="text" id="gestor_search" placeholder="Digite o nome do gestor..." 
+                                           class="block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-primary-green focus:border-primary-green"
+                                           autocomplete="off">
+                                    <input type="hidden" id="gestor_id" name="gestor_id">
+                                    <div id="gestor_results" class="absolute z-10 w-full bg-white border border-gray-300 rounded-lg shadow-lg hidden max-h-60 overflow-y-auto"></div>
+                                </div>
+                                <div id="gestor_selected" class="mt-2 hidden">
+                                    <div class="flex items-center justify-between bg-green-50 border border-green-200 rounded-lg p-3">
+                                        <div>
+                                            <span class="text-sm font-medium text-green-800" id="gestor_nome_selecionado"></span>
+                                            <span class="text-xs text-green-600 block" id="gestor_email_selecionado"></span>
+                                        </div>
+                                        <button type="button" onclick="removerGestor()" class="text-green-600 hover:text-green-800">
+                                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                                            </svg>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="md:col-span-2">
+                                <label for="obs" class="block text-sm font-medium text-gray-700 mb-2">Observações</label>
+                                <textarea id="obs" name="obs" rows="3"
+                                          class="block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-primary-green focus:border-primary-green"></textarea>
+                            </div>
+                        </div>
+                        
+                        <div class="flex justify-end space-x-3 pt-4">
+                            <button type="reset" class="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-green">
+                                Limpar
+                            </button>
+                            <button type="submit" class="px-4 py-2 bg-primary-green text-white rounded-lg hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-green">
+                                Cadastrar Escola
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </main>
+    </div>
+    
+    <!-- Modal de Exclusão de Escola -->
+    <div id="modalExclusaoEscola" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl p-6 max-w-md w-full mx-4 shadow-2xl">
+            <div class="flex items-center justify-center w-12 h-12 mx-auto bg-red-100 rounded-full mb-4">
+                <svg class="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z"></path>
+                </svg>
+            </div>
+            
+            <div class="text-center">
+                <h3 class="text-lg font-semibold text-gray-900 mb-2">Confirmar Exclusão</h3>
+                <p class="text-sm text-gray-600 mb-4">
+                    Tem certeza que deseja excluir a escola <strong id="nomeEscolaExclusao"></strong>?
+                </p>
+                <p class="text-xs text-red-600 mb-6">
+                    ⚠️ Esta ação não pode ser desfeita. Todos os dados relacionados à escola serão perdidos permanentemente.
+                </p>
+                
+                <div class="flex space-x-3 justify-center">
+                    <button onclick="fecharModalExclusaoEscola()" class="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 transition-colors duration-200">
+                        Cancelar
+                    </button>
+                    <form id="formExclusaoEscola" method="POST" class="inline">
+                        <input type="hidden" name="acao" value="excluir">
+                        <input type="hidden" name="id" id="idEscolaExclusao">
+                        <button type="submit" class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 transition-colors duration-200">
+                            Sim, Excluir
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Modal de Edição de Escola (Full Screen) -->
+    <div id="modalEdicaoEscola" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl w-full h-full max-w-7xl mx-4 shadow-2xl overflow-hidden">
+            <!-- Header do Modal -->
+            <div class="flex items-center justify-between p-6 border-b border-gray-200 bg-gray-50">
+                <div class="flex items-center space-x-3">
+                    <div class="w-10 h-10 bg-primary-green rounded-full flex items-center justify-center">
+                        <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path>
+                        </svg>
+                    </div>
+                    <div>
+                        <h3 class="text-xl font-semibold text-gray-900" id="tituloModalEdicao">Editar Escola</h3>
+                        <p class="text-sm text-gray-600">Gerencie as informações e corpo docente da escola</p>
+                    </div>
+                </div>
+                <button onclick="fecharModalEdicaoEscola()" class="p-2 hover:bg-gray-200 rounded-full transition-colors duration-200">
+                    <svg class="w-6 h-6 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+            </div>
+            
+            <!-- Conteúdo do Modal -->
+            <div class="flex-1 overflow-y-auto p-6">
+                <form id="formEdicaoEscola" method="POST" class="space-y-8">
+                    <input type="hidden" name="acao" value="editar">
+                    <input type="hidden" name="id" id="edit_escola_id">
+                    
+                    <!-- Tabs de Navegação -->
+                    <div class="border-b border-gray-200">
+                        <nav class="-mb-px flex space-x-8">
+                            <button type="button" onclick="mostrarAbaEdicao('dados-basicos')" id="tab-dados-basicos" class="tab-edicao active py-2 px-1 border-b-2 border-primary-green font-medium text-sm text-primary-green">
+                                Dados Básicos
+                            </button>
+                            <button type="button" onclick="mostrarAbaEdicao('gestor')" id="tab-gestor" class="tab-edicao py-2 px-1 border-b-2 border-transparent font-medium text-sm text-gray-500 hover:text-gray-700 hover:border-gray-300">
+                                Gestor
+                            </button>
+                            <button type="button" onclick="mostrarAbaEdicao('corpo-docente')" id="tab-corpo-docente" class="tab-edicao py-2 px-1 border-b-2 border-transparent font-medium text-sm text-gray-500 hover:text-gray-700 hover:border-gray-300">
+                                Corpo Docente
+                            </button>
+                        </nav>
+                    </div>
+                    
+                    <!-- Aba Dados Básicos -->
+                    <div id="aba-dados-basicos" class="aba-edicao">
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div>
+                                <label for="edit_nome" class="block text-sm font-medium text-gray-700 mb-2">Nome da Escola *</label>
+                                <input type="text" id="edit_nome" name="nome" required
+                                       class="block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-primary-green focus:border-primary-green">
+                            </div>
+                            
+                            <div>
+                                <label for="edit_telefone" class="block text-sm font-medium text-gray-700 mb-2">Telefone</label>
+                                <input type="text" id="edit_telefone" name="telefone" placeholder="(00) 0000-0000"
+                                       class="block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-primary-green focus:border-primary-green">
+                            </div>
+                            
+                            <div class="md:col-span-2">
+                                <label for="edit_endereco" class="block text-sm font-medium text-gray-700 mb-2">Endereço *</label>
+                                <input type="text" id="edit_endereco" name="endereco" required
+                                       class="block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-primary-green focus:border-primary-green">
+                            </div>
+                            
+                            <div>
+                                <label for="edit_email" class="block text-sm font-medium text-gray-700 mb-2">Email</label>
+                                <input type="email" id="edit_email" name="email"
+                                       class="block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-primary-green focus:border-primary-green">
+                            </div>
+                            
+                            <div>
+                                <label for="edit_municipio" class="block text-sm font-medium text-gray-700 mb-2">Município *</label>
+                                <input type="text" id="edit_municipio" name="municipio" required
+                                       class="block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-primary-green focus:border-primary-green">
+                            </div>
+                            
+                            <div>
+                                <label for="edit_cep" class="block text-sm font-medium text-gray-700 mb-2">CEP</label>
+                                <input type="text" id="edit_cep" name="cep" placeholder="00000-000"
+                                       class="block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-primary-green focus:border-primary-green">
+                            </div>
+                            
+                            <div>
+                                <label for="edit_qtd_salas" class="block text-sm font-medium text-gray-700 mb-2">Quantidade de Salas</label>
+                                <input type="number" id="edit_qtd_salas" name="qtd_salas" min="0"
+                                       class="block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-primary-green focus:border-primary-green">
+                            </div>
+                            
+                            <div class="md:col-span-2">
+                                <label for="edit_obs" class="block text-sm font-medium text-gray-700 mb-2">Observações</label>
+                                <textarea id="edit_obs" name="obs" rows="3"
+                                          class="block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-primary-green focus:border-primary-green"></textarea>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Aba Gestor -->
+                    <div id="aba-gestor" class="aba-edicao hidden">
+                        <div class="space-y-6">
+                            <div>
+                                <label for="edit_gestor_search" class="block text-sm font-medium text-gray-700 mb-2">Selecionar Gestor</label>
+                                <div class="relative">
+                                    <input type="text" id="edit_gestor_search" placeholder="Digite o nome do gestor..." 
+                                           class="block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-primary-green focus:border-primary-green"
+                                           autocomplete="off">
+                                    <input type="hidden" id="edit_gestor_id" name="gestor_id">
+                                    <div id="edit_gestor_results" class="absolute z-10 w-full bg-white border border-gray-300 rounded-lg shadow-lg hidden max-h-60 overflow-y-auto"></div>
+                                </div>
+                                <div id="edit_gestor_selected" class="mt-2 hidden">
+                                    <div class="flex items-center justify-between bg-green-50 border border-green-200 rounded-lg p-3">
+                                        <div>
+                                            <span class="text-sm font-medium text-green-800" id="edit_gestor_nome_selecionado"></span>
+                                            <span class="text-xs text-green-600 block" id="edit_gestor_email_selecionado"></span>
+                                        </div>
+                                        <button type="button" onclick="removerGestorEdicao()" class="text-green-600 hover:text-green-800">
+                                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                                            </svg>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Aba Corpo Docente -->
+                    <div id="aba-corpo-docente" class="aba-edicao hidden">
+                        <div class="space-y-6">
+                            <div class="flex items-center justify-between">
+                                <h4 class="text-lg font-medium text-gray-900">Professores da Escola</h4>
+                                <button type="button" onclick="adicionarProfessor()" class="bg-primary-green text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors duration-200 flex items-center space-x-2">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
+                                    </svg>
+                                    <span>Adicionar Professor</span>
+                                </button>
+                            </div>
+                            
+                            <div id="lista-professores" class="space-y-3">
+                                <!-- Professores serão carregados aqui via JavaScript -->
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Botões de Ação -->
+                    <div class="flex justify-end space-x-3 pt-6 border-t border-gray-200">
+                        <button type="button" onclick="fecharModalEdicaoEscola()" class="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 transition-colors duration-200">
+                            Cancelar
+                        </button>
+                        <button type="submit" class="px-4 py-2 bg-primary-green text-white rounded-lg hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-green transition-colors duration-200">
+                            Salvar Alterações
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        // Função para alternar entre as tabs
+        function showTab(tabId) {
+            // Esconder todas as tabs
+            document.querySelectorAll('.tab-content').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            
+            // Remover classe ativa de todos os botões
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                btn.classList.remove('tab-active');
+            });
+            
+            // Mostrar a tab selecionada
+            document.getElementById(tabId).classList.add('active');
+            
+            // Adicionar classe ativa ao botão clicado
+            event.currentTarget.classList.add('tab-active');
+        }
+        
+        // Função para abrir modal de exclusão de escola
+        function abrirModalExclusaoEscola(id, nome) {
+            document.getElementById('idEscolaExclusao').value = id;
+            document.getElementById('nomeEscolaExclusao').textContent = nome;
+            document.getElementById('modalExclusaoEscola').classList.remove('hidden');
+        }
+        
+        // Função para fechar modal de exclusão de escola
+        function fecharModalExclusaoEscola() {
+            document.getElementById('modalExclusaoEscola').classList.add('hidden');
+        }
+        
+        // Fechar modal clicando fora dele
+        document.getElementById('modalExclusaoEscola').addEventListener('click', function(e) {
+            if (e.target === this) {
+                fecharModalExclusaoEscola();
+            }
+        });
+        
+        // Função para buscar gestores
+        function buscarGestores(termo) {
+            if (termo.length < 2) {
+                document.getElementById('gestor_results').classList.add('hidden');
+                return;
+            }
+            
+            fetch(`buscar_gestores.php?busca=${encodeURIComponent(termo)}`)
+                .then(response => response.json())
+                .then(data => {
+                    const results = document.getElementById('gestor_results');
+                    results.innerHTML = '';
+                    
+                    if (data.length === 0) {
+                        results.innerHTML = '<div class="p-3 text-sm text-gray-500">Nenhum gestor encontrado</div>';
+                    } else {
+                        data.forEach(gestor => {
+                            const div = document.createElement('div');
+                            div.className = 'p-3 hover:bg-gray-50 cursor-pointer border-b border-gray-100 last:border-b-0';
+                            div.innerHTML = `
+                                <div class="font-medium text-gray-900">${gestor.nome}</div>
+                                <div class="text-sm text-gray-500">${gestor.email}</div>
+                            `;
+                            div.onclick = () => selecionarGestor(gestor);
+                            results.appendChild(div);
+                        });
+                    }
+                    
+                    results.classList.remove('hidden');
+                })
+                .catch(error => {
+                    console.error('Erro ao buscar gestores:', error);
+                });
+        }
+        
+        // Função para selecionar gestor
+        function selecionarGestor(gestor) {
+            document.getElementById('gestor_id').value = gestor.id;
+            document.getElementById('gestor_nome_selecionado').textContent = gestor.nome;
+            document.getElementById('gestor_email_selecionado').textContent = gestor.email;
+            document.getElementById('gestor_search').value = '';
+            document.getElementById('gestor_results').classList.add('hidden');
+            document.getElementById('gestor_selected').classList.remove('hidden');
+        }
+        
+        // Função para remover gestor selecionado
+        function removerGestor() {
+            document.getElementById('gestor_id').value = '';
+            document.getElementById('gestor_search').value = '';
+            document.getElementById('gestor_selected').classList.add('hidden');
+        }
+        
+        // Funções do Modal de Edição
+        function abrirModalEdicaoEscola(id, nome) {
+            document.getElementById('edit_escola_id').value = id;
+            document.getElementById('tituloModalEdicao').textContent = `Editar Escola - ${nome}`;
+            document.getElementById('modalEdicaoEscola').classList.remove('hidden');
+            
+            // Carregar dados da escola
+            carregarDadosEscola(id);
+        }
+        
+        function fecharModalEdicaoEscola() {
+            document.getElementById('modalEdicaoEscola').classList.add('hidden');
+        }
+        
+        function carregarDadosEscola(id) {
+            // Aqui você pode fazer uma requisição AJAX para carregar os dados da escola
+            // Por enquanto, vou deixar como placeholder
+            console.log('Carregando dados da escola:', id);
+        }
+        
+        function mostrarAbaEdicao(abaId) {
+            // Esconder todas as abas
+            document.querySelectorAll('.aba-edicao').forEach(aba => {
+                aba.classList.add('hidden');
+            });
+            
+            // Remover classe ativa de todos os botões
+            document.querySelectorAll('.tab-edicao').forEach(btn => {
+                btn.classList.remove('active', 'border-primary-green', 'text-primary-green');
+                btn.classList.add('border-transparent', 'text-gray-500');
+            });
+            
+            // Mostrar a aba selecionada
+            document.getElementById(`aba-${abaId}`).classList.remove('hidden');
+            
+            // Adicionar classe ativa ao botão clicado
+            const botaoAtivo = document.getElementById(`tab-${abaId}`);
+            botaoAtivo.classList.add('active', 'border-primary-green', 'text-primary-green');
+            botaoAtivo.classList.remove('border-transparent', 'text-gray-500');
+        }
+        
+        function adicionarProfessor() {
+            // Função para adicionar professor ao corpo docente
+            console.log('Adicionar professor');
+        }
+        
+        // Funções para busca de gestor na edição
+        function buscarGestoresEdicao(termo) {
+            if (termo.length < 2) {
+                document.getElementById('edit_gestor_results').classList.add('hidden');
+                return;
+            }
+            
+            fetch(`buscar_gestores.php?busca=${encodeURIComponent(termo)}`)
+                .then(response => response.json())
+                .then(data => {
+                    const results = document.getElementById('edit_gestor_results');
+                    results.innerHTML = '';
+                    
+                    if (data.length === 0) {
+                        results.innerHTML = '<div class="p-3 text-sm text-gray-500">Nenhum gestor encontrado</div>';
+                    } else {
+                        data.forEach(gestor => {
+                            const div = document.createElement('div');
+                            div.className = 'p-3 hover:bg-gray-50 cursor-pointer border-b border-gray-100 last:border-b-0';
+                            div.innerHTML = `
+                                <div class="font-medium text-gray-900">${gestor.nome}</div>
+                                <div class="text-sm text-gray-500">${gestor.email}</div>
+                            `;
+                            div.onclick = () => selecionarGestorEdicao(gestor);
+                            results.appendChild(div);
+                        });
+                    }
+                    
+                    results.classList.remove('hidden');
+                })
+                .catch(error => {
+                    console.error('Erro ao buscar gestores:', error);
+                });
+        }
+        
+        function selecionarGestorEdicao(gestor) {
+            document.getElementById('edit_gestor_id').value = gestor.id;
+            document.getElementById('edit_gestor_nome_selecionado').textContent = gestor.nome;
+            document.getElementById('edit_gestor_email_selecionado').textContent = gestor.email;
+            document.getElementById('edit_gestor_search').value = '';
+            document.getElementById('edit_gestor_results').classList.add('hidden');
+            document.getElementById('edit_gestor_selected').classList.remove('hidden');
+        }
+        
+        function removerGestorEdicao() {
+            document.getElementById('edit_gestor_id').value = '';
+            document.getElementById('edit_gestor_search').value = '';
+            document.getElementById('edit_gestor_selected').classList.add('hidden');
+        }
+        
+        // Máscara para CEP
+        document.getElementById('cep').addEventListener('input', function (e) {
+            let value = e.target.value.replace(/\D/g, '');
+            if (value.length > 8) value = value.slice(0, 8);
+            
+            if (value.length > 5) {
+                value = value.replace(/^(\d{5})(\d{0,3}).*/, '$1-$2');
+            }
+            
+            e.target.value = value;
+        });
+        
+        // Máscara para telefone
+        document.getElementById('telefone').addEventListener('input', function (e) {
+            let value = e.target.value.replace(/\D/g, '');
+            if (value.length > 11) value = value.slice(0, 11);
+            
+            if (value.length > 10) {
+                value = value.replace(/^(\d{2})(\d{5})(\d{4}).*/, '($1) $2-$3');
+            } else if (value.length > 6) {
+                value = value.replace(/^(\d{2})(\d{4})(\d{0,4}).*/, '($1) $2-$3');
+            } else if (value.length > 2) {
+                value = value.replace(/^(\d{2})(\d{0,5}).*/, '($1) $2');
+            }
+            
+            e.target.value = value;
+        });
+        
+        // Máscaras para campos de edição
+        document.getElementById('edit_telefone').addEventListener('input', function (e) {
+            let value = e.target.value.replace(/\D/g, '');
+            if (value.length > 11) value = value.slice(0, 11);
+            
+            if (value.length > 10) {
+                value = value.replace(/^(\d{2})(\d{5})(\d{4}).*/, '($1) $2-$3');
+            } else if (value.length > 6) {
+                value = value.replace(/^(\d{2})(\d{4})(\d{0,4}).*/, '($1) $2-$3');
+            } else if (value.length > 2) {
+                value = value.replace(/^(\d{2})(\d{0,5}).*/, '($1) $2');
+            }
+            
+            e.target.value = value;
+        });
+        
+        document.getElementById('edit_cep').addEventListener('input', function (e) {
+            let value = e.target.value.replace(/\D/g, '');
+            if (value.length > 8) value = value.slice(0, 8);
+            
+            if (value.length > 5) {
+                value = value.replace(/^(\d{5})(\d{0,3}).*/, '$1-$2');
+            }
+            
+            e.target.value = value;
+        });
+        
+        // Toggle sidebar on mobile
+        function toggleSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.getElementById('mobileOverlay');
+
+            sidebar.classList.toggle('open');
+            overlay.classList.toggle('hidden');
+        }
+
+        // Close sidebar when clicking overlay
+        document.getElementById('mobileOverlay').addEventListener('click', function() {
+            toggleSidebar();
+        });
+        
+        // Event listeners para busca de gestores
+        document.getElementById('gestor_search').addEventListener('input', function(e) {
+            buscarGestores(e.target.value);
+        });
+        
+        // Event listeners para busca de gestores na edição
+        document.getElementById('edit_gestor_search').addEventListener('input', function(e) {
+            buscarGestoresEdicao(e.target.value);
+        });
+        
+        // Fechar resultados ao clicar fora
+        document.addEventListener('click', function(e) {
+            if (!e.target.closest('#gestor_search') && !e.target.closest('#gestor_results')) {
+                document.getElementById('gestor_results').classList.add('hidden');
+            }
+            if (!e.target.closest('#edit_gestor_search') && !e.target.closest('#edit_gestor_results')) {
+                document.getElementById('edit_gestor_results').classList.add('hidden');
+            }
+        });
+        
+        // Fechar modal de edição clicando fora dele
+        document.getElementById('modalEdicaoEscola').addEventListener('click', function(e) {
+            if (e.target === this) {
+                fecharModalEdicaoEscola();
+            }
+        });
+        
+        // Inicialização
+        document.addEventListener('DOMContentLoaded', function() {
+            // Adicionar event listeners para o menu lateral
+            const menuItems = document.querySelectorAll('.menu-item');
+            menuItems.forEach(item => {
+                item.addEventListener('click', function() {
+                    // Se estiver no mobile, fechar o menu lateral
+                    if (window.innerWidth < 1024) {
+                        toggleSidebar();
+                    }
+                });
+            });
+        });
+    </script>
+</body>
+</html>

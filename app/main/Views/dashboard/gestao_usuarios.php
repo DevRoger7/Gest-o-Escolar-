@@ -740,15 +740,11 @@ $usuarios = listarUsuarios($busca);
                                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
                                                     </svg>
                                                 </button>
-                                                <form method="POST" class="inline" onsubmit="return confirm('Tem certeza que deseja excluir este usuário?');">
-                                                    <input type="hidden" name="acao" value="excluir">
-                                                    <input type="hidden" name="id" value="<?php echo $usuario['id']; ?>">
-                                                    <button type="submit" class="text-red-600 hover:text-red-900">
-                                                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
-                                                        </svg>
-                                                    </button>
-                                                </form>
+                                                <button onclick="abrirModalExclusaoUsuario(<?php echo $usuario['id']; ?>, '<?php echo htmlspecialchars($usuario['nome']); ?>')" class="text-red-600 hover:text-red-900">
+                                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                                                    </svg>
+                                                </button>
                                             </div>
                                         </td>
                                     </tr>
@@ -934,6 +930,40 @@ $usuarios = listarUsuarios($busca);
         </div>
     </div>
     
+    <!-- Modal de Exclusão de Usuário -->
+    <div id="modalExclusaoUsuario" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl p-6 max-w-md w-full mx-4 shadow-2xl">
+            <div class="flex items-center justify-center w-12 h-12 mx-auto bg-red-100 rounded-full mb-4">
+                <svg class="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z"></path>
+                </svg>
+            </div>
+            
+            <div class="text-center">
+                <h3 class="text-lg font-semibold text-gray-900 mb-2">Confirmar Exclusão</h3>
+                <p class="text-sm text-gray-600 mb-4">
+                    Tem certeza que deseja excluir o usuário <strong id="nomeUsuarioExclusao"></strong>?
+                </p>
+                <p class="text-xs text-red-600 mb-6">
+                    ⚠️ Esta ação não pode ser desfeita. Todos os dados do usuário serão perdidos permanentemente.
+                </p>
+                
+                <div class="flex space-x-3 justify-center">
+                    <button onclick="fecharModalExclusaoUsuario()" class="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 transition-colors duration-200">
+                        Cancelar
+                    </button>
+                    <form id="formExclusaoUsuario" method="POST" class="inline">
+                        <input type="hidden" name="acao" value="excluir">
+                        <input type="hidden" name="id" id="idUsuarioExclusao">
+                        <button type="submit" class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 transition-colors duration-200">
+                            Sim, Excluir
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+    
     <script>
         // Função para alternar entre as tabs
         function showTab(tabId) {
@@ -1002,6 +1032,25 @@ $usuarios = listarUsuarios($busca);
         function fecharModalEdicao() {
             document.getElementById('editarUsuarioModal').classList.add('hidden');
         }
+        
+        // Função para abrir modal de exclusão de usuário
+        function abrirModalExclusaoUsuario(id, nome) {
+            document.getElementById('idUsuarioExclusao').value = id;
+            document.getElementById('nomeUsuarioExclusao').textContent = nome;
+            document.getElementById('modalExclusaoUsuario').classList.remove('hidden');
+        }
+        
+        // Função para fechar modal de exclusão de usuário
+        function fecharModalExclusaoUsuario() {
+            document.getElementById('modalExclusaoUsuario').classList.add('hidden');
+        }
+        
+        // Fechar modal clicando fora dele
+        document.getElementById('modalExclusaoUsuario').addEventListener('click', function(e) {
+            if (e.target === this) {
+                fecharModalExclusaoUsuario();
+            }
+        });
         
         // Máscara para CPF
         document.getElementById('cpf').addEventListener('input', function (e) {
