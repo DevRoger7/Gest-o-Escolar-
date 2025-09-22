@@ -43,280 +43,6 @@ if (!defined('BASE_URL')) {
                 }
             }
         }
-No
-        // ===== FUNÇÕES DE GESTÃO DE USUÁRIOS =====
-        
-        // Variáveis globais para usuários
-        let usuariosData = [];
-
-        // Função para abrir modal de novo usuário
-        function openAddUserModal() {
-            document.getElementById('addUserModal').classList.remove('hidden');
-            document.getElementById('formCadastroUsuario').reset();
-        }
-
-        // Função para fechar modal de novo usuário
-        function closeAddUserModal() {
-            document.getElementById('addUserModal').classList.add('hidden');
-            document.getElementById('formCadastroUsuario').reset();
-        }
-
-        // Função para carregar lista de usuários
-        async function carregarUsuarios() {
-            try {
-                const response = await fetch('../../Controllers/usuarios/ControllerUsuarios.php?action=listar');
-                const data = await response.json();
-                
-                if (data.sucesso) {
-                    usuariosData = data.usuarios;
-                    renderizarTabelaUsuarios();
-                } else {
-                    console.error('Erro ao carregar usuários:', data.erro);
-                    mostrarMensagem('Erro ao carregar usuários', 'error');
-                }
-            } catch (error) {
-                console.error('Erro na requisição:', error);
-                mostrarMensagem('Erro de conexão ao carregar usuários', 'error');
-            }
-        }
-
-        // Função para renderizar tabela de usuários
-        function renderizarTabelaUsuarios() {
-            const tbody = document.getElementById('tabelaUsuarios');
-            
-            if (usuariosData.length === 0) {
-                tbody.innerHTML = `
-                    <tr>
-                        <td colspan="7" class="px-6 py-4 text-center text-gray-500">
-                            Nenhum usuário encontrado
-                        </td>
-                    </tr>
-                `;
-                return;
-            }
-
-            tbody.innerHTML = usuariosData.map(usuario => {
-                const ultimoLogin = usuario.ultimo_login 
-                    ? new Date(usuario.ultimo_login).toLocaleDateString('pt-BR')
-                    : 'Nunca';
-                
-                const statusClass = usuario.ativo ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800';
-                const statusText = usuario.ativo ? 'Ativo' : 'Inativo';
-                
-                const tipoFormatado = {
-                    'admin': 'Administrador',
-                    'funcionario': 'Funcionário',
-                    'nutricionista': 'Nutricionista'
-                }[usuario.tipo] || usuario.tipo;
-
-                return `
-                    <tr class="hover:bg-gray-50">
-                        <td class="px-6 py-4 whitespace-nowrap">
-                            <div class="flex items-center">
-                                <div class="flex-shrink-0 h-10 w-10">
-                                    <div class="h-10 w-10 rounded-full bg-primary-green flex items-center justify-center">
-                                        <span class="text-sm font-medium text-white">
-                                            ${usuario.nome.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase()}
-                                        </span>
-                                    </div>
-                                </div>
-                                <div class="ml-4">
-                                    <div class="text-sm font-medium text-gray-900">${usuario.nome}</div>
-                                    <div class="text-sm text-gray-500">ID: ${usuario.id}</div>
-                                </div>
-                            </div>
-                        </td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                            ${formatarCpf(usuario.cpf)}
-                        </td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                            ${usuario.email}
-                        </td>
-                        <td class="px-6 py-4 whitespace-nowrap">
-                            <span class="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-800">
-                                ${tipoFormatado}
-                            </span>
-                        </td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                            ${ultimoLogin}
-                        </td>
-                        <td class="px-6 py-4 whitespace-nowrap">
-                            <span class="inline-flex px-2 py-1 text-xs font-semibold rounded-full ${statusClass}">
-                                ${statusText}
-                            </span>
-                        </td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                            <button onclick="alterarStatusUsuario(${usuario.id}, ${!usuario.ativo})" 
-                                    class="text-indigo-600 hover:text-indigo-900 mr-3">
-                                ${usuario.ativo ? 'Desativar' : 'Ativar'}
-                            </button>
-                            <button onclick="editarUsuario(${usuario.id})" 
-                                    class="text-green-600 hover:text-green-900">
-                                Editar
-                            </button>
-                        </td>
-                    </tr>
-                `;
-            }).join('');
-        }
-
-        // Função para formatar CPF
-        function formatarCpf(cpf) {
-            return cpf.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4');
-        }
-
-        // Função para aplicar máscara no CPF
-        function aplicarMascaraCpf(input) {
-            let value = input.value.replace(/\D/g, '');
-            value = value.replace(/(\d{3})(\d)/, '$1.$2');
-            value = value.replace(/(\d{3})(\d)/, '$1.$2');
-            value = value.replace(/(\d{3})(\d{1,2})$/, '$1-$2');
-            input.value = value;
-        }
-
-        // Função para cadastrar usuário
-        async function cadastrarUsuario(event) {
-            event.preventDefault();
-            
-            const formData = new FormData(event.target);
-            const dados = Object.fromEntries(formData.entries());
-            
-            // Remover formatação do CPF
-            dados.cpf = dados.cpf.replace(/\D/g, '');
-            
-            try {
-                const response = await fetch('../../Controllers/usuarios/ControllerUsuarios.php?action=cadastrar', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify(dados)
-                });
-                
-                const result = await response.json();
-                
-                if (result.sucesso) {
-                    mostrarMensagem(result.mensagem, 'success');
-                    closeAddUserModal();
-                    carregarUsuarios(); // Recarregar lista
-                } else {
-                    mostrarMensagem(result.mensagem || result.erro, 'error');
-                }
-            } catch (error) {
-                console.error('Erro ao cadastrar usuário:', error);
-                mostrarMensagem('Erro de conexão ao cadastrar usuário', 'error');
-            }
-        }
-
-        // Função para alterar status do usuário
-        async function alterarStatusUsuario(usuarioId, novoStatus) {
-            try {
-                const response = await fetch(`../../Controllers/usuarios/ControllerUsuarios.php?action=status&id=${usuarioId}`, {
-                    method: 'PUT',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({ ativo: novoStatus })
-                });
-                
-                const result = await response.json();
-                
-                if (result.sucesso) {
-                    mostrarMensagem(result.mensagem, 'success');
-                    carregarUsuarios(); // Recarregar lista
-                } else {
-                    mostrarMensagem(result.erro, 'error');
-                }
-            } catch (error) {
-                console.error('Erro ao alterar status:', error);
-                mostrarMensagem('Erro de conexão ao alterar status', 'error');
-            }
-        }
-
-        // Função para editar usuário (placeholder)
-        function editarUsuario(usuarioId) {
-            mostrarMensagem('Funcionalidade de edição em desenvolvimento', 'info');
-        }
-
-        // Função para mostrar mensagens
-        function mostrarMensagem(mensagem, tipo) {
-            // Criar elemento de notificação
-            const notification = document.createElement('div');
-            notification.className = `fixed top-4 right-4 z-50 p-4 rounded-lg shadow-lg max-w-sm ${
-                tipo === 'success' ? 'bg-green-500 text-white' :
-                tipo === 'error' ? 'bg-red-500 text-white' :
-                tipo === 'info' ? 'bg-blue-500 text-white' :
-                'bg-gray-500 text-white'
-            }`;
-            
-            notification.innerHTML = `
-                <div class="flex items-center justify-between">
-                    <span>${mensagem}</span>
-                    <button onclick="this.parentElement.parentElement.remove()" class="ml-4 text-white hover:text-gray-200">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-                        </svg>
-                    </button>
-                </div>
-            `;
-            
-            document.body.appendChild(notification);
-            
-            // Remover após 5 segundos
-            setTimeout(() => {
-                if (notification.parentElement) {
-                    notification.remove();
-                }
-            }, 5000);
-        }
-
-        // Event Listeners para usuários
-        document.addEventListener('DOMContentLoaded', function() {
-            // Botão novo usuário
-            const btnNovoUsuario = document.getElementById('btnNovoUsuario');
-            if (btnNovoUsuario) {
-                btnNovoUsuario.addEventListener('click', openAddUserModal);
-            }
-            
-            // Botão atualizar usuários
-            const btnAtualizarUsuarios = document.getElementById('btnAtualizarUsuarios');
-            if (btnAtualizarUsuarios) {
-                btnAtualizarUsuarios.addEventListener('click', carregarUsuarios);
-            }
-            
-            // Formulário de cadastro
-            const formCadastroUsuario = document.getElementById('formCadastroUsuario');
-            if (formCadastroUsuario) {
-                formCadastroUsuario.addEventListener('submit', cadastrarUsuario);
-            }
-            
-            // Máscara para CPF
-            const userCpf = document.getElementById('userCpf');
-            if (userCpf) {
-                userCpf.addEventListener('input', function() {
-                    aplicarMascaraCpf(this);
-                });
-            }
-            
-            // Carregar usuários quando a seção for exibida
-            const usuariosSection = document.getElementById('usuarios');
-            if (usuariosSection) {
-                const observer = new MutationObserver(function(mutations) {
-                    mutations.forEach(function(mutation) {
-                        if (mutation.type === 'attributes' && mutation.attributeName === 'class') {
-                            if (!usuariosSection.classList.contains('hidden')) {
-                                carregarUsuarios();
-                            }
-                        }
-                    });
-                });
-                
-                observer.observe(usuariosSection, {
-                    attributes: true,
-                    attributeFilter: ['class']
-                });
-            }
-        });
     </script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 
@@ -1152,7 +878,7 @@ No
                     </a>
                 </li>
                 <li id="usuarios-menu">
-                    <a href="gestao_usuarios.php" onclick="showSection('usuarios')" class="menu-item flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700">
+                    <a href="#" onclick="showSection('usuarios')" class="menu-item flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700">
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z"></path>
                         </svg>
@@ -1277,7 +1003,7 @@ No
                 </div>
 
                 <!-- Stats Cards -->
-                <?php if (isset($_SESSION['tipo']) && $_SESSION['tipo'] === 'GESTAO') { ?>
+                <?php if (isset($_SESSION['acessar_registros']) || isset($_SESSION['relatorio_geral']) || isset($_SESSION['gerar_relatorios_pedagogicos'])) { ?>
                 <div class="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6 mb-8">
                     <div class="card-hover bg-white rounded-2xl p-4 md:p-6 shadow-lg border border-gray-100 relative overflow-hidden hover-lift fade-in-up">
                         <div class="absolute top-0 right-0 w-20 h-20 bg-blue-100 rounded-full -mr-10 -mt-10"></div>
@@ -4594,7 +4320,7 @@ No
                                 <h2 class="text-2xl font-bold text-gray-800">Gestão de Usuários</h2>
                                 <p class="text-gray-600 mt-1">Cadastro e administração de usuários do sistema</p>
                             </div>
-                            <button id="btnNovoUsuario" class="bg-primary-green text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors duration-200 flex items-center space-x-2">
+                            <button class="bg-primary-green text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors duration-200 flex items-center space-x-2">
                                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
                                 </svg>
@@ -4605,42 +4331,10 @@ No
 
                     <div class="bg-white rounded-2xl shadow-lg border border-gray-100 overflow-hidden">
                         <div class="p-6 border-b border-gray-200">
-                            <div class="flex items-center justify-between">
-                                <h3 class="text-lg font-semibold text-gray-900">Usuários do Sistema</h3>
-                                <button id="btnAtualizarUsuarios" class="text-gray-500 hover:text-gray-700 transition-colors">
-                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
-                                    </svg>
-                                </button>
-                            </div>
+                            <h3 class="text-lg font-semibold text-gray-900">Usuários do Sistema</h3>
                         </div>
-                        <div class="overflow-x-auto">
-                            <table class="w-full">
-                                <thead class="bg-gray-50">
-                                    <tr>
-                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Usuário</th>
-                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">CPF</th>
-                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
-                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tipo</th>
-                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Último Login</th>
-                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ações</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="tabelaUsuarios" class="bg-white divide-y divide-gray-200">
-                                    <tr>
-                                        <td colspan="7" class="px-6 py-4 text-center text-gray-500">
-                                            <div class="flex items-center justify-center space-x-2">
-                                                <svg class="animate-spin h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24">
-                                                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                                                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                                                </svg>
-                                                <span>Carregando usuários...</span>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                </tbody>
-                            </table>
+                        <div class="p-6">
+                            <p class="text-gray-600">Sistema de gestão de usuários em desenvolvimento...</p>
                         </div>
                     </div>
                 </div>
@@ -7548,80 +7242,6 @@ No
                     </button>
                     <button type="submit" class="flex-1 px-4 py-2 text-white bg-primary-green hover:bg-green-700 rounded-lg font-medium transition-colors duration-200">
                         Adicionar
-                    </button>
-                </div>
-            </form>
-        </div>
-    </div>
-
-    <!-- Modal de Cadastro de Usuário -->
-    <div id="addUserModal" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden flex items-center justify-center p-4">
-        <div class="bg-white rounded-2xl shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-            <div class="p-6 border-b border-gray-200">
-                <div class="flex items-center justify-between">
-                    <h2 class="text-xl font-bold text-gray-800">Cadastrar Novo Usuário</h2>
-                    <button onclick="closeAddUserModal()" class="text-gray-400 hover:text-gray-600 transition-colors">
-                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-                        </svg>
-                    </button>
-                </div>
-            </div>
-            
-            <form id="formCadastroUsuario" class="p-6 space-y-4">
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div class="md:col-span-2">
-                        <label class="block text-sm font-medium text-gray-700 mb-2">Nome Completo *</label>
-                        <input type="text" id="userName" name="nome" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-green focus:border-transparent" placeholder="Ex: João Silva Santos" required>
-                    </div>
-
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-2">CPF *</label>
-                        <input type="text" id="userCpf" name="cpf" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-green focus:border-transparent" placeholder="000.000.000-00" maxlength="14" required>
-                    </div>
-
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-2">Email *</label>
-                        <input type="email" id="userEmail" name="email" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-green focus:border-transparent" placeholder="joao@email.com" required>
-                    </div>
-
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-2">Telefone</label>
-                        <input type="text" id="userTelefone" name="telefone" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-green focus:border-transparent" placeholder="(85) 99999-9999">
-                    </div>
-
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-2">Data de Nascimento</label>
-                        <input type="date" id="userDataNascimento" name="data_nascimento" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-green focus:border-transparent">
-                    </div>
-
-                    <div class="md:col-span-2">
-                        <label class="block text-sm font-medium text-gray-700 mb-2">Endereço</label>
-                        <textarea id="userEndereco" name="endereco" rows="2" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-green focus:border-transparent" placeholder="Rua, número, bairro, cidade"></textarea>
-                    </div>
-
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-2">Tipo de Usuário *</label>
-                        <select id="userTipo" name="tipo" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-green focus:border-transparent" required>
-                            <option value="">Selecione o tipo</option>
-                            <option value="admin">Administrador</option>
-                            <option value="funcionario">Funcionário</option>
-                            <option value="nutricionista">Nutricionista</option>
-                        </select>
-                    </div>
-
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-2">Senha Inicial *</label>
-                        <input type="password" id="userSenha" name="senha" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-green focus:border-transparent" placeholder="Mínimo 6 caracteres" minlength="6" required>
-                    </div>
-                </div>
-
-                <div class="flex space-x-3 pt-4">
-                    <button type="button" onclick="closeAddUserModal()" class="flex-1 px-4 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg font-medium transition-colors duration-200">
-                        Cancelar
-                    </button>
-                    <button type="submit" class="flex-1 px-4 py-2 text-white bg-primary-green hover:bg-green-700 rounded-lg font-medium transition-colors duration-200">
-                        Cadastrar Usuário
                     </button>
                 </div>
             </form>

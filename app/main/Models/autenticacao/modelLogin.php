@@ -18,19 +18,13 @@ Class ModelLogin {
         
         $sql = "SELECT u.*, p.* FROM usuario u 
                 INNER JOIN pessoa p ON u.pessoa_id = p.id 
-                WHERE p.cpf = ?";
+                WHERE p.cpf = ? AND u.senha_hash = ?";
         
         $stmt = $conn->prepare($sql);
-        $stmt->execute([$cpf]);
+        $stmt->execute([$cpf, $senha]);
         $resultado = $stmt->fetch(PDO::FETCH_ASSOC);
         
-        // Verificar se o usuário existe e se a senha está correta
-        if ($resultado && password_verify($senha, $resultado['senha'])) {
-            // Atualizar o campo ultimo_login na tabela usuario
-            $sqlUpdate = "UPDATE usuario SET ultimo_login = NOW() WHERE id = ?";
-            $stmtUpdate = $conn->prepare($sqlUpdate);
-            $stmtUpdate->execute([$resultado['id']]);
-            
+        if($resultado) {
             // Criar as sessões com os dados do usuário
             $_SESSION['logado'] = true;
             $_SESSION['usuario_id'] = $resultado['id'];
