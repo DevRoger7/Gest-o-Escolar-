@@ -16,7 +16,7 @@ function listarEscolas($busca = '') {
     $db = Database::getInstance();
     $conn = $db->getConnection();
     
-    $sql = "SELECT e.id, e.nome, e.endereco, e.telefone, e.email, e.municipio, e.cep, e.qtd_salas, e.obs, e.criado_em as data_criacao,
+    $sql = "SELECT e.id, e.nome, e.endereco, e.telefone, e.email, e.municipio, e.cep, e.qtd_salas, e.obs, e.codigo, e.criado_em as data_criacao,
                    p.nome as gestor_nome, p.email as gestor_email
             FROM escola e 
             LEFT JOIN gestor_lotacao gl ON e.id = gl.escola_id AND gl.responsavel = 1
@@ -75,8 +75,8 @@ function cadastrarEscola($dados) {
         $conn->beginTransaction();
         
         // Inserir escola
-        $stmt = $conn->prepare("INSERT INTO escola (nome, endereco, telefone, email, municipio, cep, qtd_salas, obs) 
-                                VALUES (:nome, :endereco, :telefone, :email, :municipio, :cep, :qtd_salas, :obs)");
+        $stmt = $conn->prepare("INSERT INTO escola (nome, endereco, telefone, email, municipio, cep, qtd_salas, obs, codigo) 
+                                VALUES (:nome, :endereco, :telefone, :email, :municipio, :cep, :qtd_salas, :obs, :codigo)");
         
         $stmt->bindParam(':nome', $dados['nome']);
         $stmt->bindParam(':endereco', $dados['endereco']);
@@ -86,15 +86,55 @@ function cadastrarEscola($dados) {
         $stmt->bindParam(':cep', $dados['cep']);
         $stmt->bindParam(':qtd_salas', $dados['qtd_salas']);
         $stmt->bindParam(':obs', $dados['obs']);
+        $stmt->bindParam(':codigo', $dados['codigo']);
         
         $stmt->execute();
         $escolaId = $conn->lastInsertId();
         
-        // Se um gestor foi selecionado, criar a lotação
+        // Se um gestor (usuario) foi selecionado, criar a lotação mapeando para a tabela gestor
         if (!empty($dados['gestor_id'])) {
+            // Primeiro, localizar o gestor.id correspondente ao usuario.id informado
+            // Alguns bancos usam nomes no singular/plural. Tentamos encontrar a relação adequada.
+            // 1) Tentar via tabela gestor com coluna usuario_id
+            $gestorId = null;
+            try {
+                $stmt = $conn->prepare("SELECT id FROM gestor WHERE usuario_id = :usuario_id LIMIT 1");
+                $stmt->bindParam(':usuario_id', $dados['gestor_id']);
+                $stmt->execute();
+                $row = $stmt->fetch(PDO::FETCH_ASSOC);
+                if ($row) {
+                    $gestorId = (int)$row['id'];
+                }
+            } catch (PDOException $e) {
+                // Se a tabela/coluna não existir, ignorar e tentar outro caminho
+            }
+
+            // 2) Caso não ache, tentar via ligação por pessoa: gestor.pessoa_id -> usuario.pessoa_id
+            if ($gestorId === null) {
+                try {
+                    $stmt = $conn->prepare("SELECT g.id 
+                                            FROM gestor g 
+                                            INNER JOIN usuario u ON u.pessoa_id = g.pessoa_id 
+                                            WHERE u.id = :usuario_id 
+                                            LIMIT 1");
+                    $stmt->bindParam(':usuario_id', $dados['gestor_id']);
+                    $stmt->execute();
+                    $row = $stmt->fetch(PDO::FETCH_ASSOC);
+                    if ($row) {
+                        $gestorId = (int)$row['id'];
+                    }
+                } catch (PDOException $e) {
+                    // Ignorar e continuar para mensagem de erro amigável
+                }
+            }
+
+            if ($gestorId === null) {
+                throw new PDOException('Gestor selecionado não possui cadastro válido em gestor.');
+            }
+
             $stmt = $conn->prepare("INSERT INTO gestor_lotacao (gestor_id, escola_id, inicio, responsavel) 
                                     VALUES (:gestor_id, :escola_id, CURDATE(), 1)");
-            $stmt->bindParam(':gestor_id', $dados['gestor_id']);
+            $stmt->bindParam(':gestor_id', $gestorId);
             $stmt->bindParam(':escola_id', $escolaId);
             $stmt->execute();
         }
@@ -145,6 +185,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 'cep' => $_POST['cep'] ?? '',
                 'qtd_salas' => $_POST['qtd_salas'] ?? null,
                 'obs' => $_POST['obs'] ?? '',
+                'codigo' => $_POST['codigo'] ?? '',
                 'gestor_id' => $_POST['gestor_id'] ?? null
             ];
             
@@ -741,6 +782,7 @@ $escolas = listarEscolas($busca);
                             <thead class="bg-gray-50">
                                 <tr>
                                     <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Nome</th>
+                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Código INEP</th>
                                     <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Endereço</th>
                                     <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Gestor</th>
                                     <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Contato</th>
@@ -752,7 +794,7 @@ $escolas = listarEscolas($busca);
                             <tbody class="bg-white divide-y divide-gray-200">
                                 <?php if (empty($escolas)): ?>
                                 <tr>
-                                    <td colspan="7" class="px-6 py-4 text-center text-sm text-gray-500">
+                                    <td colspan="8" class="px-6 py-4 text-center text-sm text-gray-500">
                                         Nenhuma escola encontrada
                                     </td>
                                 </tr>
@@ -768,6 +810,9 @@ $escolas = listarEscolas($busca);
                                                     <div class="text-sm font-medium text-gray-900"><?php echo htmlspecialchars($escola['nome']); ?></div>
                                                 </div>
                                             </div>
+                                        </td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                            <?php echo $escola['codigo'] ? htmlspecialchars($escola['codigo']) : 'N/A'; ?>
                                         </td>
                                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                                             <?php echo htmlspecialchars($escola['endereco']); ?>
@@ -822,6 +867,12 @@ $escolas = listarEscolas($busca);
                             <div>
                                 <label for="nome" class="block text-sm font-medium text-gray-700 mb-2">Nome da Escola *</label>
                                 <input type="text" id="nome" name="nome" required
+                                       class="block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-primary-green focus:border-primary-green">
+                            </div>
+                            
+                            <div>
+                                <label for="codigo" class="block text-sm font-medium text-gray-700 mb-2">Código INEP</label>
+                                <input type="text" id="codigo" name="codigo" placeholder="Ex: 12345678"
                                        class="block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-primary-green focus:border-primary-green">
                             </div>
                             
@@ -998,6 +1049,12 @@ $escolas = listarEscolas($busca);
                             <div>
                                 <label for="edit_nome" class="block text-sm font-medium text-gray-700 mb-2">Nome da Escola *</label>
                                 <input type="text" id="edit_nome" name="nome" required
+                                       class="block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-primary-green focus:border-primary-green">
+                            </div>
+                            
+                            <div>
+                                <label for="edit_codigo" class="block text-sm font-medium text-gray-700 mb-2">Código INEP</label>
+                                <input type="text" id="edit_codigo" name="codigo" placeholder="Ex: 12345678"
                                        class="block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-primary-green focus:border-primary-green">
                             </div>
                             
