@@ -91,11 +91,50 @@ function cadastrarEscola($dados) {
         $stmt->execute();
         $escolaId = $conn->lastInsertId();
         
-        // Se um gestor foi selecionado, criar a lotação
+        // Se um gestor (usuario) foi selecionado, criar a lotação mapeando para a tabela gestor
         if (!empty($dados['gestor_id'])) {
+            // Primeiro, localizar o gestor.id correspondente ao usuario.id informado
+            // Alguns bancos usam nomes no singular/plural. Tentamos encontrar a relação adequada.
+            // 1) Tentar via tabela gestor com coluna usuario_id
+            $gestorId = null;
+            try {
+                $stmt = $conn->prepare("SELECT id FROM gestor WHERE usuario_id = :usuario_id LIMIT 1");
+                $stmt->bindParam(':usuario_id', $dados['gestor_id']);
+                $stmt->execute();
+                $row = $stmt->fetch(PDO::FETCH_ASSOC);
+                if ($row) {
+                    $gestorId = (int)$row['id'];
+                }
+            } catch (PDOException $e) {
+                // Se a tabela/coluna não existir, ignorar e tentar outro caminho
+            }
+
+            // 2) Caso não ache, tentar via ligação por pessoa: gestor.pessoa_id -> usuario.pessoa_id
+            if ($gestorId === null) {
+                try {
+                    $stmt = $conn->prepare("SELECT g.id 
+                                            FROM gestor g 
+                                            INNER JOIN usuario u ON u.pessoa_id = g.pessoa_id 
+                                            WHERE u.id = :usuario_id 
+                                            LIMIT 1");
+                    $stmt->bindParam(':usuario_id', $dados['gestor_id']);
+                    $stmt->execute();
+                    $row = $stmt->fetch(PDO::FETCH_ASSOC);
+                    if ($row) {
+                        $gestorId = (int)$row['id'];
+                    }
+                } catch (PDOException $e) {
+                    // Ignorar e continuar para mensagem de erro amigável
+                }
+            }
+
+            if ($gestorId === null) {
+                throw new PDOException('Gestor selecionado não possui cadastro válido em gestor.');
+            }
+
             $stmt = $conn->prepare("INSERT INTO gestor_lotacao (gestor_id, escola_id, inicio, responsavel) 
                                     VALUES (:gestor_id, :escola_id, CURDATE(), 1)");
-            $stmt->bindParam(':gestor_id', $dados['gestor_id']);
+            $stmt->bindParam(':gestor_id', $gestorId);
             $stmt->bindParam(':escola_id', $escolaId);
             $stmt->execute();
         }
