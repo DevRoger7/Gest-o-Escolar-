@@ -460,6 +460,32 @@ $escolas = listarEscolas($busca);
         [data-theme="dark"] tr:hover td {
             background-color: #333333 !important;
         }
+
+        /* Estilos para o formulário de cadastro no modo escuro */
+        [data-theme="dark"] #tab-cadastrar .bg-white {
+            background-color: var(--bg-secondary) !important;
+        }
+        [data-theme="dark"] #tab-cadastrar .text-gray-900 {
+            color: var(--text-primary) !important;
+        }
+        [data-theme="dark"] #tab-cadastrar .text-gray-600 {
+            color: var(--text-secondary) !important;
+        }
+        [data-theme="dark"] #tab-cadastrar .border-gray-200 {
+            border-color: var(--border-color) !important;
+        }
+        [data-theme="dark"] #tab-cadastrar .hover\:bg-gray-50:hover {
+            background-color: var(--bg-tertiary) !important;
+        }
+        [data-theme="dark"] #tab-cadastrar input,
+        [data-theme="dark"] #tab-cadastrar select {
+            background-color: var(--bg-tertiary) !important;
+            border-color: var(--border-color) !important;
+            color: var(--text-primary) !important;
+        }
+        [data-theme="dark"] #tab-cadastrar input::placeholder {
+            color: var(--text-muted) !important;
+        }
     </style>
 </head>
 <body class="bg-gray-50 font-sans">
@@ -743,24 +769,32 @@ $escolas = listarEscolas($busca);
                             </div>
                             
                             <div>
-                                <label for="cep" class="block text-sm font-medium text-gray-700 mb-2">CEP</label>
-                                <input type="text" id="cep" name="cep" placeholder="00000-000"
+                                <label for="cep" class="block text-sm font-medium text-gray-700 mb-2">CEP <span class="text-red-500">*</span></label>
+                                <div class="flex space-x-2">
+                                    <input type="text" id="cep" name="cep" required placeholder="00000-000" maxlength="9" onkeyup="formatarCEPCadastro(this)" onblur="buscarCEPCadastro(this.value)"
+                                           class="flex-1 px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-primary-green focus:border-primary-green">
+                                    <button type="button" onclick="buscarCEPCadastro(document.getElementById('cep').value)" class="px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors duration-200">
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                                        </svg>
+                                    </button>
+                                </div>
+                                <div id="resultadoCEPCadastro" class="mt-2 text-sm text-gray-600 hidden"></div>
+                            </div>
+                            
+                            <div>
+                                <label for="qtd_salas" class="block text-sm font-medium text-gray-700 mb-2">Quantidade de Salas <span class="text-red-500">*</span></label>
+                                <input type="number" id="qtd_salas" name="qtd_salas" required min="1" placeholder="Ex: 12"
                                        class="block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-primary-green focus:border-primary-green">
                             </div>
                             
                             <div>
-                                <label for="qtd_salas" class="block text-sm font-medium text-gray-700 mb-2">Quantidade de Salas</label>
-                                <input type="number" id="qtd_salas" name="qtd_salas" min="0"
-                                       class="block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-primary-green focus:border-primary-green">
-                            </div>
-                            
-                            <div>
-                                <label for="gestor_search" class="block text-sm font-medium text-gray-700 mb-2">Selecionar Gestor</label>
+                                <label for="gestor_search" class="block text-sm font-medium text-gray-700 mb-2">Selecionar Gestor <span class="text-red-500">*</span></label>
                                 <div class="relative">
-                                    <input type="text" id="gestor_search" placeholder="Digite o nome do gestor..." 
+                                    <input type="text" id="gestor_search" required placeholder="Digite o nome do gestor..." 
                                            class="block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-primary-green focus:border-primary-green"
                                            autocomplete="off">
-                                    <input type="hidden" id="gestor_id" name="gestor_id">
+                                    <input type="hidden" id="gestor_id" name="gestor_id" required>
                                     <div id="gestor_results" class="absolute z-10 w-full bg-white border border-gray-300 rounded-lg shadow-lg hidden max-h-60 overflow-y-auto"></div>
                                 </div>
                                 <div id="gestor_selected" class="mt-2 hidden">
@@ -1509,6 +1543,60 @@ $escolas = listarEscolas($busca);
                         <span class="text-green-600">
                             <strong>${data.logradouro}</strong><br>
                             ${data.bairro} - ${data.localidade}/${data.uf}
+                        </span>
+                    `;
+                }
+            } catch (error) {
+                resultadoCEP.innerHTML = '<span class="text-red-600">Erro ao buscar CEP</span>';
+                console.error('Erro na busca do CEP:', error);
+            }
+        }
+
+        // Funções de CEP para o formulário de cadastro
+        function formatarCEPCadastro(input) {
+            let valor = input.value.replace(/\D/g, '');
+            valor = valor.replace(/(\d{5})(\d)/, '$1-$2');
+            input.value = valor;
+        }
+
+        async function buscarCEPCadastro(cep) {
+            const cepInput = document.getElementById('cep');
+            const resultadoCEP = document.getElementById('resultadoCEPCadastro');
+            
+            if (!cep || cep.length < 8) {
+                resultadoCEP.classList.add('hidden');
+                return;
+            }
+
+            // Limpar CEP para busca
+            const cepLimpo = cep.replace(/\D/g, '');
+            
+            if (cepLimpo.length !== 8) {
+                resultadoCEP.innerHTML = '<span class="text-red-600">CEP deve ter 8 dígitos</span>';
+                resultadoCEP.classList.remove('hidden');
+                return;
+            }
+
+            try {
+                resultadoCEP.innerHTML = '<span class="text-blue-600">Buscando...</span>';
+                resultadoCEP.classList.remove('hidden');
+
+                const response = await fetch(`https://viacep.com.br/ws/${cepLimpo}/json/`);
+                const data = await response.json();
+
+                if (data.erro) {
+                    resultadoCEP.innerHTML = '<span class="text-red-600">CEP não encontrado</span>';
+                } else {
+                    // Preencher campos automaticamente
+                    document.getElementById('endereco').value = data.logradouro || '';
+                    document.getElementById('municipio').value = data.localidade || '';
+                    
+                    resultadoCEP.innerHTML = `
+                        <span class="text-green-600">
+                            <svg class="w-4 h-4 inline mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                            </svg>
+                            Endereço preenchido automaticamente
                         </span>
                     `;
                 }
