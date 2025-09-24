@@ -791,7 +791,7 @@ $escolas = listarEscolas($busca);
                             <div>
                                 <label for="gestor_search" class="block text-sm font-medium text-gray-700 mb-2">Selecionar Gestor <span class="text-red-500">*</span></label>
                                 <div class="relative">
-                                    <input type="text" id="gestor_search" required placeholder="Digite o nome do gestor..." 
+                                    <input type="text" id="gestor_search" placeholder="Digite o nome do gestor..." 
                                            class="block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-primary-green focus:border-primary-green"
                                            autocomplete="off">
                                     <input type="hidden" id="gestor_id" name="gestor_id" required>
@@ -1188,9 +1188,9 @@ $escolas = listarEscolas($busca);
         // Função para selecionar gestor
         function selecionarGestor(gestor) {
             document.getElementById('gestor_id').value = gestor.id;
+            document.getElementById('gestor_search').value = gestor.nome; // Mostrar o nome no input
             document.getElementById('gestor_nome_selecionado').textContent = gestor.nome;
             document.getElementById('gestor_email_selecionado').textContent = gestor.email;
-            document.getElementById('gestor_search').value = '';
             document.getElementById('gestor_results').classList.add('hidden');
             document.getElementById('gestor_selected').classList.remove('hidden');
         }
@@ -1605,6 +1605,23 @@ $escolas = listarEscolas($busca);
                 console.error('Erro na busca do CEP:', error);
             }
         }
+
+        // Event listener para o formulário de cadastro
+        document.addEventListener('DOMContentLoaded', function() {
+            const formCadastro = document.querySelector('form[method="POST"]');
+            if (formCadastro) {
+                formCadastro.addEventListener('submit', function(e) {
+                    // Validar se um gestor foi selecionado
+                    const gestorId = document.getElementById('gestor_id').value;
+                    if (!gestorId) {
+                        e.preventDefault();
+                        alert('Por favor, selecione um gestor para a escola.');
+                        document.getElementById('gestor_search').focus();
+                        return false;
+                    }
+                });
+            }
+        });
 
         // Event listener para o formulário de edição
         document.getElementById('formEdicaoEscola').addEventListener('submit', function(e) {
