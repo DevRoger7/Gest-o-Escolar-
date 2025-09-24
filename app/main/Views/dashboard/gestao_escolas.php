@@ -155,6 +155,24 @@ function excluirEscola($id) {
     try {
         $conn->beginTransaction();
         
+        // Primeiro, remover todas as lotações de gestores relacionadas à escola
+        $stmt = $conn->prepare("DELETE FROM gestor_lotacao WHERE escola_id = :id");
+        $stmt->bindParam(':id', $id);
+        $stmt->execute();
+        
+        // Verificar se existem outras tabelas relacionadas e removê-las se necessário
+        // Exemplo: se houver tabelas como professor_escola, aluno_escola, etc.
+        
+        // Remover outras possíveis dependências (adicione conforme necessário)
+        // $stmt = $conn->prepare("DELETE FROM professor_escola WHERE escola_id = :id");
+        // $stmt->bindParam(':id', $id);
+        // $stmt->execute();
+        
+        // $stmt = $conn->prepare("DELETE FROM aluno_escola WHERE escola_id = :id");
+        // $stmt->bindParam(':id', $id);
+        // $stmt->execute();
+        
+        // Por último, excluir a escola
         $stmt = $conn->prepare("DELETE FROM escola WHERE id = :id");
         $stmt->bindParam(':id', $id);
         $stmt->execute();
@@ -871,14 +889,14 @@ $escolas = listarEscolas($busca);
                             </div>
                             
                             <div>
-                                <label for="codigo" class="block text-sm font-medium text-gray-700 mb-2">Código INEP</label>
-                                <input type="text" id="codigo" name="codigo" placeholder="Ex: 12345678"
+                                <label for="codigo" class="block text-sm font-medium text-gray-700 mb-2">Código INEP *</label>
+                                <input type="text" id="codigo" name="codigo" placeholder="Ex: 12345678" required
                                        class="block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-primary-green focus:border-primary-green">
                             </div>
                             
                             <div>
-                                <label for="telefone" class="block text-sm font-medium text-gray-700 mb-2">Telefone</label>
-                                <input type="text" id="telefone" name="telefone" placeholder="(00) 0000-0000"
+                                <label for="telefone" class="block text-sm font-medium text-gray-700 mb-2">Telefone *</label>
+                                <input type="text" id="telefone" name="telefone" placeholder="(00) 0000-0000" required
                                        class="block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-primary-green focus:border-primary-green">
                             </div>
                             
@@ -889,8 +907,8 @@ $escolas = listarEscolas($busca);
                             </div>
                             
                             <div>
-                                <label for="email" class="block text-sm font-medium text-gray-700 mb-2">Email</label>
-                                <input type="email" id="email" name="email"
+                                <label for="email" class="block text-sm font-medium text-gray-700 mb-2">Email *</label>
+                                <input type="email" id="email" name="email" required
                                        class="block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-primary-green focus:border-primary-green">
                             </div>
                             
@@ -966,7 +984,7 @@ $escolas = listarEscolas($busca);
     </div>
     
     <!-- Modal de Exclusão de Escola -->
-    <div id="modalExclusaoEscola" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden flex items-center justify-center p-4">
+    <div id="modalExclusaoEscola" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden items-center justify-center p-4">
         <div class="bg-white rounded-2xl p-6 max-w-md w-full mx-4 shadow-2xl">
             <div class="flex items-center justify-center w-12 h-12 mx-auto bg-red-100 rounded-full mb-4">
                 <svg class="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1273,12 +1291,16 @@ $escolas = listarEscolas($busca);
         function abrirModalExclusaoEscola(id, nome) {
             document.getElementById('idEscolaExclusao').value = id;
             document.getElementById('nomeEscolaExclusao').textContent = nome;
-            document.getElementById('modalExclusaoEscola').classList.remove('hidden');
+            const modal = document.getElementById('modalExclusaoEscola');
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
         }
         
         // Função para fechar modal de exclusão de escola
         function fecharModalExclusaoEscola() {
-            document.getElementById('modalExclusaoEscola').classList.add('hidden');
+            const modal = document.getElementById('modalExclusaoEscola');
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
         }
         
         // Fechar modal clicando fora dele
