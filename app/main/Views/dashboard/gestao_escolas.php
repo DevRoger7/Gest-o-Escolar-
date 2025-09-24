@@ -533,7 +533,7 @@ $escolas = listarEscolas($busca);
         <nav class="p-4">
             <ul class="space-y-2">
                 <li>
-                    <a href="dashboard.php" class="menu-item flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700">
+                    <a href="dashboard.php" onclick="showSection('dashboard')" class="menu-item  flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700">
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2H5a2 2 0 00-2-2z"></path>
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5a2 2 0 012-2h4a2 2 0 012 2v2H8V5z"></path>
@@ -541,9 +541,81 @@ $escolas = listarEscolas($busca);
                         <span>Dashboard</span>
                     </a>
                 </li>
+                <?php if (isset($_SESSION['cadastrar_pessoas']) || isset($_SESSION['matricular_alunos']) || isset($_SESSION['acessar_registros']) || $_SESSION['tipo'] === 'ADM') { ?>
+                <?php } ?>
+                <?php if ($_SESSION['tipo'] === 'GESTAO') { ?>
+                <li id="gestao-menu">
+                    <a href="#" onclick="showSection('gestao')" class="menu-item flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                        </svg>
+                        <span>Gestão Escolar</span>
+                    </a>
+                </li>
+                <?php } ?>
+                <?php if ($_SESSION['tipo'] === 'ADM_MERENDA') { ?>
+                <li id="merenda-menu">
+                    <a href="#" onclick="showSection('merenda')" class="menu-item flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path>
+                        </svg>
+                        <span>Merenda</span>
+                    </a>
+                </li>
+                <?php } ?>
+                <?php if (isset($_SESSION['Gerenciador de Usuarios'])) { ?>
+                    <li>
+                        <a href="../../subsystems/gerenciador_usuario/index.php" class="menu-item flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z"></path>
+                            </svg>
+                            <span>Gerenciador de Usuários</span>
+                        </a>
+                    </li>
+                <?php } ?>
+                <?php if (isset($_SESSION['Estoque'])) { ?>
+                    <li>
+                        <a href="../../subsystems/controle_de_estoque/default.php" class="menu-item flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path>
+                            </svg>
+                            <span>Controle de Estoque</span>
+                        </a>
+                    </li>
+                <?php } ?>
+                <?php if (isset($_SESSION['Biblioteca'])) { ?>
+                    <li>
+                        <a href="../../subsystems/biblioteca/default.php" class="menu-item flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.746 0 3.332.477 4.5 1.253v13C19.832 18.477 18.246 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path>
+                            </svg>
+                            <span>Biblioteca</span>
+                        </a>
+                    </li>
+                <?php } ?>
+                <?php if (isset($_SESSION['Entrada/saída'])) { ?>
+                    <li>
+                        <a href="../../subsystems/entradasaida/app/main/views/inicio.php" class="menu-item flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1"></path>
+                            </svg>
+                            <span>Entrada/Saída</span>
+                        </a>
+                    </li>
+                <?php } ?>
+                <?php if (isset($_SESSION['relatorio_geral']) || isset($_SESSION['gerar_relatorios_pedagogicos']) || $_SESSION['tipo'] === 'ADM') { ?>
+                <li id="relatorios-menu">
+                    <a href="#" onclick="showSection('relatorios')" class="menu-item flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                        </svg>
+                        <span>Relatórios</span>
+                    </a>
+                </li>
+                <?php } ?>
                 <?php if ($_SESSION['tipo'] === 'ADM') { ?>
                 <li id="escolas-menu">
-                    <a href="gestao_escolas.php" class="menu-item active flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700">
+                    <a href="gestao_escolas.php" class="menu-item flex items-center active space-x-3 px-4 py-3 rounded-lg text-gray-700">
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path>
                         </svg>
@@ -558,18 +630,27 @@ $escolas = listarEscolas($busca);
                         <span>Usuários</span>
                     </a>
                 </li>
+                <li id="estoque-central-menu">
+                    <a href="#" onclick="showSection('estoque-central')" class="menu-item flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path>
+                        </svg>
+                        <span>Estoque Central</span>
+                    </a>
+                </li>
                 <?php } ?>
             </ul>
         </nav>
 
+
         <!-- Logout -->
         <div class="absolute bottom-0 left-0 right-0 p-4 border-t border-gray-200">
-            <a href="../../Models/sessao/sessions.php?sair" class="w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-red-600 hover:bg-red-50 hover:text-red-700 transition-all duration-200">
+            <button onclick="confirmLogout()" class="w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-red-600 hover:bg-red-50 hover:text-red-700 transition-all duration-200">
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path>
                 </svg>
                 <span>Sair</span>
-            </a>
+            </button>
         </div>
     </aside>
 
@@ -1208,18 +1289,159 @@ $escolas = listarEscolas($busca);
             document.getElementById('tituloModalEdicao').textContent = `Editar Escola - ${nome}`;
             document.getElementById('modalEdicaoEscola').classList.remove('hidden');
             
+            // Mostrar indicador de carregamento
+            mostrarCarregandoDadosEscola();
+            
             // Carregar dados da escola
             carregarDadosEscola(id);
         }
         
         function fecharModalEdicaoEscola() {
             document.getElementById('modalEdicaoEscola').classList.add('hidden');
+            
+            // Limpar formulário
+            document.getElementById('formEdicaoEscola').reset();
+            document.getElementById('edit_gestor_selected').classList.add('hidden');
+            document.getElementById('lista-professores').innerHTML = '';
+        }
+        
+        function mostrarCarregandoDadosEscola() {
+            // Mostrar indicador de carregamento nos campos
+            const campos = [
+                'edit_nome', 'edit_endereco', 'edit_telefone', 'edit_email',
+                'edit_municipio', 'edit_cep', 'edit_qtd_salas', 'edit_obs'
+            ];
+            
+            campos.forEach(campo => {
+                const input = document.getElementById(campo);
+                if (input) {
+                    input.value = 'Carregando...';
+                    input.disabled = true;
+                }
+            });
+            
+            // Desabilitar botões durante o carregamento
+            const botoes = document.querySelectorAll('#formEdicaoEscola button[type="submit"]');
+            botoes.forEach(botao => {
+                botao.disabled = true;
+            });
+        }
+        
+        function habilitarCamposEdicao() {
+            // Habilitar campos após o carregamento
+            const campos = [
+                'edit_nome', 'edit_endereco', 'edit_telefone', 'edit_email',
+                'edit_municipio', 'edit_cep', 'edit_qtd_salas', 'edit_obs'
+            ];
+            
+            campos.forEach(campo => {
+                const input = document.getElementById(campo);
+                if (input) {
+                    input.disabled = false;
+                }
+            });
+            
+            // Habilitar botões após o carregamento
+            const botoes = document.querySelectorAll('#formEdicaoEscola button[type="submit"]');
+            botoes.forEach(botao => {
+                botao.disabled = false;
+            });
         }
         
         function carregarDadosEscola(id) {
-            // Aqui você pode fazer uma requisição AJAX para carregar os dados da escola
-            // Por enquanto, vou deixar como placeholder
-            console.log('Carregando dados da escola:', id);
+            fetch(`obter_escola.php?id=${id}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status) {
+                        const escola = data.escola;
+                        
+                        // Preencher campos do formulário com os dados da escola
+                        document.getElementById('edit_nome').value = escola.nome || '';
+                        document.getElementById('edit_endereco').value = escola.endereco || '';
+                        document.getElementById('edit_telefone').value = escola.telefone || '';
+                        document.getElementById('edit_email').value = escola.email || '';
+                        document.getElementById('edit_municipio').value = escola.municipio || '';
+                        document.getElementById('edit_cep').value = escola.cep || '';
+                        document.getElementById('edit_qtd_salas').value = escola.qtd_salas || '';
+                        document.getElementById('edit_obs').value = escola.obs || '';
+                        
+                        // Preencher dados do gestor, se houver
+                        if (escola.gestor_id) {
+                            document.getElementById('edit_gestor_id').value = escola.gestor_id;
+                            document.getElementById('edit_gestor_nome_selecionado').textContent = escola.gestor_nome || 'Nome não disponível';
+                            document.getElementById('edit_gestor_email_selecionado').textContent = escola.gestor_email || 'Email não disponível';
+                            document.getElementById('edit_gestor_selected').classList.remove('hidden');
+                        } else {
+                            document.getElementById('edit_gestor_id').value = '';
+                            document.getElementById('edit_gestor_selected').classList.add('hidden');
+                        }
+                        
+                        // Carregar professores, se houver
+                        if (data.professores && data.professores.length > 0) {
+                            carregarProfessoresEscola(data.professores);
+                        } else {
+                            document.getElementById('lista-professores').innerHTML = `
+                                <div class="text-center p-4 bg-gray-50 rounded-lg border border-gray-200">
+                                    <p class="text-gray-500">Nenhum professor vinculado a esta escola.</p>
+                                </div>
+                            `;
+                        }
+                        
+                        // Habilitar campos após o carregamento
+                        habilitarCamposEdicao();
+                    } else {
+                        // Exibir mensagem de erro
+                        alert('Erro ao carregar dados da escola: ' + data.mensagem);
+                        fecharModalEdicaoEscola();
+                    }
+                })
+                .catch(error => {
+                    console.error('Erro ao carregar dados da escola:', error);
+                    alert('Erro ao carregar dados da escola. Verifique o console para mais detalhes.');
+                    fecharModalEdicaoEscola();
+                });
+        }
+        
+        function carregarProfessoresEscola(professores) {
+            const listaProfessores = document.getElementById('lista-professores');
+            listaProfessores.innerHTML = '';
+            
+            professores.forEach(professor => {
+                const card = document.createElement('div');
+                card.className = 'flex items-center justify-between p-4 bg-white rounded-lg border border-gray-200 hover:bg-gray-50 transition-colors duration-200';
+                card.innerHTML = `
+                    <div class="flex items-center space-x-3">
+                        <div class="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center text-blue-600 font-semibold">
+                            ${professor.nome.charAt(0).toUpperCase()}
+                        </div>
+                        <div>
+                            <h5 class="font-medium text-gray-900">${professor.nome}</h5>
+                            <p class="text-sm text-gray-500">${professor.email || 'Email não informado'}</p>
+                        </div>
+                    </div>
+                    <div class="flex items-center space-x-2">
+                        <span class="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">${professor.role || 'Professor'}</span>
+                        <button type="button" onclick="removerProfessor(${professor.id})" class="p-1 text-red-600 hover:text-red-800 hover:bg-red-50 rounded-full">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                            </svg>
+                        </button>
+                    </div>
+                `;
+                listaProfessores.appendChild(card);
+            });
+        }
+        
+        function removerProfessor(professorId) {
+            if (confirm('Tem certeza que deseja remover este professor da escola?')) {
+                console.log('Removendo professor:', professorId);
+                // Aqui você faria a requisição para o backend para remover o professor
+                // Por enquanto, apenas simulamos a remoção
+                alert('Professor removido com sucesso!');
+                // Recarregar a lista de professores
+                const escolaId = document.getElementById('edit_escola_id').value;
+                carregarDadosEscola(escolaId);
+            }
         }
         
         function mostrarAbaEdicao(abaId) {
