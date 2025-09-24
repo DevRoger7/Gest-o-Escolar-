@@ -13,16 +13,22 @@ class ThemeManager {
      * Inicializa o sistema de tema
      */
     init() {
-        // Aplicar tema salvo ao carregar a página
-        this.applyTheme(this.currentTheme);
-        
-        // Configurar botões de tema se existirem
-        this.setupThemeButtons();
-        
-        // Aplicar tema ao carregar a página
-        document.addEventListener('DOMContentLoaded', () => {
+        // Aguardar DOM estar pronto antes de aplicar tema
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', () => {
+                this.applyTheme(this.currentTheme);
+                this.setupThemeButtons();
+            });
+        } else {
+            // DOM já está pronto
             this.applyTheme(this.currentTheme);
-        });
+            this.setupThemeButtons();
+        }
+
+        // Configurar botões também após um pequeno delay para garantir que estejam no DOM
+        setTimeout(() => {
+            this.setupThemeButtons();
+        }, 100);
     }
 
     /**
@@ -52,10 +58,14 @@ class ThemeManager {
         // Aplicar classes do Tailwind para tema escuro
         if (theme === 'dark') {
             document.documentElement.classList.add('dark');
-            document.body.classList.add('bg-gray-900', 'text-white');
+            if (document.body) {
+                document.body.classList.add('bg-gray-900', 'text-white');
+            }
         } else {
             document.documentElement.classList.remove('dark');
-            document.body.classList.remove('bg-gray-900', 'text-white');
+            if (document.body) {
+                document.body.classList.remove('bg-gray-900', 'text-white');
+            }
         }
 
         // Atualizar estado dos botões de tema
@@ -75,16 +85,38 @@ class ThemeManager {
      * Configura os botões de tema
      */
     setupThemeButtons() {
+        // Aguardar o DOM estar pronto
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', () => this.setupThemeButtons());
+            return;
+        }
+
         // Configurar botões de tema se existirem
         const lightBtn = document.getElementById('theme-light');
         const darkBtn = document.getElementById('theme-dark');
 
+        console.log('Configurando botões de tema:', { lightBtn, darkBtn });
+
         if (lightBtn) {
-            lightBtn.addEventListener('click', () => this.setTheme('light'));
+            // Remover event listeners existentes
+            lightBtn.replaceWith(lightBtn.cloneNode(true));
+            const newLightBtn = document.getElementById('theme-light');
+            newLightBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                console.log('Botão claro clicado');
+                this.setTheme('light');
+            });
         }
 
         if (darkBtn) {
-            darkBtn.addEventListener('click', () => this.setTheme('dark'));
+            // Remover event listeners existentes
+            darkBtn.replaceWith(darkBtn.cloneNode(true));
+            const newDarkBtn = document.getElementById('theme-dark');
+            newDarkBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                console.log('Botão escuro clicado');
+                this.setTheme('dark');
+            });
         }
     }
 
@@ -92,17 +124,24 @@ class ThemeManager {
      * Atualiza o estado visual dos botões de tema
      */
     updateThemeButtons(theme) {
-        // Atualizar todos os botões de tema
-        document.querySelectorAll('[id^="theme-"]').forEach(btn => {
-            btn.classList.remove('bg-blue-500', 'text-white', 'border-blue-500');
-            btn.classList.add('border-gray-300', 'text-gray-700');
-        });
+        try {
+            // Atualizar todos os botões de tema
+            const themeButtons = document.querySelectorAll('[id^="theme-"]');
+            themeButtons.forEach(btn => {
+                if (btn && btn.classList) {
+                    btn.classList.remove('bg-blue-500', 'text-white', 'border-blue-500');
+                    btn.classList.add('border-gray-300', 'text-gray-700');
+                }
+            });
 
-        // Ativar botão do tema atual
-        const activeBtn = document.getElementById(`theme-${theme}`);
-        if (activeBtn) {
-            activeBtn.classList.add('bg-blue-500', 'text-white', 'border-blue-500');
-            activeBtn.classList.remove('border-gray-300', 'text-gray-700');
+            // Ativar botão do tema atual
+            const activeBtn = document.getElementById(`theme-${theme}`);
+            if (activeBtn && activeBtn.classList) {
+                activeBtn.classList.add('bg-blue-500', 'text-white', 'border-blue-500');
+                activeBtn.classList.remove('border-gray-300', 'text-gray-700');
+            }
+        } catch (error) {
+            console.warn('Erro ao atualizar botões de tema:', error);
         }
     }
 
@@ -127,12 +166,45 @@ window.themeManager = new ThemeManager();
 
 // Funções globais para compatibilidade com código existente
 function setTheme(theme) {
-    window.themeManager.setTheme(theme);
+    if (window.themeManager) {
+        window.themeManager.setTheme(theme);
+    } else {
+        console.error('ThemeManager não está disponível');
+    }
 }
 
 function toggleTheme() {
-    window.themeManager.toggleTheme();
+    if (window.themeManager) {
+        window.themeManager.toggleTheme();
+    } else {
+        console.error('ThemeManager não está disponível');
+    }
 }
+
+// Fallback: Configurar botões diretamente se o ThemeManager falhar
+document.addEventListener('DOMContentLoaded', function() {
+    // Aguardar um pouco para o ThemeManager se configurar
+    setTimeout(() => {
+        const lightBtn = document.getElementById('theme-light');
+        const darkBtn = document.getElementById('theme-dark');
+        
+        if (lightBtn && !lightBtn.onclick) {
+            lightBtn.addEventListener('click', function(e) {
+                e.preventDefault();
+                console.log('Fallback: Botão claro clicado');
+                setTheme('light');
+            });
+        }
+        
+        if (darkBtn && !darkBtn.onclick) {
+            darkBtn.addEventListener('click', function(e) {
+                e.preventDefault();
+                console.log('Fallback: Botão escuro clicado');
+                setTheme('dark');
+            });
+        }
+    }, 500);
+});
 
 // Atalho de teclado para alternar tema (Alt + T)
 document.addEventListener('keydown', function(e) {

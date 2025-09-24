@@ -479,6 +479,35 @@ $usuarios = listarUsuarios($busca);
             color: #f0f0f0 !important;
         }
 
+        [data-theme="dark"] .text-gray-900 {
+            color: #ffffff !important;
+        }
+
+        [data-theme="dark"] .text-gray-700 {
+            color: #d0d0d0 !important;
+        }
+
+        /* Corrigir hovers brancos no modo escuro */
+        [data-theme="dark"] .hover\:bg-white:hover {
+            background-color: #2a2a2a !important;
+        }
+
+        [data-theme="dark"] .hover\:bg-gray-50:hover {
+            background-color: #333333 !important;
+        }
+
+        [data-theme="dark"] .hover\:bg-gray-100:hover {
+            background-color: #3a3a3a !important;
+        }
+
+        [data-theme="dark"] .hover\:text-gray-900:hover {
+            color: #ffffff !important;
+        }
+
+        [data-theme="dark"] .hover\:text-gray-800:hover {
+            color: #e0e0e0 !important;
+        }
+
         [data-theme="dark"] .border-gray-200 {
             border-color: var(--border-color) !important;
         }
@@ -559,6 +588,42 @@ $usuarios = listarUsuarios($busca);
         [data-theme="dark"] textarea:focus {
             border-color: var(--primary-green) !important;
             box-shadow: 0 0 0 3px rgba(74, 222, 128, 0.3) !important;
+            background-color: #333333 !important;
+        }
+
+        /* Corrigir elementos específicos problemáticos */
+        [data-theme="dark"] .bg-white {
+            background-color: #2a2a2a !important;
+        }
+
+        [data-theme="dark"] .text-gray-900 {
+            color: #ffffff !important;
+        }
+
+        [data-theme="dark"] .text-gray-800 {
+            color: #e0e0e0 !important;
+        }
+
+        [data-theme="dark"] .text-gray-700 {
+            color: #d0d0d0 !important;
+        }
+
+        /* Corrigir tabelas */
+        [data-theme="dark"] table {
+            background-color: #2a2a2a !important;
+        }
+
+        [data-theme="dark"] th {
+            background-color: #333333 !important;
+            color: #ffffff !important;
+        }
+
+        [data-theme="dark"] td {
+            background-color: #2a2a2a !important;
+            color: #e0e0e0 !important;
+        }
+
+        [data-theme="dark"] tr:hover td {
             background-color: #333333 !important;
         }
     </style>
@@ -678,7 +743,7 @@ $usuarios = listarUsuarios($busca);
                 <?php } ?>
                 <?php if (isset($_SESSION['relatorio_geral']) || isset($_SESSION['gerar_relatorios_pedagogicos']) || $_SESSION['tipo'] === 'ADM') { ?>
                 <li id="relatorios-menu">
-                    <a href="dashboard.php" class="menu-item flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700">
+                    <a href="dashboard.php#relatorios" class="menu-item flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700">
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
                         </svg>
@@ -688,7 +753,7 @@ $usuarios = listarUsuarios($busca);
                 <?php } ?>
                 <?php if ($_SESSION['tipo'] === 'ADM') { ?>
                 <li id="escolas-menu">
-                    <a href="dashboard.php" class="menu-item flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700">
+                    <a href="gestao_escolas.php" class="menu-item flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700">
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path>
                         </svg>
@@ -704,7 +769,7 @@ $usuarios = listarUsuarios($busca);
                     </a>
                 </li>
                 <li id="estoque-central-menu">
-                    <a href="dashboard.php" class="menu-item flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700">
+                    <a href="dashboard.php#estoque" class="menu-item flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700">
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path>
                         </svg>

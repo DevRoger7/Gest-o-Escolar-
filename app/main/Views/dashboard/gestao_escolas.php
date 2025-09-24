@@ -313,6 +313,35 @@ $escolas = listarEscolas($busca);
             color: #f0f0f0 !important;
         }
 
+        [data-theme="dark"] .text-gray-900 {
+            color: #ffffff !important;
+        }
+
+        [data-theme="dark"] .text-gray-700 {
+            color: #d0d0d0 !important;
+        }
+
+        /* Corrigir hovers brancos no modo escuro */
+        [data-theme="dark"] .hover\:bg-white:hover {
+            background-color: #2a2a2a !important;
+        }
+
+        [data-theme="dark"] .hover\:bg-gray-50:hover {
+            background-color: #333333 !important;
+        }
+
+        [data-theme="dark"] .hover\:bg-gray-100:hover {
+            background-color: #3a3a3a !important;
+        }
+
+        [data-theme="dark"] .hover\:text-gray-900:hover {
+            color: #ffffff !important;
+        }
+
+        [data-theme="dark"] .hover\:text-gray-800:hover {
+            color: #e0e0e0 !important;
+        }
+
         [data-theme="dark"] .border-gray-200 {
             border-color: var(--border-color) !important;
         }
@@ -393,6 +422,42 @@ $escolas = listarEscolas($busca);
         [data-theme="dark"] textarea:focus {
             border-color: var(--primary-green) !important;
             box-shadow: 0 0 0 3px rgba(74, 222, 128, 0.3) !important;
+            background-color: #333333 !important;
+        }
+
+        /* Corrigir elementos específicos problemáticos */
+        [data-theme="dark"] .bg-white {
+            background-color: #2a2a2a !important;
+        }
+
+        [data-theme="dark"] .text-gray-900 {
+            color: #ffffff !important;
+        }
+
+        [data-theme="dark"] .text-gray-800 {
+            color: #e0e0e0 !important;
+        }
+
+        [data-theme="dark"] .text-gray-700 {
+            color: #d0d0d0 !important;
+        }
+
+        /* Corrigir tabelas */
+        [data-theme="dark"] table {
+            background-color: #2a2a2a !important;
+        }
+
+        [data-theme="dark"] th {
+            background-color: #333333 !important;
+            color: #ffffff !important;
+        }
+
+        [data-theme="dark"] td {
+            background-color: #2a2a2a !important;
+            color: #e0e0e0 !important;
+        }
+
+        [data-theme="dark"] tr:hover td {
             background-color: #333333 !important;
         }
     </style>
@@ -769,8 +834,8 @@ $escolas = listarEscolas($busca);
     </div>
     
     <!-- Modal de Edição de Escola (Full Screen) -->
-    <div id="modalEdicaoEscola" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden flex items-center justify-center p-4">
-        <div class="bg-white rounded-2xl w-full h-full max-w-7xl mx-4 shadow-2xl overflow-hidden">
+    <div id="modalEdicaoEscola" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden">
+        <div class="bg-white w-full h-full overflow-hidden flex flex-col">
             <!-- Header do Modal -->
             <div class="flex items-center justify-between p-6 border-b border-gray-200 bg-gray-50">
                 <div class="flex items-center space-x-3">
@@ -792,8 +857,8 @@ $escolas = listarEscolas($busca);
             </div>
             
             <!-- Conteúdo do Modal -->
-            <div class="flex-1 overflow-y-auto p-6">
-                <form id="formEdicaoEscola" method="POST" class="space-y-8">
+            <div class="flex-1 overflow-y-auto p-6 flex flex-col">
+                <form id="formEdicaoEscola" method="POST" class="flex flex-col flex-1 space-y-8">
                     <input type="hidden" name="acao" value="editar">
                     <input type="hidden" name="id" id="edit_escola_id">
                     
@@ -813,7 +878,7 @@ $escolas = listarEscolas($busca);
                     </div>
                     
                     <!-- Aba Dados Básicos -->
-                    <div id="aba-dados-basicos" class="aba-edicao">
+                    <div id="aba-dados-basicos" class="aba-edicao flex-1 flex flex-col">
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                             <div>
                                 <label for="edit_nome" class="block text-sm font-medium text-gray-700 mb-2">Nome da Escola *</label>
@@ -836,6 +901,26 @@ $escolas = listarEscolas($busca);
                             <div>
                                 <label for="edit_email" class="block text-sm font-medium text-gray-700 mb-2">Email</label>
                                 <input type="email" id="edit_email" name="email"
+                                       class="block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-primary-green focus:border-primary-green">
+                            </div>
+                            
+                            <div>
+                                <label for="edit_cep" class="block text-sm font-medium text-gray-700 mb-2">CEP <span class="text-red-500">*</span></label>
+                                <div class="flex space-x-2">
+                                    <input type="text" id="edit_cep" name="cep" required placeholder="00000-000" maxlength="9" onkeyup="formatarCEP(this)" onblur="buscarCEP(this.value)"
+                                           class="flex-1 px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-primary-green focus:border-primary-green">
+                                    <button type="button" onclick="buscarCEP(document.getElementById('edit_cep').value)" class="px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors duration-200">
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                                        </svg>
+                                    </button>
+                                </div>
+                                <div id="resultadoCEP" class="mt-2 text-sm text-gray-600 hidden"></div>
+                            </div>
+                            
+                            <div>
+                                <label for="edit_qtd_salas" class="block text-sm font-medium text-gray-700 mb-2">Quantidade de Salas <span class="text-red-500">*</span></label>
+                                <input type="number" id="edit_qtd_salas" name="qtd_salas" required min="1" placeholder="Ex: 12"
                                        class="block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-primary-green focus:border-primary-green">
                             </div>
                             
@@ -866,7 +951,7 @@ $escolas = listarEscolas($busca);
                     </div>
                     
                     <!-- Aba Gestor -->
-                    <div id="aba-gestor" class="aba-edicao hidden">
+                    <div id="aba-gestor" class="aba-edicao hidden flex-1 flex flex-col">
                         <div class="space-y-6">
                             <div>
                                 <label for="edit_gestor_search" class="block text-sm font-medium text-gray-700 mb-2">Selecionar Gestor</label>
@@ -895,11 +980,11 @@ $escolas = listarEscolas($busca);
                     </div>
                     
                     <!-- Aba Corpo Docente -->
-                    <div id="aba-corpo-docente" class="aba-edicao hidden">
-                        <div class="space-y-6">
+                    <div id="aba-corpo-docente" class="aba-edicao hidden flex-1 flex flex-col">
+                        <div class="space-y-6 flex-1 flex flex-col">
                             <div class="flex items-center justify-between">
                                 <h4 class="text-lg font-medium text-gray-900">Professores da Escola</h4>
-                                <button type="button" onclick="adicionarProfessor()" class="bg-primary-green text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors duration-200 flex items-center space-x-2">
+                                <button type="button" onclick="mostrarAdicionarProfessores()" class="bg-primary-green text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors duration-200 flex items-center space-x-2">
                                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
                                     </svg>
@@ -907,14 +992,78 @@ $escolas = listarEscolas($busca);
                                 </button>
                             </div>
                             
+                            <!-- Lista de Professores Atuais -->
                             <div id="lista-professores" class="space-y-3">
                                 <!-- Professores serão carregados aqui via JavaScript -->
+                            </div>
+
+                            <!-- Seção Adicionar Professores (inicialmente oculta) -->
+                            <div id="secao-adicionar-professores" class="hidden flex-1 flex flex-col">
+                                <div class="bg-gray-50 rounded-lg p-6 border border-gray-200 flex-1 flex flex-col">
+                                    <div class="flex items-center justify-between mb-4">
+                                        <h5 class="text-lg font-semibold text-gray-900">Selecionar Professores</h5>
+                                        <button type="button" onclick="ocultarAdicionarProfessores()" class="text-gray-500 hover:text-gray-700">
+                                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                                            </svg>
+                                        </button>
+                                    </div>
+
+                                    <!-- Search and Filter -->
+                                    <div class="mb-6">
+                                        <div class="flex flex-col sm:flex-row gap-4">
+                                            <div class="flex-1">
+                                                <div class="relative">
+                                                    <input type="text" id="buscaProfessorEdicao" placeholder="Buscar professor por nome..." class="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-green focus:border-transparent">
+                                                    <svg class="w-5 h-5 text-gray-400 absolute left-3 top-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                                                    </svg>
+                                                </div>
+                                            </div>
+                                            <div class="sm:w-64">
+                                                <select id="filtroDisciplinaEdicao" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-green focus:border-transparent">
+                                                    <option value="">Todas as disciplinas</option>
+                                                    <!-- Disciplinas serão carregadas dinamicamente do backend -->
+                                                </select>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Teachers List -->
+                                    <div class="mb-6 flex-1 flex flex-col">
+                                        <div class="flex items-center justify-between mb-4">
+                                            <h6 class="text-md font-semibold text-gray-900">Professores Disponíveis</h6>
+                                            <div class="flex items-center space-x-2">
+                                                <input type="checkbox" id="selecionarTodosEdicao" class="w-4 h-4 text-primary-green border-gray-300 rounded focus:ring-primary-green">
+                                                <label for="selecionarTodosEdicao" class="text-sm text-gray-600">Selecionar todos</label>
+                                            </div>
+                                        </div>
+                                        
+                                        <div class="flex-1 overflow-y-auto border border-gray-200 rounded-lg" id="listaProfessoresDisponiveisEdicao">
+                                            <!-- Lista de professores será carregada aqui -->
+                                        </div>
+                                    </div>
+
+                                    <!-- Selected Teachers Summary -->
+                                    <div id="resumoProfessoresSelecionadosEdicao" class="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg hidden">
+                                        <div class="flex items-center space-x-2 mb-2">
+                                            <svg class="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                            </svg>
+                                            <span class="text-sm font-medium text-green-800">Professores selecionados:</span>
+                                        </div>
+                                        <div id="listaProfessoresSelecionadosEdicao" class="text-sm text-green-700">
+                                            <!-- Lista dos professores selecionados -->
+                                        </div>
+                                    </div>
+
+                                </div>
                             </div>
                         </div>
                     </div>
                     
                     <!-- Botões de Ação -->
-                    <div class="flex justify-end space-x-3 pt-6 border-t border-gray-200">
+                    <div class="flex justify-end space-x-3 pt-6 border-t border-gray-200 mt-auto">
                         <button type="button" onclick="fecharModalEdicaoEscola()" class="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 transition-colors duration-200">
                             Cancelar
                         </button>
@@ -926,6 +1075,7 @@ $escolas = listarEscolas($busca);
             </div>
         </div>
     </div>
+
     
     <script>
         // Função para alternar entre as tabs
@@ -1059,10 +1209,334 @@ $escolas = listarEscolas($busca);
             botaoAtivo.classList.remove('border-transparent', 'text-gray-500');
         }
         
-        function adicionarProfessor() {
-            // Função para adicionar professor ao corpo docente
-            console.log('Adicionar professor');
+        function mostrarAdicionarProfessores() {
+            // Mostrar seção de adicionar professores
+            document.getElementById('secao-adicionar-professores').classList.remove('hidden');
+            carregarDisciplinas();
+            carregarProfessoresDisponiveisEdicao();
         }
+
+        function carregarDisciplinas() {
+            const selectDisciplinas = document.getElementById('filtroDisciplinaEdicao');
+            
+            // Limpar opções existentes (exceto "Todas as disciplinas")
+            selectDisciplinas.innerHTML = '<option value="">Todas as disciplinas</option>';
+            
+            // Aqui você faria a requisição para o backend
+            // fetch('buscar_disciplinas.php')
+            //     .then(response => response.json())
+            //     .then(disciplinas => {
+            //         disciplinas.forEach(disciplina => {
+            //             const option = document.createElement('option');
+            //             option.value = disciplina.id;
+            //             option.textContent = disciplina.nome;
+            //             selectDisciplinas.appendChild(option);
+            //         });
+            //     })
+            //     .catch(error => {
+            //         console.error('Erro ao carregar disciplinas:', error);
+            //     });
+        }
+
+        function ocultarAdicionarProfessores() {
+            // Ocultar seção de adicionar professores
+            document.getElementById('secao-adicionar-professores').classList.add('hidden');
+            resetarSelecaoProfessores();
+        }
+
+        function resetarSelecaoProfessores() {
+            // Reset form
+            document.getElementById('buscaProfessorEdicao').value = '';
+            document.getElementById('filtroDisciplinaEdicao').value = '';
+            document.getElementById('selecionarTodosEdicao').checked = false;
+            
+            // Clear selections
+            document.querySelectorAll('.checkbox-professor-edicao').forEach(checkbox => {
+                checkbox.checked = false;
+            });
+            
+            // Hide summary
+            document.getElementById('resumoProfessoresSelecionadosEdicao').classList.add('hidden');
+        }
+
+        function carregarProfessoresDisponiveisEdicao() {
+            const container = document.getElementById('listaProfessoresDisponiveisEdicao');
+            container.innerHTML = '';
+
+            // Mostrar loading
+            container.innerHTML = `
+                <div class="p-8 text-center">
+                    <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-green mx-auto mb-4"></div>
+                    <p class="text-gray-600">Carregando professores disponíveis...</p>
+                </div>
+            `;
+
+            // Aqui você faria a requisição para o backend
+            // fetch('buscar_professores.php')
+            //     .then(response => response.json())
+            //     .then(professores => {
+            //         renderizarProfessores(professores);
+            //     })
+            //     .catch(error => {
+            //         console.error('Erro ao carregar professores:', error);
+            //         container.innerHTML = `
+            //             <div class="p-8 text-center">
+            //                 <p class="text-red-600">Erro ao carregar professores</p>
+            //             </div>
+            //         `;
+            //     });
+
+            // Por enquanto, mostrar mensagem de que não há professores
+            setTimeout(() => {
+                container.innerHTML = `
+                    <div class="p-8 text-center">
+                        <svg class="w-12 h-12 text-gray-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 14l9-5-9-5-9 5 9 5z"></path>
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 14l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14z"></path>
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
+                        </svg>
+                        <p class="text-gray-600">Nenhum professor disponível</p>
+                        <p class="text-sm text-gray-500 mt-2">Os professores serão carregados do banco de dados</p>
+                    </div>
+                `;
+            }, 1000);
+        }
+
+        function renderizarProfessores(professores) {
+            const container = document.getElementById('listaProfessoresDisponiveisEdicao');
+            container.innerHTML = '';
+
+            if (professores.length === 0) {
+                container.innerHTML = `
+                    <div class="p-8 text-center">
+                        <svg class="w-12 h-12 text-gray-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 14l9-5-9-5-9 5 9 5z"></path>
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 14l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14z"></path>
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
+                        </svg>
+                        <p class="text-gray-600">Nenhum professor disponível</p>
+                    </div>
+                `;
+                return;
+            }
+
+            professores.forEach(professor => {
+                const professorCard = document.createElement('div');
+                professorCard.className = 'p-4 border-b border-gray-200 hover:bg-gray-50 transition-colors duration-200';
+                professorCard.innerHTML = `
+                    <div class="flex items-center space-x-4">
+                        <input type="checkbox" class="checkbox-professor-edicao w-4 h-4 text-primary-green border-gray-300 rounded focus:ring-primary-green" 
+                               data-professor-id="${professor.id}" data-professor-nome="${professor.nome}" data-professor-disciplina="${professor.disciplina || ''}">
+                        <div class="flex-1">
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <h5 class="font-medium text-gray-900">${professor.nome}</h5>
+                                    <p class="text-sm text-gray-600">${professor.disciplina ? obterNomeDisciplina(professor.disciplina) : 'Sem disciplina definida'}</p>
+                                </div>
+                                <div class="text-right text-sm text-gray-500">
+                                    <p>${professor.email || 'Email não informado'}</p>
+                                    <p>${professor.telefone || 'Telefone não informado'}</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                container.appendChild(professorCard);
+            });
+
+            // Add event listeners
+            configurarEventListenersProfessoresEdicao();
+        }
+
+        function obterNomeDisciplina(disciplina) {
+            // Retorna o nome da disciplina como está no banco de dados
+            // ou capitaliza a primeira letra se não houver mapeamento específico
+            if (!disciplina) return 'Sem disciplina definida';
+            return disciplina.charAt(0).toUpperCase() + disciplina.slice(1);
+        }
+
+        function configurarEventListenersProfessoresEdicao() {
+            // Search functionality
+            document.getElementById('buscaProfessorEdicao').addEventListener('input', filtrarProfessoresEdicao);
+            document.getElementById('filtroDisciplinaEdicao').addEventListener('change', filtrarProfessoresEdicao);
+            
+            // Select all functionality
+            document.getElementById('selecionarTodosEdicao').addEventListener('change', function() {
+                const checkboxes = document.querySelectorAll('.checkbox-professor-edicao');
+                checkboxes.forEach(checkbox => {
+                    checkbox.checked = this.checked;
+                });
+                atualizarResumoProfessoresSelecionadosEdicao();
+            });
+
+            // Individual checkbox functionality
+            document.querySelectorAll('.checkbox-professor-edicao').forEach(checkbox => {
+                checkbox.addEventListener('change', function() {
+                    atualizarResumoProfessoresSelecionadosEdicao();
+                    atualizarCheckboxSelecionarTodosEdicao();
+                });
+            });
+        }
+
+        function filtrarProfessoresEdicao() {
+            const termoBusca = document.getElementById('buscaProfessorEdicao').value.toLowerCase();
+            const filtroDisciplina = document.getElementById('filtroDisciplinaEdicao').value;
+            const cardsProfessores = document.querySelectorAll('#listaProfessoresDisponiveisEdicao > div');
+
+            cardsProfessores.forEach(card => {
+                const nomeProfessor = card.querySelector('h5').textContent.toLowerCase();
+                const disciplinaProfessor = card.querySelector('.checkbox-professor-edicao').dataset.professorDisciplina;
+                
+                const correspondeBusca = nomeProfessor.includes(termoBusca);
+                const correspondeDisciplina = !filtroDisciplina || disciplinaProfessor === filtroDisciplina;
+                
+                if (correspondeBusca && correspondeDisciplina) {
+                    card.style.display = 'block';
+                } else {
+                    card.style.display = 'none';
+                }
+            });
+        }
+
+        function atualizarResumoProfessoresSelecionadosEdicao() {
+            const checkboxesSelecionados = document.querySelectorAll('.checkbox-professor-edicao:checked');
+            const resumoDiv = document.getElementById('resumoProfessoresSelecionadosEdicao');
+            const listaDiv = document.getElementById('listaProfessoresSelecionadosEdicao');
+
+            if (checkboxesSelecionados.length > 0) {
+                resumoDiv.classList.remove('hidden');
+                listaDiv.innerHTML = checkboxesSelecionados.map(checkbox => 
+                    `<span class="inline-block bg-green-100 text-green-800 px-2 py-1 rounded-full text-xs mr-2 mb-1">${checkbox.dataset.professorNome}</span>`
+                ).join('');
+            } else {
+                resumoDiv.classList.add('hidden');
+            }
+        }
+
+        function atualizarCheckboxSelecionarTodosEdicao() {
+            const todosCheckboxes = document.querySelectorAll('.checkbox-professor-edicao');
+            const checkboxesMarcados = document.querySelectorAll('.checkbox-professor-edicao:checked');
+            const checkboxSelecionarTodos = document.getElementById('selecionarTodosEdicao');
+            
+            checkboxSelecionarTodos.checked = todosCheckboxes.length === checkboxesMarcados.length;
+        }
+
+        function adicionarProfessoresSelecionadosEdicao() {
+            const checkboxesSelecionados = document.querySelectorAll('.checkbox-professor-edicao:checked');
+            
+            if (checkboxesSelecionados.length === 0) {
+                alert('Por favor, selecione pelo menos um professor.');
+                return;
+            }
+
+            const professoresSelecionados = Array.from(checkboxesSelecionados).map(checkbox => ({
+                id: checkbox.dataset.professorId,
+                nome: checkbox.dataset.professorNome,
+                disciplina: checkbox.dataset.professorDisciplina
+            }));
+
+            // Aqui você faria a requisição para o backend
+            console.log('Professores selecionados:', professoresSelecionados);
+            
+            // Simular sucesso
+            alert(`${professoresSelecionados.length} professor(es) adicionado(s) com sucesso!`);
+            ocultarAdicionarProfessores();
+            
+            // Recarregar a lista de professores da escola
+            // carregarProfessoresEscola();
+        }
+
+        // Função para processar professores selecionados quando salvar
+        function processarProfessoresSelecionados() {
+            const checkboxesSelecionados = document.querySelectorAll('.checkbox-professor-edicao:checked');
+            
+            if (checkboxesSelecionados.length > 0) {
+                const professoresSelecionados = Array.from(checkboxesSelecionados).map(checkbox => ({
+                    id: checkbox.dataset.professorId,
+                    nome: checkbox.dataset.professorNome,
+                    disciplina: checkbox.dataset.professorDisciplina
+                }));
+
+                console.log('Professores a serem adicionados:', professoresSelecionados);
+                // Aqui você faria a requisição para o backend para adicionar os professores
+                
+                return professoresSelecionados;
+            }
+            
+            return [];
+        }
+
+        // Funções de CEP
+        function formatarCEP(input) {
+            let valor = input.value.replace(/\D/g, '');
+            valor = valor.replace(/(\d{5})(\d)/, '$1-$2');
+            input.value = valor;
+        }
+
+        async function buscarCEP(cep) {
+            const cepInput = document.getElementById('edit_cep');
+            const resultadoCEP = document.getElementById('resultadoCEP');
+            
+            if (!cep || cep.length < 8) {
+                resultadoCEP.classList.add('hidden');
+                return;
+            }
+
+            // Limpar CEP para busca
+            const cepLimpo = cep.replace(/\D/g, '');
+            
+            if (cepLimpo.length !== 8) {
+                resultadoCEP.innerHTML = '<span class="text-red-600">CEP deve ter 8 dígitos</span>';
+                resultadoCEP.classList.remove('hidden');
+                return;
+            }
+
+            try {
+                resultadoCEP.innerHTML = '<span class="text-blue-600">Buscando...</span>';
+                resultadoCEP.classList.remove('hidden');
+
+                const response = await fetch(`https://viacep.com.br/ws/${cepLimpo}/json/`);
+                const data = await response.json();
+
+                if (data.erro) {
+                    resultadoCEP.innerHTML = '<span class="text-red-600">CEP não encontrado</span>';
+                } else {
+                    // Preencher campos automaticamente
+                    document.getElementById('edit_endereco').value = `${data.logradouro}, ${data.bairro}`;
+                    document.getElementById('edit_municipio').value = data.localidade;
+                    
+                    resultadoCEP.innerHTML = `
+                        <span class="text-green-600">
+                            <strong>${data.logradouro}</strong><br>
+                            ${data.bairro} - ${data.localidade}/${data.uf}
+                        </span>
+                    `;
+                }
+            } catch (error) {
+                resultadoCEP.innerHTML = '<span class="text-red-600">Erro ao buscar CEP</span>';
+                console.error('Erro na busca do CEP:', error);
+            }
+        }
+
+        // Event listener para o formulário de edição
+        document.getElementById('formEdicaoEscola').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            // Processar professores selecionados antes de salvar
+            const professoresSelecionados = processarProfessoresSelecionados();
+            
+            if (professoresSelecionados.length > 0) {
+                console.log('Adicionando professores:', professoresSelecionados);
+                // Aqui você faria a requisição para o backend
+                alert(`${professoresSelecionados.length} professor(es) será(ão) adicionado(s) junto com as alterações da escola.`);
+            }
+            
+            // Aqui você processaria o formulário normalmente
+            console.log('Salvando alterações da escola...');
+            // Simular sucesso
+            alert('Alterações salvas com sucesso!');
+            fecharModalEdicaoEscola();
+        });
         
         // Funções para busca de gestor na edição
         function buscarGestoresEdicao(termo) {

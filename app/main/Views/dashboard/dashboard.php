@@ -45,7 +45,7 @@ if (!defined('BASE_URL')) {
         }
     </script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    
+
     <!-- Theme Manager -->
     <script src="theme-manager.js"></script>
 
@@ -636,6 +636,38 @@ if (!defined('BASE_URL')) {
             border: 1px solid var(--border-color);
         }
 
+        /* Estilos específicos para o modal de professores no tema escuro */
+        [data-theme="dark"] #addTeachersModal .bg-white {
+            background-color: var(--bg-secondary) !important;
+        }
+
+        [data-theme="dark"] #addTeachersModal .text-gray-900 {
+            color: var(--text-primary) !important;
+        }
+
+        [data-theme="dark"] #addTeachersModal .text-gray-600 {
+            color: var(--text-secondary) !important;
+        }
+
+        [data-theme="dark"] #addTeachersModal .border-gray-200 {
+            border-color: var(--border-color) !important;
+        }
+
+        [data-theme="dark"] #addTeachersModal .hover\:bg-gray-50:hover {
+            background-color: var(--bg-tertiary) !important;
+        }
+
+        [data-theme="dark"] #addTeachersModal input,
+        [data-theme="dark"] #addTeachersModal select {
+            background-color: var(--bg-tertiary) !important;
+            border-color: var(--border-color) !important;
+            color: var(--text-primary) !important;
+        }
+
+        [data-theme="dark"] #addTeachersModal input::placeholder {
+            color: var(--text-muted) !important;
+        }
+
         /* Hover effects melhorados para tema escuro */
         [data-theme="dark"] .hover-lift {
             transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
@@ -975,45 +1007,27 @@ if (!defined('BASE_URL')) {
 
                     <!-- User Actions -->
                     <div class="flex items-center space-x-4">
-                        <div class="text-right hidden lg:block">
-                            <p class="text-sm font-medium text-gray-800" id="currentSchool">
-                                <?php 
-                                if ($_SESSION['tipo'] === 'ADM') {
-                                    echo 'Secretaria Municipal da Educação';
-                                } else {
-                                    echo $_SESSION['escola_atual'] ?? 'Escola Municipal';
-                                }
-                                ?>
-                            </p>
-                            <p class="text-xs text-gray-500">
-                                <?php 
-                                if ($_SESSION['tipo'] === 'ADM') {
-                                    echo 'Órgão Central';
-                                } else {
-                                    echo 'Escola Atual';
-                                }
-                                ?>
-                            </p>
-                        </div>
-
                         <!-- School Info (Desktop Only) -->
                         <div class="hidden lg:block">
-                            <div class="bg-primary-green text-white px-4 py-2 rounded-lg shadow-sm">
-                                <div class="flex items-center space-x-2">
-                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path>
-                                    </svg>
-                                    <span class="text-sm font-semibold">
-                                        <?php 
-                                        if ($_SESSION['tipo'] === 'ADM') {
-                                            echo 'Secretaria Municipal da Educação';
-                                        } else {
-                                            echo $_SESSION['escola_atual'] ?? 'Escola Municipal';
-                                        }
-                                        ?>
-                                    </span>
+                            <?php if ($_SESSION['tipo'] === 'ADM') { ?>
+                                <!-- Para ADM, texto simples com padding para alinhamento -->
+                                <div class="text-right px-4 py-2">
+                                    <p class="text-sm font-medium text-gray-800">Secretaria Municipal da Educação</p>
+                                    <p class="text-xs text-gray-500">Órgão Central</p>
                                 </div>
-                            </div>
+                            <?php } else { ?>
+                                <!-- Para outros usuários, card verde com ícone -->
+                                <div class="bg-primary-green text-white px-4 py-2 rounded-lg shadow-sm">
+                                    <div class="flex items-center space-x-2">
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path>
+                                        </svg>
+                                        <span class="text-sm font-semibold">
+                                            <?php echo $_SESSION['escola_atual'] ?? 'Escola Municipal'; ?>
+                                        </span>
+                                    </div>
+                                </div>
+                            <?php } ?>
                         </div>
 
                         <!-- User Profile Button -->
@@ -5586,7 +5600,7 @@ if (!defined('BASE_URL')) {
                                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
                                                     </svg>
                                                 </div>
-                                                <button class="bg-gradient-to-r from-primary-green to-green-600 text-white px-4 py-2 rounded-lg hover:from-green-600 hover:to-green-700 transition-all duration-200 flex items-center space-x-2 text-sm font-semibold shadow-md hover:shadow-lg">
+                                                <button onclick="openAddTeachersModal()" class="bg-gradient-to-r from-primary-green to-green-600 text-white px-4 py-2 rounded-lg hover:from-green-600 hover:to-green-700 transition-all duration-200 flex items-center space-x-2 text-sm font-semibold shadow-md hover:shadow-lg">
                                                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
                                                     </svg>
@@ -6402,6 +6416,94 @@ if (!defined('BASE_URL')) {
         </div>
     </div>
 
+    <!-- Add Teachers Modal -->
+    <div id="addTeachersModal" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl p-6 max-w-4xl w-full mx-4 shadow-2xl max-h-[90vh] overflow-y-auto">
+            <div class="flex items-center justify-between mb-6">
+                <div class="flex items-center space-x-3">
+                    <div class="w-12 h-12 bg-primary-green bg-opacity-10 rounded-full flex items-center justify-center">
+                        <svg class="w-6 h-6 text-primary-green" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z"></path>
+                        </svg>
+                    </div>
+                    <div>
+                        <h3 class="text-xl font-semibold text-gray-900">Adicionar Professores</h3>
+                        <p class="text-sm text-gray-600">Selecione os professores para adicionar à escola</p>
+                    </div>
+                </div>
+                <button onclick="closeAddTeachersModal()" class="p-2 hover:bg-gray-100 rounded-full transition-colors duration-200">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+            </div>
+
+            <!-- Search and Filter -->
+            <div class="mb-6">
+                <div class="flex flex-col sm:flex-row gap-4">
+                    <div class="flex-1">
+                        <div class="relative">
+                            <input type="text" id="teacherSearchInput" placeholder="Buscar professor por nome..." class="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-green focus:border-transparent">
+                            <svg class="w-5 h-5 text-gray-400 absolute left-3 top-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                            </svg>
+                        </div>
+                    </div>
+                    <div class="sm:w-64">
+                        <select id="teacherSubjectFilter" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-green focus:border-transparent">
+                            <option value="">Todas as disciplinas</option>
+                            <option value="matematica">Matemática</option>
+                            <option value="portugues">Português</option>
+                            <option value="ciencias">Ciências</option>
+                            <option value="historia">História</option>
+                            <option value="geografia">Geografia</option>
+                            <option value="artes">Artes</option>
+                            <option value="educacao-fisica">Educação Física</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Teachers List -->
+            <div class="mb-6">
+                <div class="flex items-center justify-between mb-4">
+                    <h4 class="text-lg font-semibold text-gray-900">Professores Disponíveis</h4>
+                    <div class="flex items-center space-x-2">
+                        <input type="checkbox" id="selectAllTeachers" class="w-4 h-4 text-primary-green border-gray-300 rounded focus:ring-primary-green">
+                        <label for="selectAllTeachers" class="text-sm text-gray-600">Selecionar todos</label>
+                    </div>
+                </div>
+                
+                <div class="max-h-96 overflow-y-auto border border-gray-200 rounded-lg" id="teachersListContainer">
+                    <!-- Lista de professores será carregada aqui -->
+                </div>
+            </div>
+
+            <!-- Selected Teachers Summary -->
+            <div id="selectedTeachersSummary" class="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg hidden">
+                <div class="flex items-center space-x-2 mb-2">
+                    <svg class="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                    </svg>
+                    <span class="text-sm font-medium text-green-800">Professores selecionados:</span>
+                </div>
+                <div id="selectedTeachersList" class="text-sm text-green-700">
+                    <!-- Lista dos professores selecionados -->
+                </div>
+            </div>
+
+            <!-- Modal Actions -->
+            <div class="flex space-x-3 pt-4 border-t border-gray-200">
+                <button type="button" onclick="closeAddTeachersModal()" class="flex-1 px-4 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg font-medium transition-colors duration-200">
+                    Cancelar
+                </button>
+                <button type="button" onclick="addSelectedTeachers()" class="flex-1 px-4 py-2 text-white bg-primary-green hover:bg-green-700 rounded-lg font-medium transition-colors duration-200">
+                    Adicionar Professores
+                </button>
+            </div>
+        </div>
+    </div>
+
     <!-- User Profile Modal -->
     <div id="userProfileModal" class="fixed inset-0 bg-white z-50 hidden">
         <div class="h-full w-full overflow-hidden">
@@ -6581,7 +6683,7 @@ if (!defined('BASE_URL')) {
                                     </div>
                                 </div>
                                 <div class="flex space-x-2">
-                                    <button onclick="setTheme('light')" id="theme-light" class="flex-1 px-3 py-2 text-sm border border-gray-300 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors">
+                                    <button id="theme-light" class="flex-1 px-3 py-2 text-sm border border-gray-300 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors">
                                         <div class="flex items-center justify-center space-x-1">
                                             <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"></path>
@@ -6589,7 +6691,7 @@ if (!defined('BASE_URL')) {
                                             <span>Claro</span>
                                         </div>
                                     </button>
-                                    <button onclick="setTheme('dark')" id="theme-dark" class="flex-1 px-3 py-2 text-sm border border-gray-300 rounded-md hover:bg-gray-200 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors">
+                                    <button id="theme-dark" class="flex-1 px-3 py-2 text-sm border border-gray-300 rounded-md hover:bg-gray-200 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors">
                                         <div class="flex items-center justify-center space-x-1">
                                             <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"></path>
@@ -7537,12 +7639,19 @@ if (!defined('BASE_URL')) {
             }
         });
 
+        document.getElementById('addTeachersModal').addEventListener('click', function(e) {
+            if (e.target === this) {
+                closeAddTeachersModal();
+            }
+        });
+
         // Close modals with Escape key
         document.addEventListener('keydown', function(e) {
             if (e.key === 'Escape') {
                 closeLogoutModal();
                 closeUserProfile();
                 closeAddProductModal();
+                closeAddTeachersModal();
             }
         });
 
@@ -7678,6 +7787,182 @@ if (!defined('BASE_URL')) {
         function closeAddProductModal() {
             document.getElementById('addProductModal').classList.add('hidden');
             document.getElementById('addProductForm').reset();
+        }
+
+        // Teachers Modal Functions
+        function openAddTeachersModal() {
+            document.getElementById('addTeachersModal').classList.remove('hidden');
+            loadAvailableTeachers();
+        }
+
+        function closeAddTeachersModal() {
+            document.getElementById('addTeachersModal').classList.add('hidden');
+            resetTeachersModal();
+        }
+
+        function resetTeachersModal() {
+            // Reset form
+            document.getElementById('teacherSearchInput').value = '';
+            document.getElementById('teacherSubjectFilter').value = '';
+            document.getElementById('selectAllTeachers').checked = false;
+            
+            // Clear selections
+            document.querySelectorAll('.teacher-checkbox').forEach(checkbox => {
+                checkbox.checked = false;
+            });
+            
+            // Hide summary
+            document.getElementById('selectedTeachersSummary').classList.add('hidden');
+        }
+
+        function loadAvailableTeachers() {
+            // Dados de exemplo - em produção viria do backend
+            const teachers = [
+                { id: 1, nome: 'Maria Silva Santos', disciplina: 'matematica', email: 'maria.silva@email.com', telefone: '(85) 99999-1111' },
+                { id: 2, nome: 'João Carlos Oliveira', disciplina: 'portugues', email: 'joao.oliveira@email.com', telefone: '(85) 99999-2222' },
+                { id: 3, nome: 'Ana Paula Costa', disciplina: 'ciencias', email: 'ana.costa@email.com', telefone: '(85) 99999-3333' },
+                { id: 4, nome: 'Pedro Henrique Lima', disciplina: 'historia', email: 'pedro.lima@email.com', telefone: '(85) 99999-4444' },
+                { id: 5, nome: 'Carla Regina Ferreira', disciplina: 'geografia', email: 'carla.ferreira@email.com', telefone: '(85) 99999-5555' },
+                { id: 6, nome: 'Roberto Alves Souza', disciplina: 'artes', email: 'roberto.souza@email.com', telefone: '(85) 99999-6666' },
+                { id: 7, nome: 'Fernanda Mendes', disciplina: 'educacao-fisica', email: 'fernanda.mendes@email.com', telefone: '(85) 99999-7777' },
+                { id: 8, nome: 'Carlos Eduardo Rocha', disciplina: 'matematica', email: 'carlos.rocha@email.com', telefone: '(85) 99999-8888' },
+                { id: 9, nome: 'Lucia Helena Dias', disciplina: 'portugues', email: 'lucia.dias@email.com', telefone: '(85) 99999-9999' },
+                { id: 10, nome: 'Antonio Luiz Coelho', disciplina: 'ciencias', email: 'antonio.coelho@email.com', telefone: '(85) 99999-0000' }
+            ];
+
+            const container = document.getElementById('teachersListContainer');
+            container.innerHTML = '';
+
+            teachers.forEach(teacher => {
+                const teacherCard = document.createElement('div');
+                teacherCard.className = 'p-4 border-b border-gray-200 hover:bg-gray-50 transition-colors duration-200';
+                teacherCard.innerHTML = `
+                    <div class="flex items-center space-x-4">
+                        <input type="checkbox" class="teacher-checkbox w-4 h-4 text-primary-green border-gray-300 rounded focus:ring-primary-green" 
+                               data-teacher-id="${teacher.id}" data-teacher-name="${teacher.nome}" data-teacher-discipline="${teacher.disciplina}">
+                        <div class="flex-1">
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <h5 class="font-medium text-gray-900">${teacher.nome}</h5>
+                                    <p class="text-sm text-gray-600">${getDisciplineName(teacher.disciplina)}</p>
+                                </div>
+                                <div class="text-right text-sm text-gray-500">
+                                    <p>${teacher.email}</p>
+                                    <p>${teacher.telefone}</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                container.appendChild(teacherCard);
+            });
+
+            // Add event listeners
+            setupTeachersEventListeners();
+        }
+
+        function getDisciplineName(discipline) {
+            const disciplines = {
+                'matematica': 'Matemática',
+                'portugues': 'Português',
+                'ciencias': 'Ciências',
+                'historia': 'História',
+                'geografia': 'Geografia',
+                'artes': 'Artes',
+                'educacao-fisica': 'Educação Física'
+            };
+            return disciplines[discipline] || discipline;
+        }
+
+        function setupTeachersEventListeners() {
+            // Search functionality
+            document.getElementById('teacherSearchInput').addEventListener('input', filterTeachers);
+            document.getElementById('teacherSubjectFilter').addEventListener('change', filterTeachers);
+            
+            // Select all functionality
+            document.getElementById('selectAllTeachers').addEventListener('change', function() {
+                const checkboxes = document.querySelectorAll('.teacher-checkbox');
+                checkboxes.forEach(checkbox => {
+                    checkbox.checked = this.checked;
+                });
+                updateSelectedTeachersSummary();
+            });
+
+            // Individual checkbox functionality
+            document.querySelectorAll('.teacher-checkbox').forEach(checkbox => {
+                checkbox.addEventListener('change', function() {
+                    updateSelectedTeachersSummary();
+                    updateSelectAllCheckbox();
+                });
+            });
+        }
+
+        function filterTeachers() {
+            const searchTerm = document.getElementById('teacherSearchInput').value.toLowerCase();
+            const subjectFilter = document.getElementById('teacherSubjectFilter').value;
+            const teacherCards = document.querySelectorAll('#teachersListContainer > div');
+
+            teacherCards.forEach(card => {
+                const teacherName = card.querySelector('h5').textContent.toLowerCase();
+                const teacherDiscipline = card.querySelector('.teacher-checkbox').dataset.teacherDiscipline;
+                
+                const matchesSearch = teacherName.includes(searchTerm);
+                const matchesSubject = !subjectFilter || teacherDiscipline === subjectFilter;
+                
+                if (matchesSearch && matchesSubject) {
+                    card.style.display = 'block';
+                } else {
+                    card.style.display = 'none';
+                }
+            });
+        }
+
+        function updateSelectedTeachersSummary() {
+            const selectedCheckboxes = document.querySelectorAll('.teacher-checkbox:checked');
+            const summaryDiv = document.getElementById('selectedTeachersSummary');
+            const selectedListDiv = document.getElementById('selectedTeachersList');
+
+            if (selectedCheckboxes.length > 0) {
+                summaryDiv.classList.remove('hidden');
+                selectedListDiv.innerHTML = selectedCheckboxes.map(checkbox => 
+                    `<span class="inline-block bg-green-100 text-green-800 px-2 py-1 rounded-full text-xs mr-2 mb-1">${checkbox.dataset.teacherName}</span>`
+                ).join('');
+            } else {
+                summaryDiv.classList.add('hidden');
+            }
+        }
+
+        function updateSelectAllCheckbox() {
+            const allCheckboxes = document.querySelectorAll('.teacher-checkbox');
+            const checkedCheckboxes = document.querySelectorAll('.teacher-checkbox:checked');
+            const selectAllCheckbox = document.getElementById('selectAllTeachers');
+            
+            selectAllCheckbox.checked = allCheckboxes.length === checkedCheckboxes.length;
+        }
+
+        function addSelectedTeachers() {
+            const selectedCheckboxes = document.querySelectorAll('.teacher-checkbox:checked');
+            
+            if (selectedCheckboxes.length === 0) {
+                alert('Por favor, selecione pelo menos um professor.');
+                return;
+            }
+
+            const selectedTeachers = Array.from(selectedCheckboxes).map(checkbox => ({
+                id: checkbox.dataset.teacherId,
+                nome: checkbox.dataset.teacherName,
+                disciplina: checkbox.dataset.teacherDiscipline
+            }));
+
+            // Aqui você faria a requisição para o backend
+            console.log('Professores selecionados:', selectedTeachers);
+            
+            // Simular sucesso
+            alert(`${selectedTeachers.length} professor(es) adicionado(s) com sucesso!`);
+            closeAddTeachersModal();
+            
+            // Recarregar a lista de professores da escola
+            // loadSchoolTeachers();
         }
 
         function editProduct(id) {
