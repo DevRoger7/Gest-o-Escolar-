@@ -392,12 +392,47 @@ $usuarios = listarUsuarios($busca);
     
     <!-- Theme Manager -->
     <script src="theme-manager.js"></script>
+
+    <!-- VLibras -->
+    <div id="vlibras-widget" vw class="enabled">
+        <div vw-access-button class="active"></div>
+        <div vw-plugin-wrapper>
+            <div class="vw-plugin-top-wrapper"></div>
+        </div>
+    </div>
+    <script src="https://vlibras.gov.br/app/vlibras-plugin.js"></script>
+    <script>
+        // Inicializar VLibras apenas se estiver habilitado
+        function initializeVLibras() {
+            if (localStorage.getItem('vlibras-enabled') !== 'false') {
+                if (window.VLibras) {
+                    new window.VLibras.Widget('https://vlibras.gov.br/app');
+                }
+            }
+        }
+        
+        // Aguardar o carregamento do script
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', initializeVLibras);
+        } else {
+            initializeVLibras();
+        }
+    </script>
     
     <style>
         .tab-active {
             border-bottom: 2px solid #2D5A27;
             color: #2D5A27;
             font-weight: 600;
+        }
+
+        /* VLibras - Estilos para controle */
+        #vlibras-widget.disabled {
+            display: none !important;
+        }
+        
+        #vlibras-widget.enabled {
+            display: block !important;
         }
         
         .tab-content {
@@ -651,6 +686,273 @@ $usuarios = listarUsuarios($busca);
         [data-theme="dark"] tr:hover td {
             background-color: #333333 !important;
         }
+
+        /* Estilos específicos para o modal de perfil no tema escuro */
+        [data-theme="dark"] #userProfileModal .text-gray-900 {
+            color: #ffffff !important;
+        }
+
+        [data-theme="dark"] #userProfileModal .text-gray-800 {
+            color: #ffffff !important;
+        }
+
+        [data-theme="dark"] #userProfileModal .text-gray-700 {
+            color: #e0e0e0 !important;
+        }
+
+        [data-theme="dark"] #userProfileModal .text-gray-600 {
+            color: #c0c0c0 !important;
+        }
+
+        [data-theme="dark"] #userProfileModal .text-gray-500 {
+            color: #a0a0a0 !important;
+        }
+
+        [data-theme="dark"] #userProfileModal .bg-white {
+            background-color: var(--bg-secondary) !important;
+        }
+
+        [data-theme="dark"] #userProfileModal .border-gray-200 {
+            border-color: var(--border-color) !important;
+        }
+
+        [data-theme="dark"] #userProfileModal .bg-gray-50 {
+            background-color: var(--bg-tertiary) !important;
+        }
+
+        /* Estilos específicos para o modal de logout no tema escuro */
+        [data-theme="dark"] #logoutModal .text-gray-900 {
+            color: #ffffff !important;
+        }
+
+        [data-theme="dark"] #logoutModal .text-gray-600 {
+            color: #e0e0e0 !important;
+        }
+
+        [data-theme="dark"] #logoutModal .bg-white {
+            background-color: var(--bg-secondary) !important;
+        }
+
+        /* ===== MELHORIAS DE RESPONSIVIDADE ===== */
+        
+        /* Mobile First - Breakpoints */
+        @media (max-width: 640px) {
+            /* Sidebar mobile */
+            #sidebar {
+                transform: translateX(-100%);
+                transition: transform 0.3s ease-in-out;
+                z-index: 50;
+            }
+            
+            #sidebar.mobile-open {
+                transform: translateX(0);
+            }
+            
+            /* Header mobile */
+            header {
+                padding: 0.75rem 1rem;
+            }
+            
+            .header-content {
+                flex-direction: column;
+                gap: 0.5rem;
+            }
+            
+            /* Cards responsivos */
+            .card-hover {
+                margin-bottom: 1rem;
+            }
+            
+            /* Tabelas responsivas */
+            .table-responsive {
+                overflow-x: auto;
+                -webkit-overflow-scrolling: touch;
+            }
+            
+            .table-responsive table {
+                min-width: 600px;
+            }
+            
+            /* Modais mobile */
+            .modal-content {
+                margin: 1rem;
+                max-height: calc(100vh - 2rem);
+                overflow-y: auto;
+            }
+            
+            /* Formulários mobile */
+            .form-grid {
+                grid-template-columns: 1fr;
+                gap: 1rem;
+            }
+            
+            /* Botões mobile */
+            .btn-mobile {
+                width: 100%;
+                padding: 0.75rem;
+                font-size: 1rem;
+            }
+        }
+        
+        @media (min-width: 641px) and (max-width: 1024px) {
+            /* Tablet */
+            #sidebar {
+                width: 200px;
+            }
+            
+            .main-content {
+                margin-left: 200px;
+            }
+            
+            .card-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+        
+        @media (min-width: 1025px) {
+            /* Desktop */
+            .card-grid {
+                grid-template-columns: repeat(3, 1fr);
+            }
+        }
+        
+        /* ===== COMPONENTES RESPONSIVOS ===== */
+        
+        /* Grid responsivo para cards */
+        .card-grid {
+            display: grid;
+            gap: 1.5rem;
+            grid-template-columns: 1fr;
+        }
+        
+        @media (min-width: 640px) {
+            .card-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+        
+        @media (min-width: 1024px) {
+            .card-grid {
+                grid-template-columns: repeat(3, 1fr);
+            }
+        }
+        
+        /* Tabelas responsivas */
+        .table-responsive {
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+            border-radius: 0.5rem;
+            border: 1px solid #e2e8f0;
+        }
+        
+        .table-responsive table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        
+        .table-responsive th,
+        .table-responsive td {
+            padding: 0.75rem;
+            text-align: left;
+            border-bottom: 1px solid #e2e8f0;
+        }
+        
+        .table-responsive th {
+            background-color: #f8fafc;
+            font-weight: 600;
+            color: #374151;
+        }
+        
+        /* Formulários responsivos */
+        .form-grid {
+            display: grid;
+            gap: 1rem;
+            grid-template-columns: 1fr;
+        }
+        
+        @media (min-width: 640px) {
+            .form-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+        
+        /* Botões responsivos */
+        .btn-group {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+        
+        @media (min-width: 640px) {
+            .btn-group {
+                flex-direction: row;
+            }
+        }
+        
+        /* ===== MELHORIAS DE UX ===== */
+        
+        /* Loading states */
+        .loading {
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .loading::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent);
+            animation: loading 1.5s infinite;
+        }
+        
+        @keyframes loading {
+            0% { left: -100%; }
+            100% { left: 100%; }
+        }
+        
+        /* Feedback visual */
+        .success-feedback {
+            background-color: #d1fae5;
+            border: 1px solid #a7f3d0;
+            color: #065f46;
+            padding: 0.75rem;
+            border-radius: 0.5rem;
+            margin-bottom: 1rem;
+            display: none;
+        }
+        
+        .error-feedback {
+            background-color: #fee2e2;
+            border: 1px solid #fecaca;
+            color: #dc2626;
+            padding: 0.75rem;
+            border-radius: 0.5rem;
+            margin-bottom: 1rem;
+            display: none;
+        }
+        
+        /* Estados de foco melhorados */
+        .focus-visible {
+            outline: 2px solid #2D5A27;
+            outline-offset: 2px;
+        }
+        
+        /* Microinterações */
+        .micro-interaction {
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        
+        .micro-interaction:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+        
+        .micro-interaction:active {
+            transform: translateY(0);
+        }
     </style>
 </head>
 <body class="bg-gray-50 font-sans">
@@ -807,12 +1109,12 @@ $usuarios = listarUsuarios($busca);
 
         <!-- Logout -->
         <div class="absolute bottom-0 left-0 right-0 p-4 border-t border-gray-200">
-            <a href="../../Models/sessao/sessions.php?sair" class="w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-red-600 hover:bg-red-50 hover:text-red-700 transition-all duration-200">
+            <button onclick="confirmLogout()" class="w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-red-600 hover:bg-red-50 hover:text-red-700 transition-all duration-200">
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path>
                 </svg>
                 <span>Sair</span>
-            </a>
+            </button>
         </div>
     </aside>
 
@@ -853,6 +1155,13 @@ $usuarios = listarUsuarios($busca);
                                 ?>
                             </p>
                         </div>
+                        
+                        <!-- User Profile Button -->
+                        <button onclick="openUserProfile()" class="p-2 text-gray-600 bg-gray-100 hover:text-gray-900 hover:bg-gray-200 rounded-full focus:outline-none focus:ring-2 focus:ring-primary-green transition-colors duration-200" aria-label="Abrir perfil do usuário e configurações de acessibilidade" title="Perfil e Acessibilidade (Alt+A)">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
+                            </svg>
+                        </button>
                     </div>
                 </div>
             </div>
@@ -1069,98 +1378,137 @@ $usuarios = listarUsuarios($busca);
         </main>
     </div>
     
-    <!-- Modal de Edição de Usuário -->
-    <div id="editarUsuarioModal" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden items-center justify-center p-4">
-        <div class="bg-white rounded-2xl p-6 max-w-3xl w-full mx-4 shadow-2xl">
-            <div class="flex items-center justify-between mb-6">
-                <h3 class="text-xl font-semibold text-gray-900">Editar Usuário</h3>
-                <button onclick="fecharModalEdicao()" class="p-2 hover:bg-gray-100 rounded-full transition-colors duration-200">
-                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-                    </svg>
-                </button>
-            </div>
+    <!-- Modal de Edição de Usuário (Full Screen) -->
+    <div id="editarUsuarioModal" class="fixed inset-0 bg-white z-50 hidden">
+        <div class="h-full w-full overflow-hidden">
+            <div class="bg-white h-full w-full overflow-hidden">
+                <!-- Modal Header -->
+                <div class="bg-primary-green text-white p-6">
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center space-x-3">
+                            <div class="w-10 h-10 bg-white bg-opacity-20 rounded-full flex items-center justify-center">
+                                <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
+                                </svg>
+                            </div>
+                            <div>
+                                <h3 class="text-2xl font-bold text-white">Editar Usuário</h3>
+                                <p class="text-green-100">Modifique as informações do usuário</p>
+                            </div>
+                        </div>
+                        <button onclick="fecharModalEdicao()" class="p-2 hover:bg-white hover:bg-opacity-20 rounded-full transition-colors duration-200">
+                            <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
 
-            <form id="formEditarUsuario" method="POST" class="space-y-6">
-                <input type="hidden" name="acao" value="editar">
-                <input type="hidden" id="edit_id" name="id">
-                <input type="hidden" id="edit_pessoa_id" name="pessoa_id">
-                
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div>
-                        <label for="edit_nome" class="block text-sm font-medium text-gray-700 mb-2">Nome Completo *</label>
-                        <input type="text" id="edit_nome" name="nome" required
-                               class="block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-primary-green focus:border-primary-green">
-                    </div>
-                    
-                    <div>
-                        <label for="edit_cpf" class="block text-sm font-medium text-gray-700 mb-2">CPF *</label>
-                        <input type="text" id="edit_cpf" name="cpf" placeholder="000.000.000-00" required
-                               class="block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-primary-green focus:border-primary-green">
-                    </div>
-                    
-                    <div>
-                        <label for="edit_email" class="block text-sm font-medium text-gray-700 mb-2">Email *</label>
-                        <input type="email" id="edit_email" name="email" required
-                               class="block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-primary-green focus:border-primary-green">
-                    </div>
-                    
-                    <div>
-                        <label for="edit_telefone" class="block text-sm font-medium text-gray-700 mb-2">Telefone</label>
-                        <input type="text" id="edit_telefone" name="telefone" placeholder="(00) 00000-0000"
-                               class="block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-primary-green focus:border-primary-green">
-                    </div>
-                    
-                    <div>
-                        <label for="edit_username" class="block text-sm font-medium text-gray-700 mb-2">Username *</label>
-                        <input type="text" id="edit_username" name="username" required
-                               class="block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-primary-green focus:border-primary-green">
-                    </div>
-                    
-                    <div>
-                        <label for="edit_data_nascimento" class="block text-sm font-medium text-gray-700 mb-2">Data de Nascimento</label>
-                        <input type="date" id="edit_data_nascimento" name="data_nascimento"
-                               class="block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-primary-green focus:border-primary-green">
-                    </div>
-                    
-                    <div>
-                        <label for="edit_senha" class="block text-sm font-medium text-gray-700 mb-2">Nova Senha (deixe em branco para manter a atual)</label>
-                        <input type="password" id="edit_senha" name="senha"
-                               class="block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-primary-green focus:border-primary-green">
-                    </div>
-                    
-                    <div>
-                        <label for="edit_tipo" class="block text-sm font-medium text-gray-700 mb-2">Tipo de Usuário *</label>
-                        <select id="edit_tipo" name="tipo" required
-                                class="block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-primary-green focus:border-primary-green">
-                            <option value="GESTAO">Gestão</option>
-                            <option value="PROFESSOR">Professor</option>
-                            <option value="ALUNO">Aluno</option>
-                            <option value="NUTRICIONISTA">Nutricionista</option>
-                            <option value="ADM_MERENDA">Administrador de Merenda</option>
-                            <option value="ADM">Administrador</option>
-                        </select>
-                    </div>
-                    
-                    <div>
-                        <label for="edit_ativo" class="block text-sm font-medium text-gray-700 mb-2">Status</label>
-                        <select id="edit_ativo" name="ativo" required
-                                class="block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-primary-green focus:border-primary-green">
-                            <option value="1">Ativo</option>
-                            <option value="0">Bloqueado</option>
-                        </select>
-                    </div>
+                <!-- Modal Content -->
+                <div class="p-6 overflow-y-auto h-[calc(100vh-120px)]">
+                    <form id="formEditarUsuario" method="POST" class="space-y-8">
+                        <input type="hidden" name="acao" value="editar">
+                        <input type="hidden" id="edit_id" name="id">
+                        <input type="hidden" id="edit_pessoa_id" name="pessoa_id">
+                        
+                        <!-- Informações Pessoais -->
+                        <div class="bg-gray-50 rounded-xl p-6">
+                            <h4 class="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                                <svg class="w-5 h-5 text-primary-green mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
+                                </svg>
+                                Informações Pessoais
+                            </h4>
+                            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                                <div>
+                                    <label for="edit_nome" class="block text-sm font-medium text-gray-700 mb-2">Nome Completo *</label>
+                                    <input type="text" id="edit_nome" name="nome" required
+                                           class="block w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-primary-green focus:border-primary-green transition-colors duration-200">
+                                </div>
+                                
+                                <div>
+                                    <label for="edit_cpf" class="block text-sm font-medium text-gray-700 mb-2">CPF *</label>
+                                    <input type="text" id="edit_cpf" name="cpf" placeholder="000.000.000-00" required
+                                           class="block w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-primary-green focus:border-primary-green transition-colors duration-200">
+                                </div>
+                                
+                                <div>
+                                    <label for="edit_email" class="block text-sm font-medium text-gray-700 mb-2">Email *</label>
+                                    <input type="email" id="edit_email" name="email" required
+                                           class="block w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-primary-green focus:border-primary-green transition-colors duration-200">
+                                </div>
+                                
+                                <div>
+                                    <label for="edit_telefone" class="block text-sm font-medium text-gray-700 mb-2">Telefone</label>
+                                    <input type="text" id="edit_telefone" name="telefone" placeholder="(00) 00000-0000"
+                                           class="block w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-primary-green focus:border-primary-green transition-colors duration-200">
+                                </div>
+                                
+                                <div>
+                                    <label for="edit_data_nascimento" class="block text-sm font-medium text-gray-700 mb-2">Data de Nascimento</label>
+                                    <input type="date" id="edit_data_nascimento" name="data_nascimento"
+                                           class="block w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-primary-green focus:border-primary-green transition-colors duration-200">
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Informações de Acesso -->
+                        <div class="bg-gray-50 rounded-xl p-6">
+                            <h4 class="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                                <svg class="w-5 h-5 text-primary-green mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"></path>
+                                </svg>
+                                Informações de Acesso
+                            </h4>
+                            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                                <div>
+                                    <label for="edit_username" class="block text-sm font-medium text-gray-700 mb-2">Username *</label>
+                                    <input type="text" id="edit_username" name="username" required
+                                           class="block w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-primary-green focus:border-primary-green transition-colors duration-200">
+                                </div>
+                                
+                                <div>
+                                    <label for="edit_senha" class="block text-sm font-medium text-gray-700 mb-2">Nova Senha (deixe em branco para manter a atual)</label>
+                                    <input type="password" id="edit_senha" name="senha"
+                                           class="block w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-primary-green focus:border-primary-green transition-colors duration-200">
+                                </div>
+                                
+                                <div>
+                                    <label for="edit_tipo" class="block text-sm font-medium text-gray-700 mb-2">Tipo de Usuário *</label>
+                                    <select id="edit_tipo" name="tipo" required
+                                            class="block w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-primary-green focus:border-primary-green transition-colors duration-200">
+                                        <option value="GESTAO">Gestão</option>
+                                        <option value="PROFESSOR">Professor</option>
+                                        <option value="ALUNO">Aluno</option>
+                                        <option value="NUTRICIONISTA">Nutricionista</option>
+                                        <option value="ADM_MERENDA">Administrador de Merenda</option>
+                                        <option value="ADM">Administrador</option>
+                                    </select>
+                                </div>
+                                
+                                <div>
+                                    <label for="edit_ativo" class="block text-sm font-medium text-gray-700 mb-2">Status</label>
+                                    <select id="edit_ativo" name="ativo" required
+                                            class="block w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-primary-green focus:border-primary-green transition-colors duration-200">
+                                        <option value="1">Ativo</option>
+                                        <option value="0">Bloqueado</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Modal Actions -->
+                        <div class="flex justify-end space-x-4 pt-6 border-t border-gray-200">
+                            <button type="button" onclick="fecharModalEdicao()" class="px-6 py-3 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-green transition-colors duration-200 font-medium">
+                                Cancelar
+                            </button>
+                            <button type="submit" class="px-6 py-3 bg-primary-green text-white rounded-lg hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-green transition-colors duration-200 font-medium">
+                                Salvar Alterações
+                            </button>
+                        </div>
+                    </form>
                 </div>
-                
-                <div class="flex justify-end space-x-3 pt-4">
-                    <button type="button" onclick="fecharModalEdicao()" class="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-green">
-                        Cancelar
-                    </button>
-                    <button type="submit" class="px-4 py-2 bg-primary-green text-white rounded-lg hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-green">
-                        Salvar Alterações
-                    </button>
-                </div>
-            </form>
+            </div>
         </div>
     </div>
     
@@ -1398,6 +1746,606 @@ $usuarios = listarUsuarios($busca);
                 });
             }
         });
+
+        // User Profile Modal Functions
+        function openUserProfile() {
+            // Load user data into profile modal
+            const user = JSON.parse(localStorage.getItem('user') || '{}');
+            if (user.nome) {
+                // Update profile information
+                document.getElementById('profileName').textContent = user.nome;
+                document.getElementById('profileFullName').textContent = user.nome;
+                
+                // Generate initials
+                const initials = user.nome.split(' ').map(n => n[0]).join('').toUpperCase();
+                document.getElementById('profileInitials').textContent = initials;
+                
+                // Update role in profile
+                const roleNames = {
+                    'ADM': 'Administrador',
+                    'GESTAO': 'Gestão',
+                    'PROFESSOR': 'Professor',
+                    'ALUNO': 'Aluno',
+                    'NUTRICIONISTA': 'Nutricionista',
+                    'ADM_MERENDA': 'Administrador de Merenda'
+                };
+                
+                const profileRole = document.getElementById('profileRole');
+                if (profileRole) {
+                    profileRole.textContent = roleNames[user.tipo] || 'Professor';
+                }
+            }
+            document.getElementById('userProfileModal').classList.remove('hidden');
+        }
+
+        function closeUserProfile() {
+            document.getElementById('userProfileModal').classList.add('hidden');
+        }
+
+        // Close modal when clicking outside
+        document.getElementById('userProfileModal').addEventListener('click', function(e) {
+            if (e.target === this) {
+                closeUserProfile();
+            }
+        });
+
+        // ===== FUNÇÕES DE LOGOUT =====
+        
+        function confirmLogout() {
+            document.getElementById('logoutModal').classList.remove('hidden');
+        }
+
+        function closeLogoutModal() {
+            document.getElementById('logoutModal').classList.add('hidden');
+        }
+
+        function logout() {
+            // Redirecionar para logout
+            window.location.href = '../../Models/sessao/sessions.php?sair';
+        }
+
+        // Close logout modal when clicking outside
+        document.getElementById('logoutModal').addEventListener('click', function(e) {
+            if (e.target === this) {
+                closeLogoutModal();
+            }
+        });
+
+        // Accessibility Functions
+        function setContrast(contrast) {
+            document.documentElement.setAttribute('data-contrast', contrast);
+
+            // Update button states
+            document.querySelectorAll('[id^="contrast-"]').forEach(btn => {
+                btn.classList.remove('bg-blue-500', 'text-white', 'border-blue-500');
+                btn.classList.add('border-gray-300', 'text-gray-700');
+            });
+
+            const activeBtn = document.getElementById(`contrast-${contrast}`);
+            if (activeBtn) {
+                activeBtn.classList.remove('border-gray-300', 'text-gray-700');
+                activeBtn.classList.add('bg-blue-500', 'text-white', 'border-blue-500');
+            }
+
+            // Save to localStorage
+            const settings = JSON.parse(localStorage.getItem('accessibilitySettings') || '{}');
+            settings.contrast = contrast;
+            localStorage.setItem('accessibilitySettings', JSON.stringify(settings));
+        }
+
+        function setFontSize(size) {
+            document.documentElement.setAttribute('data-font-size', size);
+
+            // Update button states
+            document.querySelectorAll('[id^="font-"]').forEach(btn => {
+                btn.classList.remove('bg-blue-500', 'text-white', 'border-blue-500');
+                btn.classList.add('border-gray-300', 'text-gray-700');
+            });
+
+            const activeBtn = document.getElementById(`font-${size}`);
+            if (activeBtn) {
+                activeBtn.classList.remove('border-gray-300', 'text-gray-700');
+                activeBtn.classList.add('bg-blue-500', 'text-white', 'border-blue-500');
+            }
+
+            // Save to localStorage
+            const settings = JSON.parse(localStorage.getItem('accessibilitySettings') || '{}');
+            settings.fontSize = size;
+            localStorage.setItem('accessibilitySettings', JSON.stringify(settings));
+        }
+
+        function setReduceMotion(enabled) {
+            if (enabled) {
+                document.documentElement.setAttribute('data-reduce-motion', 'true');
+                // Apply reduced motion styles
+                const style = document.createElement('style');
+                style.id = 'reduce-motion-styles';
+                style.textContent = `
+                    *, *::before, *::after {
+                        animation-duration: 0.01ms !important;
+                        animation-iteration-count: 1 !important;
+                        transition-duration: 0.01ms !important;
+                        scroll-behavior: auto !important;
+                    }
+                `;
+                document.head.appendChild(style);
+            } else {
+                document.documentElement.removeAttribute('data-reduce-motion');
+                const style = document.getElementById('reduce-motion-styles');
+                if (style) {
+                    style.remove();
+                }
+            }
+
+            // Save to localStorage
+            const settings = JSON.parse(localStorage.getItem('accessibilitySettings') || '{}');
+            settings.reduceMotion = enabled;
+            localStorage.setItem('accessibilitySettings', JSON.stringify(settings));
+        }
+
+        function toggleVLibras() {
+            const vlibrasWidget = document.getElementById('vlibras-widget');
+            const toggle = document.getElementById('vlibras-toggle');
+            
+            if (toggle.checked) {
+                // Ativar VLibras
+                vlibrasWidget.style.display = 'block';
+                vlibrasWidget.classList.remove('disabled');
+                vlibrasWidget.classList.add('enabled');
+                localStorage.setItem('vlibras-enabled', 'true');
+                
+                // Reinicializar o widget se necessário
+                if (window.VLibras && !window.vlibrasInstance) {
+                    window.vlibrasInstance = new window.VLibras.Widget('https://vlibras.gov.br/app');
+                }
+            } else {
+                // Desativar VLibras
+                vlibrasWidget.style.display = 'none';
+                vlibrasWidget.classList.remove('enabled');
+                vlibrasWidget.classList.add('disabled');
+                localStorage.setItem('vlibras-enabled', 'false');
+                
+                // Limpar instância se existir
+                if (window.vlibrasInstance) {
+                    window.vlibrasInstance = null;
+                }
+            }
+        }
+
+        function setKeyboardNavigation(enabled) {
+            if (enabled) {
+                document.documentElement.setAttribute('data-keyboard-nav', 'true');
+                // Apply keyboard navigation styles
+                const style = document.createElement('style');
+                style.id = 'keyboard-nav-styles';
+                style.textContent = `
+                    .keyboard-nav button:focus,
+                    .keyboard-nav a:focus,
+                    .keyboard-nav input:focus,
+                    .keyboard-nav select:focus,
+                    .keyboard-nav textarea:focus {
+                        outline: 3px solid #3b82f6 !important;
+                        outline-offset: 2px !important;
+                    }
+                `;
+                document.head.appendChild(style);
+            } else {
+                document.documentElement.removeAttribute('data-keyboard-nav');
+                const style = document.getElementById('keyboard-nav-styles');
+                if (style) {
+                    style.remove();
+                }
+            }
+
+            // Save to localStorage
+            const settings = JSON.parse(localStorage.getItem('accessibilitySettings') || '{}');
+            settings.keyboardNav = enabled;
+            localStorage.setItem('accessibilitySettings', JSON.stringify(settings));
+        }
+
+        // Load accessibility settings on page load
+        function loadAccessibilitySettings() {
+            const settings = JSON.parse(localStorage.getItem('accessibilitySettings') || '{}');
+            
+            // Load contrast setting
+            if (settings.contrast) {
+                setContrast(settings.contrast);
+            }
+            
+            // Load font size setting
+            if (settings.fontSize) {
+                setFontSize(settings.fontSize);
+            }
+            
+            // Load reduce motion setting
+            if (settings.reduceMotion) {
+                document.getElementById('reduce-motion').checked = true;
+                setReduceMotion(true);
+            }
+            
+            // Load keyboard navigation setting
+            if (settings.keyboardNav) {
+                document.getElementById('keyboard-nav').checked = true;
+                setKeyboardNavigation(true);
+            }
+            
+            // Load VLibras setting
+            const vlibrasEnabled = localStorage.getItem('vlibras-enabled');
+            const vlibrasToggle = document.getElementById('vlibras-toggle');
+            const vlibrasWidget = document.getElementById('vlibras-widget');
+            
+            if (vlibrasToggle) {
+                if (vlibrasEnabled === 'false') {
+                    vlibrasToggle.checked = false;
+                    vlibrasWidget.style.display = 'none';
+                    vlibrasWidget.classList.remove('enabled');
+                    vlibrasWidget.classList.add('disabled');
+                } else {
+                    vlibrasToggle.checked = true;
+                    vlibrasWidget.style.display = 'block';
+                    vlibrasWidget.classList.remove('disabled');
+                    vlibrasWidget.classList.add('enabled');
+                }
+            }
+        }
+
+        // Initialize accessibility settings when page loads
+        document.addEventListener('DOMContentLoaded', function() {
+            loadAccessibilitySettings();
+        });
     </script>
+
+    <!-- User Profile Modal -->
+    <div id="userProfileModal" class="fixed inset-0 bg-white z-50 hidden">
+        <div class="h-full w-full overflow-hidden">
+            <div class="bg-white h-full w-full overflow-hidden">
+                <!-- Modal Header -->
+                <div class="bg-primary-green text-white p-6">
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center space-x-4">
+                            <div class="w-16 h-16 bg-white bg-opacity-20 rounded-full flex items-center justify-center">
+                                <span class="text-2xl font-bold text-white" id="profileInitials"><?php
+                                    // Pega as 2 primeiras letras do nome da sessão
+                                    $nome = $_SESSION['nome'] ?? '';
+                                    $iniciais = '';
+                                    if (strlen($nome) >= 2) {
+                                        $iniciais = strtoupper(substr($nome, 0, 2));
+                                    } elseif (strlen($nome) == 1) {
+                                        $iniciais = strtoupper($nome);
+                                    } else {
+                                        $iniciais = 'US'; // Fallback para "User"
+                                    }
+                                    echo $iniciais;
+                                ?></span>
+                            </div>
+                            <div>
+                                <h2 class="text-2xl font-bold" id="profileName"><?php echo $_SESSION['nome']; ?></h2>
+                                <p class="text-green-100" id="profileRole"><?php echo $_SESSION['tipo']; ?></p>
+                            </div>
+                        </div>
+                        <button onclick="closeUserProfile()" class="p-2 hover:bg-white hover:bg-opacity-20 rounded-full transition-colors duration-200">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Modal Content -->
+                <div class="p-6 overflow-y-auto h-[calc(100vh-120px)]">
+                    <!-- User Information -->
+                    <div class="mb-8">
+                        <h3 class="text-lg font-semibold text-gray-900 mb-4">Informações Pessoais</h3>
+                        <?php if ($_SESSION['tipo'] === 'ADM') { ?>
+                            <!-- ADM Simplified Info -->
+                            <div class="bg-gray-50 p-6 rounded-xl">
+                                <div class="flex items-center space-x-4">
+                                    <div class="w-16 h-16 bg-primary-green rounded-full flex items-center justify-center">
+                                        <span class="text-2xl font-bold text-white" id="profileInitials"><?php
+                                            $nome = $_SESSION['nome'] ?? '';
+                                            $iniciais = '';
+                                            if (strlen($nome) >= 2) {
+                                                $iniciais = strtoupper(substr($nome, 0, 2));
+                                            } elseif (strlen($nome) == 1) {
+                                                $iniciais = strtoupper($nome);
+                                            } else {
+                                                $iniciais = 'AD';
+                                            }
+                                            echo $iniciais;
+                                        ?></span>
+                                    </div>
+                                    <div>
+                                        <h4 class="text-xl font-bold text-gray-900"><?php echo $_SESSION['nome']; ?></h4>
+                                        <p class="text-primary-green font-medium">Administrador Geral</p>
+                                        <p class="text-sm text-gray-600"><?php echo $_SESSION['email']; ?></p>
+                                    </div>
+                                </div>
+                            </div>
+                        <?php } else { ?>
+                            <!-- Other Users Full Info -->
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div class="bg-gray-50 p-4 rounded-lg">
+                                <label class="text-sm font-medium text-gray-600">Nome Completo</label>
+                                <p class="text-gray-900 font-medium" id="profileFullName"><?php echo $_SESSION['nome']; ?></p>
+                            </div>
+                            <div class="bg-gray-50 p-4 rounded-lg">
+                                <label class="text-sm font-medium text-gray-600">CPF</label>
+                                <p class="text-gray-900 font-medium" id="profileCPF"><?php echo $_SESSION['cpf']; ?></p>
+                            </div>
+                            <div class="bg-gray-50 p-4 rounded-lg">
+                                <label class="text-sm font-medium text-gray-600">Email</label>
+                                <p class="text-gray-900 font-medium" id="profileEmail"><?php echo $_SESSION['email']; ?></p>
+                            </div>
+                            <div class="bg-gray-50 p-4 rounded-lg">
+                                <label class="text-sm font-medium text-gray-600">Telefone</label>
+                                <p class="text-gray-900 font-medium" id="profilePhone"><?php echo $_SESSION['telefone']; ?></p>
+                            </div>
+                        </div>
+                        <?php } ?>
+                    </div>
+
+                    <!-- School Information -->
+                    <div class="mb-8">
+                        <h3 class="text-lg font-semibold text-gray-900 mb-4" id="schoolsTitle">
+                            <?php 
+                            if ($_SESSION['tipo'] === 'ADM') {
+                                echo 'Secretaria Municipal da Educação';
+                            } else {
+                                echo 'Escola Atual';
+                            }
+                            ?>
+                        </h3>
+                        <div id="schoolsContainer">
+                            <?php if ($_SESSION['tipo'] === 'ADM') { ?>
+                                <!-- ADM Specific Information -->
+                                <div class="bg-gradient-to-r from-primary-green to-green-600 text-white p-6 rounded-xl">
+                                    <div class="flex items-center space-x-4">
+                                        <div class="w-16 h-16 bg-white bg-opacity-20 rounded-full flex items-center justify-center">
+                                            <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path>
+                                            </svg>
+                                        </div>
+                                        <div>
+                                            <h4 class="text-xl font-bold">Secretaria Municipal da Educação</h4>
+                                            <p class="text-green-100">Órgão Central de Gestão Educacional</p>
+                                            <p class="text-green-200 text-sm mt-1">Responsável por todas as escolas municipais</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            <?php } else { ?>
+                                <!-- Schools will be dynamically loaded here for other users -->
+                            <?php } ?>
+                        </div>
+                    </div>
+
+                    <!-- User Type Specific Information -->
+                    <?php if ($_SESSION['tipo'] !== 'ADM') { ?>
+                    <div class="mb-8">
+                        <h3 class="text-lg font-semibold text-gray-900 mb-4">Informações Gerais</h3>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div class="bg-gray-50 p-4 rounded-lg">
+                                <label class="text-sm font-medium text-gray-600">Carga Horária Total</label>
+                                <p class="text-gray-900 font-medium" id="profileWorkload">40h semanais</p>
+                            </div>
+                            <div class="bg-gray-50 p-4 rounded-lg">
+                                <label class="text-sm font-medium text-gray-600">Data de Admissão</label>
+                                <p class="text-gray-900 font-medium" id="profileAdmission">15/03/2020</p>
+                            </div>
+                            <div class="bg-gray-50 p-4 rounded-lg">
+                                <label class="text-sm font-medium text-gray-600">Status</label>
+                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800" id="profileStatus">
+                                    Ativo
+                                </span>
+                            </div>
+                            <div class="bg-gray-50 p-4 rounded-lg">
+                                <label class="text-sm font-medium text-gray-600">Total de Escolas</label>
+                                <p class="text-gray-900 font-medium" id="totalSchools">1 escola</p>
+                            </div>
+                        </div>
+                    </div>
+                    <?php } ?>
+
+                    <!-- Configurações de Acessibilidade -->
+                    <div class="mb-6">
+                        <div class="flex items-center space-x-2 mb-4">
+                            <div class="w-6 h-6 bg-blue-100 rounded-md flex items-center justify-center">
+                                <svg class="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.746 0 3.332.477 4.5 1.253v13C19.832 18.477 18.246 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path>
+                                </svg>
+                            </div>
+                            <div>
+                                <h3 class="text-lg font-semibold text-gray-900">Configurações de Acessibilidade</h3>
+                                <p class="text-xs text-gray-500">Personalize sua experiência</p>
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <!-- Tema -->
+                            <div class="bg-white p-4 rounded-lg border border-gray-200">
+                                <div class="flex items-center space-x-2 mb-3">
+                                    <div class="w-5 h-5 bg-yellow-100 rounded flex items-center justify-center">
+                                        <svg class="w-3 h-3 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"></path>
+                                        </svg>
+                                    </div>
+                                    <div>
+                                        <h4 class="text-sm font-medium text-gray-900">Tema Visual</h4>
+                                        <p class="text-xs text-gray-500">Claro ou escuro</p>
+                                    </div>
+                                </div>
+                                <div class="flex space-x-2">
+                                    <button id="theme-light" class="flex-1 px-3 py-2 text-sm border border-gray-300 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors">
+                                        <div class="flex items-center justify-center space-x-1">
+                                            <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"></path>
+                                            </svg>
+                                            <span>Claro</span>
+                                        </div>
+                                    </button>
+                                    <button id="theme-dark" class="flex-1 px-3 py-2 text-sm border border-gray-300 rounded-md hover:bg-gray-200 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors">
+                                        <div class="flex items-center justify-center space-x-1">
+                                            <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"></path>
+                                            </svg>
+                                            <span>Escuro</span>
+                                        </div>
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- Contraste -->
+                            <div class="bg-white p-4 rounded-lg border border-gray-200">
+                                <div class="flex items-center space-x-2 mb-3">
+                                    <div class="w-5 h-5 bg-red-100 rounded flex items-center justify-center">
+                                        <svg class="w-3 h-3 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
+                                        </svg>
+                                    </div>
+                                    <div>
+                                        <h4 class="text-sm font-medium text-gray-900">Contraste</h4>
+                                        <p class="text-xs text-gray-500">Ajustar cores</p>
+                                    </div>
+                                </div>
+                                <div class="flex space-x-2">
+                                    <button onclick="setContrast('normal')" id="contrast-normal" class="flex-1 px-3 py-2 text-sm border border-gray-300 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors">
+                                        <span>Normal</span>
+                                    </button>
+                                    <button onclick="setContrast('high')" id="contrast-high" class="flex-1 px-3 py-2 text-sm border border-gray-300 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors">
+                                        <span>Alto</span>
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- Tamanho da Fonte -->
+                            <div class="bg-white p-4 rounded-lg border border-gray-200">
+                                <div class="flex items-center space-x-2 mb-3">
+                                    <div class="w-5 h-5 bg-green-100 rounded flex items-center justify-center">
+                                        <svg class="w-3 h-3 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"></path>
+                                        </svg>
+                                    </div>
+                                    <div>
+                                        <h4 class="text-sm font-medium text-gray-900">Tamanho da Fonte</h4>
+                                        <p class="text-xs text-gray-500">Ajustar texto</p>
+                                    </div>
+                                </div>
+                                <div class="grid grid-cols-3 gap-2">
+                                    <button onclick="setFontSize('normal')" id="font-normal" class="px-2 py-2 text-sm border border-gray-300 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors">
+                                        <span class="text-sm">A</span>
+                                    </button>
+                                    <button onclick="setFontSize('large')" id="font-large" class="px-2 py-2 text-sm border border-gray-300 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors">
+                                        <span class="text-base">A</span>
+                                    </button>
+                                    <button onclick="setFontSize('larger')" id="font-larger" class="px-2 py-2 text-sm border border-gray-300 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors">
+                                        <span class="text-lg">A</span>
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- Configurações Avançadas -->
+                            <div class="bg-white p-4 rounded-lg border border-gray-200">
+                                <div class="flex items-center space-x-2 mb-3">
+                                    <div class="w-5 h-5 bg-purple-100 rounded flex items-center justify-center">
+                                        <svg class="w-3 h-3 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path>
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                                        </svg>
+                                    </div>
+                                    <div>
+                                        <h4 class="text-sm font-medium text-gray-900">Configurações Avançadas</h4>
+                                        <p class="text-xs text-gray-500">Opções extras</p>
+                                    </div>
+                                </div>
+                                <div class="space-y-3">
+                                    <!-- Redução de Movimento -->
+                                    <div class="flex items-center justify-between">
+                                        <div class="flex items-center space-x-2">
+                                            <div class="w-4 h-4 bg-blue-100 rounded flex items-center justify-center">
+                                                <svg class="w-2 h-2 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+                                                </svg>
+                                            </div>
+                                            <div>
+                                                <p class="text-sm font-medium text-gray-900">Redução de Movimento</p>
+                                                <p class="text-xs text-gray-500">Menos animações</p>
+                                            </div>
+                                        </div>
+                                        <label class="relative inline-flex items-center cursor-pointer">
+                                            <input type="checkbox" id="reduce-motion" onchange="setReduceMotion(this.checked)" class="sr-only peer">
+                                            <div class="w-9 h-5 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-blue-500 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-500"></div>
+                                        </label>
+                                    </div>
+
+                                    <!-- VLibras -->
+                                    <div class="flex items-center justify-between">
+                                        <div class="flex items-center space-x-2">
+                                            <div class="w-4 h-4 bg-purple-100 rounded flex items-center justify-center">
+                                                <svg class="w-2 h-2 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z"></path>
+                                                </svg>
+                                            </div>
+                                            <div>
+                                                <p class="text-sm font-medium text-gray-900">VLibras (Libras)</p>
+                                                <p class="text-xs text-gray-500">Tradução para Libras</p>
+                                            </div>
+                                        </div>
+                                        <label class="relative inline-flex items-center cursor-pointer">
+                                            <input type="checkbox" id="vlibras-toggle" class="sr-only peer" onchange="toggleVLibras()" checked>
+                                            <div class="w-9 h-5 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-blue-500 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-500"></div>
+                                        </label>
+                                    </div>
+
+                                    <!-- Navegação por Teclado -->
+                                    <div class="flex items-center justify-between">
+                                        <div class="flex items-center space-x-2">
+                                            <div class="w-4 h-4 bg-green-100 rounded flex items-center justify-center">
+                                                <svg class="w-2 h-2 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                                </svg>
+                                            </div>
+                                            <div>
+                                                <p class="text-sm font-medium text-gray-900">Navegação por Teclado</p>
+                                                <p class="text-xs text-gray-500">Destacar foco</p>
+                                            </div>
+                                        </div>
+                                        <label class="relative inline-flex items-center cursor-pointer">
+                                            <input type="checkbox" id="keyboard-nav" onchange="setKeyboardNavigation(this.checked)" class="sr-only peer">
+                                            <div class="w-9 h-5 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-blue-500 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-500"></div>
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Logout Confirmation Modal -->
+    <div id="logoutModal" class="fixed inset-0 bg-black bg-opacity-50 z-[60] hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl p-6 max-w-md w-full mx-4 shadow-2xl">
+            <div class="flex items-center space-x-3 mb-4">
+                <div class="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center">
+                    <svg class="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z"></path>
+                    </svg>
+                </div>
+                <div>
+                    <h3 class="text-lg font-semibold text-gray-900">Confirmar Saída</h3>
+                    <p class="text-sm text-gray-600">Tem certeza que deseja sair do sistema?</p>
+                </div>
+            </div>
+            <div class="flex space-x-3">
+                <button onclick="closeLogoutModal()" class="flex-1 px-4 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg font-medium transition-colors duration-200">
+                    Cancelar
+                </button>
+                <button onclick="logout()" class="flex-1 px-4 py-2 text-white bg-red-600 hover:bg-red-700 rounded-lg font-medium transition-colors duration-200">
+                    Sim, Sair
+                </button>
+            </div>
+        </div>
+    </div>
 </body>
 </html>
