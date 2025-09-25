@@ -399,128 +399,6 @@ $escolas = listarEscolas($busca);
             background: #2a2a2a !important;
             border: 1px solid #555555 !important;
         }
-        
-        /* Melhorias específicas para o modal de edição no tema escuro */
-        [data-theme="dark"] #modalEdicaoEscola {
-            background-color: rgba(0, 0, 0, 0.8) !important;
-        }
-        
-        [data-theme="dark"] #modalEdicaoEscola .bg-white {
-            background-color: var(--bg-primary) !important;
-        }
-        
-        [data-theme="dark"] #modalEdicaoEscola .bg-gray-50 {
-            background-color: var(--bg-secondary) !important;
-        }
-        
-        [data-theme="dark"] #modalEdicaoEscola .border-gray-200 {
-            border-color: var(--border-color) !important;
-        }
-        
-        [data-theme="dark"] #modalEdicaoEscola .text-gray-600 {
-            color: var(--text-secondary) !important;
-        }
-        
-        [data-theme="dark"] #modalEdicaoEscola .text-gray-700 {
-            color: var(--text-primary) !important;
-        }
-        
-        [data-theme="dark"] #modalEdicaoEscola .hover\\:bg-gray-200:hover {
-            background-color: var(--bg-secondary) !important;
-        }
-        
-        [data-theme="dark"] #modalEdicaoEscola .hover\\:bg-gray-50:hover {
-            background-color: var(--bg-secondary) !important;
-        }
-        
-        [data-theme="dark"] #modalEdicaoEscola .border-gray-300 {
-            border-color: var(--border-color) !important;
-        }
-        
-        [data-theme="dark"] #modalEdicaoEscola .border-gray-100 {
-            border-color: var(--border-color) !important;
-        }
-        
-        /* Melhorar visibilidade dos inputs no modal */
-        [data-theme="dark"] #modalEdicaoEscola input[type="text"],
-        [data-theme="dark"] #modalEdicaoEscola input[type="email"],
-        [data-theme="dark"] #modalEdicaoEscola input[type="number"],
-        [data-theme="dark"] #modalEdicaoEscola textarea {
-            background-color: var(--bg-secondary) !important;
-            border-color: var(--border-color) !important;
-            color: var(--text-primary) !important;
-        }
-        
-        [data-theme="dark"] #modalEdicaoEscola input[type="text"]:focus,
-        [data-theme="dark"] #modalEdicaoEscola input[type="email"]:focus,
-        [data-theme="dark"] #modalEdicaoEscola input[type="number"]:focus,
-        [data-theme="dark"] #modalEdicaoEscola textarea:focus {
-            background-color: var(--bg-secondary) !important;
-            border-color: var(--primary-green) !important;
-            color: var(--text-primary) !important;
-        }
-        
-        /* Melhorar visibilidade dos labels */
-        [data-theme="dark"] #modalEdicaoEscola label {
-            color: var(--text-primary) !important;
-        }
-        
-        /* Melhorar visibilidade dos botões */
-        [data-theme="dark"] #modalEdicaoEscola button {
-            color: var(--text-primary) !important;
-        }
-        
-        [data-theme="dark"] #modalEdicaoEscola .text-gray-500 {
-            color: var(--text-secondary) !important;
-        }
-        
-        [data-theme="dark"] #modalEdicaoEscola .text-gray-600 {
-            color: var(--text-secondary) !important;
-        }
-        
-        /* Melhorar visibilidade dos elementos de busca e seleção */
-        [data-theme="dark"] #modalEdicaoEscola .bg-white {
-            background-color: var(--bg-primary) !important;
-        }
-        
-        [data-theme="dark"] #modalEdicaoEscola .border-gray-300 {
-            border-color: var(--border-color) !important;
-        }
-        
-        [data-theme="dark"] #modalEdicaoEscola .shadow-lg {
-            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3), 0 4px 6px -2px rgba(0, 0, 0, 0.2) !important;
-        }
-        
-        /* Melhorar visibilidade dos checkboxes e elementos interativos */
-        [data-theme="dark"] #modalEdicaoEscola input[type="checkbox"] {
-            background-color: var(--bg-secondary) !important;
-            border-color: var(--border-color) !important;
-        }
-        
-        [data-theme="dark"] #modalEdicaoEscola input[type="checkbox"]:checked {
-            background-color: var(--primary-green) !important;
-            border-color: var(--primary-green) !important;
-        }
-        
-        /* Melhorar visibilidade dos elementos de dropdown */
-        [data-theme="dark"] #modalEdicaoEscola .absolute {
-            background-color: var(--bg-primary) !important;
-            border-color: var(--border-color) !important;
-        }
-        
-        /* Melhorar visibilidade dos elementos de professor selecionado */
-        [data-theme="dark"] #modalEdicaoEscola .bg-green-50 {
-            background-color: rgba(34, 197, 94, 0.1) !important;
-            border-color: rgba(34, 197, 94, 0.3) !important;
-        }
-        
-        [data-theme="dark"] #modalEdicaoEscola .text-green-800 {
-            color: #22c55e !important;
-        }
-        
-        [data-theme="dark"] #modalEdicaoEscola .text-green-600 {
-            color: #16a34a !important;
-        }
 
         [data-theme="dark"] .bg-gray-100 {
             background-color: #333333 !important;
@@ -934,6 +812,33 @@ $escolas = listarEscolas($busca);
                                 </div>
                                 
                                 <div>
+                                    <label for="endereco" class="block text-sm font-medium text-gray-700 mb-2">Endereço *</label>
+                                    <input type="text" id="endereco" name="endereco" required
+                                           class="block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-primary-green focus:border-primary-green">
+                                </div>
+                                
+                                <div>
+                                    <label for="qtd_salas" class="block text-sm font-medium text-gray-700 mb-2">Quantidade de Salas <span class="text-red-500">*</span></label>
+                                    <input type="number" id="qtd_salas" name="qtd_salas" required min="1" placeholder="Ex: 12"
+                                           class="block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-primary-green focus:border-primary-green">
+                                </div>
+                            </div>
+                            
+                            <!-- Coluna Direita -->
+                            <div class="space-y-6">
+                                <div>
+                                    <label for="codigo" class="block text-sm font-medium text-gray-700 mb-2">Código INEP</label>
+                                    <input type="text" id="codigo" name="codigo" placeholder="Ex: 12345678"
+                                           class="block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-primary-green focus:border-primary-green">
+                                </div>
+                                
+                                <div>
+                                    <label for="email" class="block text-sm font-medium text-gray-700 mb-2">Email</label>
+                                    <input type="email" id="email" name="email"
+                                           class="block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-primary-green focus:border-primary-green">
+                                </div>
+                                
+                                <div>
                                     <label for="municipio" class="block text-sm font-medium text-gray-700 mb-2">Município *</label>
                                     <input type="text" id="municipio" name="municipio" required
                                            class="block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-primary-green focus:border-primary-green">
@@ -961,33 +866,6 @@ $escolas = listarEscolas($busca);
                                             </button>
                                         </div>
                                     </div>
-                                </div>
-                            </div>
-                            
-                            <!-- Coluna Direita -->
-                            <div class="space-y-6">
-                                <div>
-                                    <label for="codigo" class="block text-sm font-medium text-gray-700 mb-2">Código INEP</label>
-                                    <input type="text" id="codigo" name="codigo" placeholder="Ex: 12345678"
-                                           class="block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-primary-green focus:border-primary-green">
-                                </div>
-                                
-                                <div>
-                                    <label for="email" class="block text-sm font-medium text-gray-700 mb-2">Email</label>
-                                    <input type="email" id="email" name="email"
-                                           class="block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-primary-green focus:border-primary-green">
-                                </div>
-                                
-                                <div>
-                                    <label for="endereco" class="block text-sm font-medium text-gray-700 mb-2">Endereço *</label>
-                                    <input type="text" id="endereco" name="endereco" required
-                                           class="block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-primary-green focus:border-primary-green">
-                                </div>
-                                
-                                <div>
-                                    <label for="qtd_salas" class="block text-sm font-medium text-gray-700 mb-2">Quantidade de Salas <span class="text-red-500">*</span></label>
-                                    <input type="number" id="qtd_salas" name="qtd_salas" required min="1" placeholder="Ex: 12"
-                                           class="block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-primary-green focus:border-primary-green">
                                 </div>
                             </div>
                         </div>
@@ -1116,8 +994,14 @@ $escolas = listarEscolas($busca);
                                 </div>
                                 
                                 <div>
-                                    <label for="edit_municipio" class="block text-sm font-medium text-gray-700 mb-2">Município *</label>
-                                    <input type="text" id="edit_municipio" name="municipio" required
+                                    <label for="edit_endereco" class="block text-sm font-medium text-gray-700 mb-2">Endereço *</label>
+                                    <input type="text" id="edit_endereco" name="endereco" required
+                                           class="block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-primary-green focus:border-primary-green">
+                                </div>
+                                
+                                <div>
+                                    <label for="edit_qtd_salas" class="block text-sm font-medium text-gray-700 mb-2">Quantidade de Salas <span class="text-red-500">*</span></label>
+                                    <input type="number" id="edit_qtd_salas" name="qtd_salas" required min="1" placeholder="Ex: 12"
                                            class="block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-primary-green focus:border-primary-green">
                                 </div>
                             </div>
@@ -1137,16 +1021,11 @@ $escolas = listarEscolas($busca);
                                 </div>
                                 
                                 <div>
-                                    <label for="edit_endereco" class="block text-sm font-medium text-gray-700 mb-2">Endereço *</label>
-                                    <input type="text" id="edit_endereco" name="endereco" required
+                                    <label for="edit_municipio" class="block text-sm font-medium text-gray-700 mb-2">Município *</label>
+                                    <input type="text" id="edit_municipio" name="municipio" required
                                            class="block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-primary-green focus:border-primary-green">
                                 </div>
                                 
-                                <div>
-                                    <label for="edit_qtd_salas" class="block text-sm font-medium text-gray-700 mb-2">Quantidade de Salas <span class="text-red-500">*</span></label>
-                                    <input type="number" id="edit_qtd_salas" name="qtd_salas" required min="1" placeholder="Ex: 12"
-                                           class="block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-primary-green focus:border-primary-green">
-                                </div>
                             </div>
                         </div>
                     </div>
