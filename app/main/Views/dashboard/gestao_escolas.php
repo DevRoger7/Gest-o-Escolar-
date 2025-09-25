@@ -242,7 +242,7 @@ $escolas = listarEscolas($busca);
     
     <!-- Theme Manager -->
     <script src="theme-manager.js"></script>
-
+    
     <!-- VLibras -->
     <div id="vlibras-widget" vw class="enabled">
         <div vw-access-button class="active"></div>
@@ -562,6 +562,308 @@ $escolas = listarEscolas($busca);
         [data-theme="dark"] #tab-cadastrar input::placeholder {
             color: var(--text-muted) !important;
         }
+
+        /* Estilos específicos para o modal de perfil no tema escuro */
+        [data-theme="dark"] #userProfileModal .text-gray-900 {
+            color: #ffffff !important;
+        }
+
+        [data-theme="dark"] #userProfileModal .text-gray-800 {
+            color: #ffffff !important;
+        }
+
+        [data-theme="dark"] #userProfileModal .text-gray-700 {
+            color: #e0e0e0 !important;
+        }
+
+        [data-theme="dark"] #userProfileModal .text-gray-600 {
+            color: #c0c0c0 !important;
+        }
+
+        [data-theme="dark"] #userProfileModal .text-gray-500 {
+            color: #a0a0a0 !important;
+        }
+
+        [data-theme="dark"] #userProfileModal .bg-white {
+            background-color: var(--bg-secondary) !important;
+        }
+
+        [data-theme="dark"] #userProfileModal .border-gray-200 {
+            border-color: var(--border-color) !important;
+        }
+
+        [data-theme="dark"] #userProfileModal .bg-gray-50 {
+            background-color: var(--bg-tertiary) !important;
+        }
+
+        /* Estilos específicos para o modal de logout no tema escuro */
+        [data-theme="dark"] #logoutModal .text-gray-900 {
+            color: #ffffff !important;
+        }
+
+        [data-theme="dark"] #logoutModal .text-gray-600 {
+            color: #e0e0e0 !important;
+        }
+
+        [data-theme="dark"] #logoutModal .bg-white {
+            background-color: var(--bg-secondary) !important;
+        }
+
+        /* Estilos específicos para o card do gestor no tema escuro */
+        [data-theme="dark"] #gestor-atual-info {
+            background: linear-gradient(135deg, var(--bg-secondary) 0%, var(--bg-tertiary) 100%) !important;
+            border-color: var(--border-color) !important;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3) !important;
+        }
+
+        [data-theme="dark"] #gestor-atual-info:hover {
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.4) !important;
+        }
+
+        [data-theme="dark"] #gestor-atual-info .text-gray-900 {
+            color: #ffffff !important;
+        }
+
+        [data-theme="dark"] #gestor-atual-info .text-gray-600 {
+            color: #d1d5db !important;
+        }
+
+        [data-theme="dark"] #gestor-atual-info .text-gray-500 {
+            color: #9ca3af !important;
+        }
+
+        [data-theme="dark"] #gestor-atual-info button {
+            background-color: rgba(220, 38, 38, 0.1) !important;
+            border-color: #dc2626 !important;
+            color: #fca5a5 !important;
+        }
+
+        [data-theme="dark"] #gestor-atual-info button:hover {
+            background-color: #dc2626 !important;
+            color: #ffffff !important;
+            border-color: #dc2626 !important;
+        }
+
+        /* ===== MELHORIAS DE RESPONSIVIDADE ===== */
+        
+        /* Mobile First - Breakpoints */
+        @media (max-width: 640px) {
+            /* Sidebar mobile */
+            #sidebar {
+                transform: translateX(-100%);
+                transition: transform 0.3s ease-in-out;
+                z-index: 50;
+            }
+            
+            #sidebar.mobile-open {
+                transform: translateX(0);
+            }
+            
+            /* Header mobile */
+            header {
+                padding: 0.75rem 1rem;
+            }
+            
+            .header-content {
+                flex-direction: column;
+                gap: 0.5rem;
+            }
+            
+            /* Cards responsivos */
+            .card-hover {
+                margin-bottom: 1rem;
+            }
+            
+            /* Tabelas responsivas */
+            .table-responsive {
+                overflow-x: auto;
+                -webkit-overflow-scrolling: touch;
+            }
+            
+            .table-responsive table {
+                min-width: 600px;
+            }
+            
+            /* Modais mobile */
+            .modal-content {
+                margin: 1rem;
+                max-height: calc(100vh - 2rem);
+                overflow-y: auto;
+            }
+            
+            /* Formulários mobile */
+            .form-grid {
+                grid-template-columns: 1fr;
+                gap: 1rem;
+            }
+            
+            /* Botões mobile */
+            .btn-mobile {
+                width: 100%;
+                padding: 0.75rem;
+                font-size: 1rem;
+            }
+        }
+        
+        @media (min-width: 641px) and (max-width: 1024px) {
+            /* Tablet */
+            #sidebar {
+                width: 200px;
+            }
+            
+            .main-content {
+                margin-left: 200px;
+            }
+            
+            .card-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+        
+        @media (min-width: 1025px) {
+            /* Desktop */
+            .card-grid {
+                grid-template-columns: repeat(3, 1fr);
+            }
+        }
+        
+        /* ===== COMPONENTES RESPONSIVOS ===== */
+        
+        /* Grid responsivo para cards */
+        .card-grid {
+            display: grid;
+            gap: 1.5rem;
+            grid-template-columns: 1fr;
+        }
+        
+        @media (min-width: 640px) {
+            .card-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+        
+        @media (min-width: 1024px) {
+            .card-grid {
+                grid-template-columns: repeat(3, 1fr);
+            }
+        }
+        
+        /* Tabelas responsivas */
+        .table-responsive {
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+            border-radius: 0.5rem;
+            border: 1px solid #e2e8f0;
+        }
+        
+        .table-responsive table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        
+        .table-responsive th,
+        .table-responsive td {
+            padding: 0.75rem;
+            text-align: left;
+            border-bottom: 1px solid #e2e8f0;
+        }
+        
+        .table-responsive th {
+            background-color: #f8fafc;
+            font-weight: 600;
+            color: #374151;
+        }
+        
+        /* Formulários responsivos */
+        .form-grid {
+            display: grid;
+            gap: 1rem;
+            grid-template-columns: 1fr;
+        }
+        
+        @media (min-width: 640px) {
+            .form-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+        
+        /* Botões responsivos */
+        .btn-group {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+        
+        @media (min-width: 640px) {
+            .btn-group {
+                flex-direction: row;
+            }
+        }
+        
+        /* ===== MELHORIAS DE UX ===== */
+        
+        /* Loading states */
+        .loading {
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .loading::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent);
+            animation: loading 1.5s infinite;
+        }
+        
+        @keyframes loading {
+            0% { left: -100%; }
+            100% { left: 100%; }
+        }
+        
+        /* Feedback visual */
+        .success-feedback {
+            background-color: #d1fae5;
+            border: 1px solid #a7f3d0;
+            color: #065f46;
+            padding: 0.75rem;
+            border-radius: 0.5rem;
+            margin-bottom: 1rem;
+            display: none;
+        }
+        
+        .error-feedback {
+            background-color: #fee2e2;
+            border: 1px solid #fecaca;
+            color: #dc2626;
+            padding: 0.75rem;
+            border-radius: 0.5rem;
+            margin-bottom: 1rem;
+            display: none;
+        }
+        
+        /* Estados de foco melhorados */
+        .focus-visible {
+            outline: 2px solid #2D5A27;
+            outline-offset: 2px;
+        }
+        
+        /* Microinterações */
+        .micro-interaction {
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        
+        .micro-interaction:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+        
+        .micro-interaction:active {
+            transform: translateY(0);
+        }
     </style>
 </head>
 <body class="bg-gray-50 font-sans">
@@ -634,18 +936,26 @@ $escolas = listarEscolas($busca);
                         <span>Usuários</span>
                     </a>
                 </li>
+                <li id="estoque-menu">
+                    <a href="estoque_central.php" class="menu-item flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path>
+                        </svg>
+                        <span>Estoque Central</span>
+                    </a>
+                </li>
                 <?php } ?>
             </ul>
         </nav>
 
         <!-- Logout -->
         <div class="absolute bottom-0 left-0 right-0 p-4 border-t border-gray-200">
-            <a href="../../Models/sessao/sessions.php?sair" class="w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-red-600 hover:bg-red-50 hover:text-red-700 transition-all duration-200">
+            <button onclick="confirmLogout()" class="w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-red-600 hover:bg-red-50 hover:text-red-700 transition-all duration-200">
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path>
                 </svg>
                 <span>Sair</span>
-            </a>
+            </button>
         </div>
     </aside>
 
@@ -714,6 +1024,9 @@ $escolas = listarEscolas($busca);
                     </button>
                     <button onclick="showTab('tab-cadastrar')" class="tab-btn py-4 px-1 focus:outline-none">
                         Cadastrar Nova Escola
+                    </button>
+                    <button onclick="showTab('tab-adicionar-professor')" class="tab-btn py-4 px-1 focus:outline-none">
+                        Adicionar Professor
                     </button>
                 </div>
             </div>
@@ -923,6 +1236,111 @@ $escolas = listarEscolas($busca);
                     </form>
                 </div>
             </div>
+
+            <!-- Tab Adicionar Professor -->
+            <div id="tab-adicionar-professor" class="tab-content hidden">
+                <div class="p-6">
+                    <h2 class="text-xl font-semibold text-gray-900 mb-6">Adicionar Professor à Escola</h2>
+                    
+                    <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+                        <div class="flex items-center space-x-2">
+                            <svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                            </svg>
+                            <p class="text-sm text-blue-800">
+                                <strong>Importante:</strong> Selecione uma escola e depois adicione os professores desejados.
+                            </p>
+                        </div>
+                    </div>
+
+                    <div class="space-y-6">
+                        <!-- Seleção da Escola -->
+                        <div>
+                            <label for="escola_professor" class="block text-sm font-medium text-gray-700 mb-2">Selecionar Escola *</label>
+                            <select id="escola_professor" name="escola_professor" required 
+                                    class="block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-primary-green focus:border-primary-green"
+                                    onchange="carregarProfessoresEscola(this.value)">
+                                <option value="">Selecione uma escola...</option>
+                                <?php 
+                                $escolas = listarEscolas();
+                                foreach ($escolas as $escola): 
+                                ?>
+                                    <option value="<?php echo $escola['id']; ?>">
+                                        <?php echo htmlspecialchars($escola['nome']); ?>
+                                    </option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
+
+                        <!-- Informações da Escola Selecionada -->
+                        <div id="info-escola-selecionada" class="hidden bg-gray-50 border border-gray-200 rounded-lg p-4">
+                            <h3 class="text-lg font-medium text-gray-900 mb-2">Informações da Escola</h3>
+                            <div id="detalhes-escola" class="text-sm text-gray-600">
+                                <!-- Detalhes serão carregados aqui -->
+                            </div>
+                        </div>
+
+                        <!-- Seção de Adicionar Professor -->
+                        <div id="secao-adicionar-professor" class="hidden">
+                            <div class="border-t border-gray-200 pt-6">
+                                <h3 class="text-lg font-medium text-gray-900 mb-4">Adicionar Professor</h3>
+                                
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    <!-- Buscar Professor -->
+                                    <div>
+                                        <label for="buscar_professor" class="block text-sm font-medium text-gray-700 mb-2">Buscar Professor</label>
+                                        <div class="relative">
+                                            <input type="text" id="buscar_professor" placeholder="Digite o nome ou CPF do professor..."
+                                                   class="block w-full px-3 py-2 pl-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-green focus:border-transparent"
+                                                   oninput="buscarProfessores(this.value)">
+                                            <svg class="w-5 h-5 text-gray-400 absolute left-3 top-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                                            </svg>
+                                        </div>
+                                        <div id="resultados_professores" class="mt-2 max-h-60 overflow-y-auto border border-gray-200 rounded-lg hidden">
+                                            <!-- Resultados da busca serão carregados aqui -->
+                                        </div>
+                                    </div>
+
+                                    <!-- Disciplina -->
+                                    <div>
+                                        <label for="disciplina_professor" class="block text-sm font-medium text-gray-700 mb-2">Disciplina</label>
+                                        <select id="disciplina_professor" name="disciplina_professor" 
+                                                class="block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-primary-green focus:border-primary-green">
+                                            <option value="">Selecione uma disciplina...</option>
+                                            <option value="matematica">Matemática</option>
+                                            <option value="portugues">Português</option>
+                                            <option value="ciencias">Ciências</option>
+                                            <option value="historia">História</option>
+                                            <option value="geografia">Geografia</option>
+                                            <option value="educacao_fisica">Educação Física</option>
+                                            <option value="artes">Artes</option>
+                                            <option value="ingles">Inglês</option>
+                                            <option value="espanhol">Espanhol</option>
+                                        </select>
+                                    </div>
+                                </div>
+
+                                <!-- Botão Adicionar -->
+                                <div class="mt-4">
+                                    <button type="button" onclick="adicionarProfessorEscola()" 
+                                            class="bg-primary-green text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors duration-200">
+                                        Adicionar Professor
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- Lista de Professores da Escola -->
+                            <div class="mt-8">
+                                <h3 class="text-lg font-medium text-gray-900 mb-4">Professores da Escola</h3>
+                                <div id="lista-professores-escola" class="space-y-3">
+                                    <!-- Lista será carregada aqui -->
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </main>
     </div>
     
@@ -991,17 +1409,17 @@ $escolas = listarEscolas($busca);
                     
                     <!-- Tabs de Navegação -->
                     <div class="border-b border-gray-200">
-                        <nav class="-mb-px flex space-x-8">
-                            <button type="button" onclick="mostrarAbaEdicao('dados-basicos')" id="tab-dados-basicos" class="tab-edicao active py-2 px-1 border-b-2 border-primary-green font-medium text-sm text-primary-green">
-                                Dados Básicos
-                            </button>
-                            <button type="button" onclick="mostrarAbaEdicao('gestor')" id="tab-gestor" class="tab-edicao py-2 px-1 border-b-2 border-transparent font-medium text-sm text-gray-500 hover:text-gray-700 hover:border-gray-300">
-                                Gestor
-                            </button>
-                            <button type="button" onclick="mostrarAbaEdicao('corpo-docente')" id="tab-corpo-docente" class="tab-edicao py-2 px-1 border-b-2 border-transparent font-medium text-sm text-gray-500 hover:text-gray-700 hover:border-gray-300">
-                                Corpo Docente
-                            </button>
-                        </nav>
+                <nav class="-mb-px flex space-x-8">
+                    <button type="button" onclick="mostrarAbaEdicao('dados-basicos')" id="tab-dados-basicos" class="tab-edicao active py-2 px-1 border-b-2 border-primary-green font-medium text-sm text-primary-green">
+                        Dados Básicos
+                    </button>
+                    <button type="button" onclick="mostrarAbaEdicao('gestor')" id="tab-gestor" class="tab-edicao py-2 px-1 border-b-2 border-transparent font-medium text-sm text-gray-500 hover:text-gray-700 hover:border-gray-300">
+                        Gestor
+                    </button>
+                    <button type="button" onclick="mostrarAbaEdicao('corpo-docente')" id="tab-corpo-docente" class="tab-edicao py-2 px-1 border-b-2 border-transparent font-medium text-sm text-gray-500 hover:text-gray-700 hover:border-gray-300">
+                        Corpo Docente
+                    </button>
+                </nav>
                     </div>
                     
                     <!-- Aba Dados Básicos -->
@@ -1075,31 +1493,54 @@ $escolas = listarEscolas($busca);
                     <!-- Aba Gestor -->
                     <div id="aba-gestor" class="aba-edicao hidden flex-1 flex flex-col">
                         <div class="space-y-6">
-                            <div>
-                                <label for="edit_gestor_search" class="block text-sm font-medium text-gray-700 mb-2">Selecionar Gestor</label>
-                                <div class="relative">
-                                    <input type="text" id="edit_gestor_search" placeholder="Digite o nome do gestor..." 
-                                           class="block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-primary-green focus:border-primary-green"
-                                           autocomplete="off">
-                                    <input type="hidden" id="edit_gestor_id" name="gestor_id">
-                                    <div id="edit_gestor_results" class="absolute z-10 w-full bg-white border border-gray-300 rounded-lg shadow-lg hidden max-h-60 overflow-y-auto"></div>
-                                </div>
-                                <div id="edit_gestor_selected" class="mt-2 hidden">
-                                    <div class="flex items-center justify-between bg-green-50 border border-green-200 rounded-lg p-3">
-                                        <div>
-                                            <span class="text-sm font-medium text-green-800" id="edit_gestor_nome_selecionado"></span>
-                                            <span class="text-xs text-green-600 block" id="edit_gestor_email_selecionado"></span>
+                            <!-- Gestor Atual -->
+                            <div id="gestor-atual-section">
+                                <h4 class="text-lg font-semibold text-gray-900 mb-4">Gestor Atual</h4>
+                                <div id="gestor-atual-info" class="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-xl p-6 shadow-sm hover:shadow-md transition-shadow duration-200">
+                                    <div class="flex items-center justify-between">
+                                        <div class="flex items-center space-x-4">
+                                            <div class="w-14 h-14 bg-gradient-to-br from-primary-green to-green-600 rounded-full flex items-center justify-center shadow-lg">
+                                                <span class="text-white font-bold text-lg" id="gestor-atual-iniciais">JD</span>
+                                            </div>
+                                            <div class="flex-1">
+                                                <h5 class="font-semibold text-gray-900 text-lg" id="gestor-atual-nome">João da Silva</h5>
+                                                <p class="text-sm text-gray-600 mb-1" id="gestor-atual-email">joao.silva@escola.edu.br</p>
+                                                <p class="text-xs text-gray-500" id="gestor-atual-cpf">CPF: 123.456.789-00</p>
+                                            </div>
                                         </div>
-                                        <button type="button" onclick="removerGestorEdicao()" class="text-green-600 hover:text-green-800">
+                                        <button type="button" onclick="removerGestorAtual()" class="px-4 py-2 text-sm font-medium text-red-600 bg-red-50 border border-red-200 hover:bg-red-100 hover:border-red-300 rounded-lg transition-all duration-200 flex items-center space-x-2">
                                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
                                             </svg>
+                                            <span>Remover</span>
                                         </button>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Mensagem quando não há gestor -->
+                            <div id="nenhum-gestor-section" class="hidden">
+                                <div class="text-center py-8">
+                                    <svg class="w-16 h-16 mx-auto mb-4 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
+                                    </svg>
+                                    <h4 class="text-lg font-semibold text-gray-900 mb-2">Nenhum gestor definido</h4>
+                                    <p class="text-gray-600 mb-4">Esta escola ainda não possui um gestor (diretor) definido.</p>
+                                    <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                                        <div class="flex items-center space-x-2">
+                                            <svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                            </svg>
+                                            <p class="text-sm text-blue-800">
+                                                <strong>Nota:</strong> Para adicionar um gestor, use a aba "Adicionar Professor" na página principal.
+                                            </p>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
                         </div>
                     </div>
+                    
                     
                     <!-- Aba Corpo Docente -->
                     <div id="aba-corpo-docente" class="aba-edicao hidden flex-1 flex flex-col">
@@ -1308,7 +1749,364 @@ $escolas = listarEscolas($busca);
             // Aqui você pode fazer uma requisição AJAX para carregar os dados da escola
             // Por enquanto, vou deixar como placeholder
             console.log('Carregando dados da escola:', id);
+            
+            // Carregar gestor atual
+            carregarGestorAtual(id);
+            
         }
+
+        // Funções para Gestor
+        function carregarGestorAtual(escolaId) {
+            // Simular dados do gestor atual (substituir por chamada AJAX real)
+            const gestorAtual = {
+                id: 1,
+                nome: 'João da Silva',
+                email: 'joao.silva@escola.edu.br',
+                cpf: '123.456.789-00'
+            };
+            
+            if (gestorAtual) {
+                // Mostrar gestor atual
+                document.getElementById('gestor-atual-section').classList.remove('hidden');
+                document.getElementById('selecionar-gestor-section').classList.add('hidden');
+                document.getElementById('adicionar-gestor-section').classList.add('hidden');
+                
+                // Preencher dados do gestor
+                document.getElementById('gestor-atual-iniciais').textContent = gestorAtual.nome.split(' ').map(n => n[0]).join('').substring(0, 2);
+                document.getElementById('gestor-atual-nome').textContent = gestorAtual.nome;
+                document.getElementById('gestor-atual-email').textContent = gestorAtual.email;
+                document.getElementById('gestor-atual-cpf').textContent = `CPF: ${gestorAtual.cpf}`;
+            } else {
+                // Não há gestor definido
+                document.getElementById('gestor-atual-section').classList.add('hidden');
+                document.getElementById('selecionar-gestor-section').classList.add('hidden');
+                document.getElementById('adicionar-gestor-section').classList.remove('hidden');
+            }
+        }
+
+        function removerGestorAtual() {
+            if (confirm('Tem certeza que deseja remover este gestor da escola?')) {
+                // Aqui você faria a requisição para remover o gestor
+                console.log('Removendo gestor atual');
+                
+                // Mostrar seção para adicionar novo gestor
+                document.getElementById('gestor-atual-section').classList.add('hidden');
+                document.getElementById('selecionar-gestor-section').classList.remove('hidden');
+                document.getElementById('adicionar-gestor-section').classList.add('hidden');
+            }
+        }
+
+        function mostrarSelecionarGestor() {
+            document.getElementById('gestor-atual-section').classList.add('hidden');
+            document.getElementById('selecionar-gestor-section').classList.remove('hidden');
+            document.getElementById('adicionar-gestor-section').classList.add('hidden');
+        }
+
+        // Funções para Adicionar Professor
+        function carregarProfessoresEscola(escolaId) {
+            if (!escolaId) {
+                document.getElementById('info-escola-selecionada').classList.add('hidden');
+                document.getElementById('secao-adicionar-professor').classList.add('hidden');
+                return;
+            }
+
+            // Mostrar loading
+            document.getElementById('detalhes-escola').innerHTML = `
+                <div class="text-center py-4 text-gray-500">
+                    <svg class="animate-spin w-6 h-6 mx-auto mb-2 text-primary-green" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+                    </svg>
+                    <p>Carregando dados da escola...</p>
+                </div>
+            `;
+
+            document.getElementById('info-escola-selecionada').classList.remove('hidden');
+            document.getElementById('secao-adicionar-professor').classList.remove('hidden');
+
+            // Fazer requisição AJAX para buscar dados da escola
+            fetch(`buscar_dados_escola.php?escola_id=${escolaId}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success && data.escola) {
+                        // Mostrar informações da escola
+                        document.getElementById('detalhes-escola').innerHTML = `
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                    <p><strong>Nome:</strong> ${data.escola.nome}</p>
+                                    <p><strong>Endereço:</strong> ${data.escola.endereco}</p>
+                                </div>
+                                <div>
+                                    <p><strong>Telefone:</strong> ${data.escola.telefone || 'Não informado'}</p>
+                                    <p><strong>Email:</strong> ${data.escola.email || 'Não informado'}</p>
+                                </div>
+                            </div>
+                        `;
+
+                        // Carregar lista de professores da escola
+                        carregarListaProfessoresEscola(escolaId);
+                    } else {
+                        document.getElementById('detalhes-escola').innerHTML = `
+                            <div class="text-center py-4 text-red-500">
+                                <svg class="w-8 h-8 mx-auto mb-2 text-red-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                </svg>
+                                <p>Erro ao carregar dados da escola</p>
+                            </div>
+                        `;
+                    }
+                })
+                .catch(error => {
+                    console.error('Erro ao carregar dados da escola:', error);
+                    document.getElementById('detalhes-escola').innerHTML = `
+                        <div class="text-center py-4 text-red-500">
+                            <svg class="w-8 h-8 mx-auto mb-2 text-red-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                            </svg>
+                            <p>Erro ao carregar dados da escola</p>
+                        </div>
+                    `;
+                });
+        }
+
+        function carregarListaProfessoresEscola(escolaId) {
+            const container = document.getElementById('lista-professores-escola');
+            
+            // Mostrar loading
+            container.innerHTML = `
+                <div class="text-center py-8 text-gray-500">
+                    <svg class="animate-spin w-8 h-8 mx-auto mb-2 text-primary-green" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+                    </svg>
+                    <p>Carregando professores...</p>
+                </div>
+            `;
+
+            // Fazer requisição AJAX para buscar professores da escola
+            fetch(`buscar_professores_escola.php?escola_id=${escolaId}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success && data.professores && data.professores.length > 0) {
+                        container.innerHTML = data.professores.map(professor => `
+                            <div class="bg-gray-50 border border-gray-200 rounded-lg p-4" id="professor-${professor.id}">
+                                <div class="flex items-center justify-between">
+                                    <div class="flex items-center space-x-3">
+                                        <div class="w-10 h-10 bg-blue-500 rounded-full flex items-center justify-center">
+                                            <span class="text-white font-semibold text-sm">${professor.nome.split(' ').map(n => n[0]).join('').substring(0, 2)}</span>
+                                        </div>
+                                        <div>
+                                            <p class="font-medium text-gray-900">${professor.nome}</p>
+                                            <p class="text-sm text-gray-600">${professor.email}</p>
+                                            <p class="text-xs text-gray-500">Disciplina: ${professor.disciplina || 'Não definida'}</p>
+                                        </div>
+                                    </div>
+                                    <button onclick="removerProfessorEscola(${professor.id})" class="px-3 py-1 text-sm text-red-600 border border-red-600 hover:bg-red-600 hover:text-white rounded-lg transition-colors duration-200">
+                                        Remover
+                                    </button>
+                                </div>
+                            </div>
+                        `).join('');
+                    } else {
+                        container.innerHTML = `
+                            <div class="text-center py-8 text-gray-500">
+                                <svg class="w-12 h-12 mx-auto mb-2 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z"></path>
+                                </svg>
+                                <p>Nenhum professor cadastrado nesta escola</p>
+                            </div>
+                        `;
+                    }
+                })
+                .catch(error => {
+                    console.error('Erro ao carregar professores:', error);
+                    container.innerHTML = `
+                        <div class="text-center py-8 text-red-500">
+                            <svg class="w-12 h-12 mx-auto mb-2 text-red-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                            </svg>
+                            <p>Erro ao carregar professores</p>
+                        </div>
+                    `;
+                });
+        }
+
+        function buscarProfessores(termo) {
+            const resultadosContainer = document.getElementById('resultados_professores');
+            
+            if (termo.length < 2) {
+                resultadosContainer.classList.add('hidden');
+                return;
+            }
+
+            // Mostrar loading
+            resultadosContainer.innerHTML = `
+                <div class="p-4 text-center text-gray-500">
+                    <svg class="animate-spin w-6 h-6 mx-auto mb-2 text-primary-green" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+                    </svg>
+                    <p>Buscando professores...</p>
+                </div>
+            `;
+            resultadosContainer.classList.remove('hidden');
+
+            // Fazer requisição AJAX para buscar professores
+            fetch(`buscar_professores.php?termo=${encodeURIComponent(termo)}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success && data.professores && data.professores.length > 0) {
+                        resultadosContainer.innerHTML = data.professores.map(prof => `
+                            <div class="p-4 border-b border-gray-200 cursor-pointer hover:bg-gray-50" onclick="selecionarProfessor(${prof.id}, '${prof.nome}', '${prof.email}', '${prof.cpf}')">
+                                <div class="flex items-center space-x-3">
+                                    <div class="w-10 h-10 bg-blue-500 rounded-full flex items-center justify-center">
+                                        <span class="text-white font-semibold text-sm">${prof.nome.split(' ').map(n => n[0]).join('').substring(0, 2)}</span>
+                                    </div>
+                                    <div class="flex-1">
+                                        <p class="font-medium text-gray-900">${prof.nome}</p>
+                                        <p class="text-sm text-gray-600">${prof.email}</p>
+                                        <p class="text-xs text-gray-500">CPF: ${prof.cpf}</p>
+                                    </div>
+                                </div>
+                            </div>
+                        `).join('');
+                    } else {
+                        resultadosContainer.innerHTML = '<div class="p-4 text-center text-gray-500">Nenhum professor encontrado</div>';
+                    }
+                })
+                .catch(error => {
+                    console.error('Erro ao buscar professores:', error);
+                    resultadosContainer.innerHTML = `
+                        <div class="p-4 text-center text-red-500">
+                            <svg class="w-6 h-6 mx-auto mb-2 text-red-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                            </svg>
+                            <p>Erro ao buscar professores</p>
+                        </div>
+                    `;
+                });
+        }
+
+        function selecionarProfessor(id, nome, email, cpf) {
+            // Armazenar dados do professor selecionado
+            window.professorSelecionado = { id, nome, email, cpf };
+            
+            // Atualizar campo de busca
+            document.getElementById('buscar_professor').value = nome;
+            
+            // Esconder resultados
+            document.getElementById('resultados_professores').classList.add('hidden');
+        }
+
+        function adicionarProfessorEscola() {
+            if (!window.professorSelecionado) {
+                alert('Por favor, selecione um professor primeiro.');
+                return;
+            }
+
+            const disciplina = document.getElementById('disciplina_professor').value;
+            if (!disciplina) {
+                alert('Por favor, selecione uma disciplina.');
+                return;
+            }
+
+            const escolaId = document.getElementById('escola_professor').value;
+            if (!escolaId) {
+                alert('Por favor, selecione uma escola.');
+                return;
+            }
+
+            // Mostrar loading no botão
+            const botaoAdicionar = document.querySelector('button[onclick="adicionarProfessorEscola()"]');
+            const textoOriginal = botaoAdicionar.innerHTML;
+            botaoAdicionar.innerHTML = `
+                <svg class="animate-spin w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+                </svg>
+                Adicionando...
+            `;
+            botaoAdicionar.disabled = true;
+
+            // Fazer requisição AJAX para adicionar professor
+            const formData = new FormData();
+            formData.append('professor_id', window.professorSelecionado.id);
+            formData.append('escola_id', escolaId);
+            formData.append('disciplina', disciplina);
+
+            fetch('adicionar_professor_escola.php', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Recarregar lista de professores
+                    carregarListaProfessoresEscola(escolaId);
+                    
+                    // Limpar campos
+                    document.getElementById('buscar_professor').value = '';
+                    document.getElementById('disciplina_professor').value = '';
+                    window.professorSelecionado = null;
+                    
+                    alert('Professor adicionado com sucesso!');
+                } else {
+                    alert('Erro ao adicionar professor: ' + (data.message || 'Erro desconhecido'));
+                }
+            })
+            .catch(error => {
+                console.error('Erro ao adicionar professor:', error);
+                alert('Erro ao adicionar professor. Tente novamente.');
+            })
+            .finally(() => {
+                // Restaurar botão
+                botaoAdicionar.innerHTML = textoOriginal;
+                botaoAdicionar.disabled = false;
+            });
+        }
+
+        function removerProfessorEscola(id) {
+            if (confirm('Tem certeza que deseja remover este professor da escola?')) {
+                const escolaId = document.getElementById('escola_professor').value;
+                
+                // Mostrar loading
+                const professorDiv = document.getElementById(`professor-${id}`);
+                const conteudoOriginal = professorDiv.innerHTML;
+                professorDiv.innerHTML = `
+                    <div class="flex items-center justify-center py-4 text-gray-500">
+                        <svg class="animate-spin w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+                        </svg>
+                        Removendo...
+                    </div>
+                `;
+
+                // Fazer requisição AJAX para remover professor
+                const formData = new FormData();
+                formData.append('professor_id', id);
+                formData.append('escola_id', escolaId);
+
+                fetch('remover_professor_escola.php', {
+                    method: 'POST',
+                    body: formData
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        // Recarregar lista de professores
+                        carregarListaProfessoresEscola(escolaId);
+                        alert('Professor removido com sucesso!');
+                    } else {
+                        // Restaurar conteúdo original em caso de erro
+                        professorDiv.innerHTML = conteudoOriginal;
+                        alert('Erro ao remover professor: ' + (data.message || 'Erro desconhecido'));
+                    }
+                })
+                .catch(error => {
+                    console.error('Erro ao remover professor:', error);
+                    // Restaurar conteúdo original em caso de erro
+                    professorDiv.innerHTML = conteudoOriginal;
+                    alert('Erro ao remover professor. Tente novamente.');
+                });
+            }
+        }
+
         
         function mostrarAbaEdicao(abaId) {
             // Esconder todas as abas
@@ -1860,6 +2658,7 @@ $escolas = listarEscolas($busca);
             buscarGestoresEdicao(e.target.value);
         });
         
+        
         // Fechar resultados ao clicar fora
         document.addEventListener('click', function(e) {
             if (!e.target.closest('#gestor_search') && !e.target.closest('#gestor_results')) {
@@ -1930,6 +2729,28 @@ $escolas = listarEscolas($busca);
         document.getElementById('userProfileModal').addEventListener('click', function(e) {
             if (e.target === this) {
                 closeUserProfile();
+            }
+        });
+
+        // ===== FUNÇÕES DE LOGOUT =====
+        
+        function confirmLogout() {
+            document.getElementById('logoutModal').classList.remove('hidden');
+        }
+
+        function closeLogoutModal() {
+            document.getElementById('logoutModal').classList.add('hidden');
+        }
+
+        function logout() {
+            // Redirecionar para logout
+            window.location.href = '../../Models/sessao/sessions.php?sair';
+        }
+
+        // Close logout modal when clicking outside
+        document.getElementById('logoutModal').addEventListener('click', function(e) {
+            if (e.target === this) {
+                closeLogoutModal();
             }
         });
 
@@ -2441,6 +3262,31 @@ $escolas = listarEscolas($busca);
                         </div>
                     </div>
                 </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Logout Confirmation Modal -->
+    <div id="logoutModal" class="fixed inset-0 bg-black bg-opacity-50 z-[60] hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl p-6 max-w-md w-full mx-4 shadow-2xl">
+            <div class="flex items-center space-x-3 mb-4">
+                <div class="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center">
+                    <svg class="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z"></path>
+                    </svg>
+                </div>
+                <div>
+                    <h3 class="text-lg font-semibold text-gray-900">Confirmar Saída</h3>
+                    <p class="text-sm text-gray-600">Tem certeza que deseja sair do sistema?</p>
+                </div>
+            </div>
+            <div class="flex space-x-3">
+                <button onclick="closeLogoutModal()" class="flex-1 px-4 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg font-medium transition-colors duration-200">
+                    Cancelar
+                </button>
+                <button onclick="logout()" class="flex-1 px-4 py-2 text-white bg-red-600 hover:bg-red-700 rounded-lg font-medium transition-colors duration-200">
+                    Sim, Sair
+                </button>
             </div>
         </div>
     </div>

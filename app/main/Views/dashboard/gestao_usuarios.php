@@ -661,6 +661,273 @@ $usuarios = listarUsuarios($busca);
         [data-theme="dark"] tr:hover td {
             background-color: #333333 !important;
         }
+
+        /* Estilos específicos para o modal de perfil no tema escuro */
+        [data-theme="dark"] #userProfileModal .text-gray-900 {
+            color: #ffffff !important;
+        }
+
+        [data-theme="dark"] #userProfileModal .text-gray-800 {
+            color: #ffffff !important;
+        }
+
+        [data-theme="dark"] #userProfileModal .text-gray-700 {
+            color: #e0e0e0 !important;
+        }
+
+        [data-theme="dark"] #userProfileModal .text-gray-600 {
+            color: #c0c0c0 !important;
+        }
+
+        [data-theme="dark"] #userProfileModal .text-gray-500 {
+            color: #a0a0a0 !important;
+        }
+
+        [data-theme="dark"] #userProfileModal .bg-white {
+            background-color: var(--bg-secondary) !important;
+        }
+
+        [data-theme="dark"] #userProfileModal .border-gray-200 {
+            border-color: var(--border-color) !important;
+        }
+
+        [data-theme="dark"] #userProfileModal .bg-gray-50 {
+            background-color: var(--bg-tertiary) !important;
+        }
+
+        /* Estilos específicos para o modal de logout no tema escuro */
+        [data-theme="dark"] #logoutModal .text-gray-900 {
+            color: #ffffff !important;
+        }
+
+        [data-theme="dark"] #logoutModal .text-gray-600 {
+            color: #e0e0e0 !important;
+        }
+
+        [data-theme="dark"] #logoutModal .bg-white {
+            background-color: var(--bg-secondary) !important;
+        }
+
+        /* ===== MELHORIAS DE RESPONSIVIDADE ===== */
+        
+        /* Mobile First - Breakpoints */
+        @media (max-width: 640px) {
+            /* Sidebar mobile */
+            #sidebar {
+                transform: translateX(-100%);
+                transition: transform 0.3s ease-in-out;
+                z-index: 50;
+            }
+            
+            #sidebar.mobile-open {
+                transform: translateX(0);
+            }
+            
+            /* Header mobile */
+            header {
+                padding: 0.75rem 1rem;
+            }
+            
+            .header-content {
+                flex-direction: column;
+                gap: 0.5rem;
+            }
+            
+            /* Cards responsivos */
+            .card-hover {
+                margin-bottom: 1rem;
+            }
+            
+            /* Tabelas responsivas */
+            .table-responsive {
+                overflow-x: auto;
+                -webkit-overflow-scrolling: touch;
+            }
+            
+            .table-responsive table {
+                min-width: 600px;
+            }
+            
+            /* Modais mobile */
+            .modal-content {
+                margin: 1rem;
+                max-height: calc(100vh - 2rem);
+                overflow-y: auto;
+            }
+            
+            /* Formulários mobile */
+            .form-grid {
+                grid-template-columns: 1fr;
+                gap: 1rem;
+            }
+            
+            /* Botões mobile */
+            .btn-mobile {
+                width: 100%;
+                padding: 0.75rem;
+                font-size: 1rem;
+            }
+        }
+        
+        @media (min-width: 641px) and (max-width: 1024px) {
+            /* Tablet */
+            #sidebar {
+                width: 200px;
+            }
+            
+            .main-content {
+                margin-left: 200px;
+            }
+            
+            .card-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+        
+        @media (min-width: 1025px) {
+            /* Desktop */
+            .card-grid {
+                grid-template-columns: repeat(3, 1fr);
+            }
+        }
+        
+        /* ===== COMPONENTES RESPONSIVOS ===== */
+        
+        /* Grid responsivo para cards */
+        .card-grid {
+            display: grid;
+            gap: 1.5rem;
+            grid-template-columns: 1fr;
+        }
+        
+        @media (min-width: 640px) {
+            .card-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+        
+        @media (min-width: 1024px) {
+            .card-grid {
+                grid-template-columns: repeat(3, 1fr);
+            }
+        }
+        
+        /* Tabelas responsivas */
+        .table-responsive {
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+            border-radius: 0.5rem;
+            border: 1px solid #e2e8f0;
+        }
+        
+        .table-responsive table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        
+        .table-responsive th,
+        .table-responsive td {
+            padding: 0.75rem;
+            text-align: left;
+            border-bottom: 1px solid #e2e8f0;
+        }
+        
+        .table-responsive th {
+            background-color: #f8fafc;
+            font-weight: 600;
+            color: #374151;
+        }
+        
+        /* Formulários responsivos */
+        .form-grid {
+            display: grid;
+            gap: 1rem;
+            grid-template-columns: 1fr;
+        }
+        
+        @media (min-width: 640px) {
+            .form-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+        
+        /* Botões responsivos */
+        .btn-group {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+        
+        @media (min-width: 640px) {
+            .btn-group {
+                flex-direction: row;
+            }
+        }
+        
+        /* ===== MELHORIAS DE UX ===== */
+        
+        /* Loading states */
+        .loading {
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .loading::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent);
+            animation: loading 1.5s infinite;
+        }
+        
+        @keyframes loading {
+            0% { left: -100%; }
+            100% { left: 100%; }
+        }
+        
+        /* Feedback visual */
+        .success-feedback {
+            background-color: #d1fae5;
+            border: 1px solid #a7f3d0;
+            color: #065f46;
+            padding: 0.75rem;
+            border-radius: 0.5rem;
+            margin-bottom: 1rem;
+            display: none;
+        }
+        
+        .error-feedback {
+            background-color: #fee2e2;
+            border: 1px solid #fecaca;
+            color: #dc2626;
+            padding: 0.75rem;
+            border-radius: 0.5rem;
+            margin-bottom: 1rem;
+            display: none;
+        }
+        
+        /* Estados de foco melhorados */
+        .focus-visible {
+            outline: 2px solid #2D5A27;
+            outline-offset: 2px;
+        }
+        
+        /* Microinterações */
+        .micro-interaction {
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        
+        .micro-interaction:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+        
+        .micro-interaction:active {
+            transform: translateY(0);
+        }
     </style>
 </head>
 <body class="bg-gray-50 font-sans">
@@ -817,12 +1084,12 @@ $usuarios = listarUsuarios($busca);
 
         <!-- Logout -->
         <div class="absolute bottom-0 left-0 right-0 p-4 border-t border-gray-200">
-            <a href="../../Models/sessao/sessions.php?sair" class="w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-red-600 hover:bg-red-50 hover:text-red-700 transition-all duration-200">
+            <button onclick="confirmLogout()" class="w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-red-600 hover:bg-red-50 hover:text-red-700 transition-all duration-200">
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path>
                 </svg>
                 <span>Sair</span>
-            </a>
+            </button>
         </div>
     </aside>
 
@@ -1444,6 +1711,28 @@ $usuarios = listarUsuarios($busca);
             }
         });
 
+        // ===== FUNÇÕES DE LOGOUT =====
+        
+        function confirmLogout() {
+            document.getElementById('logoutModal').classList.remove('hidden');
+        }
+
+        function closeLogoutModal() {
+            document.getElementById('logoutModal').classList.add('hidden');
+        }
+
+        function logout() {
+            // Redirecionar para logout
+            window.location.href = '../../Models/sessao/sessions.php?sair';
+        }
+
+        // Close logout modal when clicking outside
+        document.getElementById('logoutModal').addEventListener('click', function(e) {
+            if (e.target === this) {
+                closeLogoutModal();
+            }
+        });
+
         // Accessibility Functions
         function setContrast(contrast) {
             document.documentElement.setAttribute('data-contrast', contrast);
@@ -1952,6 +2241,31 @@ $usuarios = listarUsuarios($busca);
                         </div>
                     </div>
                 </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Logout Confirmation Modal -->
+    <div id="logoutModal" class="fixed inset-0 bg-black bg-opacity-50 z-[60] hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl p-6 max-w-md w-full mx-4 shadow-2xl">
+            <div class="flex items-center space-x-3 mb-4">
+                <div class="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center">
+                    <svg class="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z"></path>
+                    </svg>
+                </div>
+                <div>
+                    <h3 class="text-lg font-semibold text-gray-900">Confirmar Saída</h3>
+                    <p class="text-sm text-gray-600">Tem certeza que deseja sair do sistema?</p>
+                </div>
+            </div>
+            <div class="flex space-x-3">
+                <button onclick="closeLogoutModal()" class="flex-1 px-4 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg font-medium transition-colors duration-200">
+                    Cancelar
+                </button>
+                <button onclick="logout()" class="flex-1 px-4 py-2 text-white bg-red-600 hover:bg-red-700 rounded-lg font-medium transition-colors duration-200">
+                    Sim, Sair
+                </button>
             </div>
         </div>
     </div>

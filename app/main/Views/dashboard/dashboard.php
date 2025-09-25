@@ -668,9 +668,276 @@ if (!defined('BASE_URL')) {
             color: var(--text-muted) !important;
         }
 
+        /* Estilos específicos para o modal de perfil no tema escuro */
+        [data-theme="dark"] #userProfileModal .text-gray-900 {
+            color: #ffffff !important;
+        }
+
+        [data-theme="dark"] #userProfileModal .text-gray-800 {
+            color: #ffffff !important;
+        }
+
+        [data-theme="dark"] #userProfileModal .text-gray-700 {
+            color: #e0e0e0 !important;
+        }
+
+        [data-theme="dark"] #userProfileModal .text-gray-600 {
+            color: #c0c0c0 !important;
+        }
+
+        [data-theme="dark"] #userProfileModal .text-gray-500 {
+            color: #a0a0a0 !important;
+        }
+
+        [data-theme="dark"] #userProfileModal .bg-white {
+            background-color: var(--bg-secondary) !important;
+        }
+
+        [data-theme="dark"] #userProfileModal .border-gray-200 {
+            border-color: var(--border-color) !important;
+        }
+
+        [data-theme="dark"] #userProfileModal .bg-gray-50 {
+            background-color: var(--bg-tertiary) !important;
+        }
+
+        /* Estilos específicos para o modal de logout no tema escuro */
+        [data-theme="dark"] #logoutModal .text-gray-900 {
+            color: #ffffff !important;
+        }
+
+        [data-theme="dark"] #logoutModal .text-gray-600 {
+            color: #e0e0e0 !important;
+        }
+
+        [data-theme="dark"] #logoutModal .bg-white {
+            background-color: var(--bg-secondary) !important;
+        }
+
         /* Hover effects melhorados para tema escuro */
         [data-theme="dark"] .hover-lift {
             transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        /* ===== MELHORIAS DE RESPONSIVIDADE ===== */
+        
+        /* Mobile First - Breakpoints */
+        @media (max-width: 640px) {
+            /* Sidebar mobile */
+            #sidebar {
+                transform: translateX(-100%);
+                transition: transform 0.3s ease-in-out;
+                z-index: 50;
+            }
+            
+            #sidebar.mobile-open {
+                transform: translateX(0);
+            }
+            
+            /* Header mobile */
+            header {
+                padding: 0.75rem 1rem;
+            }
+            
+            .header-content {
+                flex-direction: column;
+                gap: 0.5rem;
+            }
+            
+            /* Cards responsivos */
+            .card-hover {
+                margin-bottom: 1rem;
+            }
+            
+            /* Tabelas responsivas */
+            .table-responsive {
+                overflow-x: auto;
+                -webkit-overflow-scrolling: touch;
+            }
+            
+            .table-responsive table {
+                min-width: 600px;
+            }
+            
+            /* Modais mobile */
+            .modal-content {
+                margin: 1rem;
+                max-height: calc(100vh - 2rem);
+                overflow-y: auto;
+            }
+            
+            /* Formulários mobile */
+            .form-grid {
+                grid-template-columns: 1fr;
+                gap: 1rem;
+            }
+            
+            /* Botões mobile */
+            .btn-mobile {
+                width: 100%;
+                padding: 0.75rem;
+                font-size: 1rem;
+            }
+        }
+        
+        @media (min-width: 641px) and (max-width: 1024px) {
+            /* Tablet */
+            #sidebar {
+                width: 200px;
+            }
+            
+            .main-content {
+                margin-left: 200px;
+            }
+            
+            .card-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+        
+        @media (min-width: 1025px) {
+            /* Desktop */
+            .card-grid {
+                grid-template-columns: repeat(3, 1fr);
+            }
+        }
+        
+        /* ===== COMPONENTES RESPONSIVOS ===== */
+        
+        /* Grid responsivo para cards */
+        .card-grid {
+            display: grid;
+            gap: 1.5rem;
+            grid-template-columns: 1fr;
+        }
+        
+        @media (min-width: 640px) {
+            .card-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+        
+        @media (min-width: 1024px) {
+            .card-grid {
+                grid-template-columns: repeat(3, 1fr);
+            }
+        }
+        
+        /* Tabelas responsivas */
+        .table-responsive {
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+            border-radius: 0.5rem;
+            border: 1px solid #e2e8f0;
+        }
+        
+        .table-responsive table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        
+        .table-responsive th,
+        .table-responsive td {
+            padding: 0.75rem;
+            text-align: left;
+            border-bottom: 1px solid #e2e8f0;
+        }
+        
+        .table-responsive th {
+            background-color: #f8fafc;
+            font-weight: 600;
+            color: #374151;
+        }
+        
+        /* Formulários responsivos */
+        .form-grid {
+            display: grid;
+            gap: 1rem;
+            grid-template-columns: 1fr;
+        }
+        
+        @media (min-width: 640px) {
+            .form-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+        
+        /* Botões responsivos */
+        .btn-group {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+        
+        @media (min-width: 640px) {
+            .btn-group {
+                flex-direction: row;
+            }
+        }
+        
+        /* ===== MELHORIAS DE UX ===== */
+        
+        /* Loading states */
+        .loading {
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .loading::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent);
+            animation: loading 1.5s infinite;
+        }
+        
+        @keyframes loading {
+            0% { left: -100%; }
+            100% { left: 100%; }
+        }
+        
+        /* Feedback visual */
+        .success-feedback {
+            background-color: #d1fae5;
+            border: 1px solid #a7f3d0;
+            color: #065f46;
+            padding: 0.75rem;
+            border-radius: 0.5rem;
+            margin-bottom: 1rem;
+            display: none;
+        }
+        
+        .error-feedback {
+            background-color: #fee2e2;
+            border: 1px solid #fecaca;
+            color: #dc2626;
+            padding: 0.75rem;
+            border-radius: 0.5rem;
+            margin-bottom: 1rem;
+            display: none;
+        }
+        
+        /* Estados de foco melhorados */
+        .focus-visible {
+            outline: 2px solid #2D5A27;
+            outline-offset: 2px;
+        }
+        
+        /* Microinterações */
+        .micro-interaction {
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        
+        .micro-interaction:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+        
+        .micro-interaction:active {
+            transform: translateY(0);
         }
 
         [data-theme="dark"] .hover-lift:hover {
@@ -983,7 +1250,7 @@ if (!defined('BASE_URL')) {
         <!-- Header -->
         <header class="bg-white shadow-sm border-b border-gray-200 sticky top-0 z-30">
             <div class="px-4 sm:px-6 lg:px-8">
-                <div class="flex justify-between items-center h-16">
+                <div class="flex justify-between items-center h-16 header-content">
                     <!-- Mobile Menu Button -->
                     <button onclick="toggleSidebar()" class="lg:hidden p-2 rounded-md text-gray-600 hover:text-gray-900 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-primary-green" aria-label="Abrir menu">
                         <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1055,7 +1322,7 @@ if (!defined('BASE_URL')) {
 
                 <!-- Stats Cards -->
                 <?php if (isset($_SESSION['tipo']) && $_SESSION['tipo'] === 'GESTAO') { ?>
-                <div class="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6 mb-8">
+                <div class="card-grid mb-8">
                     <div class="card-hover bg-white rounded-2xl p-4 md:p-6 shadow-lg border border-gray-100 relative overflow-hidden hover-lift fade-in-up">
                         <div class="absolute top-0 right-0 w-20 h-20 bg-blue-100 rounded-full -mr-10 -mt-10"></div>
                         <div class="relative z-10">
@@ -1414,7 +1681,7 @@ if (!defined('BASE_URL')) {
             function renderProfessorInterface() {
                 if (isset($_SESSION['resgistrar_plano_aula']) || isset($_SESSION['cadastrar_avaliacao']) || isset($_SESSION['lancar_frequencia']) || isset($_SESSION['lancar_nota'])) {
                     echo '<section id="user-interface" class="content-section mt-8">';
-                    echo '<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">';
+                    echo '<div class="card-grid">';
                     
                     // Card de Planos de Aula
                     if (isset($_SESSION['resgistrar_plano_aula'])) {
@@ -2312,7 +2579,7 @@ if (!defined('BASE_URL')) {
                 echo '<h2 class="text-2xl font-bold text-gray-800 mb-2">Painel Administrativo</h2>';
                 echo '<p class="text-gray-600">Acesso completo a todas as funcionalidades do sistema</p>';
                 echo '</div>';
-                echo '<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">';
+                    echo '<div class="card-grid">';
                 
                 // Cards principais do administrador
                 $adminCards = [
@@ -2457,7 +2724,7 @@ if (!defined('BASE_URL')) {
                         
                 <!-- Tabela de Disciplinas -->
                 <div class="bg-white rounded-2xl shadow-lg border border-gray-200 overflow-hidden">
-                        <div class="overflow-x-auto">
+                        <div class="table-responsive">
                             <table class="w-full">
                                 <thead class="bg-gradient-to-r from-gray-50 to-gray-100">
                                     <tr>
@@ -4235,7 +4502,7 @@ if (!defined('BASE_URL')) {
                             <p class="text-sm text-gray-600 mt-1">Gerencie produtos e suas datas de validade</p>
                         </div>
 
-                        <div class="overflow-x-auto">
+                        <div class="table-responsive">
                             <table class="w-full">
                                 <thead class="bg-gray-50">
                                     <tr>
@@ -7051,82 +7318,6 @@ if (!defined('BASE_URL')) {
                         </div>
                     </div>
 
-                    <!-- Relatórios Consolidados -->
-                    <div class="mb-8">
-                        <div class="flex items-center space-x-2 mb-4">
-                            <div class="w-6 h-6 bg-indigo-100 rounded-md flex items-center justify-center">
-                                <svg class="w-4 h-4 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
-                                </svg>
-                            </div>
-                            <div>
-                                <h3 class="text-lg font-semibold text-gray-900">Relatórios Consolidados</h3>
-                                <p class="text-xs text-gray-500">Dados de todas as escolas</p>
-                            </div>
-                        </div>
-
-                        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                            <!-- Relatórios Acadêmicos -->
-                            <div class="bg-white p-4 rounded-lg border border-gray-200">
-                                <div class="flex items-center space-x-2 mb-3">
-                                    <div class="w-5 h-5 bg-blue-100 rounded flex items-center justify-center">
-                                        <svg class="w-3 h-3 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.746 0 3.332.477 4.5 1.253v13C19.832 18.477 18.246 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path>
-                                        </svg>
-                                    </div>
-                                    <div>
-                                        <h4 class="text-sm font-medium text-gray-900">Acadêmicos</h4>
-                                        <p class="text-xs text-gray-500">Frequência e notas</p>
-                                    </div>
-                                </div>
-                                <div class="space-y-2">
-                                    <button class="w-full text-left text-sm text-blue-600 hover:text-blue-800 py-1">• Relatório de Frequência Geral</button>
-                                    <button class="w-full text-left text-sm text-blue-600 hover:text-blue-800 py-1">• Rendimento por Escola</button>
-                                    <button class="w-full text-left text-sm text-blue-600 hover:text-blue-800 py-1">• Histórico de Alunos</button>
-                                </div>
-                            </div>
-
-                            <!-- Relatórios Administrativos -->
-                            <div class="bg-white p-4 rounded-lg border border-gray-200">
-                                <div class="flex items-center space-x-2 mb-3">
-                                    <div class="w-5 h-5 bg-green-100 rounded flex items-center justify-center">
-                                        <svg class="w-3 h-3 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path>
-                                        </svg>
-                                    </div>
-                                    <div>
-                                        <h4 class="text-sm font-medium text-gray-900">Administrativos</h4>
-                                        <p class="text-xs text-gray-500">Gestão e recursos</p>
-                                    </div>
-                                </div>
-                                <div class="space-y-2">
-                                    <button class="w-full text-left text-sm text-green-600 hover:text-green-800 py-1">• Recursos Humanos</button>
-                                    <button class="w-full text-left text-sm text-green-600 hover:text-green-800 py-1">• Infraestrutura</button>
-                                    <button class="w-full text-left text-sm text-green-600 hover:text-green-800 py-1">• Financeiro</button>
-                                </div>
-                            </div>
-
-                            <!-- Relatórios Nutricionais -->
-                            <div class="bg-white p-4 rounded-lg border border-gray-200">
-                                <div class="flex items-center space-x-2 mb-3">
-                                    <div class="w-5 h-5 bg-orange-100 rounded flex items-center justify-center">
-                                        <svg class="w-3 h-3 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
-                                        </svg>
-                                    </div>
-                                    <div>
-                                        <h4 class="text-sm font-medium text-gray-900">Nutricionais</h4>
-                                        <p class="text-xs text-gray-500">Alimentação escolar</p>
-                                    </div>
-                                </div>
-                                <div class="space-y-2">
-                                    <button class="w-full text-left text-sm text-orange-600 hover:text-orange-800 py-1">• Consumo por Escola</button>
-                                    <button class="w-full text-left text-sm text-orange-600 hover:text-orange-800 py-1">• Estoque e Validade</button>
-                                    <button class="w-full text-left text-sm text-orange-600 hover:text-orange-800 py-1">• Pedidos e Aprovações</button>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
 
                     <!-- Gestão Administrativa -->
                     <div class="mb-8">
@@ -11261,6 +11452,75 @@ if (!defined('BASE_URL')) {
             
             // Carregar configurações de acessibilidade salvas
             loadAccessibilitySettings();
+
+            // ===== MELHORIAS DE UX/UI =====
+            
+            // Feedback visual para ações
+            function showFeedback(message, type = 'success') {
+                const feedback = document.createElement('div');
+                feedback.className = type === 'success' ? 'success-feedback' : 'error-feedback';
+                feedback.textContent = message;
+                feedback.style.display = 'block';
+                
+                // Inserir no topo do conteúdo principal
+                const mainContent = document.querySelector('main');
+                mainContent.insertBefore(feedback, mainContent.firstChild);
+                
+                // Remover após 3 segundos
+                setTimeout(() => {
+                    feedback.remove();
+                }, 3000);
+            }
+            
+            // Loading state para botões
+            function setButtonLoading(button, loading = true) {
+                if (loading) {
+                    button.disabled = true;
+                    button.classList.add('loading');
+                    const originalText = button.textContent;
+                    button.setAttribute('data-original-text', originalText);
+                    button.textContent = 'Carregando...';
+                } else {
+                    button.disabled = false;
+                    button.classList.remove('loading');
+                    button.textContent = button.getAttribute('data-original-text') || 'Salvar';
+                }
+            }
+            
+            // Melhorar acessibilidade - navegação por teclado
+            document.addEventListener('keydown', function(e) {
+                // ESC para fechar modais
+                if (e.key === 'Escape') {
+                    const modals = document.querySelectorAll('[id$="Modal"]');
+                    modals.forEach(modal => {
+                        if (!modal.classList.contains('hidden')) {
+                            modal.classList.add('hidden');
+                        }
+                    });
+                }
+                
+                // Enter para ativar botões focados
+                if (e.key === 'Enter' && e.target.tagName === 'BUTTON') {
+                    e.target.click();
+                }
+            });
+            
+            // Melhorar foco visível
+            document.addEventListener('focusin', function(e) {
+                e.target.classList.add('focus-visible');
+            });
+            
+            document.addEventListener('focusout', function(e) {
+                e.target.classList.remove('focus-visible');
+            });
+            
+            // Microinterações para cards
+            document.addEventListener('DOMContentLoaded', function() {
+                const cards = document.querySelectorAll('.card-hover');
+                cards.forEach(card => {
+                    card.classList.add('micro-interaction');
+                });
+            });
         });
         
         // Função para carregar configurações de acessibilidade salvas
