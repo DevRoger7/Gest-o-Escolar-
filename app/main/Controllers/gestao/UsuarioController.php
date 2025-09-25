@@ -1,18 +1,17 @@
 <?php
+// Iniciar sessão
+session_start();
+
 // Configurar headers para AJAX
 header('Content-Type: application/json');
 header('Cache-Control: no-cache, must-revalidate');
 header('Expires: Mon, 26 Jul 1997 05:00:00 GMT');
 
-// Configurar parâmetros de cookie para melhor compatibilidade com AJAX
-ini_set('session.cookie_httponly', 1);
-ini_set('session.cookie_samesite', 'Lax');
-
-// Incluir validador de sessão
-require_once('../../config/session_validator.php');
-
-// Validar sessão para AJAX
-requireAjaxLogin(['ADM']);
+// Verificar se o usuário está logado e tem permissão para acessar esta página
+if (!isset($_SESSION['tipo']) || $_SESSION['tipo'] !== 'ADM') {
+    echo json_encode(['status' => false, 'mensagem' => 'Acesso não autorizado.']);
+    exit;
+}
 
 // Verificar se o ID foi fornecido
 if (!isset($_GET['id']) || empty($_GET['id'])) {
@@ -48,10 +47,12 @@ function obterUsuario($id) {
     }
 }
 
-// Obter os dados do usuário
-$resultado = obterUsuario($id);
-
-// Retornar os dados em formato JSON
-header('Content-Type: application/json');
-echo json_encode($resultado);
+// Processar requisição
+try {
+    $resultado = obterUsuario($id);
+    echo json_encode($resultado);
+} catch (Exception $e) {
+    error_log("Erro ao obter usuário: " . $e->getMessage());
+    echo json_encode(['status' => false, 'mensagem' => 'Erro interno do servidor.']);
+}
 ?>

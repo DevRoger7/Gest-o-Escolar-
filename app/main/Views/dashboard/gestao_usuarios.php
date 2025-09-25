@@ -1221,7 +1221,7 @@ $usuarios = listarUsuarios($busca);
         // Função para abrir o modal de edição e carregar os dados do usuário
         function editarUsuario(id) {
             // Fazer uma requisição AJAX para obter os dados do usuário
-            fetch(`obter_usuario.php?id=${id}`, {
+            fetch(`../../Controllers/gestao/UsuarioController.php?id=${id}`, {
                 method: 'GET',
                 credentials: 'same-origin',
                 headers: {

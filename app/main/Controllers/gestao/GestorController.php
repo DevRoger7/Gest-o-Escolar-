@@ -1,18 +1,17 @@
 <?php
+// Iniciar sessão
+session_start();
+
 // Configurar headers para AJAX
 header('Content-Type: application/json');
 header('Cache-Control: no-cache, must-revalidate');
 header('Expires: Mon, 26 Jul 1997 05:00:00 GMT');
 
-// Configurar parâmetros de cookie para melhor compatibilidade com AJAX
-ini_set('session.cookie_httponly', 1);
-ini_set('session.cookie_samesite', 'Lax');
-
-// Incluir validador de sessão
-require_once('../../config/session_validator.php');
-
-// Validar sessão para AJAX
-requireAjaxLogin(['ADM']);
+// Verificar se o usuário está logado e tem permissão para acessar esta página
+if (!isset($_SESSION['tipo']) || $_SESSION['tipo'] !== 'ADM') {
+    echo json_encode(['status' => false, 'mensagem' => 'Acesso não autorizado.']);
+    exit;
+}
 
 // Incluir arquivo de conexão com o banco de dados
 require_once('../../config/Database.php');
@@ -49,9 +48,9 @@ $busca = $_GET['busca'] ?? '';
 
 try {
     $gestores = buscarGestores($busca);
-    echo json_encode($gestores);
+    echo json_encode(['status' => true, 'gestores' => $gestores]);
 } catch (Exception $e) {
-    http_response_code(500);
-    echo json_encode(['error' => 'Erro interno do servidor']);
+    error_log("Erro ao buscar gestores: " . $e->getMessage());
+    echo json_encode(['status' => false, 'mensagem' => 'Erro interno do servidor.']);
 }
 ?>

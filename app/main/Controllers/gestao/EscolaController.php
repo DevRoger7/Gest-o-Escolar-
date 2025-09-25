@@ -48,10 +48,12 @@ function obterEscola($id) {
     }
 }
 
-// Obter os dados da escola
-$resultado = obterEscola($id);
-
-// Retornar os dados em formato JSON
-header('Content-Type: application/json');
-echo json_encode($resultado);
+// Processar requisição
+try {
+    $resultado = obterEscola($id);
+    echo json_encode($resultado);
+} catch (Exception $e) {
+    error_log("Erro ao obter escola: " . $e->getMessage());
+    echo json_encode(['status' => false, 'mensagem' => 'Erro interno do servidor.']);
+}
 ?>
