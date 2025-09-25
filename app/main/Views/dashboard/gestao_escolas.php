@@ -168,6 +168,102 @@ function excluirEscola($id) {
     }
 }
 
+function atualizarEscola($id, $dados) {
+    $db = Database::getInstance();
+    $conn = $db->getConnection();
+    
+    try {
+        $conn->beginTransaction();
+        
+        // Atualizar dados da escola
+        $stmt = $conn->prepare("UPDATE escola SET 
+                                nome = :nome, 
+                                endereco = :endereco, 
+                                telefone = :telefone, 
+                                email = :email, 
+                                municipio = :municipio, 
+                                cep = :cep, 
+                                qtd_salas = :qtd_salas, 
+                                obs = :obs, 
+                                codigo = :codigo 
+                                WHERE id = :id");
+        
+        $stmt->bindParam(':id', $id);
+        $stmt->bindParam(':nome', $dados['nome']);
+        $stmt->bindParam(':endereco', $dados['endereco']);
+        $stmt->bindParam(':telefone', $dados['telefone']);
+        $stmt->bindParam(':email', $dados['email']);
+        $stmt->bindParam(':municipio', $dados['municipio']);
+        $stmt->bindParam(':cep', $dados['cep']);
+        $stmt->bindParam(':qtd_salas', $dados['qtd_salas']);
+        $stmt->bindParam(':obs', $dados['obs']);
+        $stmt->bindParam(':codigo', $dados['codigo']);
+        
+        $stmt->execute();
+        
+        // Gerenciar lotação do gestor
+        // Primeiro, remover lotação atual (se houver)
+        $stmt = $conn->prepare("DELETE FROM gestor_lotacao WHERE escola_id = :escola_id AND responsavel = 1");
+        $stmt->bindParam(':escola_id', $id);
+        $stmt->execute();
+        
+        // Se um novo gestor foi selecionado, criar a lotação
+        if (!empty($dados['gestor_id'])) {
+            // Localizar o gestor.id correspondente ao usuario.id informado
+            $gestorId = null;
+            
+            // 1) Tentar via tabela gestor com coluna usuario_id
+            try {
+                $stmt = $conn->prepare("SELECT id FROM gestor WHERE usuario_id = :usuario_id LIMIT 1");
+                $stmt->bindParam(':usuario_id', $dados['gestor_id']);
+                $stmt->execute();
+                $row = $stmt->fetch(PDO::FETCH_ASSOC);
+                if ($row) {
+                    $gestorId = (int)$row['id'];
+                }
+            } catch (PDOException $e) {
+                // Se a tabela/coluna não existir, ignorar e tentar outro caminho
+            }
+
+            // 2) Caso não ache, tentar via ligação por pessoa: gestor.pessoa_id -> usuario.pessoa_id
+            if ($gestorId === null) {
+                try {
+                    $stmt = $conn->prepare("SELECT g.id 
+                                            FROM gestor g 
+                                            INNER JOIN usuario u ON u.pessoa_id = g.pessoa_id 
+                                            WHERE u.id = :usuario_id 
+                                            LIMIT 1");
+                    $stmt->bindParam(':usuario_id', $dados['gestor_id']);
+                    $stmt->execute();
+                    $row = $stmt->fetch(PDO::FETCH_ASSOC);
+                    if ($row) {
+                        $gestorId = (int)$row['id'];
+                    }
+                } catch (PDOException $e) {
+                    // Ignorar e continuar para mensagem de erro amigável
+                }
+            }
+
+            if ($gestorId === null) {
+                throw new PDOException('Gestor selecionado não possui cadastro válido em gestor.');
+            }
+
+            $stmt = $conn->prepare("INSERT INTO gestor_lotacao (gestor_id, escola_id, inicio, responsavel) 
+                                    VALUES (:gestor_id, :escola_id, CURDATE(), 1)");
+            $stmt->bindParam(':gestor_id', $gestorId);
+            $stmt->bindParam(':escola_id', $id);
+            $stmt->execute();
+        }
+        
+        $conn->commit();
+        
+        return ['status' => true, 'mensagem' => 'Escola atualizada com sucesso!'];
+    } catch (PDOException $e) {
+        $conn->rollBack();
+        return ['status' => false, 'mensagem' => 'Erro ao atualizar escola: ' . $e->getMessage()];
+    }
+}
+
 // Processar formulários
 $mensagem = '';
 $tipoMensagem = '';
@@ -190,6 +286,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             ];
             
             $resultado = cadastrarEscola($dados);
+            $mensagem = $resultado['mensagem'];
+            $tipoMensagem = $resultado['status'] ? 'success' : 'error';
+        }
+        
+        // Editar escola
+        if ($_POST['acao'] === 'editar' && isset($_POST['id'])) {
+            $dados = [
+                'nome' => $_POST['nome'] ?? '',
+                'endereco' => $_POST['endereco'] ?? '',
+                'telefone' => $_POST['telefone'] ?? '',
+                'email' => $_POST['email'] ?? '',
+                'municipio' => $_POST['municipio'] ?? '',
+                'cep' => $_POST['cep'] ?? '',
+                'qtd_salas' => $_POST['qtd_salas'] ?? null,
+                'obs' => $_POST['obs'] ?? '',
+                'codigo' => $_POST['codigo'] ?? '',
+                'gestor_id' => $_POST['gestor_id'] ?? null
+            ];
+            
+            $resultado = atualizarEscola($_POST['id'], $dados);
             $mensagem = $resultado['mensagem'];
             $tipoMensagem = $resultado['status'] ? 'success' : 'error';
         }
@@ -1263,9 +1379,48 @@ $escolas = listarEscolas($busca);
         }
         
         function carregarDadosEscola(id) {
-            // Aqui você pode fazer uma requisição AJAX para carregar os dados da escola
-            // Por enquanto, vou deixar como placeholder
-            console.log('Carregando dados da escola:', id);
+            // Fazer requisição AJAX para obter os dados da escola
+            fetch(`obter_escola.php?id=${id}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status) {
+                        const escola = data.escola;
+                        
+                        // Preencher campos básicos da escola
+                        document.getElementById('edit_escola_id').value = escola.id;
+                        document.getElementById('edit_nome').value = escola.nome || '';
+                        document.getElementById('edit_telefone').value = escola.telefone || '';
+                        document.getElementById('edit_cep').value = escola.cep || '';
+                        document.getElementById('edit_endereco').value = escola.endereco || '';
+                        document.getElementById('edit_qtd_salas').value = escola.qtd_salas || '';
+                        document.getElementById('edit_codigo').value = escola.codigo || '';
+                        document.getElementById('edit_email').value = escola.email || '';
+                        document.getElementById('edit_municipio').value = escola.municipio || '';
+                        
+                        // Preencher dados do gestor se existir
+                        if (escola.gestor_usuario_id) {
+                            document.getElementById('edit_gestor_id').value = escola.gestor_usuario_id;
+                            document.getElementById('edit_gestor_search').value = escola.gestor_nome || '';
+                            document.getElementById('edit_gestor_nome_selecionado').textContent = escola.gestor_nome || '';
+                            document.getElementById('edit_gestor_email_selecionado').textContent = escola.gestor_email || '';
+                            document.getElementById('edit_gestor_selected').classList.remove('hidden');
+                        } else {
+                            // Limpar campos do gestor se não houver
+                            document.getElementById('edit_gestor_id').value = '';
+                            document.getElementById('edit_gestor_search').value = '';
+                            document.getElementById('edit_gestor_selected').classList.add('hidden');
+                        }
+                        
+                        console.log('Dados da escola carregados com sucesso:', escola);
+                    } else {
+                        console.error('Erro ao carregar dados da escola:', data.mensagem);
+                        alert('Erro ao carregar dados da escola: ' + data.mensagem);
+                    }
+                })
+                .catch(error => {
+                    console.error('Erro na requisição:', error);
+                    alert('Erro ao carregar dados da escola. Tente novamente.');
+                });
         }
         
         function mostrarAbaEdicao(abaId) {
@@ -1673,20 +1828,38 @@ $escolas = listarEscolas($busca);
         document.getElementById('formEdicaoEscola').addEventListener('submit', function(e) {
             e.preventDefault();
             
-            // Processar professores selecionados antes de salvar
-            const professoresSelecionados = processarProfessoresSelecionados();
+            // Coletar dados do formulário
+            const formData = new FormData();
+            formData.append('acao', 'editar');
+            formData.append('id', document.getElementById('edit_escola_id').value);
+            formData.append('nome', document.getElementById('edit_nome').value);
+            formData.append('endereco', document.getElementById('edit_endereco').value);
+            formData.append('telefone', document.getElementById('edit_telefone').value);
+            formData.append('email', document.getElementById('edit_email').value);
+            formData.append('municipio', document.getElementById('edit_municipio').value);
+            formData.append('cep', document.getElementById('edit_cep').value);
+            formData.append('qtd_salas', document.getElementById('edit_qtd_salas').value);
+            formData.append('obs', '');
+            formData.append('codigo', document.getElementById('edit_codigo').value);
+            formData.append('gestor_id', document.getElementById('edit_gestor_id').value || '');
             
-            if (professoresSelecionados.length > 0) {
-                console.log('Adicionando professores:', professoresSelecionados);
-                // Aqui você faria a requisição para o backend
-                alert(`${professoresSelecionados.length} professor(es) será(ão) adicionado(s) junto com as alterações da escola.`);
-            }
-            
-            // Aqui você processaria o formulário normalmente
-            console.log('Salvando alterações da escola...');
-            // Simular sucesso
-            alert('Alterações salvas com sucesso!');
-            fecharModalEdicaoEscola();
+            // Enviar dados para o servidor
+            fetch('gestao_escolas.php', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.text())
+            .then(data => {
+                // Verificar se houve sucesso (a página será recarregada)
+                alert('Escola atualizada com sucesso!');
+                fecharModalEdicaoEscola();
+                // Recarregar a página para mostrar as alterações
+                window.location.reload();
+            })
+            .catch(error => {
+                console.error('Erro ao salvar alterações:', error);
+                alert('Erro ao salvar alterações. Tente novamente.');
+            });
         });
         
         // Funções para busca de gestor na edição

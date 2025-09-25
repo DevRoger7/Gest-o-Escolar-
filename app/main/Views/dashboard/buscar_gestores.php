@@ -1,13 +1,18 @@
 <?php
-// Iniciar sessão
-session_start();
+// Configurar headers para AJAX
+header('Content-Type: application/json');
+header('Cache-Control: no-cache, must-revalidate');
+header('Expires: Mon, 26 Jul 1997 05:00:00 GMT');
 
-// Verificar se o usuário está logado e tem permissão
-if (!isset($_SESSION['tipo']) || $_SESSION['tipo'] !== 'ADM') {
-    http_response_code(403);
-    echo json_encode(['error' => 'Acesso negado']);
-    exit;
-}
+// Configurar parâmetros de cookie para melhor compatibilidade com AJAX
+ini_set('session.cookie_httponly', 1);
+ini_set('session.cookie_samesite', 'Lax');
+
+// Incluir validador de sessão
+require_once('../../config/session_validator.php');
+
+// Validar sessão para AJAX
+requireAjaxLogin(['ADM']);
 
 // Incluir arquivo de conexão com o banco de dados
 require_once('../../config/Database.php');
