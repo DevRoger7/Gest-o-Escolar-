@@ -399,6 +399,128 @@ $escolas = listarEscolas($busca);
             background: #2a2a2a !important;
             border: 1px solid #555555 !important;
         }
+        
+        /* Melhorias específicas para o modal de edição no tema escuro */
+        [data-theme="dark"] #modalEdicaoEscola {
+            background-color: rgba(0, 0, 0, 0.8) !important;
+        }
+        
+        [data-theme="dark"] #modalEdicaoEscola .bg-white {
+            background-color: var(--bg-primary) !important;
+        }
+        
+        [data-theme="dark"] #modalEdicaoEscola .bg-gray-50 {
+            background-color: var(--bg-secondary) !important;
+        }
+        
+        [data-theme="dark"] #modalEdicaoEscola .border-gray-200 {
+            border-color: var(--border-color) !important;
+        }
+        
+        [data-theme="dark"] #modalEdicaoEscola .text-gray-600 {
+            color: var(--text-secondary) !important;
+        }
+        
+        [data-theme="dark"] #modalEdicaoEscola .text-gray-700 {
+            color: var(--text-primary) !important;
+        }
+        
+        [data-theme="dark"] #modalEdicaoEscola .hover\\:bg-gray-200:hover {
+            background-color: var(--bg-secondary) !important;
+        }
+        
+        [data-theme="dark"] #modalEdicaoEscola .hover\\:bg-gray-50:hover {
+            background-color: var(--bg-secondary) !important;
+        }
+        
+        [data-theme="dark"] #modalEdicaoEscola .border-gray-300 {
+            border-color: var(--border-color) !important;
+        }
+        
+        [data-theme="dark"] #modalEdicaoEscola .border-gray-100 {
+            border-color: var(--border-color) !important;
+        }
+        
+        /* Melhorar visibilidade dos inputs no modal */
+        [data-theme="dark"] #modalEdicaoEscola input[type="text"],
+        [data-theme="dark"] #modalEdicaoEscola input[type="email"],
+        [data-theme="dark"] #modalEdicaoEscola input[type="number"],
+        [data-theme="dark"] #modalEdicaoEscola textarea {
+            background-color: var(--bg-secondary) !important;
+            border-color: var(--border-color) !important;
+            color: var(--text-primary) !important;
+        }
+        
+        [data-theme="dark"] #modalEdicaoEscola input[type="text"]:focus,
+        [data-theme="dark"] #modalEdicaoEscola input[type="email"]:focus,
+        [data-theme="dark"] #modalEdicaoEscola input[type="number"]:focus,
+        [data-theme="dark"] #modalEdicaoEscola textarea:focus {
+            background-color: var(--bg-secondary) !important;
+            border-color: var(--primary-green) !important;
+            color: var(--text-primary) !important;
+        }
+        
+        /* Melhorar visibilidade dos labels */
+        [data-theme="dark"] #modalEdicaoEscola label {
+            color: var(--text-primary) !important;
+        }
+        
+        /* Melhorar visibilidade dos botões */
+        [data-theme="dark"] #modalEdicaoEscola button {
+            color: var(--text-primary) !important;
+        }
+        
+        [data-theme="dark"] #modalEdicaoEscola .text-gray-500 {
+            color: var(--text-secondary) !important;
+        }
+        
+        [data-theme="dark"] #modalEdicaoEscola .text-gray-600 {
+            color: var(--text-secondary) !important;
+        }
+        
+        /* Melhorar visibilidade dos elementos de busca e seleção */
+        [data-theme="dark"] #modalEdicaoEscola .bg-white {
+            background-color: var(--bg-primary) !important;
+        }
+        
+        [data-theme="dark"] #modalEdicaoEscola .border-gray-300 {
+            border-color: var(--border-color) !important;
+        }
+        
+        [data-theme="dark"] #modalEdicaoEscola .shadow-lg {
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3), 0 4px 6px -2px rgba(0, 0, 0, 0.2) !important;
+        }
+        
+        /* Melhorar visibilidade dos checkboxes e elementos interativos */
+        [data-theme="dark"] #modalEdicaoEscola input[type="checkbox"] {
+            background-color: var(--bg-secondary) !important;
+            border-color: var(--border-color) !important;
+        }
+        
+        [data-theme="dark"] #modalEdicaoEscola input[type="checkbox"]:checked {
+            background-color: var(--primary-green) !important;
+            border-color: var(--primary-green) !important;
+        }
+        
+        /* Melhorar visibilidade dos elementos de dropdown */
+        [data-theme="dark"] #modalEdicaoEscola .absolute {
+            background-color: var(--bg-primary) !important;
+            border-color: var(--border-color) !important;
+        }
+        
+        /* Melhorar visibilidade dos elementos de professor selecionado */
+        [data-theme="dark"] #modalEdicaoEscola .bg-green-50 {
+            background-color: rgba(34, 197, 94, 0.1) !important;
+            border-color: rgba(34, 197, 94, 0.3) !important;
+        }
+        
+        [data-theme="dark"] #modalEdicaoEscola .text-green-800 {
+            color: #22c55e !important;
+        }
+        
+        [data-theme="dark"] #modalEdicaoEscola .text-green-600 {
+            color: #16a34a !important;
+        }
 
         [data-theme="dark"] .bg-gray-100 {
             background-color: #333333 !important;
@@ -783,90 +905,90 @@ $escolas = listarEscolas($busca);
                         <input type="hidden" name="acao" value="cadastrar">
                         
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            <div>
-                                <label for="nome" class="block text-sm font-medium text-gray-700 mb-2">Nome da Escola *</label>
-                                <input type="text" id="nome" name="nome" required
-                                       class="block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-primary-green focus:border-primary-green">
-                            </div>
-                            
-                            <div>
-                                <label for="codigo" class="block text-sm font-medium text-gray-700 mb-2">Código INEP</label>
-                                <input type="text" id="codigo" name="codigo" placeholder="Ex: 12345678"
-                                       class="block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-primary-green focus:border-primary-green">
-                            </div>
-                            
-                            <div>
-                                <label for="telefone" class="block text-sm font-medium text-gray-700 mb-2">Telefone</label>
-                                <input type="text" id="telefone" name="telefone" placeholder="(00) 0000-0000"
-                                       class="block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-primary-green focus:border-primary-green">
-                            </div>
-                            
-                            <div class="md:col-span-2">
-                                <label for="endereco" class="block text-sm font-medium text-gray-700 mb-2">Endereço *</label>
-                                <input type="text" id="endereco" name="endereco" required
-                                       class="block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-primary-green focus:border-primary-green">
-                            </div>
-                            
-                            <div>
-                                <label for="email" class="block text-sm font-medium text-gray-700 mb-2">Email</label>
-                                <input type="email" id="email" name="email"
-                                       class="block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-primary-green focus:border-primary-green">
-                            </div>
-                            
-                            <div>
-                                <label for="municipio" class="block text-sm font-medium text-gray-700 mb-2">Município *</label>
-                                <input type="text" id="municipio" name="municipio" required
-                                       class="block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-primary-green focus:border-primary-green">
-                            </div>
-                            
-                            <div>
-                                <label for="cep" class="block text-sm font-medium text-gray-700 mb-2">CEP <span class="text-red-500">*</span></label>
-                                <div class="flex space-x-2">
-                                    <input type="text" id="cep" name="cep" required placeholder="00000-000" maxlength="9" onkeyup="formatarCEPCadastro(this)" onblur="buscarCEPCadastro(this.value)"
-                                           class="flex-1 px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-primary-green focus:border-primary-green">
-                                    <button type="button" onclick="buscarCEPCadastro(document.getElementById('cep').value)" class="px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors duration-200">
-                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
-                                        </svg>
-                                    </button>
+                            <!-- Coluna Esquerda -->
+                            <div class="space-y-6">
+                                <div>
+                                    <label for="nome" class="block text-sm font-medium text-gray-700 mb-2">Nome da Escola *</label>
+                                    <input type="text" id="nome" name="nome" required
+                                           class="block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-primary-green focus:border-primary-green">
                                 </div>
-                                <div id="resultadoCEPCadastro" class="mt-2 text-sm text-gray-600 hidden"></div>
-                            </div>
-                            
-                            <div>
-                                <label for="qtd_salas" class="block text-sm font-medium text-gray-700 mb-2">Quantidade de Salas <span class="text-red-500">*</span></label>
-                                <input type="number" id="qtd_salas" name="qtd_salas" required min="1" placeholder="Ex: 12"
-                                       class="block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-primary-green focus:border-primary-green">
-                            </div>
-                            
-                            <div>
-                                <label for="gestor_search" class="block text-sm font-medium text-gray-700 mb-2">Selecionar Gestor <span class="text-red-500">*</span></label>
-                                <div class="relative">
-                                    <input type="text" id="gestor_search" placeholder="Digite o nome do gestor..." 
-                                           class="block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-primary-green focus:border-primary-green"
-                                           autocomplete="off">
-                                    <input type="hidden" id="gestor_id" name="gestor_id" required>
-                                    <div id="gestor_results" class="absolute z-10 w-full bg-white border border-gray-300 rounded-lg shadow-lg hidden max-h-60 overflow-y-auto"></div>
+                                
+                                <div>
+                                    <label for="telefone" class="block text-sm font-medium text-gray-700 mb-2">Telefone</label>
+                                    <input type="text" id="telefone" name="telefone" placeholder="(00) 0000-0000"
+                                           class="block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-primary-green focus:border-primary-green">
                                 </div>
-                                <div id="gestor_selected" class="mt-2 hidden">
-                                    <div class="flex items-center justify-between bg-green-50 border border-green-200 rounded-lg p-3">
-                                        <div>
-                                            <span class="text-sm font-medium text-green-800" id="gestor_nome_selecionado"></span>
-                                            <span class="text-xs text-green-600 block" id="gestor_email_selecionado"></span>
-                                        </div>
-                                        <button type="button" onclick="removerGestor()" class="text-green-600 hover:text-green-800">
+                                
+                                <div>
+                                    <label for="cep" class="block text-sm font-medium text-gray-700 mb-2">CEP <span class="text-red-500">*</span></label>
+                                    <div class="flex space-x-2">
+                                        <input type="text" id="cep" name="cep" required placeholder="00000-000" maxlength="9" onkeyup="formatarCEPCadastro(this)" onblur="buscarCEPCadastro(this.value)"
+                                               class="flex-1 px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-primary-green focus:border-primary-green">
+                                        <button type="button" onclick="buscarCEPCadastro(document.getElementById('cep').value)" class="px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors duration-200">
                                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
                                             </svg>
                                         </button>
+                                    </div>
+                                    <div id="resultadoCEPCadastro" class="mt-2 text-sm text-gray-600 hidden"></div>
+                                </div>
+                                
+                                <div>
+                                    <label for="municipio" class="block text-sm font-medium text-gray-700 mb-2">Município *</label>
+                                    <input type="text" id="municipio" name="municipio" required
+                                           class="block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-primary-green focus:border-primary-green">
+                                </div>
+                                
+                                <div>
+                                    <label for="gestor_search" class="block text-sm font-medium text-gray-700 mb-2">Selecionar Gestor <span class="text-red-500">*</span></label>
+                                    <div class="relative">
+                                        <input type="text" id="gestor_search" placeholder="Digite o nome do gestor..." 
+                                               class="block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-primary-green focus:border-primary-green"
+                                               autocomplete="off">
+                                        <input type="hidden" id="gestor_id" name="gestor_id" required>
+                                        <div id="gestor_results" class="absolute z-10 w-full bg-white border border-gray-300 rounded-lg shadow-lg hidden max-h-60 overflow-y-auto"></div>
+                                    </div>
+                                    <div id="gestor_selected" class="mt-2 hidden">
+                                        <div class="flex items-center justify-between bg-green-50 border border-green-200 rounded-lg p-3">
+                                            <div>
+                                                <span class="text-sm font-medium text-green-800" id="gestor_nome_selecionado"></span>
+                                                <span class="text-xs text-green-600 block" id="gestor_email_selecionado"></span>
+                                            </div>
+                                            <button type="button" onclick="removerGestor()" class="text-green-600 hover:text-green-800">
+                                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                                                </svg>
+                                            </button>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
                             
-                            <div class="md:col-span-2">
-                                <label for="obs" class="block text-sm font-medium text-gray-700 mb-2">Observações</label>
-                                <textarea id="obs" name="obs" rows="3"
-                                          class="block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-primary-green focus:border-primary-green"></textarea>
+                            <!-- Coluna Direita -->
+                            <div class="space-y-6">
+                                <div>
+                                    <label for="codigo" class="block text-sm font-medium text-gray-700 mb-2">Código INEP</label>
+                                    <input type="text" id="codigo" name="codigo" placeholder="Ex: 12345678"
+                                           class="block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-primary-green focus:border-primary-green">
+                                </div>
+                                
+                                <div>
+                                    <label for="email" class="block text-sm font-medium text-gray-700 mb-2">Email</label>
+                                    <input type="email" id="email" name="email"
+                                           class="block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-primary-green focus:border-primary-green">
+                                </div>
+                                
+                                <div>
+                                    <label for="endereco" class="block text-sm font-medium text-gray-700 mb-2">Endereço *</label>
+                                    <input type="text" id="endereco" name="endereco" required
+                                           class="block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-primary-green focus:border-primary-green">
+                                </div>
+                                
+                                <div>
+                                    <label for="qtd_salas" class="block text-sm font-medium text-gray-700 mb-2">Quantidade de Salas <span class="text-red-500">*</span></label>
+                                    <input type="number" id="qtd_salas" name="qtd_salas" required min="1" placeholder="Ex: 12"
+                                           class="block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-primary-green focus:border-primary-green">
+                                </div>
                             </div>
                         </div>
                         
@@ -965,78 +1087,66 @@ $escolas = listarEscolas($busca);
                     <!-- Aba Dados Básicos -->
                     <div id="aba-dados-basicos" class="aba-edicao flex-1 flex flex-col">
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            <div>
-                                <label for="edit_nome" class="block text-sm font-medium text-gray-700 mb-2">Nome da Escola *</label>
-                                <input type="text" id="edit_nome" name="nome" required
-                                       class="block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-primary-green focus:border-primary-green">
-                            </div>
-                            
-                            <div>
-                                <label for="edit_codigo" class="block text-sm font-medium text-gray-700 mb-2">Código INEP</label>
-                                <input type="text" id="edit_codigo" name="codigo" placeholder="Ex: 12345678"
-                                       class="block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-primary-green focus:border-primary-green">
-                            </div>
-                            
-                            <div>
-                                <label for="edit_telefone" class="block text-sm font-medium text-gray-700 mb-2">Telefone</label>
-                                <input type="text" id="edit_telefone" name="telefone" placeholder="(00) 0000-0000"
-                                       class="block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-primary-green focus:border-primary-green">
-                            </div>
-                            
-                            <div class="md:col-span-2">
-                                <label for="edit_endereco" class="block text-sm font-medium text-gray-700 mb-2">Endereço *</label>
-                                <input type="text" id="edit_endereco" name="endereco" required
-                                       class="block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-primary-green focus:border-primary-green">
-                            </div>
-                            
-                            <div>
-                                <label for="edit_email" class="block text-sm font-medium text-gray-700 mb-2">Email</label>
-                                <input type="email" id="edit_email" name="email"
-                                       class="block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-primary-green focus:border-primary-green">
-                            </div>
-                            
-                            <div>
-                                <label for="edit_cep" class="block text-sm font-medium text-gray-700 mb-2">CEP <span class="text-red-500">*</span></label>
-                                <div class="flex space-x-2">
-                                    <input type="text" id="edit_cep" name="cep" required placeholder="00000-000" maxlength="9" onkeyup="formatarCEP(this)" onblur="buscarCEP(this.value)"
-                                           class="flex-1 px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-primary-green focus:border-primary-green">
-                                    <button type="button" onclick="buscarCEP(document.getElementById('edit_cep').value)" class="px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors duration-200">
-                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
-                                        </svg>
-                                    </button>
+                            <!-- Coluna Esquerda -->
+                            <div class="space-y-6">
+                                <div>
+                                    <label for="edit_nome" class="block text-sm font-medium text-gray-700 mb-2">Nome da Escola *</label>
+                                    <input type="text" id="edit_nome" name="nome" required
+                                           class="block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-primary-green focus:border-primary-green">
                                 </div>
-                                <div id="resultadoCEP" class="mt-2 text-sm text-gray-600 hidden"></div>
+                                
+                                <div>
+                                    <label for="edit_telefone" class="block text-sm font-medium text-gray-700 mb-2">Telefone</label>
+                                    <input type="text" id="edit_telefone" name="telefone" placeholder="(00) 0000-0000"
+                                           class="block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-primary-green focus:border-primary-green">
+                                </div>
+                                
+                                <div>
+                                    <label for="edit_cep" class="block text-sm font-medium text-gray-700 mb-2">CEP <span class="text-red-500">*</span></label>
+                                    <div class="flex space-x-2">
+                                        <input type="text" id="edit_cep" name="cep" required placeholder="00000-000" maxlength="9" onkeyup="formatarCEP(this)" onblur="buscarCEP(this.value)"
+                                               class="flex-1 px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-primary-green focus:border-primary-green">
+                                        <button type="button" onclick="buscarCEP(document.getElementById('edit_cep').value)" class="px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors duration-200">
+                                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                                            </svg>
+                                        </button>
+                                    </div>
+                                    <div id="resultadoCEP" class="mt-2 text-sm text-gray-600 hidden"></div>
+                                </div>
+                                
+                                <div>
+                                    <label for="edit_municipio" class="block text-sm font-medium text-gray-700 mb-2">Município *</label>
+                                    <input type="text" id="edit_municipio" name="municipio" required
+                                           class="block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-primary-green focus:border-primary-green">
+                                </div>
                             </div>
                             
-                            <div>
-                                <label for="edit_qtd_salas" class="block text-sm font-medium text-gray-700 mb-2">Quantidade de Salas <span class="text-red-500">*</span></label>
-                                <input type="number" id="edit_qtd_salas" name="qtd_salas" required min="1" placeholder="Ex: 12"
-                                       class="block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-primary-green focus:border-primary-green">
-                            </div>
-                            
-                            <div>
-                                <label for="edit_municipio" class="block text-sm font-medium text-gray-700 mb-2">Município *</label>
-                                <input type="text" id="edit_municipio" name="municipio" required
-                                       class="block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-primary-green focus:border-primary-green">
-                            </div>
-                            
-                            <div>
-                                <label for="edit_cep" class="block text-sm font-medium text-gray-700 mb-2">CEP</label>
-                                <input type="text" id="edit_cep" name="cep" placeholder="00000-000"
-                                       class="block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-primary-green focus:border-primary-green">
-                            </div>
-                            
-                            <div>
-                                <label for="edit_qtd_salas" class="block text-sm font-medium text-gray-700 mb-2">Quantidade de Salas</label>
-                                <input type="number" id="edit_qtd_salas" name="qtd_salas" min="0"
-                                       class="block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-primary-green focus:border-primary-green">
-                            </div>
-                            
-                            <div class="md:col-span-2">
-                                <label for="edit_obs" class="block text-sm font-medium text-gray-700 mb-2">Observações</label>
-                                <textarea id="edit_obs" name="obs" rows="3"
-                                          class="block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-primary-green focus:border-primary-green"></textarea>
+                            <!-- Coluna Direita -->
+                            <div class="space-y-6">
+                                <div>
+                                    <label for="edit_codigo" class="block text-sm font-medium text-gray-700 mb-2">Código INEP</label>
+                                    <input type="text" id="edit_codigo" name="codigo" placeholder="Ex: 12345678"
+                                           class="block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-primary-green focus:border-primary-green">
+                                </div>
+                                
+                                <div>
+                                    <label for="edit_email" class="block text-sm font-medium text-gray-700 mb-2">Email</label>
+                                    <input type="email" id="edit_email" name="email"
+                                           class="block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-primary-green focus:border-primary-green">
+                                </div>
+                                
+                                <div>
+                                    <label for="edit_endereco" class="block text-sm font-medium text-gray-700 mb-2">Endereço *</label>
+                                    <input type="text" id="edit_endereco" name="endereco" required
+                                           class="block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-primary-green focus:border-primary-green">
+                                </div>
+                                
+                                <div>
+                                    <label for="edit_qtd_salas" class="block text-sm font-medium text-gray-700 mb-2">Quantidade de Salas <span class="text-red-500">*</span></label>
+                                    <input type="number" id="edit_qtd_salas" name="qtd_salas" required min="1" placeholder="Ex: 12"
+                                           class="block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-primary-green focus:border-primary-green">
+                                </div>
                             </div>
                         </div>
                     </div>
