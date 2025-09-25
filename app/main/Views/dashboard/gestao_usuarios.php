@@ -96,6 +96,9 @@ function cadastrarUsuario($dados) {
         // Iniciar transação
         $conn->beginTransaction();
         
+        // Tratar data de nascimento - converter string vazia para NULL
+        $dataNascimento = !empty($dados['data_nascimento']) ? $dados['data_nascimento'] : null;
+        
         // Inserir na tabela pessoa
         $stmt = $conn->prepare("INSERT INTO pessoa (nome, cpf, email, telefone, data_nascimento, tipo) 
                                 VALUES (:nome, :cpf, :email, :telefone, :data_nascimento, 'FUNCIONARIO')");
@@ -104,7 +107,7 @@ function cadastrarUsuario($dados) {
         $stmt->bindParam(':cpf', $cpfLimpo);
         $stmt->bindParam(':email', $dados['email']);
         $stmt->bindParam(':telefone', $dados['telefone']);
-        $stmt->bindParam(':data_nascimento', $dados['data_nascimento']);
+        $stmt->bindParam(':data_nascimento', $dataNascimento);
         
         $stmt->execute();
         $pessoaId = $conn->lastInsertId();
@@ -179,8 +182,12 @@ function atualizarUsuario($dados) {
     $db = Database::getInstance();
     $conn = $db->getConnection();
     
+    // Log para depuração
+    error_log("Função atualizarUsuario() iniciada com dados: " . json_encode($dados));
+    
     // Remover caracteres especiais do CPF (pontos e traço)
     $cpfLimpo = preg_replace('/[^0-9]/', '', $dados['cpf']);
+    error_log("CPF limpo: " . $cpfLimpo);
     
     try {
         // Iniciar transação
@@ -216,6 +223,9 @@ function atualizarUsuario($dados) {
             return ['status' => false, 'mensagem' => 'Username já cadastrado para outro usuário.'];
         }
         
+        // Tratar data de nascimento - converter string vazia para NULL
+        $dataNascimento = !empty($dados['data_nascimento']) ? $dados['data_nascimento'] : null;
+        
         // Atualizar dados na tabela pessoa
         $stmt = $conn->prepare("UPDATE pessoa SET 
                                 nome = :nome, 
@@ -229,7 +239,7 @@ function atualizarUsuario($dados) {
         $stmt->bindParam(':cpf', $cpfLimpo);
         $stmt->bindParam(':email', $dados['email']);
         $stmt->bindParam(':telefone', $dados['telefone']);
-        $stmt->bindParam(':data_nascimento', $dados['data_nascimento']);
+        $stmt->bindParam(':data_nascimento', $dataNascimento);
         $stmt->bindParam(':pessoa_id', $dados['pessoa_id']);
         
         $stmt->execute();
@@ -266,10 +276,15 @@ function atualizarUsuario($dados) {
         // Confirmar transação
         $conn->commit();
         
+        error_log("Transação confirmada com sucesso!");
         return ['status' => true, 'mensagem' => 'Usuário atualizado com sucesso!'];
     } catch (PDOException $e) {
         // Reverter transação em caso de erro
         $conn->rollBack();
+        error_log("Erro na transação: " . $e->getMessage());
+        error_log("SQL State: " . $e->errorInfo[0]);
+        error_log("Error Code: " . $e->errorInfo[1]);
+        error_log("Error Message: " . $e->errorInfo[2]);
         return ['status' => false, 'mensagem' => 'Erro ao atualizar usuário: ' . $e->getMessage()];
     }
 }
@@ -300,6 +315,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         
         // Editar usuário
         if ($_POST['acao'] === 'editar' && isset($_POST['id'])) {
+            // Log para depuração
+            error_log("Iniciando edição de usuário: " . $_POST['id']);
+            
             $dados = [
                 'id' => $_POST['id'],
                 'pessoa_id' => $_POST['pessoa_id'],
@@ -314,7 +332,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 'data_nascimento' => $_POST['data_nascimento'] ?? null
             ];
             
+            // Log dos dados recebidos
+            error_log("Dados para atualização: " . json_encode($dados));
+            
             $resultado = atualizarUsuario($dados);
+            
+            // Log do resultado
+            error_log("Resultado da atualização: " . json_encode($resultado));
+            
             $mensagem = $resultado['mensagem'];
             $tipoMensagem = $resultado['status'] ? 'success' : 'error';
         }
@@ -1045,7 +1070,7 @@ $usuarios = listarUsuarios($busca);
     </div>
     
     <!-- Modal de Edição de Usuário -->
-    <div id="editarUsuarioModal" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden flex items-center justify-center p-4">
+    <div id="editarUsuarioModal" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden items-center justify-center p-4">
         <div class="bg-white rounded-2xl p-6 max-w-3xl w-full mx-4 shadow-2xl">
             <div class="flex items-center justify-between mb-6">
                 <h3 class="text-xl font-semibold text-gray-900">Editar Usuário</h3>
@@ -1140,7 +1165,7 @@ $usuarios = listarUsuarios($busca);
     </div>
     
     <!-- Modal de Exclusão de Usuário -->
-    <div id="modalExclusaoUsuario" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden flex items-center justify-center p-4">
+    <div id="modalExclusaoUsuario" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden items-center justify-center p-4">
         <div class="bg-white rounded-2xl p-6 max-w-md w-full mx-4 shadow-2xl">
             <div class="flex items-center justify-center w-12 h-12 mx-auto bg-red-100 rounded-full mb-4">
                 <svg class="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1196,7 +1221,14 @@ $usuarios = listarUsuarios($busca);
         // Função para abrir o modal de edição e carregar os dados do usuário
         function editarUsuario(id) {
             // Fazer uma requisição AJAX para obter os dados do usuário
-            fetch(`obter_usuario.php?id=${id}`)
+            fetch(`obter_usuario.php?id=${id}`, {
+                method: 'GET',
+                credentials: 'same-origin',
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'Cache-Control': 'no-cache'
+                }
+            })
                 .then(response => response.json())
                 .then(data => {
                     if (data.status) {
@@ -1226,7 +1258,9 @@ $usuarios = listarUsuarios($busca);
                         document.getElementById('edit_senha').value = '';
                         
                         // Abrir o modal
-                        document.getElementById('editarUsuarioModal').classList.remove('hidden');
+                        const modal = document.getElementById('editarUsuarioModal');
+                        modal.classList.remove('hidden');
+                        modal.classList.add('flex');
                     } else {
                         alert('Erro ao obter dados do usuário: ' + data.mensagem);
                     }
@@ -1239,19 +1273,25 @@ $usuarios = listarUsuarios($busca);
         
         // Função para fechar o modal de edição
         function fecharModalEdicao() {
-            document.getElementById('editarUsuarioModal').classList.add('hidden');
+            const modal = document.getElementById('editarUsuarioModal');
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
         }
         
         // Função para abrir modal de exclusão de usuário
         function abrirModalExclusaoUsuario(id, nome) {
             document.getElementById('idUsuarioExclusao').value = id;
             document.getElementById('nomeUsuarioExclusao').textContent = nome;
-            document.getElementById('modalExclusaoUsuario').classList.remove('hidden');
+            const modal = document.getElementById('modalExclusaoUsuario');
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
         }
         
         // Função para fechar modal de exclusão de usuário
         function fecharModalExclusaoUsuario() {
-            document.getElementById('modalExclusaoUsuario').classList.add('hidden');
+            const modal = document.getElementById('modalExclusaoUsuario');
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
         }
         
         // Fechar modal clicando fora dele
@@ -1319,6 +1359,44 @@ $usuarios = listarUsuarios($busca);
                     }
                 });
             });
+            
+            // Adicionar event listener para o formulário de edição
+            const formEditarUsuario = document.getElementById('formEditarUsuario');
+            if (formEditarUsuario) {
+                formEditarUsuario.addEventListener('submit', function(event) {
+                    // Log para depuração
+                    console.log('Formulário de edição enviado');
+                    
+                    // Verificar se todos os campos obrigatórios estão preenchidos
+                    const camposObrigatorios = ['edit_nome', 'edit_cpf', 'edit_email', 'edit_username', 'edit_tipo'];
+                    let camposValidos = true;
+                    
+                    camposObrigatorios.forEach(campo => {
+                        const input = document.getElementById(campo);
+                        if (!input.value.trim()) {
+                            camposValidos = false;
+                            input.classList.add('border-red-500');
+                        } else {
+                            input.classList.remove('border-red-500');
+                        }
+                    });
+                    
+                    if (!camposValidos) {
+                        event.preventDefault();
+                        alert('Por favor, preencha todos os campos obrigatórios.');
+                        return false;
+                    }
+                    
+                    // Confirmar envio
+                    if (!confirm('Tem certeza que deseja salvar as alterações?')) {
+                        event.preventDefault();
+                        return false;
+                    }
+                    
+                    // Permitir o envio do formulário
+                    return true;
+                });
+            }
         });
     </script>
 </body>

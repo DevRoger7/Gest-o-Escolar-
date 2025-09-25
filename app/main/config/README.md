@@ -35,10 +35,10 @@ require_once 'config/Database.php';
 $db = Database::getInstance();
 
 // Consulta SELECT
-$usuarios = $db->query("SELECT * FROM usuarios WHERE ativo = ?", [true]);
+$usuarios = $db->query("SELECT * FROM usuario WHERE ativo = ?", [true]);
 
 // Inserção
-$sucesso = $db->execute("INSERT INTO usuarios (nome, email, senha) VALUES (?, ?, ?)", 
+$sucesso = $db->execute("INSERT INTO usuario (nome, email, senha) VALUES (?, ?, ?)", 
     ['João Silva', 'joao@email.com', password_hash('123456', PASSWORD_DEFAULT)]);
 
 // Último ID inserido
@@ -52,10 +52,10 @@ $ultimoId = $db->lastInsertId();
 require_once 'config/init.php';
 
 // Consulta usando função helper
-$usuarios = dbQuery("SELECT * FROM usuarios WHERE ativo = ?", [true]);
+$usuarios = dbQuery("SELECT * FROM usuario WHERE ativo = ?", [true]);
 
 // Inserção usando função helper
-$sucesso = dbExecute("INSERT INTO usuarios (nome, email, senha) VALUES (?, ?, ?)", 
+$sucesso = dbExecute("INSERT INTO usuario (nome, email, senha) VALUES (?, ?, ?)", 
     ['Maria Santos', 'maria@email.com', hashPassword('123456')]);
 
 // Último ID
@@ -106,7 +106,7 @@ Acesse: `http://localhost/seu_projeto/config/test_connection.php`
 ### Estrutura do Banco de Dados
 
 #### Tabelas Principais:
-- **usuarios** - Administradores e funcionários
+- **usuario** - Administradores e funcionários
 - **escolas** - Cadastro das escolas
 - **alimentos** - Catálogo de alimentos
 - **estoque** - Controle de estoque por escola

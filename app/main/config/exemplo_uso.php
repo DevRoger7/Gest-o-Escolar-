@@ -40,11 +40,11 @@ require_once 'init.php';
                             // Exemplo de consulta
                             echo '<h6>Exemplo de Consulta:</h6>';
                             echo '<pre class="bg-light p-3">';
-                            echo '$usuarios = dbQuery("SELECT * FROM usuarios WHERE ativo = ?", [true]);';
+                            echo '$usuarios = dbQuery("SELECT * FROM usuario WHERE ativo = ?", [true]);';
                             echo '</pre>';
                             
                             // Tenta executar uma consulta simples
-                            $result = dbQuery("SELECT COUNT(*) as total FROM usuarios");
+                            $result = dbQuery("SELECT COUNT(*) as total FROM usuario");
                             if ($result) {
                                 echo '<div class="alert alert-info">';
                                 echo 'Total de usuários cadastrados: ' . $result[0]['total'];
@@ -77,7 +77,7 @@ require_once 'init.php';
                         <h6>1. Consultar Dados:</h6>
                         <pre class="bg-light p-3"><code><?php echo htmlspecialchars('<?php
 // Buscar todos os usuários ativos
-$usuarios = dbQuery("SELECT * FROM usuarios WHERE ativo = ?", [true]);
+$usuarios = dbQuery("SELECT * FROM usuario WHERE ativo = ?", [true]);
 
 foreach ($usuarios as $usuario) {
     echo "Nome: " . $usuario["nome"] . "<br>";
@@ -88,7 +88,7 @@ foreach ($usuarios as $usuario) {
                         <h6>2. Inserir Dados:</h6>
                         <pre class="bg-light p-3"><code><?php echo htmlspecialchars('<?php
 // Inserir novo usuário
-$sucesso = dbExecute("INSERT INTO usuarios (nome, email, senha, tipo, ativo) VALUES (?, ?, ?, ?, ?)", [
+$sucesso = dbExecute("INSERT INTO usuario (nome, email, senha, tipo, ativo) VALUES (?, ?, ?, ?, ?)", [
     "João Silva",
     "joao@escola.com", 
     hashPassword("123456"),
@@ -105,7 +105,7 @@ if ($sucesso) {
                         <h6>3. Atualizar Dados:</h6>
                         <pre class="bg-light p-3"><code><?php echo htmlspecialchars('<?php
 // Atualizar dados do usuário
-$sucesso = dbExecute("UPDATE usuarios SET nome = ?, email = ? WHERE id = ?", [
+$sucesso = dbExecute("UPDATE usuario SET nome = ?, email = ? WHERE id = ?", [
     "João Santos Silva",
     "joao.santos@escola.com",
     1

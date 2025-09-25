@@ -155,6 +155,24 @@ function excluirEscola($id) {
     try {
         $conn->beginTransaction();
         
+        // Primeiro, remover todas as lotações de gestores relacionadas à escola
+        $stmt = $conn->prepare("DELETE FROM gestor_lotacao WHERE escola_id = :id");
+        $stmt->bindParam(':id', $id);
+        $stmt->execute();
+        
+        // Verificar se existem outras tabelas relacionadas e removê-las se necessário
+        // Exemplo: se houver tabelas como professor_escola, aluno_escola, etc.
+        
+        // Remover outras possíveis dependências (adicione conforme necessário)
+        // $stmt = $conn->prepare("DELETE FROM professor_escola WHERE escola_id = :id");
+        // $stmt->bindParam(':id', $id);
+        // $stmt->execute();
+        
+        // $stmt = $conn->prepare("DELETE FROM aluno_escola WHERE escola_id = :id");
+        // $stmt->bindParam(':id', $id);
+        // $stmt->execute();
+        
+        // Por último, excluir a escola
         $stmt = $conn->prepare("DELETE FROM escola WHERE id = :id");
         $stmt->bindParam(':id', $id);
         $stmt->execute();
@@ -399,6 +417,128 @@ $escolas = listarEscolas($busca);
             background: #2a2a2a !important;
             border: 1px solid #555555 !important;
         }
+        
+        /* Melhorias específicas para o modal de edição no tema escuro */
+        [data-theme="dark"] #modalEdicaoEscola {
+            background-color: rgba(0, 0, 0, 0.8) !important;
+        }
+        
+        [data-theme="dark"] #modalEdicaoEscola .bg-white {
+            background-color: var(--bg-primary) !important;
+        }
+        
+        [data-theme="dark"] #modalEdicaoEscola .bg-gray-50 {
+            background-color: var(--bg-secondary) !important;
+        }
+        
+        [data-theme="dark"] #modalEdicaoEscola .border-gray-200 {
+            border-color: var(--border-color) !important;
+        }
+        
+        [data-theme="dark"] #modalEdicaoEscola .text-gray-600 {
+            color: var(--text-secondary) !important;
+        }
+        
+        [data-theme="dark"] #modalEdicaoEscola .text-gray-700 {
+            color: var(--text-primary) !important;
+        }
+        
+        [data-theme="dark"] #modalEdicaoEscola .hover\\:bg-gray-200:hover {
+            background-color: var(--bg-secondary) !important;
+        }
+        
+        [data-theme="dark"] #modalEdicaoEscola .hover\\:bg-gray-50:hover {
+            background-color: var(--bg-secondary) !important;
+        }
+        
+        [data-theme="dark"] #modalEdicaoEscola .border-gray-300 {
+            border-color: var(--border-color) !important;
+        }
+        
+        [data-theme="dark"] #modalEdicaoEscola .border-gray-100 {
+            border-color: var(--border-color) !important;
+        }
+        
+        /* Melhorar visibilidade dos inputs no modal */
+        [data-theme="dark"] #modalEdicaoEscola input[type="text"],
+        [data-theme="dark"] #modalEdicaoEscola input[type="email"],
+        [data-theme="dark"] #modalEdicaoEscola input[type="number"],
+        [data-theme="dark"] #modalEdicaoEscola textarea {
+            background-color: var(--bg-secondary) !important;
+            border-color: var(--border-color) !important;
+            color: var(--text-primary) !important;
+        }
+        
+        [data-theme="dark"] #modalEdicaoEscola input[type="text"]:focus,
+        [data-theme="dark"] #modalEdicaoEscola input[type="email"]:focus,
+        [data-theme="dark"] #modalEdicaoEscola input[type="number"]:focus,
+        [data-theme="dark"] #modalEdicaoEscola textarea:focus {
+            background-color: var(--bg-secondary) !important;
+            border-color: var(--primary-green) !important;
+            color: var(--text-primary) !important;
+        }
+        
+        /* Melhorar visibilidade dos labels */
+        [data-theme="dark"] #modalEdicaoEscola label {
+            color: var(--text-primary) !important;
+        }
+        
+        /* Melhorar visibilidade dos botões */
+        [data-theme="dark"] #modalEdicaoEscola button {
+            color: var(--text-primary) !important;
+        }
+        
+        [data-theme="dark"] #modalEdicaoEscola .text-gray-500 {
+            color: var(--text-secondary) !important;
+        }
+        
+        [data-theme="dark"] #modalEdicaoEscola .text-gray-600 {
+            color: var(--text-secondary) !important;
+        }
+        
+        /* Melhorar visibilidade dos elementos de busca e seleção */
+        [data-theme="dark"] #modalEdicaoEscola .bg-white {
+            background-color: var(--bg-primary) !important;
+        }
+        
+        [data-theme="dark"] #modalEdicaoEscola .border-gray-300 {
+            border-color: var(--border-color) !important;
+        }
+        
+        [data-theme="dark"] #modalEdicaoEscola .shadow-lg {
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3), 0 4px 6px -2px rgba(0, 0, 0, 0.2) !important;
+        }
+        
+        /* Melhorar visibilidade dos checkboxes e elementos interativos */
+        [data-theme="dark"] #modalEdicaoEscola input[type="checkbox"] {
+            background-color: var(--bg-secondary) !important;
+            border-color: var(--border-color) !important;
+        }
+        
+        [data-theme="dark"] #modalEdicaoEscola input[type="checkbox"]:checked {
+            background-color: var(--primary-green) !important;
+            border-color: var(--primary-green) !important;
+        }
+        
+        /* Melhorar visibilidade dos elementos de dropdown */
+        [data-theme="dark"] #modalEdicaoEscola .absolute {
+            background-color: var(--bg-primary) !important;
+            border-color: var(--border-color) !important;
+        }
+        
+        /* Melhorar visibilidade dos elementos de professor selecionado */
+        [data-theme="dark"] #modalEdicaoEscola .bg-green-50 {
+            background-color: rgba(34, 197, 94, 0.1) !important;
+            border-color: rgba(34, 197, 94, 0.3) !important;
+        }
+        
+        [data-theme="dark"] #modalEdicaoEscola .text-green-800 {
+            color: #22c55e !important;
+        }
+        
+        [data-theme="dark"] #modalEdicaoEscola .text-green-600 {
+            color: #16a34a !important;
+        }
 
         [data-theme="dark"] .bg-gray-100 {
             background-color: #333333 !important;
@@ -574,7 +714,7 @@ $escolas = listarEscolas($busca);
         <nav class="p-4">
             <ul class="space-y-2">
                 <li>
-                    <a href="dashboard.php" class="menu-item flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700">
+                    <a href="dashboard.php" onclick="showSection('dashboard')" class="menu-item  flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700">
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2H5a2 2 0 00-2-2z"></path>
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5a2 2 0 012-2h4a2 2 0 012 2v2H8V5z"></path>
@@ -582,9 +722,81 @@ $escolas = listarEscolas($busca);
                         <span>Dashboard</span>
                     </a>
                 </li>
+                <?php if (isset($_SESSION['cadastrar_pessoas']) || isset($_SESSION['matricular_alunos']) || isset($_SESSION['acessar_registros']) || $_SESSION['tipo'] === 'ADM') { ?>
+                <?php } ?>
+                <?php if ($_SESSION['tipo'] === 'GESTAO') { ?>
+                <li id="gestao-menu">
+                    <a href="#" onclick="showSection('gestao')" class="menu-item flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                        </svg>
+                        <span>Gestão Escolar</span>
+                    </a>
+                </li>
+                <?php } ?>
+                <?php if ($_SESSION['tipo'] === 'ADM_MERENDA') { ?>
+                <li id="merenda-menu">
+                    <a href="#" onclick="showSection('merenda')" class="menu-item flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path>
+                        </svg>
+                        <span>Merenda</span>
+                    </a>
+                </li>
+                <?php } ?>
+                <?php if (isset($_SESSION['Gerenciador de Usuarios'])) { ?>
+                    <li>
+                        <a href="../../subsystems/gerenciador_usuario/index.php" class="menu-item flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z"></path>
+                            </svg>
+                            <span>Gerenciador de Usuários</span>
+                        </a>
+                    </li>
+                <?php } ?>
+                <?php if (isset($_SESSION['Estoque'])) { ?>
+                    <li>
+                        <a href="../../subsystems/controle_de_estoque/default.php" class="menu-item flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path>
+                            </svg>
+                            <span>Controle de Estoque</span>
+                        </a>
+                    </li>
+                <?php } ?>
+                <?php if (isset($_SESSION['Biblioteca'])) { ?>
+                    <li>
+                        <a href="../../subsystems/biblioteca/default.php" class="menu-item flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.746 0 3.332.477 4.5 1.253v13C19.832 18.477 18.246 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path>
+                            </svg>
+                            <span>Biblioteca</span>
+                        </a>
+                    </li>
+                <?php } ?>
+                <?php if (isset($_SESSION['Entrada/saída'])) { ?>
+                    <li>
+                        <a href="../../subsystems/entradasaida/app/main/views/inicio.php" class="menu-item flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1"></path>
+                            </svg>
+                            <span>Entrada/Saída</span>
+                        </a>
+                    </li>
+                <?php } ?>
+                <?php if (isset($_SESSION['relatorio_geral']) || isset($_SESSION['gerar_relatorios_pedagogicos']) || $_SESSION['tipo'] === 'ADM') { ?>
+                <li id="relatorios-menu">
+                    <a href="#" onclick="showSection('relatorios')" class="menu-item flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                        </svg>
+                        <span>Relatórios</span>
+                    </a>
+                </li>
+                <?php } ?>
                 <?php if ($_SESSION['tipo'] === 'ADM') { ?>
                 <li id="escolas-menu">
-                    <a href="gestao_escolas.php" class="menu-item active flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700">
+                    <a href="gestao_escolas.php" class="menu-item flex items-center active space-x-3 px-4 py-3 rounded-lg text-gray-700">
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path>
                         </svg>
@@ -599,18 +811,27 @@ $escolas = listarEscolas($busca);
                         <span>Usuários</span>
                     </a>
                 </li>
+                <li id="estoque-central-menu">
+                    <a href="#" onclick="showSection('estoque-central')" class="menu-item flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path>
+                        </svg>
+                        <span>Estoque Central</span>
+                    </a>
+                </li>
                 <?php } ?>
             </ul>
         </nav>
 
+
         <!-- Logout -->
         <div class="absolute bottom-0 left-0 right-0 p-4 border-t border-gray-200">
-            <a href="../../Models/sessao/sessions.php?sair" class="w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-red-600 hover:bg-red-50 hover:text-red-700 transition-all duration-200">
+            <button onclick="confirmLogout()" class="w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-red-600 hover:bg-red-50 hover:text-red-700 transition-all duration-200">
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path>
                 </svg>
                 <span>Sair</span>
-            </a>
+            </button>
         </div>
     </aside>
 
@@ -783,12 +1004,52 @@ $escolas = listarEscolas($busca);
                         <input type="hidden" name="acao" value="cadastrar">
                         
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            <!-- Coluna Esquerda -->
-                            <div class="space-y-6">
-                                <div>
-                                    <label for="nome" class="block text-sm font-medium text-gray-700 mb-2">Nome da Escola *</label>
-                                    <input type="text" id="nome" name="nome" required
-                                           class="block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-primary-green focus:border-primary-green">
+                            <div>
+                                <label for="nome" class="block text-sm font-medium text-gray-700 mb-2">Nome da Escola *</label>
+                                <input type="text" id="nome" name="nome" required
+                                       class="block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-primary-green focus:border-primary-green">
+                            </div>
+                            
+                            <div>
+                                <label for="codigo" class="block text-sm font-medium text-gray-700 mb-2">Código INEP *</label>
+                                <input type="text" id="codigo" name="codigo" placeholder="Ex: 12345678" required
+                                       class="block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-primary-green focus:border-primary-green">
+                            </div>
+                            
+                            <div>
+                                <label for="telefone" class="block text-sm font-medium text-gray-700 mb-2">Telefone *</label>
+                                <input type="text" id="telefone" name="telefone" placeholder="(00) 0000-0000" required
+                                       class="block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-primary-green focus:border-primary-green">
+                            </div>
+                            
+                            <div class="md:col-span-2">
+                                <label for="endereco" class="block text-sm font-medium text-gray-700 mb-2">Endereço *</label>
+                                <input type="text" id="endereco" name="endereco" required
+                                       class="block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-primary-green focus:border-primary-green">
+                            </div>
+                            
+                            <div>
+                                <label for="email" class="block text-sm font-medium text-gray-700 mb-2">Email *</label>
+                                <input type="email" id="email" name="email" required
+                                       class="block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-primary-green focus:border-primary-green">
+                            </div>
+                            
+                            <div>
+                                <label for="municipio" class="block text-sm font-medium text-gray-700 mb-2">Município *</label>
+                                <input type="text" id="municipio" name="municipio" required
+                                       class="block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-primary-green focus:border-primary-green">
+                            </div>
+                            
+                            <div>
+                                <label for="cep" class="block text-sm font-medium text-gray-700 mb-2">CEP <span class="text-red-500">*</span></label>
+                                <div class="flex space-x-2">
+                                    <input type="text" id="cep" name="cep" required placeholder="00000-000" maxlength="9" onkeyup="formatarCEPCadastro(this)" onblur="buscarCEPCadastro(this.value)"
+                                           class="flex-1 px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-primary-green focus:border-primary-green">
+                                    <button type="button" onclick="buscarCEPCadastro(document.getElementById('cep').value)" class="px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors duration-200">
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                                        </svg>
+                                    </button>
                                 </div>
                                 
                                 <div>
@@ -809,33 +1070,6 @@ $escolas = listarEscolas($busca);
                                         </button>
                                     </div>
                                     <div id="resultadoCEPCadastro" class="mt-2 text-sm text-gray-600 hidden"></div>
-                                </div>
-                                
-                                <div>
-                                    <label for="endereco" class="block text-sm font-medium text-gray-700 mb-2">Endereço *</label>
-                                    <input type="text" id="endereco" name="endereco" required
-                                           class="block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-primary-green focus:border-primary-green">
-                                </div>
-                                
-                                <div>
-                                    <label for="qtd_salas" class="block text-sm font-medium text-gray-700 mb-2">Quantidade de Salas <span class="text-red-500">*</span></label>
-                                    <input type="number" id="qtd_salas" name="qtd_salas" required min="1" placeholder="Ex: 12"
-                                           class="block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-primary-green focus:border-primary-green">
-                                </div>
-                            </div>
-                            
-                            <!-- Coluna Direita -->
-                            <div class="space-y-6">
-                                <div>
-                                    <label for="codigo" class="block text-sm font-medium text-gray-700 mb-2">Código INEP</label>
-                                    <input type="text" id="codigo" name="codigo" placeholder="Ex: 12345678"
-                                           class="block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-primary-green focus:border-primary-green">
-                                </div>
-                                
-                                <div>
-                                    <label for="email" class="block text-sm font-medium text-gray-700 mb-2">Email</label>
-                                    <input type="email" id="email" name="email"
-                                           class="block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-primary-green focus:border-primary-green">
                                 </div>
                                 
                                 <div>
@@ -868,6 +1102,33 @@ $escolas = listarEscolas($busca);
                                     </div>
                                 </div>
                             </div>
+                            
+                            <!-- Coluna Direita -->
+                            <div class="space-y-6">
+                                <div>
+                                    <label for="codigo" class="block text-sm font-medium text-gray-700 mb-2">Código INEP</label>
+                                    <input type="text" id="codigo" name="codigo" placeholder="Ex: 12345678"
+                                           class="block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-primary-green focus:border-primary-green">
+                                </div>
+                                
+                                <div>
+                                    <label for="email" class="block text-sm font-medium text-gray-700 mb-2">Email</label>
+                                    <input type="email" id="email" name="email"
+                                           class="block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-primary-green focus:border-primary-green">
+                                </div>
+                                
+                                <div>
+                                    <label for="endereco" class="block text-sm font-medium text-gray-700 mb-2">Endereço *</label>
+                                    <input type="text" id="endereco" name="endereco" required
+                                           class="block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-primary-green focus:border-primary-green">
+                                </div>
+                                
+                                <div>
+                                    <label for="qtd_salas" class="block text-sm font-medium text-gray-700 mb-2">Quantidade de Salas <span class="text-red-500">*</span></label>
+                                    <input type="number" id="qtd_salas" name="qtd_salas" required min="1" placeholder="Ex: 12"
+                                           class="block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-primary-green focus:border-primary-green">
+                                </div>
+                            </div>
                         </div>
                         
                         <div class="flex justify-end space-x-3 pt-4">
@@ -885,7 +1146,7 @@ $escolas = listarEscolas($busca);
     </div>
     
     <!-- Modal de Exclusão de Escola -->
-    <div id="modalExclusaoEscola" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden flex items-center justify-center p-4">
+    <div id="modalExclusaoEscola" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden items-center justify-center p-4">
         <div class="bg-white rounded-2xl p-6 max-w-md w-full mx-4 shadow-2xl">
             <div class="flex items-center justify-center w-12 h-12 mx-auto bg-red-100 rounded-full mb-4">
                 <svg class="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -994,14 +1255,8 @@ $escolas = listarEscolas($busca);
                                 </div>
                                 
                                 <div>
-                                    <label for="edit_endereco" class="block text-sm font-medium text-gray-700 mb-2">Endereço *</label>
-                                    <input type="text" id="edit_endereco" name="endereco" required
-                                           class="block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-primary-green focus:border-primary-green">
-                                </div>
-                                
-                                <div>
-                                    <label for="edit_qtd_salas" class="block text-sm font-medium text-gray-700 mb-2">Quantidade de Salas <span class="text-red-500">*</span></label>
-                                    <input type="number" id="edit_qtd_salas" name="qtd_salas" required min="1" placeholder="Ex: 12"
+                                    <label for="edit_municipio" class="block text-sm font-medium text-gray-700 mb-2">Município *</label>
+                                    <input type="text" id="edit_municipio" name="municipio" required
                                            class="block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-primary-green focus:border-primary-green">
                                 </div>
                             </div>
@@ -1021,11 +1276,16 @@ $escolas = listarEscolas($busca);
                                 </div>
                                 
                                 <div>
-                                    <label for="edit_municipio" class="block text-sm font-medium text-gray-700 mb-2">Município *</label>
-                                    <input type="text" id="edit_municipio" name="municipio" required
+                                    <label for="edit_endereco" class="block text-sm font-medium text-gray-700 mb-2">Endereço *</label>
+                                    <input type="text" id="edit_endereco" name="endereco" required
                                            class="block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-primary-green focus:border-primary-green">
                                 </div>
                                 
+                                <div>
+                                    <label for="edit_qtd_salas" class="block text-sm font-medium text-gray-700 mb-2">Quantidade de Salas <span class="text-red-500">*</span></label>
+                                    <input type="number" id="edit_qtd_salas" name="qtd_salas" required min="1" placeholder="Ex: 12"
+                                           class="block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-primary-green focus:border-primary-green">
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -1181,12 +1441,16 @@ $escolas = listarEscolas($busca);
         function abrirModalExclusaoEscola(id, nome) {
             document.getElementById('idEscolaExclusao').value = id;
             document.getElementById('nomeEscolaExclusao').textContent = nome;
-            document.getElementById('modalExclusaoEscola').classList.remove('hidden');
+            const modal = document.getElementById('modalExclusaoEscola');
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
         }
         
         // Função para fechar modal de exclusão de escola
         function fecharModalExclusaoEscola() {
-            document.getElementById('modalExclusaoEscola').classList.add('hidden');
+            const modal = document.getElementById('modalExclusaoEscola');
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
         }
         
         // Fechar modal clicando fora dele
@@ -1203,7 +1467,14 @@ $escolas = listarEscolas($busca);
                 return;
             }
             
-            fetch(`buscar_gestores.php?busca=${encodeURIComponent(termo)}`)
+            fetch(`buscar_gestores.php?busca=${encodeURIComponent(termo)}`, {
+                method: 'GET',
+                credentials: 'same-origin',
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'Cache-Control': 'no-cache'
+                }
+            })
                 .then(response => response.json())
                 .then(data => {
                     const results = document.getElementById('gestor_results');
@@ -1254,18 +1525,166 @@ $escolas = listarEscolas($busca);
             document.getElementById('tituloModalEdicao').textContent = `Editar Escola - ${nome}`;
             document.getElementById('modalEdicaoEscola').classList.remove('hidden');
             
+            // Mostrar indicador de carregamento
+            mostrarCarregandoDadosEscola();
+            
             // Carregar dados da escola
             carregarDadosEscola(id);
         }
         
         function fecharModalEdicaoEscola() {
             document.getElementById('modalEdicaoEscola').classList.add('hidden');
+            
+            // Limpar formulário
+            document.getElementById('formEdicaoEscola').reset();
+            document.getElementById('edit_gestor_selected').classList.add('hidden');
+            document.getElementById('lista-professores').innerHTML = '';
+        }
+        
+        function mostrarCarregandoDadosEscola() {
+            // Mostrar indicador de carregamento nos campos
+            const campos = [
+                'edit_nome', 'edit_endereco', 'edit_telefone', 'edit_email',
+                'edit_municipio', 'edit_cep', 'edit_qtd_salas', 'edit_obs'
+            ];
+            
+            campos.forEach(campo => {
+                const input = document.getElementById(campo);
+                if (input) {
+                    input.value = 'Carregando...';
+                    input.disabled = true;
+                }
+            });
+            
+            // Desabilitar botões durante o carregamento
+            const botoes = document.querySelectorAll('#formEdicaoEscola button[type="submit"]');
+            botoes.forEach(botao => {
+                botao.disabled = true;
+            });
+        }
+        
+        function habilitarCamposEdicao() {
+            // Habilitar campos após o carregamento
+            const campos = [
+                'edit_nome', 'edit_endereco', 'edit_telefone', 'edit_email',
+                'edit_municipio', 'edit_cep', 'edit_qtd_salas', 'edit_obs'
+            ];
+            
+            campos.forEach(campo => {
+                const input = document.getElementById(campo);
+                if (input) {
+                    input.disabled = false;
+                }
+            });
+            
+            // Habilitar botões após o carregamento
+            const botoes = document.querySelectorAll('#formEdicaoEscola button[type="submit"]');
+            botoes.forEach(botao => {
+                botao.disabled = false;
+            });
         }
         
         function carregarDadosEscola(id) {
-            // Aqui você pode fazer uma requisição AJAX para carregar os dados da escola
-            // Por enquanto, vou deixar como placeholder
-            console.log('Carregando dados da escola:', id);
+            fetch(`obter_escola.php?id=${id}`, {
+                method: 'GET',
+                credentials: 'same-origin',
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'Cache-Control': 'no-cache'
+                }
+            })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status) {
+                        const escola = data.escola;
+                        
+                        // Preencher campos do formulário com os dados da escola
+                        document.getElementById('edit_nome').value = escola.nome || '';
+                        document.getElementById('edit_endereco').value = escola.endereco || '';
+                        document.getElementById('edit_telefone').value = escola.telefone || '';
+                        document.getElementById('edit_email').value = escola.email || '';
+                        document.getElementById('edit_municipio').value = escola.municipio || '';
+                        document.getElementById('edit_cep').value = escola.cep || '';
+                        document.getElementById('edit_qtd_salas').value = escola.qtd_salas || '';
+                        document.getElementById('edit_obs').value = escola.obs || '';
+                        
+                        // Preencher dados do gestor, se houver
+                        if (escola.gestor_id) {
+                            document.getElementById('edit_gestor_id').value = escola.gestor_id;
+                            document.getElementById('edit_gestor_nome_selecionado').textContent = escola.gestor_nome || 'Nome não disponível';
+                            document.getElementById('edit_gestor_email_selecionado').textContent = escola.gestor_email || 'Email não disponível';
+                            document.getElementById('edit_gestor_selected').classList.remove('hidden');
+                        } else {
+                            document.getElementById('edit_gestor_id').value = '';
+                            document.getElementById('edit_gestor_selected').classList.add('hidden');
+                        }
+                        
+                        // Carregar professores, se houver
+                        if (data.professores && data.professores.length > 0) {
+                            carregarProfessoresEscola(data.professores);
+                        } else {
+                            document.getElementById('lista-professores').innerHTML = `
+                                <div class="text-center p-4 bg-gray-50 rounded-lg border border-gray-200">
+                                    <p class="text-gray-500">Nenhum professor vinculado a esta escola.</p>
+                                </div>
+                            `;
+                        }
+                        
+                        // Habilitar campos após o carregamento
+                        habilitarCamposEdicao();
+                    } else {
+                        // Exibir mensagem de erro
+                        alert('Erro ao carregar dados da escola: ' + data.mensagem);
+                        fecharModalEdicaoEscola();
+                    }
+                })
+                .catch(error => {
+                    console.error('Erro ao carregar dados da escola:', error);
+                    alert('Erro ao carregar dados da escola. Verifique o console para mais detalhes.');
+                    fecharModalEdicaoEscola();
+                });
+        }
+        
+        function carregarProfessoresEscola(professores) {
+            const listaProfessores = document.getElementById('lista-professores');
+            listaProfessores.innerHTML = '';
+            
+            professores.forEach(professor => {
+                const card = document.createElement('div');
+                card.className = 'flex items-center justify-between p-4 bg-white rounded-lg border border-gray-200 hover:bg-gray-50 transition-colors duration-200';
+                card.innerHTML = `
+                    <div class="flex items-center space-x-3">
+                        <div class="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center text-blue-600 font-semibold">
+                            ${professor.nome.charAt(0).toUpperCase()}
+                        </div>
+                        <div>
+                            <h5 class="font-medium text-gray-900">${professor.nome}</h5>
+                            <p class="text-sm text-gray-500">${professor.email || 'Email não informado'}</p>
+                        </div>
+                    </div>
+                    <div class="flex items-center space-x-2">
+                        <span class="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">${professor.role || 'Professor'}</span>
+                        <button type="button" onclick="removerProfessor(${professor.id})" class="p-1 text-red-600 hover:text-red-800 hover:bg-red-50 rounded-full">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                            </svg>
+                        </button>
+                    </div>
+                `;
+                listaProfessores.appendChild(card);
+            });
+        }
+        
+        function removerProfessor(professorId) {
+            if (confirm('Tem certeza que deseja remover este professor da escola?')) {
+                console.log('Removendo professor:', professorId);
+                // Aqui você faria a requisição para o backend para remover o professor
+                // Por enquanto, apenas simulamos a remoção
+                alert('Professor removido com sucesso!');
+                // Recarregar a lista de professores
+                const escolaId = document.getElementById('edit_escola_id').value;
+                carregarDadosEscola(escolaId);
+            }
         }
         
         function mostrarAbaEdicao(abaId) {
@@ -1696,7 +2115,14 @@ $escolas = listarEscolas($busca);
                 return;
             }
             
-            fetch(`buscar_gestores.php?busca=${encodeURIComponent(termo)}`)
+            fetch(`buscar_gestores.php?busca=${encodeURIComponent(termo)}`, {
+                method: 'GET',
+                credentials: 'same-origin',
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'Cache-Control': 'no-cache'
+                }
+            })
                 .then(response => response.json())
                 .then(data => {
                     const results = document.getElementById('edit_gestor_results');
