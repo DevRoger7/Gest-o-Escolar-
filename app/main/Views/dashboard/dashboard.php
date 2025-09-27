@@ -6771,411 +6771,784 @@ if (!defined('BASE_URL')) {
         </div>
     </div>
 
-    <!-- User Profile Modal - FULL SCREEN -->
-    <div id="userProfileModal" class="fixed inset-0 bg-white dark:bg-gray-900 z-50 hidden">
-        <!-- Header with Logo and Title -->
-        <div class="bg-black text-white h-16 flex items-center justify-between px-6 relative">
-            <!-- Title - Left Side -->
-            <div class="flex items-center">
-                <h1 class="text-xl font-bold">PERFIL</h1>
-            </div>
-            
-            <!-- Logo/Brasão - Center -->
-            <div class="absolute left-1/2 transform -translate-x-1/2">
-                <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/1/19/Bras%C3%A3o_de_Maranguape.png/250px-Bras%C3%A3o_de_Maranguape.png" 
-                     alt="Brasão de Maranguape" 
-                     class="w-12 h-12 object-contain">
-            </div>
-            
-            <!-- Close Button - Right Side -->
-            <button onclick="closeUserProfile()" class="p-2 hover:bg-gray-800 rounded-full transition-all duration-200">
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-                </svg>
-            </button>
+    <!-- User Profile Modal -->
+    <div id="userProfileModal" class="fixed inset-0 bg-white z-50 hidden">
+        <div class="h-full w-full overflow-hidden">
+            <div class="bg-white h-full w-full overflow-hidden">
+                <!-- Modal Header -->
+                <div class="bg-primary-green text-white p-6">
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center space-x-4">
+                            <div class="w-16 h-16 bg-white bg-opacity-20 rounded-full flex items-center justify-center">
+                                <span class="text-2xl font-bold text-white" id="profileInitials"><?php
+                                                                                                    // Pega as 2 primeiras letras do nome da sessão
+                                                                                                    $nome = $_SESSION['nome'] ?? '';
+                                                                                                    $iniciais = '';
+                                                                                                    if (strlen($nome) >= 2) {
+                                                                                                        $iniciais = strtoupper(substr($nome, 0, 2));
+                                                                                                    } elseif (strlen($nome) == 1) {
+                                                                                                        $iniciais = strtoupper($nome);
+                                                                                                    } else {
+                                                                                                        $iniciais = 'US'; // Fallback para "User"
+                                                                                                    }
+                                                                                                    echo $iniciais;
+                                                                                                    ?></span>
+                            </div>
+                            <div>
+                                <h2 class="text-2xl font-bold" id="profileName"><?php echo $_SESSION['nome']; ?></h2>
+                                <p class="text-green-100" id="profileRole"><?php echo $_SESSION['tipo']; ?></p>
+                            </div>
+                        </div>
+                        <button onclick="closeUserProfile()" class="p-2 hover:bg-white hover:bg-opacity-20 rounded-full transition-colors duration-200">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                            </svg>
+                        </button>
+                    </div>
                 </div>
 
-        <!-- Tab Navigation -->
-        <div class="bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
-            <div class="px-6 py-4">
-                <nav class="flex space-x-1 overflow-x-auto">
-                    <button onclick="showProfileTab('overview')" id="tab-overview" class="profile-tab active flex items-center space-x-2 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 bg-primary-green text-white whitespace-nowrap">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
-                                            </svg>
-                        <span>Visão Geral</span>
-                    </button>
-                    
-                    <button onclick="showProfileTab('personal')" id="tab-personal" class="profile-tab flex items-center space-x-2 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 whitespace-nowrap">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
-                                </svg>
-                        <span>Informações Pessoais</span>
-                    </button>
-                    
-                    <button onclick="showProfileTab('system')" id="tab-system" class="profile-tab flex items-center space-x-2 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 whitespace-nowrap">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path>
-                                        </svg>
-                        <span>Sistema</span>
-                                    </button>
-                    
-                    <button onclick="showProfileTab('settings')" id="tab-settings" class="profile-tab flex items-center space-x-2 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 whitespace-nowrap">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path>
-                                            </svg>
-                        <span>Configurações</span>
-                                    </button>
-                </nav>
-                                </div>
-                            </div>
-
-        <!-- Main Content -->
-        <div class="h-[calc(100vh-120px)] overflow-y-auto bg-white dark:bg-gray-900">
-            <!-- Overview Tab -->
-            <div id="content-overview" class="profile-content p-4 md:p-8">
-                <?php if ($_SESSION['tipo'] === 'ADM') { ?>
-                    <!-- Admin Dashboard -->
-                    <div class="space-y-8">
-                        <!-- Stats Grid -->
-                        <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
-                            <div class="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700">
-                                <div class="flex items-center justify-between">
-                                    <div>
-                                        <p class="text-sm font-medium text-gray-600 dark:text-gray-400">Escolas</p>
-                                        <p class="text-2xl font-bold text-gray-900 dark:text-white">12</p>
+                <!-- Modal Content -->
+                <div class="p-6 overflow-y-auto h-[calc(100vh-120px)]">
+                    <!-- User Information -->
+                    <div class="mb-8">
+                        <h3 class="text-lg font-semibold text-gray-900 mb-4">Informações Pessoais</h3>
+                        <?php if ($_SESSION['tipo'] === 'ADM') { ?>
+                            <!-- ADM Simplified Info -->
+                            <div class="bg-gray-50 p-6 rounded-xl">
+                                <div class="flex items-center space-x-4">
+                                    <div class="w-16 h-16 bg-primary-green rounded-full flex items-center justify-center">
+                                        <span class="text-2xl font-bold text-white" id="profileInitials"><?php
+                                            $nome = $_SESSION['nome'] ?? '';
+                                            $iniciais = '';
+                                            if (strlen($nome) >= 2) {
+                                                $iniciais = strtoupper(substr($nome, 0, 2));
+                                            } elseif (strlen($nome) == 1) {
+                                                $iniciais = strtoupper($nome);
+                                            } else {
+                                                $iniciais = 'AD';
+                                            }
+                                            echo $iniciais;
+                                        ?></span>
                                     </div>
-                                    <div class="w-10 h-10 bg-blue-100 dark:bg-blue-900 rounded-lg flex items-center justify-center">
-                                        <svg class="w-5 h-5 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path>
-                                        </svg>
+                                    <div>
+                                        <h4 class="text-xl font-bold text-gray-900"><?php echo $_SESSION['nome']; ?></h4>
+                                        <p class="text-primary-green font-medium">Administrador Geral</p>
+                                        <p class="text-sm text-gray-600"><?php echo $_SESSION['email']; ?></p>
                                     </div>
                                 </div>
                             </div>
-
-                            <div class="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700">
-                                <div class="flex items-center justify-between">
-                                    <div>
-                                        <p class="text-sm font-medium text-gray-600 dark:text-gray-400">Usuários</p>
-                                        <p class="text-2xl font-bold text-gray-900 dark:text-white">248</p>
-                                    </div>
-                                    <div class="w-10 h-10 bg-green-100 dark:bg-green-900 rounded-lg flex items-center justify-center">
-                                        <svg class="w-5 h-5 text-green-600 dark:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z"></path>
-                                                </svg>
-                                            </div>
-                                            </div>
-                                    </div>
-
-                            <div class="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700">
-                                    <div class="flex items-center justify-between">
-                                            <div>
-                                        <p class="text-sm font-medium text-gray-600 dark:text-gray-400">Sistema</p>
-                                        <p class="text-2xl font-bold text-gray-900 dark:text-white">99.9%</p>
-                                            </div>
-                                    <div class="w-10 h-10 bg-purple-100 dark:bg-purple-900 rounded-lg flex items-center justify-center">
-                                        <svg class="w-5 h-5 text-purple-600 dark:text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                                                </svg>
+                        <?php } else { ?>
+                            <!-- Other Users Full Info -->
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div class="bg-gray-50 p-4 rounded-lg">
+                                <label class="text-sm font-medium text-gray-600">Nome Completo</label>
+                                <p class="text-gray-900 font-medium" id="profileFullName"><?php echo $_SESSION['nome']; ?></p>
+                            </div>
+                            <div class="bg-gray-50 p-4 rounded-lg">
+                                <label class="text-sm font-medium text-gray-600">CPF</label>
+                                <p class="text-gray-900 font-medium" id="profileCPF"><?php echo $_SESSION['cpf']; ?></p>
+                            </div>
+                            <div class="bg-gray-50 p-4 rounded-lg">
+                                <label class="text-sm font-medium text-gray-600">Email</label>
+                                <p class="text-gray-900 font-medium" id="profileEmail"><?php echo $_SESSION['email']; ?></p>
+                            </div>
+                            <div class="bg-gray-50 p-4 rounded-lg">
+                                <label class="text-sm font-medium text-gray-600">Telefone</label>
+                                <p class="text-gray-900 font-medium" id="profilePhone"><?php echo $_SESSION['telefone']; ?></p>
                             </div>
                         </div>
+                        <?php } ?>
                     </div>
 
-                            <div class="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700">
-                                <div class="flex items-center justify-between">
-                            <div>
-                                        <p class="text-sm font-medium text-gray-600 dark:text-gray-400">Status</p>
-                                        <p class="text-2xl font-bold text-green-600 dark:text-green-400">Online</p>
-                            </div>
-                                    <div class="w-10 h-10 bg-green-100 dark:bg-green-900 rounded-lg flex items-center justify-center">
-                                        <svg class="w-5 h-5 text-green-600 dark:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
-                                        </svg>
-                                    </div>
-                                    </div>
-                                </div>
-                                    </div>
-
-                        <!-- Admin Info Card -->
-                        <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-8">
-                            <div class="flex items-start space-x-6">
-                                <div class="w-16 h-16 bg-primary-green rounded-full flex items-center justify-center">
-                                    <span class="text-xl font-bold text-white"><?php
-                                        $nome = $_SESSION['nome'] ?? '';
-                                        $iniciais = '';
-                                        if (strlen($nome) >= 2) {
-                                            $iniciais = strtoupper(substr($nome, 0, 2));
-                                        } elseif (strlen($nome) == 1) {
-                                            $iniciais = strtoupper($nome);
-                                        } else {
-                                            $iniciais = 'AD';
-                                        }
-                                        echo $iniciais;
-                                    ?></span>
-                                    </div>
-                                <div class="flex-1">
-                                    <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-2"><?php echo $_SESSION['nome']; ?></h2>
-                                    <div class="flex items-center space-x-3 mb-4">
-                                        <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-primary-green text-white">
-                                            Administrador Geral
-                                        </span>
-                                        <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200">
-                                            Acesso Total
-                                        </span>
-                                    </div>
-                                    <div class="grid grid-cols-2 gap-6">
+                    <!-- School Information -->
+                    <div class="mb-8">
+                        <h3 class="text-lg font-semibold text-gray-900 mb-4" id="schoolsTitle">
+                            <?php 
+                            if ($_SESSION['tipo'] === 'ADM') {
+                                echo 'Secretaria Municipal da Educação';
+                            } else {
+                                echo 'Escola Atual';
+                            }
+                            ?>
+                        </h3>
+                        <div id="schoolsContainer">
+                            <?php if ($_SESSION['tipo'] === 'ADM') { ?>
+                                <!-- ADM Specific Information -->
+                                <div class="bg-gradient-to-r from-primary-green to-green-600 text-white p-6 rounded-xl">
+                                    <div class="flex items-center space-x-4">
+                                        <div class="w-16 h-16 bg-white bg-opacity-20 rounded-full flex items-center justify-center">
+                                            <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path>
+                                            </svg>
+                                        </div>
                                         <div>
-                                            <p class="text-sm text-gray-600 dark:text-gray-400 mb-1">Email</p>
-                                            <p class="text-gray-900 dark:text-white font-medium"><?php echo $_SESSION['email']; ?></p>
-                                    </div>
-                                    <div>
-                                            <p class="text-sm text-gray-600 dark:text-gray-400 mb-1">Último Acesso</p>
-                                            <p class="text-gray-900 dark:text-white font-medium">Agora</p>
+                                            <h4 class="text-xl font-bold">Secretaria Municipal da Educação</h4>
+                                            <p class="text-green-100">Órgão Central de Gestão Educacional</p>
+                                            <p class="text-green-200 text-sm mt-1">Responsável por todas as escolas municipais</p>
+                                        </div>
                                     </div>
                                 </div>
-                                    </div>
-                                    </div>
-                                    </div>
-                                </div>
-                <?php } else { ?>
-                    <!-- User Dashboard -->
-                    <div class="space-y-8">
-                        <!-- User Info Card -->
-                        <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-8">
-                            <h2 class="text-xl font-semibold text-gray-900 dark:text-white mb-6">Informações Pessoais</h2>
-                            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                <div class="space-y-4">
-                                    <div>
-                                        <label class="text-sm font-medium text-gray-600 dark:text-gray-400">Nome Completo</label>
-                                        <p class="text-gray-900 dark:text-white font-medium mt-1"><?php echo $_SESSION['nome']; ?></p>
-                                    </div>
-                                    <div>
-                                        <label class="text-sm font-medium text-gray-600 dark:text-gray-400">CPF</label>
-                                        <p class="text-gray-900 dark:text-white font-medium mt-1"><?php echo $_SESSION['cpf']; ?></p>
-                                    </div>
-                                </div>
-                                <div class="space-y-4">
-                                    <div>
-                                        <label class="text-sm font-medium text-gray-600 dark:text-gray-400">Email</label>
-                                        <p class="text-gray-900 dark:text-white font-medium mt-1"><?php echo $_SESSION['email']; ?></p>
-                                    </div>
-                                    <div>
-                                        <label class="text-sm font-medium text-gray-600 dark:text-gray-400">Telefone</label>
-                                        <p class="text-gray-900 dark:text-white font-medium mt-1"><?php echo $_SESSION['telefone']; ?></p>
-                                    </div>
-                                    </div>
-                                </div>
-                            </div>
+                            <?php } else { ?>
+                                <!-- Schools will be dynamically loaded here for other users -->
+                            <?php } ?>
                         </div>
-                <?php } ?>
                     </div>
 
-            <!-- Personal Information Tab -->
-            <div id="content-personal" class="profile-content hidden p-4 md:p-8">
-                <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-4 md:p-8">
-                    <h2 class="text-xl font-semibold text-gray-900 dark:text-white mb-6">Dados Pessoais</h2>
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8">
-                        <div class="space-y-4 md:space-y-6">
-                            <div>
-                                <label class="text-sm font-medium text-gray-600 dark:text-gray-400">Nome Completo</label>
-                                <p class="text-gray-900 dark:text-white font-medium mt-1"><?php echo $_SESSION['nome']; ?></p>
+                    <!-- User Type Specific Information -->
+                    <?php if ($_SESSION['tipo'] !== 'ADM') { ?>
+                    <div class="mb-8">
+                        <h3 class="text-lg font-semibold text-gray-900 mb-4">Informações Gerais</h3>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div class="bg-gray-50 p-4 rounded-lg">
+                                <label class="text-sm font-medium text-gray-600">Carga Horária Total</label>
+                                <p class="text-gray-900 font-medium" id="profileWorkload">40h semanais</p>
                             </div>
-                            <div>
-                                <label class="text-sm font-medium text-gray-600 dark:text-gray-400">CPF</label>
-                                <p class="text-gray-900 dark:text-white font-medium mt-1"><?php echo $_SESSION['cpf']; ?></p>
+                            <div class="bg-gray-50 p-4 rounded-lg">
+                                <label class="text-sm font-medium text-gray-600">Data de Admissão</label>
+                                <p class="text-gray-900 font-medium" id="profileAdmission">15/03/2020</p>
                             </div>
-                            <div>
-                                <label class="text-sm font-medium text-gray-600 dark:text-gray-400">Email</label>
-                                <p class="text-gray-900 dark:text-white font-medium mt-1"><?php echo $_SESSION['email']; ?></p>
-                        </div>
-                                    </div>
-                        <div class="space-y-4 md:space-y-6">
-                                    <div>
-                                <label class="text-sm font-medium text-gray-600 dark:text-gray-400">Telefone</label>
-                                <p class="text-gray-900 dark:text-white font-medium mt-1"><?php echo $_SESSION['telefone']; ?></p>
-                                    </div>
-                            <div>
-                                <label class="text-sm font-medium text-gray-600 dark:text-gray-400">Tipo de Usuário</label>
-                                <p class="text-gray-900 dark:text-white font-medium mt-1"><?php echo $_SESSION['tipo']; ?></p>
-                                    </div>
-                                    <div>
-                                <label class="text-sm font-medium text-gray-600 dark:text-gray-400">Status</label>
-                                <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200 mt-1">
+                            <div class="bg-gray-50 p-4 rounded-lg">
+                                <label class="text-sm font-medium text-gray-600">Status</label>
+                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800" id="profileStatus">
                                     Ativo
                                 </span>
-                                    </div>
-                                </div>
-                                    </div>
-                                </div>
                             </div>
-
-            <!-- System Tab -->
-            <div id="content-system" class="profile-content hidden p-4 md:p-8">
-                <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-4 md:p-8">
-                    <h2 class="text-xl font-semibold text-gray-900 dark:text-white mb-6">Informações do Sistema</h2>
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8">
-                        <div class="space-y-4 md:space-y-6">
-                            <div>
-                                <label class="text-sm font-medium text-gray-600 dark:text-gray-400">Último Acesso</label>
-                                <p class="text-gray-900 dark:text-white font-medium mt-1">Agora</p>
-                                    </div>
-                                    <div>
-                                <label class="text-sm font-medium text-gray-600 dark:text-gray-400">Sessão Ativa</label>
-                                <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200 mt-1">
-                                    Online
-                                </span>
-                                    </div>
-                                </div>
-                        <div class="space-y-4 md:space-y-6">
-                            <div>
-                                <label class="text-sm font-medium text-gray-600 dark:text-gray-400">IP de Acesso</label>
-                                <p class="text-gray-900 dark:text-white font-medium mt-1">192.168.1.100</p>
-                                    </div>
-                                    <div>
-                                <label class="text-sm font-medium text-gray-600 dark:text-gray-400">Navegador</label>
-                                <p class="text-gray-900 dark:text-white font-medium mt-1">Chrome 120.0</p>
-                                    </div>
-                                </div>
+                            <div class="bg-gray-50 p-4 rounded-lg">
+                                <label class="text-sm font-medium text-gray-600">Total de Escolas</label>
+                                <p class="text-gray-900 font-medium" id="totalSchools">1 escola</p>
                             </div>
                         </div>
                     </div>
+                    <?php } ?>
 
-            <!-- Settings Tab -->
-            <div id="content-profile-settings" class="profile-content hidden p-4 md:p-8">
-                <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6 md:p-8">
-                    <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-8 text-center">Configurações de Acessibilidade</h2>
-                    
-                    <!-- Configurações Básicas -->
-                    <div class="mb-8">
-                        <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-6 flex items-center">
-                            <svg class="w-5 h-5 mr-2 text-primary-green" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"></path>
-                            </svg>
-                            Configurações Básicas
-                        </h3>
-                        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-                            <!-- Tema Visual -->
-                            <div class="bg-gray-50 dark:bg-gray-700 p-4 rounded-lg">
-                                <h4 class="text-sm font-medium text-gray-900 dark:text-white mb-3">Tema Visual</h4>
-                                <div class="grid grid-cols-2 gap-2">
-                                    <button id="theme-light" onclick="setTheme('light')" class="flex items-center justify-center space-x-2 px-3 py-2 text-xs border-2 border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200">
-                                        <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <!-- Configurações de Acessibilidade -->
+                    <div class="mb-6">
+                        <div class="flex items-center space-x-2 mb-4">
+                            <div class="w-6 h-6 bg-blue-100 rounded-md flex items-center justify-center">
+                                <svg class="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.746 0 3.332.477 4.5 1.253v13C19.832 18.477 18.246 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path>
+                                </svg>
+                            </div>
+                            <div>
+                                <h3 class="text-lg font-semibold text-gray-900">Configurações de Acessibilidade</h3>
+                                <p class="text-xs text-gray-500">Personalize sua experiência</p>
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <!-- Tema -->
+                            <div class="bg-white p-4 rounded-lg border border-gray-200">
+                                <div class="flex items-center space-x-2 mb-3">
+                                    <div class="w-5 h-5 bg-yellow-100 rounded flex items-center justify-center">
+                                        <svg class="w-3 h-3 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"></path>
                                         </svg>
-                                        <span class="font-medium text-gray-900 dark:text-white">Claro</span>
+                                    </div>
+                                    <div>
+                                        <h4 class="text-sm font-medium text-gray-900">Tema Visual</h4>
+                                        <p class="text-xs text-gray-500">Claro ou escuro</p>
+                                    </div>
+                                </div>
+                                <div class="flex space-x-2">
+                                    <button id="theme-light" class="flex-1 px-3 py-2 text-sm border border-gray-300 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors">
+                                        <div class="flex items-center justify-center space-x-1">
+                                            <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"></path>
+                                            </svg>
+                                            <span>Claro</span>
+                                        </div>
                                     </button>
-                                    <button id="theme-dark" onclick="setTheme('dark')" class="flex items-center justify-center space-x-2 px-3 py-2 text-xs border-2 border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200">
-                                        <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"></path>
-                                        </svg>
-                                        <span class="font-medium text-gray-900 dark:text-white">Escuro</span>
+                                    <button id="theme-dark" class="flex-1 px-3 py-2 text-sm border border-gray-300 rounded-md hover:bg-gray-200 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors">
+                                        <div class="flex items-center justify-center space-x-1">
+                                            <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"></path>
+                                            </svg>
+                                            <span>Escuro</span>
+                                        </div>
                                     </button>
                                 </div>
                             </div>
 
                             <!-- Contraste -->
-                            <div class="bg-gray-50 dark:bg-gray-700 p-4 rounded-lg">
-                                <h4 class="text-sm font-medium text-gray-900 dark:text-white mb-3">Contraste</h4>
-                                <div class="grid grid-cols-2 gap-2">
-                                    <button onclick="setContrast('normal')" id="contrast-normal" class="flex items-center justify-center px-3 py-2 text-xs border-2 border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200">
-                                        <span class="font-medium text-gray-900 dark:text-white">Normal</span>
+                            <div class="bg-white p-4 rounded-lg border border-gray-200">
+                                <div class="flex items-center space-x-2 mb-3">
+                                    <div class="w-5 h-5 bg-red-100 rounded flex items-center justify-center">
+                                        <svg class="w-3 h-3 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
+                                        </svg>
+                                    </div>
+                                    <div>
+                                        <h4 class="text-sm font-medium text-gray-900">Contraste</h4>
+                                        <p class="text-xs text-gray-500">Ajustar cores</p>
+                                    </div>
+                                </div>
+                                <div class="flex space-x-2">
+                                    <button onclick="setContrast('normal')" id="contrast-normal" class="flex-1 px-3 py-2 text-sm border border-gray-300 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors">
+                                        <span>Normal</span>
                                     </button>
-                                    <button onclick="setContrast('high')" id="contrast-high" class="flex items-center justify-center px-3 py-2 text-xs border-2 border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200">
-                                        <span class="font-medium text-gray-900 dark:text-white">Alto</span>
+                                    <button onclick="setContrast('high')" id="contrast-high" class="flex-1 px-3 py-2 text-sm border border-gray-300 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors">
+                                        <span>Alto</span>
                                     </button>
                                 </div>
                             </div>
 
                             <!-- Tamanho da Fonte -->
-                            <div class="bg-gray-50 dark:bg-gray-700 p-4 rounded-lg">
-                                <h4 class="text-sm font-medium text-gray-900 dark:text-white mb-3">Tamanho da Fonte</h4>
+                            <div class="bg-white p-4 rounded-lg border border-gray-200">
+                                <div class="flex items-center space-x-2 mb-3">
+                                    <div class="w-5 h-5 bg-green-100 rounded flex items-center justify-center">
+                                        <svg class="w-3 h-3 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"></path>
+                                        </svg>
+                                    </div>
+                                    <div>
+                                        <h4 class="text-sm font-medium text-gray-900">Tamanho da Fonte</h4>
+                                        <p class="text-xs text-gray-500">Ajustar texto</p>
+                                    </div>
+                                </div>
                                 <div class="grid grid-cols-3 gap-2">
-                                    <button onclick="setFontSize('normal')" id="font-normal" class="flex items-center justify-center px-2 py-2 text-xs border-2 border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200">
-                                        <span class="text-xs font-bold text-gray-900 dark:text-white">A</span>
+                                    <button onclick="setFontSize('normal')" id="font-normal" class="px-2 py-2 text-sm border border-gray-300 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors">
+                                        <span class="text-sm">A</span>
                                     </button>
-                                    <button onclick="setFontSize('large')" id="font-large" class="flex items-center justify-center px-2 py-2 text-xs border-2 border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200">
-                                        <span class="text-sm font-bold text-gray-900 dark:text-white">A</span>
+                                    <button onclick="setFontSize('large')" id="font-large" class="px-2 py-2 text-sm border border-gray-300 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors">
+                                        <span class="text-base">A</span>
                                     </button>
-                                    <button onclick="setFontSize('larger')" id="font-larger" class="flex items-center justify-center px-2 py-2 text-xs border-2 border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200">
-                                        <span class="text-base font-bold text-gray-900 dark:text-white">A</span>
+                                    <button onclick="setFontSize('larger')" id="font-larger" class="px-2 py-2 text-sm border border-gray-300 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors">
+                                        <span class="text-lg">A</span>
                                     </button>
+                                </div>
+                            </div>
+
+                            <!-- Configurações Avançadas -->
+                            <div class="bg-white p-4 rounded-lg border border-gray-200">
+                                <div class="flex items-center space-x-2 mb-3">
+                                    <div class="w-5 h-5 bg-purple-100 rounded flex items-center justify-center">
+                                        <svg class="w-3 h-3 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path>
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                                        </svg>
+                                    </div>
+                                    <div>
+                                        <h4 class="text-sm font-medium text-gray-900">Configurações Avançadas</h4>
+                                        <p class="text-xs text-gray-500">Opções extras</p>
+                                    </div>
+                                </div>
+                                <div class="space-y-3">
+                                    <!-- Redução de Movimento -->
+                                    <div class="flex items-center justify-between">
+                                        <div class="flex items-center space-x-2">
+                                            <div class="w-4 h-4 bg-blue-100 rounded flex items-center justify-center">
+                                                <svg class="w-2 h-2 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+                                                </svg>
+                                            </div>
+                                            <div>
+                                                <p class="text-sm font-medium text-gray-900">Redução de Movimento</p>
+                                                <p class="text-xs text-gray-500">Menos animações</p>
+                                            </div>
+                                        </div>
+                                        <label class="relative inline-flex items-center cursor-pointer">
+                                            <input type="checkbox" id="reduce-motion" onchange="setReduceMotion(this.checked)" class="sr-only peer">
+                                            <div class="w-9 h-5 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-blue-500 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-500"></div>
+                                        </label>
+                                    </div>
+
+                                    <!-- VLibras -->
+                                    <div class="flex items-center justify-between">
+                                        <div class="flex items-center space-x-2">
+                                            <div class="w-4 h-4 bg-purple-100 rounded flex items-center justify-center">
+                                                <svg class="w-2 h-2 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z"></path>
+                                                </svg>
+                                            </div>
+                                            <div>
+                                                <p class="text-sm font-medium text-gray-900">VLibras (Libras)</p>
+                                                <p class="text-xs text-gray-500">Tradução para Libras</p>
+                                            </div>
+                                        </div>
+                                        <label class="relative inline-flex items-center cursor-pointer">
+                                            <input type="checkbox" id="vlibras-toggle" class="sr-only peer" onchange="toggleVLibras()" checked>
+                                            <div class="w-9 h-5 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-blue-500 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-500"></div>
+                                        </label>
+                                    </div>
+
+                                    <!-- Navegação por Teclado -->
+                                    <div class="flex items-center justify-between">
+                                        <div class="flex items-center space-x-2">
+                                            <div class="w-4 h-4 bg-green-100 rounded flex items-center justify-center">
+                                                <svg class="w-2 h-2 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                                </svg>
+                                            </div>
+                                            <div>
+                                                <p class="text-sm font-medium text-gray-900">Navegação por Teclado</p>
+                                                <p class="text-xs text-gray-500">Destacar foco</p>
+                                            </div>
+                                        </div>
+                                        <label class="relative inline-flex items-center cursor-pointer">
+                                            <input type="checkbox" id="keyboard-nav" onchange="setKeyboardNavigation(this.checked)" class="sr-only peer">
+                                            <div class="w-9 h-5 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-blue-500 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-500"></div>
+                                        </label>
+                                    </div>
                                 </div>
                             </div>
                         </div>
                     </div>
 
-                    <!-- Configurações Avançadas -->
-                    <div>
-                        <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-6 flex items-center">
-                            <svg class="w-5 h-5 mr-2 text-primary-green" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path>
-                            </svg>
-                            Configurações Avançadas
-                        </h3>
-                        <div class="bg-gray-50 dark:bg-gray-700 p-6 rounded-lg">
-                            <div class="space-y-6">
-                                <!-- Redução de Movimento -->
-                                <div class="flex items-center justify-between p-4 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-600">
-                                    <div class="flex items-center space-x-4">
-                                        <div class="w-10 h-10 bg-blue-100 dark:bg-blue-900 rounded-lg flex items-center justify-center">
-                                            <svg class="w-5 h-5 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
-                                            </svg>
-                                        </div>
-                                        <div>
-                                            <p class="text-sm font-semibold text-gray-900 dark:text-white">Redução de Movimento</p>
-                                            <p class="text-xs text-gray-500 dark:text-gray-400">Reduz animações e transições</p>
-                                        </div>
+                    <!-- Seções do ADM -->
+                    <?php if (isset($_SESSION['tipo']) && $_SESSION['tipo'] === 'ADM'): ?>
+                    <!-- Gestão de Alunos -->
+                    <div class="mb-8">
+                        <div class="flex items-center space-x-2 mb-4">
+                            <div class="w-6 h-6 bg-blue-100 rounded-md flex items-center justify-center">
+                                <svg class="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z"></path>
+                                </svg>
+                            </div>
+                            <div>
+                                <h3 class="text-lg font-semibold text-gray-900">Gestão de Alunos</h3>
+                                <p class="text-xs text-gray-500">Acesso total aos dados acadêmicos</p>
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                            <!-- Visão Geral -->
+                            <div class="bg-white p-4 rounded-lg border border-gray-200">
+                                <div class="flex items-center space-x-2 mb-3">
+                                    <div class="w-5 h-5 bg-green-100 rounded flex items-center justify-center">
+                                        <svg class="w-3 h-3 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
+                                        </svg>
                                     </div>
-                                    <label class="relative inline-flex items-center cursor-pointer">
-                                        <input type="checkbox" id="reduce-motion" onchange="setReduceMotion(this.checked)" class="sr-only peer">
-                                        <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 dark:peer-focus:ring-blue-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-blue-600"></div>
-                                    </label>
+                                    <div>
+                                        <h4 class="text-sm font-medium text-gray-900">Visão Geral</h4>
+                                        <p class="text-xs text-gray-500">Estatísticas gerais</p>
+                                    </div>
                                 </div>
-                                
-                                <!-- VLibras -->
-                                <div class="flex items-center justify-between p-4 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-600">
-                                    <div class="flex items-center space-x-4">
-                                        <div class="w-10 h-10 bg-purple-100 dark:bg-purple-900 rounded-lg flex items-center justify-center">
-                                            <svg class="w-5 h-5 text-purple-600 dark:text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z"></path>
-                                            </svg>
-                                        </div>
-                                        <div>
-                                            <p class="text-sm font-semibold text-gray-900 dark:text-white">VLibras (Libras)</p>
-                                            <p class="text-xs text-gray-500 dark:text-gray-400">Tradução automática para Libras</p>
-                                        </div>
+                                <div class="space-y-2">
+                                    <div class="flex justify-between text-sm">
+                                        <span class="text-gray-600">Total de Alunos:</span>
+                                        <span class="font-semibold text-gray-900">2,847</span>
                                     </div>
-                                    <label class="relative inline-flex items-center cursor-pointer">
-                                        <input type="checkbox" id="vlibras-toggle" class="sr-only peer" onchange="toggleVLibras()" checked>
-                                        <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 dark:peer-focus:ring-blue-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-blue-600"></div>
-                                    </label>
+                                    <div class="flex justify-between text-sm">
+                                        <span class="text-gray-600">Escolas Ativas:</span>
+                                        <span class="font-semibold text-gray-900">12</span>
+                                    </div>
+                                    <div class="flex justify-between text-sm">
+                                        <span class="text-gray-600">Turmas:</span>
+                                        <span class="font-semibold text-gray-900">156</span>
+                                    </div>
                                 </div>
-                                
-                                <!-- Navegação por Teclado -->
-                                <div class="flex items-center justify-between p-4 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-600">
-                                    <div class="flex items-center space-x-4">
-                                        <div class="w-10 h-10 bg-green-100 dark:bg-green-900 rounded-lg flex items-center justify-center">
-                                            <svg class="w-5 h-5 text-green-600 dark:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                                            </svg>
-                                        </div>
-                                        <div>
-                                            <p class="text-sm font-semibold text-gray-900 dark:text-white">Navegação por Teclado</p>
-                                            <p class="text-xs text-gray-500 dark:text-gray-400">Destaca elementos focados</p>
-                                        </div>
+                            </div>
+
+                            <!-- Frequência -->
+                            <div class="bg-white p-4 rounded-lg border border-gray-200">
+                                <div class="flex items-center space-x-2 mb-3">
+                                    <div class="w-5 h-5 bg-yellow-100 rounded flex items-center justify-center">
+                                        <svg class="w-3 h-3 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                                        </svg>
                                     </div>
-                                    <label class="relative inline-flex items-center cursor-pointer">
-                                        <input type="checkbox" id="keyboard-nav" onchange="setKeyboardNavigation(this.checked)" class="sr-only peer">
-                                        <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 dark:peer-focus:ring-blue-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-blue-600"></div>
-                                    </label>
+                                    <div>
+                                        <h4 class="text-sm font-medium text-gray-900">Frequência</h4>
+                                        <p class="text-xs text-gray-500">Controle de presença</p>
+                                    </div>
+                                </div>
+                                <div class="space-y-2">
+                                    <div class="flex justify-between text-sm">
+                                        <span class="text-gray-600">Presença Hoje:</span>
+                                        <span class="font-semibold text-green-600">94.2%</span>
+                                    </div>
+                                    <div class="flex justify-between text-sm">
+                                        <span class="text-gray-600">Faltas Justificadas:</span>
+                                        <span class="font-semibold text-yellow-600">3.1%</span>
+                                    </div>
+                                    <div class="flex justify-between text-sm">
+                                        <span class="text-gray-600">Faltas Injustificadas:</span>
+                                        <span class="font-semibold text-red-600">2.7%</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Rendimento -->
+                            <div class="bg-white p-4 rounded-lg border border-gray-200">
+                                <div class="flex items-center space-x-2 mb-3">
+                                    <div class="w-5 h-5 bg-purple-100 rounded flex items-center justify-center">
+                                        <svg class="w-3 h-3 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z"></path>
+                                        </svg>
+                                    </div>
+                                    <div>
+                                        <h4 class="text-sm font-medium text-gray-900">Rendimento</h4>
+                                        <p class="text-xs text-gray-500">Performance acadêmica</p>
+                                    </div>
+                                </div>
+                                <div class="space-y-2">
+                                    <div class="flex justify-between text-sm">
+                                        <span class="text-gray-600">Média Geral:</span>
+                                        <span class="font-semibold text-blue-600">7.8</span>
+                                    </div>
+                                    <div class="flex justify-between text-sm">
+                                        <span class="text-gray-600">Aprovados:</span>
+                                        <span class="font-semibold text-green-600">89.3%</span>
+                                    </div>
+                                    <div class="flex justify-between text-sm">
+                                        <span class="text-gray-600">Em Recuperação:</span>
+                                        <span class="font-semibold text-orange-600">8.2%</span>
+                                    </div>
                                 </div>
                             </div>
                         </div>
                     </div>
+
+                    <!-- Módulo de Alimentação Escolar -->
+                    <div class="mb-8">
+                        <div class="flex items-center space-x-2 mb-4">
+                            <div class="w-6 h-6 bg-orange-100 rounded-md flex items-center justify-center">
+                                <svg class="w-4 h-4 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4m0 0L7 13m0 0l-2.5 5M7 13l2.5 5m6-5v6a2 2 0 01-2 2H9a2 2 0 01-2-2v-6m8 0V9a2 2 0 00-2-2H9a2 2 0 00-2 2v4.01"></path>
+                                </svg>
+                            </div>
+                            <div>
+                                <h3 class="text-lg font-semibold text-gray-900">Módulo de Alimentação Escolar</h3>
+                                <p class="text-xs text-gray-500">Gestão de estoque e pedidos</p>
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                            <!-- Estoque Central -->
+                            <div class="bg-white p-4 rounded-lg border border-gray-200">
+                                <div class="flex items-center space-x-2 mb-3">
+                                    <div class="w-5 h-5 bg-blue-100 rounded flex items-center justify-center">
+                                        <svg class="w-3 h-3 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path>
+                                        </svg>
+                                    </div>
+                                    <div>
+                                        <h4 class="text-sm font-medium text-gray-900">Estoque Central</h4>
+                                        <p class="text-xs text-gray-500">Produtos disponíveis</p>
+                                    </div>
+                                </div>
+                                <div class="space-y-2">
+                                    <div class="flex justify-between text-sm">
+                                        <span class="text-gray-600">Produtos:</span>
+                                        <span class="font-semibold text-gray-900">47</span>
+                                    </div>
+                                    <div class="flex justify-between text-sm">
+                                        <span class="text-gray-600">Valor Total:</span>
+                                        <span class="font-semibold text-green-600">R$ 45.2K</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Pedidos Pendentes -->
+                            <div class="bg-white p-4 rounded-lg border border-gray-200">
+                                <div class="flex items-center space-x-2 mb-3">
+                                    <div class="w-5 h-5 bg-yellow-100 rounded flex items-center justify-center">
+                                        <svg class="w-3 h-3 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                        </svg>
+                                    </div>
+                                    <div>
+                                        <h4 class="text-sm font-medium text-gray-900">Pedidos Pendentes</h4>
+                                        <p class="text-xs text-gray-500">Aguardando aprovação</p>
+                                    </div>
+                                </div>
+                                <div class="space-y-2">
+                                    <div class="flex justify-between text-sm">
+                                        <span class="text-gray-600">Pendentes:</span>
+                                        <span class="font-semibold text-yellow-600">8</span>
+                                    </div>
+                                    <div class="flex justify-between text-sm">
+                                        <span class="text-gray-600">Valor Total:</span>
+                                        <span class="font-semibold text-gray-900">R$ 12.8K</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Consumo Mensal -->
+                            <div class="bg-white p-4 rounded-lg border border-gray-200">
+                                <div class="flex items-center space-x-2 mb-3">
+                                    <div class="w-5 h-5 bg-green-100 rounded flex items-center justify-center">
+                                        <svg class="w-3 h-3 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"></path>
+                                        </svg>
+                                    </div>
+                                    <div>
+                                        <h4 class="text-sm font-medium text-gray-900">Consumo Mensal</h4>
+                                        <p class="text-xs text-gray-500">Último mês</p>
+                                    </div>
+                                </div>
+                                <div class="space-y-2">
+                                    <div class="flex justify-between text-sm">
+                                        <span class="text-gray-600">Refeições:</span>
+                                        <span class="font-semibold text-gray-900">45.2K</span>
+                                    </div>
+                                    <div class="flex justify-between text-sm">
+                                        <span class="text-gray-600">Custo Médio:</span>
+                                        <span class="font-semibold text-blue-600">R$ 3.20</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Produtos Vencendo -->
+                            <div class="bg-white p-4 rounded-lg border border-gray-200">
+                                <div class="flex items-center space-x-2 mb-3">
+                                    <div class="w-5 h-5 bg-red-100 rounded flex items-center justify-center">
+                                        <svg class="w-3 h-3 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z"></path>
+                                        </svg>
+                                    </div>
+                                    <div>
+                                        <h4 class="text-sm font-medium text-gray-900">Vencendo</h4>
+                                        <p class="text-xs text-gray-500">Próximos 30 dias</p>
+                                    </div>
+                                </div>
+                                <div class="space-y-2">
+                                    <div class="flex justify-between text-sm">
+                                        <span class="text-gray-600">Produtos:</span>
+                                        <span class="font-semibold text-red-600">5</span>
+                                    </div>
+                                    <div class="flex justify-between text-sm">
+                                        <span class="text-gray-600">Valor:</span>
+                                        <span class="font-semibold text-gray-900">R$ 2.1K</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+
+                    <!-- Gestão Administrativa -->
+                    <div class="mb-8">
+                        <div class="flex items-center space-x-2 mb-4">
+                            <div class="w-6 h-6 bg-purple-100 rounded-md flex items-center justify-center">
+                                <svg class="w-4 h-4 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path>
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                                </svg>
+                            </div>
+                            <div>
+                                <h3 class="text-lg font-semibold text-gray-900">Gestão Administrativa</h3>
+                                <p class="text-xs text-gray-500">Usuários, escolas e permissões</p>
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                            <!-- Cadastro de Escolas -->
+                            <div class="bg-white p-4 rounded-lg border border-gray-200">
+                                <div class="flex items-center space-x-2 mb-3">
+                                    <div class="w-5 h-5 bg-blue-100 rounded flex items-center justify-center">
+                                        <svg class="w-3 h-3 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path>
+                                        </svg>
+                                    </div>
+                                    <div>
+                                        <h4 class="text-sm font-medium text-gray-900">Escolas</h4>
+                                        <p class="text-xs text-gray-500">Cadastro e gestão</p>
+                                    </div>
+                                </div>
+                                <div class="space-y-2">
+                                    <div class="flex justify-between text-sm">
+                                        <span class="text-gray-600">Total:</span>
+                                        <span class="font-semibold text-gray-900">12</span>
+                                    </div>
+                                    <div class="flex justify-between text-sm">
+                                        <span class="text-gray-600">Ativas:</span>
+                                        <span class="font-semibold text-green-600">11</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Usuários -->
+                            <div class="bg-white p-4 rounded-lg border border-gray-200">
+                                <div class="flex items-center space-x-2 mb-3">
+                                    <div class="w-5 h-5 bg-green-100 rounded flex items-center justify-center">
+                                        <svg class="w-3 h-3 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z"></path>
+                                        </svg>
+                                    </div>
+                                    <div>
+                                        <h4 class="text-sm font-medium text-gray-900">Usuários</h4>
+                                        <p class="text-xs text-gray-500">Gestores e professores</p>
+                                    </div>
+                                </div>
+                                <div class="space-y-2">
+                                    <div class="flex justify-between text-sm">
+                                        <span class="text-gray-600">Total:</span>
+                                        <span class="font-semibold text-gray-900">156</span>
+                                    </div>
+                                    <div class="flex justify-between text-sm">
+                                        <span class="text-gray-600">Ativos:</span>
+                                        <span class="font-semibold text-green-600">148</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Permissões -->
+                            <div class="bg-white p-4 rounded-lg border border-gray-200">
+                                <div class="flex items-center space-x-2 mb-3">
+                                    <div class="w-5 h-5 bg-yellow-100 rounded flex items-center justify-center">
+                                        <svg class="w-3 h-3 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"></path>
+                                        </svg>
+                                    </div>
+                                    <div>
+                                        <h4 class="text-sm font-medium text-gray-900">Permissões</h4>
+                                        <p class="text-xs text-gray-500">Controle de acesso</p>
+                                    </div>
+                                </div>
+                                <div class="space-y-2">
+                                    <div class="flex justify-between text-sm">
+                                        <span class="text-gray-600">Níveis:</span>
+                                        <span class="font-semibold text-gray-900">4</span>
+                                    </div>
+                                    <div class="flex justify-between text-sm">
+                                        <span class="text-gray-600">Ativas:</span>
+                                        <span class="font-semibold text-green-600">4</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Lotação -->
+                            <div class="bg-white p-4 rounded-lg border border-gray-200">
+                                <div class="flex items-center space-x-2 mb-3">
+                                    <div class="w-5 h-5 bg-purple-100 rounded flex items-center justify-center">
+                                        <svg class="w-3 h-3 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path>
+                                        </svg>
+                                    </div>
+                                    <div>
+                                        <h4 class="text-sm font-medium text-gray-900">Lotação</h4>
+                                        <p class="text-xs text-gray-500">Alocação de pessoal</p>
+                                    </div>
+                                </div>
+                                <div class="space-y-2">
+                                    <div class="flex justify-between text-sm">
+                                        <span class="text-gray-600">Lotações:</span>
+                                        <span class="font-semibold text-gray-900">89</span>
+                                    </div>
+                                    <div class="flex justify-between text-sm">
+                                        <span class="text-gray-600">Múltiplas:</span>
+                                        <span class="font-semibold text-blue-600">23</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <?php endif; ?>
+
+                    <!-- ADM Quick Stats -->
+                    <?php if ($_SESSION['tipo'] === 'ADM') { ?>
+                    <div class="mb-8">
+                        <div class="bg-gradient-to-r from-primary-green to-green-600 text-white p-6 rounded-xl">
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <h3 class="text-lg font-semibold mb-2">Resumo do Sistema</h3>
+                                    <div class="flex space-x-6 text-sm">
+                                        <div>
+                                            <span class="text-green-200">Escolas:</span>
+                                            <span class="font-bold ml-1">12</span>
+                                        </div>
+                                        <div>
+                                            <span class="text-green-200">Usuários:</span>
+                                            <span class="font-bold ml-1">156</span>
+                                        </div>
+                                        <div>
+                                            <span class="text-green-200">Alunos:</span>
+                                            <span class="font-bold ml-1">2,847</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="w-12 h-12 bg-white bg-opacity-20 rounded-lg flex items-center justify-center">
+                                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
+                                    </svg>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <?php } ?>
+
+                    <!-- Actions -->
+                    <div class="flex space-x-3">
+                        <button class="flex-1 px-4 py-2 text-primary-green border border-primary-green hover:bg-primary-green hover:text-white rounded-lg font-medium transition-colors duration-200">
+                            Editar Perfil
+                        </button>
+                        <button onclick="confirmLogout()" class="flex-1 px-4 py-2 text-red-600 border border-red-600 hover:bg-red-600 hover:text-white rounded-lg font-medium transition-colors duration-200">
+                            Sair do Sistema
+                        </button>
                     </div>
                 </div>
             </div>
+        </div>
+    </div>
+
+    <!-- Add Product Modal -->
+    <div id="addProductModal" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl p-6 max-w-md w-full mx-4 shadow-2xl">
+            <div class="flex items-center justify-between mb-6">
+                <h3 class="text-xl font-semibold text-gray-900">Adicionar Produto</h3>
+                <button onclick="closeAddProductModal()" class="p-2 hover:bg-gray-100 rounded-full transition-colors duration-200">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+            </div>
+
+            <form id="addProductForm" class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Nome do Produto</label>
+                    <input type="text" id="productName" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-green focus:border-transparent" placeholder="Ex: Arroz" required>
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Quantidade</label>
+                    <input type="number" id="productQuantity" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-green focus:border-transparent" placeholder="Ex: 50" min="1" required>
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Unidade</label>
+                    <select id="productUnit" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-green focus:border-transparent" required>
+                        <option value="">Selecione a unidade</option>
+                        <option value="kg">Quilograma (kg)</option>
+                        <option value="g">Grama (g)</option>
+                        <option value="l">Litro (l)</option>
+                        <option value="ml">Mililitro (ml)</option>
+                        <option value="un">Unidade</option>
+                        <option value="cx">Caixa</option>
+                        <option value="pct">Pacote</option>
+                    </select>
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Data de Validade</label>
+                    <input type="date" id="productExpiry" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-green focus:border-transparent" required>
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Categoria</label>
+                    <select id="productCategory" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-green focus:border-transparent" required>
+                        <option value="">Selecione a categoria</option>
+                        <option value="cereais">Cereais</option>
+                        <option value="legumes">Legumes</option>
+                        <option value="frutas">Frutas</option>
+                        <option value="proteinas">Proteínas</option>
+                        <option value="laticinios">Laticínios</option>
+                        <option value="temperos">Temperos</option>
+                        <option value="outros">Outros</option>
+                    </select>
+                </div>
+
+                <div class="flex space-x-3 pt-4">
+                    <button type="button" onclick="closeAddProductModal()" class="flex-1 px-4 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg font-medium transition-colors duration-200">
+                        Cancelar
+                    </button>
+                    <button type="submit" class="flex-1 px-4 py-2 text-white bg-primary-green hover:bg-green-700 rounded-lg font-medium transition-colors duration-200">
+                        Adicionar
+                    </button>
+                </div>
+            </form>
         </div>
     </div>
 
@@ -7427,39 +7800,6 @@ if (!defined('BASE_URL')) {
 
         function closeUserProfile() {
             document.getElementById('userProfileModal').classList.add('hidden');
-        }
-
-        function showProfileTab(tabName) {
-            // Hide all content sections
-            const allContents = document.querySelectorAll('.profile-content');
-            allContents.forEach(content => {
-                content.classList.add('hidden');
-            });
-
-            // Remove active class from all tabs
-            const allTabs = document.querySelectorAll('.profile-tab');
-            allTabs.forEach(tab => {
-                tab.classList.remove('active', 'bg-primary-green', 'text-white');
-                tab.classList.add('text-gray-700', 'dark:text-gray-300', 'hover:bg-gray-100', 'dark:hover:bg-gray-700');
-            });
-
-            // Show selected content
-            let selectedContent;
-            if (tabName === 'settings') {
-                selectedContent = document.getElementById('content-profile-settings');
-            } else {
-                selectedContent = document.getElementById('content-' + tabName);
-            }
-            if (selectedContent) {
-                selectedContent.classList.remove('hidden');
-            }
-
-            // Activate selected tab
-            const selectedTab = document.getElementById('tab-' + tabName);
-            if (selectedTab) {
-                selectedTab.classList.add('active', 'bg-primary-green', 'text-white');
-                selectedTab.classList.remove('text-gray-700', 'dark:text-gray-300', 'hover:bg-gray-100', 'dark:hover:bg-gray-700');
-            }
         }
 
         // Logout function
@@ -9242,29 +9582,7 @@ if (!defined('BASE_URL')) {
         // Accessibility Functions
         // Função loadAccessibilitySettings agora é gerenciada pelo theme-manager.js
 
-        // Função para alternar tema
-        function setTheme(theme) {
-            document.documentElement.setAttribute('data-theme', theme);
-            localStorage.setItem('theme', theme);
-            
-            // Atualizar botões de tema
-            const lightBtn = document.getElementById('theme-light');
-            const darkBtn = document.getElementById('theme-dark');
-            
-            if (lightBtn && darkBtn) {
-                if (theme === 'light') {
-                    lightBtn.classList.add('bg-blue-500', 'text-white', 'border-blue-500');
-                    lightBtn.classList.remove('border-gray-300', 'text-gray-700');
-                    darkBtn.classList.remove('bg-blue-500', 'text-white', 'border-blue-500');
-                    darkBtn.classList.add('border-gray-300', 'text-gray-700');
-                } else {
-                    darkBtn.classList.add('bg-blue-500', 'text-white', 'border-blue-500');
-                    darkBtn.classList.remove('border-gray-300', 'text-gray-700');
-                    lightBtn.classList.remove('bg-blue-500', 'text-white', 'border-blue-500');
-                    lightBtn.classList.add('border-gray-300', 'text-gray-700');
-                }
-            }
-        }
+        // Função setTheme agora é gerenciada pelo theme-manager.js
 
         function setContrast(contrast) {
             document.documentElement.setAttribute('data-contrast', contrast);
