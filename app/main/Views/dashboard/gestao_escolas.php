@@ -775,14 +775,45 @@ $escolas = listarEscolas($busca);
                 transform: translateX(0);
             }
             
-            /* Header mobile */
+        /* Header mobile - FORÇA VISIBILIDADE */
             header {
-                padding: 0.75rem 1rem;
-            }
-            
-            .header-content {
-                flex-direction: column;
-                gap: 0.5rem;
+            padding: 0.75rem 1rem !important;
+            position: relative !important;
+            display: block !important;
+            visibility: visible !important;
+            opacity: 1 !important;
+            background: white !important;
+            border-bottom: 1px solid #e5e7eb !important;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1) !important;
+        }
+        
+        header .flex {
+            min-height: 48px !important;
+            align-items: center !important;
+            display: flex !important;
+            visibility: visible !important;
+        }
+        
+        /* Botão menu MOBILE - FORÇA VISIBILIDADE */
+        .mobile-menu-btn {
+            display: flex !important;
+            visibility: visible !important;
+            opacity: 1 !important;
+            z-index: 999 !important;
+            background: white !important;
+            border: 1px solid #e5e7eb !important;
+            position: relative !important;
+            width: 40px !important;
+            height: 40px !important;
+        }
+        
+        /* Título centralizado */
+        header h1 {
+            font-size: 1.125rem !important;
+            font-weight: 600 !important;
+            display: block !important;
+            visibility: visible !important;
+            opacity: 1 !important;
             }
             
             /* Cards responsivos */
@@ -818,6 +849,32 @@ $escolas = listarEscolas($busca);
                 width: 100%;
                 padding: 0.75rem;
                 font-size: 1rem;
+            }
+        }
+        
+        /* CSS GLOBAL - FORÇA VISIBILIDADE DO HEADER MOBILE */
+        @media (max-width: 1023px) {
+            header {
+                display: block !important;
+                visibility: visible !important;
+                opacity: 1 !important;
+                position: sticky !important;
+                top: 0 !important;
+                z-index: 100 !important;
+                background: white !important;
+            }
+            
+            .mobile-menu-btn {
+                display: flex !important;
+                visibility: visible !important;
+                opacity: 1 !important;
+            }
+        }
+
+        /* Desktop - esconder botão menu */
+        @media (min-width: 1024px) {
+            .mobile-menu-btn {
+                display: none !important;
             }
         }
         
@@ -1146,17 +1203,20 @@ $escolas = listarEscolas($busca);
             <div class="px-4 sm:px-6 lg:px-8">
                 <div class="flex justify-between items-center h-16">
                     <!-- Mobile Menu Button -->
-                    <button onclick="toggleSidebar()" class="lg:hidden p-2 rounded-md text-gray-600 hover:text-gray-900 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-primary-green" aria-label="Abrir menu">
+                    <button onclick="toggleSidebar()" class="mobile-menu-btn p-2 rounded-md text-gray-600 hover:text-gray-900 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-primary-green" aria-label="Abrir menu">
                         <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
                         </svg>
                     </button>
 
-                    <div class="flex items-center">
+                    <!-- Título centralizado -->
+                    <div class="flex-1 text-center lg:text-left">
                         <h1 class="text-xl font-semibold text-gray-800">Gestão de Escolas</h1>
                     </div>
                     
+                    <!-- Área direita -->
                     <div class="flex items-center space-x-4">
+                        <!-- Escola atual (desktop) -->
                         <div class="text-right hidden lg:block">
                             <p class="text-sm font-medium text-gray-800" id="currentSchool">
                                 <?php 
@@ -2475,6 +2535,38 @@ $escolas = listarEscolas($busca);
             
             e.target.value = value;
         });
+        
+        // FORÇA VISIBILIDADE DO HEADER MOBILE
+        function forceMobileHeaderVisibility() {
+            const header = document.querySelector('header');
+            const mobileBtn = document.querySelector('.mobile-menu-btn');
+            
+            if (window.innerWidth < 1024) {
+                // Mobile - forçar visibilidade
+                if (header) {
+                    header.style.display = 'block';
+                    header.style.visibility = 'visible';
+                    header.style.opacity = '1';
+                    header.style.position = 'sticky';
+                    header.style.top = '0';
+                    header.style.zIndex = '100';
+                }
+                if (mobileBtn) {
+                    mobileBtn.style.display = 'flex';
+                    mobileBtn.style.visibility = 'visible';
+                    mobileBtn.style.opacity = '1';
+                }
+            } else {
+                // Desktop - esconder botão mobile
+                if (mobileBtn) {
+                    mobileBtn.style.display = 'none';
+                }
+            }
+        }
+
+        // Executar na carga da página
+        document.addEventListener('DOMContentLoaded', forceMobileHeaderVisibility);
+        window.addEventListener('resize', forceMobileHeaderVisibility);
         
         // Toggle sidebar on mobile
         function toggleSidebar() {

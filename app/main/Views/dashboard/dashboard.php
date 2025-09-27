@@ -159,11 +159,282 @@ if (!defined('BASE_URL')) {
         @media (max-width: 1023px) {
             .sidebar-mobile {
                 transform: translateX(-100%);
+                transition: transform 0.3s ease-in-out;
+                z-index: 999 !important;
             }
 
             .sidebar-mobile.open {
                 transform: translateX(0);
+                z-index: 999 !important;
             }
+            
+        /* Classe para reduzir opacidade do header quando menu está aberto */
+        .header-dimmed {
+            opacity: 0.3 !important;
+            transition: opacity 0.3s ease-in-out;
+        }
+
+        /* Profile Modal Tabs */
+        .profile-tab {
+            padding: 12px 20px;
+            font-weight: 600;
+            color: #9ca3af;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            background: transparent;
+            border: none;
+            cursor: pointer;
+            position: relative;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 140px;
+            font-size: 0.9rem;
+        }
+
+        .profile-tab:hover {
+            color: #ffffff;
+            background: rgba(255, 255, 255, 0.1);
+            transform: translateY(-1px);
+        }
+
+        .profile-tab.active {
+            color: #ffffff;
+            background: rgba(34, 197, 94, 0.2);
+            border: 1px solid rgba(34, 197, 94, 0.3);
+            transform: translateY(-2px);
+        }
+
+        .profile-tab.active::before {
+            content: '';
+            position: absolute;
+            bottom: -12px;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, #22c55e, #16a34a);
+            border-radius: 2px 2px 0 0;
+        }
+
+        .profile-tab.active::after {
+            content: '';
+            position: absolute;
+            bottom: -9px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 8px;
+            height: 8px;
+            background: #22c55e;
+            border-radius: 50%;
+            box-shadow: 0 0 8px rgba(34, 197, 94, 0.6);
+        }
+
+        /* Navigation bar styling */
+        .navigation-bar {
+            backdrop-filter: blur(10px);
+            background: rgba(255, 255, 255, 0.95);
+            border-bottom: 1px solid rgba(229, 231, 235, 0.8);
+        }
+
+        .profile-tab-content {
+            display: block;
+            animation: fadeInUp 0.4s ease-out;
+        }
+
+        .profile-tab-content.hidden {
+            display: none;
+        }
+
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* Modal Animation */
+        #userProfileModal.show #modalContent {
+            transform: scale(1) translateY(0);
+            opacity: 1;
+        }
+
+        #userProfileModal #modalContent {
+            transform: scale(0.95) translateY(20px);
+            opacity: 0;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        /* Fullscreen Modal Styles */
+        #userProfileModal {
+            background: white;
+        }
+        
+        #userProfileModal #modalContent {
+            border-radius: 0;
+            box-shadow: none;
+        }
+
+        /* Responsive Design */
+        @media (max-width: 768px) {
+            #userProfileModal {
+                padding: 0;
+            }
+            
+            #userProfileModal #modalContent {
+                border-radius: 0;
+                margin: 0;
+            }
+            
+            .profile-tab {
+                padding: 10px 16px;
+                min-width: 100px;
+                font-size: 0.8rem;
+            }
+            
+            .profile-tab svg {
+                width: 4rem;
+                height: 4rem;
+                margin-right: 0.75rem;
+            }
+            
+            /* Mobile navigation layout */
+            .flex.items-center.justify-start {
+                justify-content: center;
+                flex-wrap: wrap;
+                gap: 0.5rem;
+                padding: 0.75rem;
+            }
+            
+            /* Mobile hero card adjustments */
+            .bg-gradient-to-r.from-primary-green {
+                padding: 1.5rem !important;
+            }
+            
+            /* Mobile content padding */
+            .p-8 {
+                padding: 1rem;
+            }
+            
+            .bg-gradient-to-r.from-primary-green .flex.items-center {
+                flex-direction: column;
+                text-align: center;
+                gap: 1rem;
+            }
+            
+            .bg-gradient-to-r.from-primary-green .w-24.h-24 {
+                width: 4rem;
+                height: 4rem;
+            }
+            
+            .bg-gradient-to-r.from-primary-green .text-3xl {
+                font-size: 1.5rem;
+            }
+            
+            /* Mobile stats grid */
+            .grid.grid-cols-1.md\\:grid-cols-2.lg\\:grid-cols-4 {
+                grid-template-columns: repeat(2, 1fr);
+                gap: 1rem;
+            }
+            
+            .bg-white.rounded-2xl.p-6 {
+                padding: 1rem;
+            }
+            
+            .text-4xl.font-bold {
+                font-size: 2rem;
+            }
+            
+            /* Mobile profile cards */
+            .grid.grid-cols-1.lg\\:grid-cols-2 {
+                grid-template-columns: 1fr;
+                gap: 1rem;
+            }
+            
+            /* Mobile system performance */
+            .grid.grid-cols-1.md\\:grid-cols-3 {
+                grid-template-columns: 1fr;
+                gap: 1rem;
+            }
+            
+            /* Mobile settings */
+            .grid.grid-cols-1.md\\:grid-cols-2 {
+                grid-template-columns: 1fr;
+                gap: 1rem;
+            }
+            
+            .flex.flex-col.sm\\:flex-row {
+                flex-direction: column;
+                gap: 0.75rem;
+            }
+        }
+
+        @media (max-width: 480px) {
+            #userProfileModal {
+                padding: 0;
+            }
+            
+            #userProfileModal #modalContent {
+                border-radius: 0;
+            }
+            
+            .profile-tab {
+                padding: 8px 12px;
+                min-width: 80px;
+                font-size: 0.75rem;
+            }
+            
+            .profile-tab svg {
+                width: 3.5rem;
+                height: 3.5rem;
+                margin-right: 0.5rem;
+            }
+            
+            /* Very small screens navigation */
+            .flex.items-center.justify-start {
+                padding: 0.5rem;
+                gap: 0.25rem;
+            }
+            
+            .bg-gradient-to-r.from-primary-green {
+                padding: 1rem !important;
+            }
+            
+            /* Very small screens content padding */
+            .p-8 {
+                padding: 0.75rem;
+            }
+            
+            .bg-gradient-to-r.from-primary-green .text-3xl {
+                font-size: 1.25rem;
+            }
+            
+            .bg-gradient-to-r.from-primary-green .text-2xl {
+                font-size: 1rem;
+            }
+            
+            /* Single column stats on very small screens */
+            .grid.grid-cols-1.md\\:grid-cols-2.lg\\:grid-cols-4 {
+                grid-template-columns: 1fr;
+            }
+            
+            .text-4xl.font-bold {
+                font-size: 1.75rem;
+            }
+            
+            .w-14.h-14 {
+                width: 2.5rem;
+                height: 2.5rem;
+            }
+            
+            .w-12.h-12 {
+                width: 2rem;
+                height: 2rem;
+            }
+        }
         }
 
         /* Acessibilidade - Tema Escuro */
@@ -723,25 +994,52 @@ if (!defined('BASE_URL')) {
         
         /* Mobile First - Breakpoints */
         @media (max-width: 640px) {
-            /* Sidebar mobile */
-            #sidebar {
-                transform: translateX(-100%);
-                transition: transform 0.3s ease-in-out;
-                z-index: 50;
-            }
             
-            #sidebar.mobile-open {
-                transform: translateX(0);
-            }
-            
-            /* Header mobile */
+            /* Header mobile - FORÇA VISIBILIDADE */
             header {
-                padding: 0.75rem 1rem;
+                padding: 0.5rem 1rem !important;
+                position: sticky !important;
+                top: 0 !important;
+                z-index: 50 !important;
+                display: block !important;
+                visibility: visible !important;
+                opacity: 1 !important;
+                background: white !important;
+                border-bottom: 1px solid #e5e7eb !important;
+                box-shadow: 0 1px 3px rgba(0,0,0,0.1) !important;
             }
             
             .header-content {
-                flex-direction: column;
-                gap: 0.5rem;
+                display: flex !important;
+                visibility: visible !important;
+                align-items: center !important;
+                justify-content: space-between !important;
+                height: 3rem !important;
+            }
+            
+            /* Botão menu MOBILE - SEM FUNDO */
+            .mobile-menu-btn {
+                display: flex !important;
+                visibility: visible !important;
+                opacity: 1 !important;
+                z-index: 999 !important;
+                background: transparent !important;
+                border: none !important;
+                width: 32px !important;
+                height: 32px !important;
+                color: #4b5563 !important;
+                padding: 0.25rem !important;
+            }
+            
+            .mobile-menu-btn svg {
+                width: 1.25rem !important;
+                height: 1.25rem !important;
+            }
+            
+            /* Logo no mobile */
+            header img {
+                width: 2.5rem !important;
+                height: 2.5rem !important;
             }
             
             /* Cards responsivos */
@@ -820,6 +1118,11 @@ if (!defined('BASE_URL')) {
         @media (min-width: 1024px) {
             .card-grid {
                 grid-template-columns: repeat(3, 1fr);
+            }
+            
+            /* Desktop - esconder botão menu mobile */
+            .mobile-menu-btn {
+                display: none !important;
             }
         }
         
@@ -1251,25 +1554,29 @@ if (!defined('BASE_URL')) {
         <header class="bg-white shadow-sm border-b border-gray-200 sticky top-0 z-30">
             <div class="px-4 sm:px-6 lg:px-8">
                 <div class="flex justify-between items-center h-16 header-content">
-                    <!-- Mobile Menu Button -->
-                    <button onclick="toggleSidebar()" class="lg:hidden p-2 rounded-md text-gray-600 hover:text-gray-900 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-primary-green" aria-label="Abrir menu">
+                    <!-- Mobile Menu Button - SEMPRE VISÍVEL NO MOBILE -->
+                    <button onclick="toggleSidebar()" class="mobile-menu-btn p-2 rounded-md text-gray-600 hover:text-gray-900 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-primary-green" aria-label="Abrir menu">
                         <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
                         </svg>
                     </button>
 
                     <!-- Page Title - Centered on mobile -->
-                    <div class="absolute left-1/2 transform -translate-x-1/2 lg:relative lg:left-auto lg:transform-none flex items-center">
-                        <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/1/19/Bras%C3%A3o_de_Maranguape.png/250px-Bras%C3%A3o_de_Maranguape.png" alt="Brasão de Maranguape" class="w-8 h-8 object-contain lg:hidden">
-                        <h1 class="hidden sm:block text-xl font-semibold text-gray-800" id="pageTitle"><?php 
-                            $userType = $_SESSION['tipo'] ?? 'Usuário';
-                            if ($userType === 'ADM') {
-                                echo "Dashboard ADM";
-                            } else {
-                                $userTypeFormatted = ucfirst(strtolower($userType));
-                                echo "Dashboard $userTypeFormatted";
-                            }
-                        ?></h1>
+                    <div class="flex-1 text-center lg:text-left lg:flex-none">
+                        <div class="flex items-center justify-center lg:justify-start">
+                            <!-- Logo apenas no mobile -->
+                            <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/1/19/Bras%C3%A3o_de_Maranguape.png/250px-Bras%C3%A3o_de_Maranguape.png" alt="Brasão de Maranguape" class="w-8 h-8 object-contain lg:hidden">
+                            <!-- Título apenas no desktop -->
+                            <h1 class="hidden lg:block text-xl font-semibold text-gray-800 ml-2" id="pageTitle"><?php 
+                                $userType = $_SESSION['tipo'] ?? 'Usuário';
+                                if ($userType === 'ADM') {
+                                    echo "Dashboard ADM";
+                                } else {
+                                    $userTypeFormatted = ucfirst(strtolower($userType));
+                                    echo "Dashboard $userTypeFormatted";
+                                }
+                            ?></h1>
+                        </div>
                     </div>
 
                     <!-- User Actions -->
@@ -6772,52 +7079,76 @@ if (!defined('BASE_URL')) {
     </div>
 
     <!-- User Profile Modal -->
-    <div id="userProfileModal" class="fixed inset-0 bg-white z-50 hidden">
-        <div class="h-full w-full overflow-hidden">
-            <div class="bg-white h-full w-full overflow-hidden">
-                <!-- Modal Header -->
-                <div class="bg-primary-green text-white p-6">
-                    <div class="flex items-center justify-between">
-                        <div class="flex items-center space-x-4">
-                            <div class="w-16 h-16 bg-white bg-opacity-20 rounded-full flex items-center justify-center">
-                                <span class="text-2xl font-bold text-white" id="profileInitials"><?php
-                                                                                                    // Pega as 2 primeiras letras do nome da sessão
-                                                                                                    $nome = $_SESSION['nome'] ?? '';
-                                                                                                    $iniciais = '';
-                                                                                                    if (strlen($nome) >= 2) {
-                                                                                                        $iniciais = strtoupper(substr($nome, 0, 2));
-                                                                                                    } elseif (strlen($nome) == 1) {
-                                                                                                        $iniciais = strtoupper($nome);
-                                                                                                    } else {
-                                                                                                        $iniciais = 'US'; // Fallback para "User"
-                                                                                                    }
-                                                                                                    echo $iniciais;
-                                                                                                    ?></span>
-                            </div>
-                            <div>
-                                <h2 class="text-2xl font-bold" id="profileName"><?php echo $_SESSION['nome']; ?></h2>
-                                <p class="text-green-100" id="profileRole"><?php echo $_SESSION['tipo']; ?></p>
-                            </div>
+    <div id="userProfileModal" class="fixed inset-0 bg-white z-50 hidden flex flex-col backdrop-blur-sm">
+        <div class="bg-white w-full h-full overflow-hidden transform transition-all duration-300 ease-out scale-95 opacity-0" id="modalContent">
+            <!-- Header -->
+            <div class="bg-gradient-to-br from-slate-800 via-slate-700 to-slate-800 text-white relative overflow-hidden">
+                <div class="absolute inset-0 bg-gradient-to-r from-primary-green/20 to-blue-600/20"></div>
+                <div class="relative z-10 flex items-center justify-between px-8 py-6">
+                    <div class="flex items-center space-x-4">
+                        <div class="w-12 h-12 bg-white/10 backdrop-blur-sm rounded-xl flex items-center justify-center">
+                            <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/1/19/Bras%C3%A3o_de_Maranguape.png/250px-Bras%C3%A3o_de_Maranguape.png" alt="Brasão de Maranguape" class="w-8 h-8 object-contain">
                         </div>
-                        <button onclick="closeUserProfile()" class="p-2 hover:bg-white hover:bg-opacity-20 rounded-full transition-colors duration-200">
-                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-                            </svg>
-                        </button>
+                        <div>
+                            <h1 class="text-2xl font-bold">Perfil do Usuário</h1>
+                            <p class="text-slate-300 text-sm">Gerencie suas informações e configurações</p>
+                        </div>
                     </div>
+                    <button onclick="closeUserProfile()" class="p-3 hover:bg-white/10 rounded-xl transition-all duration-200 group">
+                        <svg class="w-6 h-6 group-hover:rotate-90 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                        </svg>
+                    </button>
                 </div>
+            </div>
 
-                <!-- Modal Content -->
-                <div class="p-6 overflow-y-auto h-[calc(100vh-120px)]">
-                    <!-- User Information -->
-                    <div class="mb-8">
-                        <h3 class="text-lg font-semibold text-gray-900 mb-4">Informações Pessoais</h3>
-                        <?php if ($_SESSION['tipo'] === 'ADM') { ?>
-                            <!-- ADM Simplified Info -->
-                            <div class="bg-gray-50 p-6 rounded-xl">
-                                <div class="flex items-center space-x-4">
-                                    <div class="w-16 h-16 bg-primary-green rounded-full flex items-center justify-center">
-                                        <span class="text-2xl font-bold text-white" id="profileInitials"><?php
+            <!-- Navigation Tabs -->
+            <div class="bg-gradient-to-r from-slate-800 via-slate-700 to-slate-800 border-b border-gray-200 sticky top-0 z-20">
+                <nav class="flex items-center justify-start px-8 py-3 space-x-2">
+                    <button class="profile-tab active group" data-tab="overview" onclick="switchProfileTab('overview')">
+                        <svg class="w-5 h-5 mr-3 group-hover:scale-110 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
+                        </svg>
+                        <span class="font-semibold">Visão Geral</span>
+                    </button>
+                    
+                    <button class="profile-tab group" data-tab="personal" onclick="switchProfileTab('personal')">
+                        <svg class="w-5 h-5 mr-3 group-hover:scale-110 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
+                        </svg>
+                        <span class="font-semibold">Perfil</span>
+                    </button>
+                    
+                    <button class="profile-tab group" data-tab="system" onclick="switchProfileTab('system')">
+                        <svg class="w-5 h-5 mr-3 group-hover:scale-110 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z"></path>
+                        </svg>
+                        <span class="font-semibold">Sistema</span>
+                    </button>
+                    
+                    <button class="profile-tab group" data-tab="settings" onclick="switchProfileTab('settings')">
+                        <svg class="w-5 h-5 mr-3 group-hover:scale-110 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path>
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                        </svg>
+                        <span class="font-semibold">Configurações</span>
+                    </button>
+                </nav>
+            </div>
+
+            <!-- Content -->
+            <div class="flex-1 overflow-y-auto bg-gradient-to-br from-gray-50 to-gray-100">
+                <div class="p-8 lg:p-12 min-h-full">
+                    <!-- Tab Content: Overview -->
+                    <div id="profile-overview" class="profile-tab-content">
+                        <!-- User Profile Hero Card -->
+                        <div class="bg-gradient-to-br from-white to-gray-50 rounded-3xl shadow-xl border border-gray-100 overflow-hidden mb-8 transform hover:scale-[1.02] transition-all duration-300">
+                            <div class="bg-gradient-to-r from-primary-green via-green-500 to-emerald-600 p-8 relative overflow-hidden">
+                                <div class="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -translate-y-16 translate-x-16"></div>
+                                <div class="absolute bottom-0 left-0 w-24 h-24 bg-white/5 rounded-full translate-y-12 -translate-x-12"></div>
+                                <div class="relative z-10 flex items-center space-x-6">
+                                    <div class="w-24 h-24 bg-white rounded-2xl flex items-center justify-center shadow-2xl transform hover:rotate-6 transition-transform duration-300">
+                                        <span class="text-3xl font-bold text-primary-green"><?php
                                             $nome = $_SESSION['nome'] ?? '';
                                             $iniciais = '';
                                             if (strlen($nome) >= 2) {
@@ -6825,4748 +7156,634 @@ if (!defined('BASE_URL')) {
                                             } elseif (strlen($nome) == 1) {
                                                 $iniciais = strtoupper($nome);
                                             } else {
-                                                $iniciais = 'AD';
+                                                $iniciais = 'US';
                                             }
                                             echo $iniciais;
                                         ?></span>
                                     </div>
+                                    <div class="flex-1 text-white">
+                                        <h2 class="text-3xl font-bold mb-2"><?php echo $_SESSION['nome']; ?></h2>
+                                        <div class="flex flex-wrap gap-3 mb-4">
+                                            <span class="bg-white/20 backdrop-blur-sm text-white px-4 py-2 rounded-full text-sm font-semibold border border-white/30">
+                                                Administrador Geral
+                                            </span>
+                                            <span class="bg-blue-500/80 backdrop-blur-sm text-white px-4 py-2 rounded-full text-sm font-semibold border border-blue-400/30">
+                                                Acesso Total
+                                            </span>
+                                        </div>
+                                        <div class="space-y-1">
+                                            <p class="text-green-100 text-sm font-medium">Email</p>
+                                            <p class="text-white text-lg font-semibold"><?php echo $_SESSION['email']; ?></p>
+                                        </div>
+                                    </div>
+                                    <div class="text-right text-white">
+                                        <div class="bg-white/10 backdrop-blur-sm rounded-2xl p-6 border border-white/20">
+                                            <div class="flex items-center space-x-2 mb-2">
+                                                <div class="w-3 h-3 bg-green-400 rounded-full animate-pulse"></div>
+                                                <p class="text-green-100 text-sm font-medium">Online</p>
+                                            </div>
+                                            <p class="text-white font-bold text-lg">Agora</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Stats Cards -->
+                        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                            <div class="bg-white rounded-2xl p-6 shadow-lg border border-gray-100 hover:shadow-xl hover:-translate-y-1 transition-all duration-300 group">
+                                <div class="flex items-center justify-between">
                                     <div>
-                                        <h4 class="text-xl font-bold text-gray-900"><?php echo $_SESSION['nome']; ?></h4>
-                                        <p class="text-primary-green font-medium">Administrador Geral</p>
-                                        <p class="text-sm text-gray-600"><?php echo $_SESSION['email']; ?></p>
+                                        <p class="text-4xl font-bold text-gray-900 group-hover:text-blue-600 transition-colors">12</p>
+                                        <p class="text-sm font-semibold text-gray-600 mt-1">Escolas</p>
+                                        <p class="text-xs text-green-600 font-medium mt-1">+2 este mês</p>
                                     </div>
-                                </div>
-                            </div>
-                        <?php } else { ?>
-                            <!-- Other Users Full Info -->
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div class="bg-gray-50 p-4 rounded-lg">
-                                <label class="text-sm font-medium text-gray-600">Nome Completo</label>
-                                <p class="text-gray-900 font-medium" id="profileFullName"><?php echo $_SESSION['nome']; ?></p>
-                            </div>
-                            <div class="bg-gray-50 p-4 rounded-lg">
-                                <label class="text-sm font-medium text-gray-600">CPF</label>
-                                <p class="text-gray-900 font-medium" id="profileCPF"><?php echo $_SESSION['cpf']; ?></p>
-                            </div>
-                            <div class="bg-gray-50 p-4 rounded-lg">
-                                <label class="text-sm font-medium text-gray-600">Email</label>
-                                <p class="text-gray-900 font-medium" id="profileEmail"><?php echo $_SESSION['email']; ?></p>
-                            </div>
-                            <div class="bg-gray-50 p-4 rounded-lg">
-                                <label class="text-sm font-medium text-gray-600">Telefone</label>
-                                <p class="text-gray-900 font-medium" id="profilePhone"><?php echo $_SESSION['telefone']; ?></p>
-                            </div>
-                        </div>
-                        <?php } ?>
-                    </div>
-
-                    <!-- School Information -->
-                    <div class="mb-8">
-                        <h3 class="text-lg font-semibold text-gray-900 mb-4" id="schoolsTitle">
-                            <?php 
-                            if ($_SESSION['tipo'] === 'ADM') {
-                                echo 'Secretaria Municipal da Educação';
-                            } else {
-                                echo 'Escola Atual';
-                            }
-                            ?>
-                        </h3>
-                        <div id="schoolsContainer">
-                            <?php if ($_SESSION['tipo'] === 'ADM') { ?>
-                                <!-- ADM Specific Information -->
-                                <div class="bg-gradient-to-r from-primary-green to-green-600 text-white p-6 rounded-xl">
-                                    <div class="flex items-center space-x-4">
-                                        <div class="w-16 h-16 bg-white bg-opacity-20 rounded-full flex items-center justify-center">
-                                            <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path>
-                                            </svg>
-                                        </div>
-                                        <div>
-                                            <h4 class="text-xl font-bold">Secretaria Municipal da Educação</h4>
-                                            <p class="text-green-100">Órgão Central de Gestão Educacional</p>
-                                            <p class="text-green-200 text-sm mt-1">Responsável por todas as escolas municipais</p>
-                                        </div>
-                                    </div>
-                                </div>
-                            <?php } else { ?>
-                                <!-- Schools will be dynamically loaded here for other users -->
-                            <?php } ?>
-                        </div>
-                    </div>
-
-                    <!-- User Type Specific Information -->
-                    <?php if ($_SESSION['tipo'] !== 'ADM') { ?>
-                    <div class="mb-8">
-                        <h3 class="text-lg font-semibold text-gray-900 mb-4">Informações Gerais</h3>
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div class="bg-gray-50 p-4 rounded-lg">
-                                <label class="text-sm font-medium text-gray-600">Carga Horária Total</label>
-                                <p class="text-gray-900 font-medium" id="profileWorkload">40h semanais</p>
-                            </div>
-                            <div class="bg-gray-50 p-4 rounded-lg">
-                                <label class="text-sm font-medium text-gray-600">Data de Admissão</label>
-                                <p class="text-gray-900 font-medium" id="profileAdmission">15/03/2020</p>
-                            </div>
-                            <div class="bg-gray-50 p-4 rounded-lg">
-                                <label class="text-sm font-medium text-gray-600">Status</label>
-                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800" id="profileStatus">
-                                    Ativo
-                                </span>
-                            </div>
-                            <div class="bg-gray-50 p-4 rounded-lg">
-                                <label class="text-sm font-medium text-gray-600">Total de Escolas</label>
-                                <p class="text-gray-900 font-medium" id="totalSchools">1 escola</p>
-                            </div>
-                        </div>
-                    </div>
-                    <?php } ?>
-
-                    <!-- Configurações de Acessibilidade -->
-                    <div class="mb-6">
-                        <div class="flex items-center space-x-2 mb-4">
-                            <div class="w-6 h-6 bg-blue-100 rounded-md flex items-center justify-center">
-                                <svg class="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.746 0 3.332.477 4.5 1.253v13C19.832 18.477 18.246 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path>
-                                </svg>
-                            </div>
-                            <div>
-                                <h3 class="text-lg font-semibold text-gray-900">Configurações de Acessibilidade</h3>
-                                <p class="text-xs text-gray-500">Personalize sua experiência</p>
-                            </div>
-                        </div>
-
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <!-- Tema -->
-                            <div class="bg-white p-4 rounded-lg border border-gray-200">
-                                <div class="flex items-center space-x-2 mb-3">
-                                    <div class="w-5 h-5 bg-yellow-100 rounded flex items-center justify-center">
-                                        <svg class="w-3 h-3 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"></path>
+                                    <div class="w-14 h-14 bg-gradient-to-br from-blue-500 to-blue-600 rounded-2xl flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform duration-300">
+                                        <svg class="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path>
                                         </svg>
                                     </div>
-                                    <div>
-                                        <h4 class="text-sm font-medium text-gray-900">Tema Visual</h4>
-                                        <p class="text-xs text-gray-500">Claro ou escuro</p>
-                                    </div>
-                                </div>
-                                <div class="flex space-x-2">
-                                    <button id="theme-light" class="flex-1 px-3 py-2 text-sm border border-gray-300 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors">
-                                        <div class="flex items-center justify-center space-x-1">
-                                            <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"></path>
-                                            </svg>
-                                            <span>Claro</span>
-                                        </div>
-                                    </button>
-                                    <button id="theme-dark" class="flex-1 px-3 py-2 text-sm border border-gray-300 rounded-md hover:bg-gray-200 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors">
-                                        <div class="flex items-center justify-center space-x-1">
-                                            <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"></path>
-                                            </svg>
-                                            <span>Escuro</span>
-                                        </div>
-                                    </button>
                                 </div>
                             </div>
 
-                            <!-- Contraste -->
-                            <div class="bg-white p-4 rounded-lg border border-gray-200">
-                                <div class="flex items-center space-x-2 mb-3">
-                                    <div class="w-5 h-5 bg-red-100 rounded flex items-center justify-center">
-                                        <svg class="w-3 h-3 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
+                            <div class="bg-white rounded-2xl p-6 shadow-lg border border-gray-100 hover:shadow-xl hover:-translate-y-1 transition-all duration-300 group">
+                                <div class="flex items-center justify-between">
+                                    <div>
+                                        <p class="text-4xl font-bold text-gray-900 group-hover:text-green-600 transition-colors">248</p>
+                                        <p class="text-sm font-semibold text-gray-600 mt-1">Usuários</p>
+                                        <p class="text-xs text-green-600 font-medium mt-1">+15 esta semana</p>
+                                    </div>
+                                    <div class="w-14 h-14 bg-gradient-to-br from-green-500 to-green-600 rounded-2xl flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform duration-300">
+                                        <svg class="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z"></path>
                                         </svg>
                                     </div>
-                                    <div>
-                                        <h4 class="text-sm font-medium text-gray-900">Contraste</h4>
-                                        <p class="text-xs text-gray-500">Ajustar cores</p>
-                                    </div>
-                                </div>
-                                <div class="flex space-x-2">
-                                    <button onclick="setContrast('normal')" id="contrast-normal" class="flex-1 px-3 py-2 text-sm border border-gray-300 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors">
-                                        <span>Normal</span>
-                                    </button>
-                                    <button onclick="setContrast('high')" id="contrast-high" class="flex-1 px-3 py-2 text-sm border border-gray-300 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors">
-                                        <span>Alto</span>
-                                    </button>
                                 </div>
                             </div>
 
-                            <!-- Tamanho da Fonte -->
-                            <div class="bg-white p-4 rounded-lg border border-gray-200">
-                                <div class="flex items-center space-x-2 mb-3">
-                                    <div class="w-5 h-5 bg-green-100 rounded flex items-center justify-center">
-                                        <svg class="w-3 h-3 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"></path>
+                            <div class="bg-white rounded-2xl p-6 shadow-lg border border-gray-100 hover:shadow-xl hover:-translate-y-1 transition-all duration-300 group">
+                                <div class="flex items-center justify-between">
+                                    <div>
+                                        <p class="text-4xl font-bold text-gray-900 group-hover:text-purple-600 transition-colors">99.9%</p>
+                                        <p class="text-sm font-semibold text-gray-600 mt-1">Sistema</p>
+                                        <p class="text-xs text-green-600 font-medium mt-1">Excelente</p>
+                                    </div>
+                                    <div class="w-14 h-14 bg-gradient-to-br from-purple-500 to-purple-600 rounded-2xl flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform duration-300">
+                                        <svg class="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
                                         </svg>
                                     </div>
-                                    <div>
-                                        <h4 class="text-sm font-medium text-gray-900">Tamanho da Fonte</h4>
-                                        <p class="text-xs text-gray-500">Ajustar texto</p>
-                                    </div>
-                                </div>
-                                <div class="grid grid-cols-3 gap-2">
-                                    <button onclick="setFontSize('normal')" id="font-normal" class="px-2 py-2 text-sm border border-gray-300 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors">
-                                        <span class="text-sm">A</span>
-                                    </button>
-                                    <button onclick="setFontSize('large')" id="font-large" class="px-2 py-2 text-sm border border-gray-300 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors">
-                                        <span class="text-base">A</span>
-                                    </button>
-                                    <button onclick="setFontSize('larger')" id="font-larger" class="px-2 py-2 text-sm border border-gray-300 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors">
-                                        <span class="text-lg">A</span>
-                                    </button>
                                 </div>
                             </div>
 
-                            <!-- Configurações Avançadas -->
-                            <div class="bg-white p-4 rounded-lg border border-gray-200">
-                                <div class="flex items-center space-x-2 mb-3">
-                                    <div class="w-5 h-5 bg-purple-100 rounded flex items-center justify-center">
-                                        <svg class="w-3 h-3 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <div class="bg-white rounded-2xl p-6 shadow-lg border border-gray-100 hover:shadow-xl hover:-translate-y-1 transition-all duration-300 group">
+                                <div class="flex items-center justify-between">
+                                    <div>
+                                        <div class="flex items-center space-x-2">
+                                            <div class="w-3 h-3 bg-green-400 rounded-full animate-pulse"></div>
+                                            <p class="text-2xl font-bold text-green-600">Online</p>
+                                        </div>
+                                        <p class="text-sm font-semibold text-gray-600 mt-1">Status</p>
+                                        <p class="text-xs text-green-600 font-medium mt-1">Conectado</p>
+                                    </div>
+                                    <div class="w-14 h-14 bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-2xl flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform duration-300">
+                                        <svg class="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                        </svg>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Tab Content: Personal Information -->
+                    <div id="profile-personal" class="profile-tab-content hidden">
+                        <!-- Profile Header Card -->
+                        <div class="bg-gradient-to-br from-white to-gray-50 rounded-3xl shadow-xl border border-gray-100 overflow-hidden mb-8">
+                            <div class="bg-gradient-to-r from-blue-600 via-blue-700 to-indigo-700 p-8 relative overflow-hidden">
+                                <div class="absolute top-0 right-0 w-40 h-40 bg-white/5 rounded-full -translate-y-20 translate-x-20"></div>
+                                <div class="absolute bottom-0 left-0 w-32 h-32 bg-white/5 rounded-full translate-y-16 -translate-x-16"></div>
+                                <div class="relative z-10 flex items-center space-x-6">
+                                    <div class="w-20 h-20 bg-white/20 backdrop-blur-sm rounded-2xl flex items-center justify-center border border-white/30">
+                                        <span class="text-2xl font-bold text-white"><?php
+                                            $nome = $_SESSION['nome'] ?? '';
+                                            $iniciais = '';
+                                            if (strlen($nome) >= 2) {
+                                                $iniciais = strtoupper(substr($nome, 0, 2));
+                                            } elseif (strlen($nome) == 1) {
+                                                $iniciais = strtoupper($nome);
+                                            } else {
+                                                $iniciais = 'US';
+                                            }
+                                            echo $iniciais;
+                                        ?></span>
+                                    </div>
+                                    <div class="flex-1 text-white">
+                                        <h2 class="text-2xl font-bold mb-2"><?php echo $_SESSION['nome']; ?></h2>
+                                        <p class="text-blue-100 text-sm mb-3">Administrador do Sistema</p>
+                                        <div class="flex items-center space-x-4">
+                                            <div class="flex items-center space-x-2">
+                                                <div class="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
+                                                <span class="text-sm text-green-100">Online</span>
+                                            </div>
+                                            <div class="text-sm text-blue-100">
+                                                Último acesso: Agora
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="text-right">
+                                        <button class="bg-white/20 backdrop-blur-sm hover:bg-white/30 text-white px-4 py-2 rounded-xl text-sm font-medium transition-all duration-200 border border-white/30">
+                                            Editar Perfil
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Information Cards -->
+                        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+                            <!-- Personal Info Card -->
+                            <div class="bg-white rounded-2xl shadow-lg border border-gray-100 p-6 hover:shadow-xl transition-all duration-300">
+                                <div class="flex items-center space-x-3 mb-6">
+                                    <div class="w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center">
+                                        <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
+                                        </svg>
+                                    </div>
+                                    <h3 class="text-xl font-bold text-gray-900">Informações Pessoais</h3>
+                                </div>
+                                
+                                <div class="space-y-4">
+                                    <div class="bg-gray-50 rounded-xl p-4">
+                                        <label class="block text-sm font-medium text-gray-600 mb-1">Nome Completo</label>
+                                        <p class="text-lg font-semibold text-gray-900"><?php echo $_SESSION['nome']; ?></p>
+                                    </div>
+                                    <div class="bg-gray-50 rounded-xl p-4">
+                                        <label class="block text-sm font-medium text-gray-600 mb-1">Email</label>
+                                        <p class="text-lg text-gray-900"><?php echo $_SESSION['email']; ?></p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Role & Status Card -->
+                            <div class="bg-white rounded-2xl shadow-lg border border-gray-100 p-6 hover:shadow-xl transition-all duration-300">
+                                <div class="flex items-center space-x-3 mb-6">
+                                    <div class="w-10 h-10 bg-gradient-to-br from-green-500 to-green-600 rounded-xl flex items-center justify-center">
+                                        <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path>
+                                        </svg>
+                                    </div>
+                                    <h3 class="text-xl font-bold text-gray-900">Função & Status</h3>
+                                </div>
+                                
+                                <div class="space-y-4">
+                                    <div class="bg-gray-50 rounded-xl p-4">
+                                        <label class="block text-sm font-medium text-gray-600 mb-2">Tipo de Usuário</label>
+                                        <div class="flex flex-wrap gap-2">
+                                            <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-semibold bg-gradient-to-r from-primary-green to-green-600 text-white">
+                                                Administrador Geral
+                                            </span>
+                                        </div>
+                                    </div>
+                                    <div class="bg-gray-50 rounded-xl p-4">
+                                        <label class="block text-sm font-medium text-gray-600 mb-2">Status da Conta</label>
+                                        <div class="flex items-center space-x-2">
+                                            <div class="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
+                                            <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-semibold bg-green-100 text-green-800">
+                                                Ativo
+                                            </span>
+                                        </div>
+                                    </div>
+                                    <div class="bg-gray-50 rounded-xl p-4">
+                                        <label class="block text-sm font-medium text-gray-600 mb-1">Nível de Acesso</label>
+                                        <div class="flex items-center space-x-2">
+                                            <div class="flex-1 bg-gray-200 rounded-full h-2">
+                                                <div class="bg-gradient-to-r from-green-500 to-green-600 h-2 rounded-full w-full"></div>
+                                            </div>
+                                            <span class="text-sm font-medium text-gray-600">100%</span>
+                                        </div>
+                                        <p class="text-xs text-gray-500 mt-1">Acesso total ao sistema</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Activity Timeline -->
+                        <div class="bg-white rounded-2xl shadow-lg border border-gray-100 p-6">
+                            <div class="flex items-center space-x-3 mb-6">
+                                <div class="w-10 h-10 bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl flex items-center justify-center">
+                                    <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                    </svg>
+                                </div>
+                                <h3 class="text-xl font-bold text-gray-900">Atividade Recente</h3>
+                            </div>
+                            
+                            <div class="space-y-4">
+                                <div class="flex items-center space-x-4 p-3 bg-green-50 rounded-xl border border-green-100">
+                                    <div class="w-8 h-8 bg-green-500 rounded-full flex items-center justify-center">
+                                        <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                                        </svg>
+                                    </div>
+                                    <div class="flex-1">
+                                        <p class="text-sm font-medium text-gray-900">Login realizado com sucesso</p>
+                                        <p class="text-xs text-gray-500">Agora mesmo</p>
+                                    </div>
+                                </div>
+                                
+                                <div class="flex items-center space-x-4 p-3 bg-blue-50 rounded-xl border border-blue-100">
+                                    <div class="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center">
+                                        <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
+                                        </svg>
+                                    </div>
+                                    <div class="flex-1">
+                                        <p class="text-sm font-medium text-gray-900">Acesso ao dashboard principal</p>
+                                        <p class="text-xs text-gray-500">Há 5 minutos</p>
+                                    </div>
+                                </div>
+                                
+                                <div class="flex items-center space-x-4 p-3 bg-purple-50 rounded-xl border border-purple-100">
+                                    <div class="w-8 h-8 bg-purple-500 rounded-full flex items-center justify-center">
+                                        <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 100 4m0-4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 100 4m0-4v2m0-6V4"></path>
+                                        </svg>
+                                    </div>
+                                    <div class="flex-1">
+                                        <p class="text-sm font-medium text-gray-900">Configurações do perfil visualizadas</p>
+                                        <p class="text-xs text-gray-500">Há 10 minutos</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Tab Content: Sistema -->
+                    <div id="profile-system" class="profile-tab-content hidden">
+                        <!-- System Overview Card -->
+                        <div class="bg-gradient-to-br from-white to-gray-50 rounded-3xl shadow-xl border border-gray-100 overflow-hidden mb-8">
+                            <div class="bg-gradient-to-r from-slate-800 via-slate-700 to-slate-800 p-8 relative overflow-hidden">
+                                <div class="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full -translate-y-16 translate-x-16"></div>
+                                <div class="absolute bottom-0 left-0 w-24 h-24 bg-white/5 rounded-full translate-y-12 -translate-x-12"></div>
+                                <div class="relative z-10 text-white text-center">
+                                    <div class="w-16 h-16 bg-white/10 backdrop-blur-sm rounded-2xl flex items-center justify-center mx-auto mb-4">
+                                        <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z"></path>
+                                        </svg>
+                                    </div>
+                                    <h2 class="text-2xl font-bold mb-2">Status do Sistema</h2>
+                                    <p class="text-slate-300 mb-4">Todas as operações funcionando normalmente</p>
+                                    <div class="flex items-center justify-center space-x-2">
+                                        <div class="w-3 h-3 bg-green-400 rounded-full animate-pulse"></div>
+                                        <span class="text-green-100 font-medium">Sistema Online</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- System Stats Grid -->
+                        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                            <div class="bg-white rounded-2xl p-6 shadow-lg border border-gray-100 hover:shadow-xl hover:-translate-y-1 transition-all duration-300 group">
+                                <div class="flex items-center justify-between mb-4">
+                                    <div class="w-12 h-12 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
+                                        <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path>
+                                        </svg>
+                                    </div>
+                                    <div class="text-right">
+                                        <p class="text-xs text-gray-500">Total</p>
+                                        <p class="text-sm font-medium text-green-600">+2 este mês</p>
+                                    </div>
+                                </div>
+                                <h3 class="text-3xl font-bold text-gray-900 mb-1">12</h3>
+                                <p class="text-sm font-medium text-gray-600">Escolas Gerenciadas</p>
+                                <div class="mt-3 bg-gray-200 rounded-full h-2">
+                                    <div class="bg-gradient-to-r from-blue-500 to-blue-600 h-2 rounded-full" style="width: 85%"></div>
+                                </div>
+                            </div>
+
+                            <div class="bg-white rounded-2xl p-6 shadow-lg border border-gray-100 hover:shadow-xl hover:-translate-y-1 transition-all duration-300 group">
+                                <div class="flex items-center justify-between mb-4">
+                                    <div class="w-12 h-12 bg-gradient-to-br from-green-500 to-green-600 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
+                                        <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z"></path>
+                                        </svg>
+                                    </div>
+                                    <div class="text-right">
+                                        <p class="text-xs text-gray-500">Ativos</p>
+                                        <p class="text-sm font-medium text-green-600">+15 esta semana</p>
+                                    </div>
+                                </div>
+                                <h3 class="text-3xl font-bold text-gray-900 mb-1">248</h3>
+                                <p class="text-sm font-medium text-gray-600">Usuários Ativos</p>
+                                <div class="mt-3 bg-gray-200 rounded-full h-2">
+                                    <div class="bg-gradient-to-r from-green-500 to-green-600 h-2 rounded-full" style="width: 92%"></div>
+                                </div>
+                            </div>
+
+                            <div class="bg-white rounded-2xl p-6 shadow-lg border border-gray-100 hover:shadow-xl hover:-translate-y-1 transition-all duration-300 group">
+                                <div class="flex items-center justify-between mb-4">
+                                    <div class="w-12 h-12 bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
+                                        <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                        </svg>
+                                    </div>
+                                    <div class="text-right">
+                                        <p class="text-xs text-gray-500">Uptime</p>
+                                        <p class="text-sm font-medium text-green-600">Excelente</p>
+                                    </div>
+                                </div>
+                                <h3 class="text-3xl font-bold text-gray-900 mb-1">99.9%</h3>
+                                <p class="text-sm font-medium text-gray-600">Sistema Estável</p>
+                                <div class="mt-3 bg-gray-200 rounded-full h-2">
+                                    <div class="bg-gradient-to-r from-purple-500 to-purple-600 h-2 rounded-full" style="width: 99.9%"></div>
+                                </div>
+                            </div>
+
+                            <div class="bg-white rounded-2xl p-6 shadow-lg border border-gray-100 hover:shadow-xl hover:-translate-y-1 transition-all duration-300 group">
+                                <div class="flex items-center justify-between mb-4">
+                                    <div class="w-12 h-12 bg-gradient-to-br from-orange-500 to-orange-600 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
+                                        <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                        </svg>
+                                    </div>
+                                    <div class="text-right">
+                                        <p class="text-xs text-gray-500">Última</p>
+                                        <p class="text-sm font-medium text-green-600">Hoje</p>
+                                    </div>
+                                </div>
+                                <h3 class="text-2xl font-bold text-gray-900 mb-1">14:30</h3>
+                                <p class="text-sm font-medium text-gray-600">Última Atualização</p>
+                                <div class="mt-3 bg-gray-200 rounded-full h-2">
+                                    <div class="bg-gradient-to-r from-orange-500 to-orange-600 h-2 rounded-full" style="width: 75%"></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- System Performance Chart -->
+                        <div class="bg-white rounded-2xl shadow-lg border border-gray-100 p-6 mb-8">
+                            <div class="flex items-center space-x-3 mb-6">
+                                <div class="w-10 h-10 bg-gradient-to-br from-indigo-500 to-indigo-600 rounded-xl flex items-center justify-center">
+                                    <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
+                                    </svg>
+                                </div>
+                                <h3 class="text-xl font-bold text-gray-900">Performance do Sistema</h3>
+                            </div>
+                            
+                            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                                <div class="text-center">
+                                    <div class="w-20 h-20 mx-auto mb-4 relative">
+                                        <svg class="w-20 h-20 transform -rotate-90" viewBox="0 0 36 36">
+                                            <path class="text-gray-200" stroke="currentColor" stroke-width="3" fill="none" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"></path>
+                                            <path class="text-green-500" stroke="currentColor" stroke-width="3" fill="none" stroke-dasharray="99.9, 100" stroke-dashoffset="0" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"></path>
+                                        </svg>
+                                        <div class="absolute inset-0 flex items-center justify-center">
+                                            <span class="text-lg font-bold text-green-600">99.9%</span>
+                                        </div>
+                                    </div>
+                                    <h4 class="font-semibold text-gray-900">Uptime</h4>
+                                    <p class="text-sm text-gray-500">Disponibilidade</p>
+                                </div>
+                                
+                                <div class="text-center">
+                                    <div class="w-20 h-20 mx-auto mb-4 relative">
+                                        <svg class="w-20 h-20 transform -rotate-90" viewBox="0 0 36 36">
+                                            <path class="text-gray-200" stroke="currentColor" stroke-width="3" fill="none" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"></path>
+                                            <path class="text-blue-500" stroke="currentColor" stroke-width="3" fill="none" stroke-dasharray="85, 100" stroke-dashoffset="0" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"></path>
+                                        </svg>
+                                        <div class="absolute inset-0 flex items-center justify-center">
+                                            <span class="text-lg font-bold text-blue-600">85%</span>
+                                        </div>
+                                    </div>
+                                    <h4 class="font-semibold text-gray-900">Performance</h4>
+                                    <p class="text-sm text-gray-500">Velocidade</p>
+                                </div>
+                                
+                                <div class="text-center">
+                                    <div class="w-20 h-20 mx-auto mb-4 relative">
+                                        <svg class="w-20 h-20 transform -rotate-90" viewBox="0 0 36 36">
+                                            <path class="text-gray-200" stroke="currentColor" stroke-width="3" fill="none" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"></path>
+                                            <path class="text-purple-500" stroke="currentColor" stroke-width="3" fill="none" stroke-dasharray="92, 100" stroke-dashoffset="0" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"></path>
+                                        </svg>
+                                        <div class="absolute inset-0 flex items-center justify-center">
+                                            <span class="text-lg font-bold text-purple-600">92%</span>
+                                        </div>
+                                    </div>
+                                    <h4 class="font-semibold text-gray-900">Capacidade</h4>
+                                    <p class="text-sm text-gray-500">Recursos</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Tab Content: Configurações -->
+                    <div id="profile-settings" class="profile-tab-content hidden">
+                        <!-- Settings Header -->
+                        <div class="bg-gradient-to-br from-white to-gray-50 rounded-3xl shadow-xl border border-gray-100 overflow-hidden mb-8">
+                            <div class="bg-gradient-to-r from-purple-600 via-purple-700 to-indigo-700 p-8 relative overflow-hidden">
+                                <div class="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full -translate-y-16 translate-x-16"></div>
+                                <div class="absolute bottom-0 left-0 w-24 h-24 bg-white/5 rounded-full translate-y-12 -translate-x-12"></div>
+                                <div class="relative z-10 text-white text-center">
+                                    <div class="w-16 h-16 bg-white/10 backdrop-blur-sm rounded-2xl flex items-center justify-center mx-auto mb-4">
+                                        <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path>
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
                                         </svg>
                                     </div>
-                                    <div>
-                                        <h4 class="text-sm font-medium text-gray-900">Configurações Avançadas</h4>
-                                        <p class="text-xs text-gray-500">Opções extras</p>
-                                    </div>
-                                </div>
-                                <div class="space-y-3">
-                                    <!-- Redução de Movimento -->
-                                    <div class="flex items-center justify-between">
-                                        <div class="flex items-center space-x-2">
-                                            <div class="w-4 h-4 bg-blue-100 rounded flex items-center justify-center">
-                                                <svg class="w-2 h-2 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
-                                                </svg>
-                                            </div>
-                                            <div>
-                                                <p class="text-sm font-medium text-gray-900">Redução de Movimento</p>
-                                                <p class="text-xs text-gray-500">Menos animações</p>
-                                            </div>
-                                        </div>
-                                        <label class="relative inline-flex items-center cursor-pointer">
-                                            <input type="checkbox" id="reduce-motion" onchange="setReduceMotion(this.checked)" class="sr-only peer">
-                                            <div class="w-9 h-5 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-blue-500 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-500"></div>
-                                        </label>
-                                    </div>
-
-                                    <!-- VLibras -->
-                                    <div class="flex items-center justify-between">
-                                        <div class="flex items-center space-x-2">
-                                            <div class="w-4 h-4 bg-purple-100 rounded flex items-center justify-center">
-                                                <svg class="w-2 h-2 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z"></path>
-                                                </svg>
-                                            </div>
-                                            <div>
-                                                <p class="text-sm font-medium text-gray-900">VLibras (Libras)</p>
-                                                <p class="text-xs text-gray-500">Tradução para Libras</p>
-                                            </div>
-                                        </div>
-                                        <label class="relative inline-flex items-center cursor-pointer">
-                                            <input type="checkbox" id="vlibras-toggle" class="sr-only peer" onchange="toggleVLibras()" checked>
-                                            <div class="w-9 h-5 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-blue-500 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-500"></div>
-                                        </label>
-                                    </div>
-
-                                    <!-- Navegação por Teclado -->
-                                    <div class="flex items-center justify-between">
-                                        <div class="flex items-center space-x-2">
-                                            <div class="w-4 h-4 bg-green-100 rounded flex items-center justify-center">
-                                                <svg class="w-2 h-2 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                                                </svg>
-                                            </div>
-                                            <div>
-                                                <p class="text-sm font-medium text-gray-900">Navegação por Teclado</p>
-                                                <p class="text-xs text-gray-500">Destacar foco</p>
-                                            </div>
-                                        </div>
-                                        <label class="relative inline-flex items-center cursor-pointer">
-                                            <input type="checkbox" id="keyboard-nav" onchange="setKeyboardNavigation(this.checked)" class="sr-only peer">
-                                            <div class="w-9 h-5 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-blue-500 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-500"></div>
-                                        </label>
-                                    </div>
+                                    <h2 class="text-2xl font-bold mb-2">Configurações do Sistema</h2>
+                                    <p class="text-purple-100 text-sm">Personalize sua experiência de uso</p>
                                 </div>
                             </div>
                         </div>
-                    </div>
 
-                    <!-- Seções do ADM -->
-                    <?php if (isset($_SESSION['tipo']) && $_SESSION['tipo'] === 'ADM'): ?>
-                    <!-- Gestão de Alunos -->
-                    <div class="mb-8">
-                        <div class="flex items-center space-x-2 mb-4">
-                            <div class="w-6 h-6 bg-blue-100 rounded-md flex items-center justify-center">
-                                <svg class="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z"></path>
-                                </svg>
-                            </div>
-                            <div>
-                                <h3 class="text-lg font-semibold text-gray-900">Gestão de Alunos</h3>
-                                <p class="text-xs text-gray-500">Acesso total aos dados acadêmicos</p>
-                            </div>
-                        </div>
-
-                        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                            <!-- Visão Geral -->
-                            <div class="bg-white p-4 rounded-lg border border-gray-200">
-                                <div class="flex items-center space-x-2 mb-3">
-                                    <div class="w-5 h-5 bg-green-100 rounded flex items-center justify-center">
-                                        <svg class="w-3 h-3 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
-                                        </svg>
-                                    </div>
-                                    <div>
-                                        <h4 class="text-sm font-medium text-gray-900">Visão Geral</h4>
-                                        <p class="text-xs text-gray-500">Estatísticas gerais</p>
-                                    </div>
-                                </div>
-                                <div class="space-y-2">
-                                    <div class="flex justify-between text-sm">
-                                        <span class="text-gray-600">Total de Alunos:</span>
-                                        <span class="font-semibold text-gray-900">2,847</span>
-                                    </div>
-                                    <div class="flex justify-between text-sm">
-                                        <span class="text-gray-600">Escolas Ativas:</span>
-                                        <span class="font-semibold text-gray-900">12</span>
-                                    </div>
-                                    <div class="flex justify-between text-sm">
-                                        <span class="text-gray-600">Turmas:</span>
-                                        <span class="font-semibold text-gray-900">156</span>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <!-- Frequência -->
-                            <div class="bg-white p-4 rounded-lg border border-gray-200">
-                                <div class="flex items-center space-x-2 mb-3">
-                                    <div class="w-5 h-5 bg-yellow-100 rounded flex items-center justify-center">
-                                        <svg class="w-3 h-3 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
-                                        </svg>
-                                    </div>
-                                    <div>
-                                        <h4 class="text-sm font-medium text-gray-900">Frequência</h4>
-                                        <p class="text-xs text-gray-500">Controle de presença</p>
-                                    </div>
-                                </div>
-                                <div class="space-y-2">
-                                    <div class="flex justify-between text-sm">
-                                        <span class="text-gray-600">Presença Hoje:</span>
-                                        <span class="font-semibold text-green-600">94.2%</span>
-                                    </div>
-                                    <div class="flex justify-between text-sm">
-                                        <span class="text-gray-600">Faltas Justificadas:</span>
-                                        <span class="font-semibold text-yellow-600">3.1%</span>
-                                    </div>
-                                    <div class="flex justify-between text-sm">
-                                        <span class="text-gray-600">Faltas Injustificadas:</span>
-                                        <span class="font-semibold text-red-600">2.7%</span>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <!-- Rendimento -->
-                            <div class="bg-white p-4 rounded-lg border border-gray-200">
-                                <div class="flex items-center space-x-2 mb-3">
-                                    <div class="w-5 h-5 bg-purple-100 rounded flex items-center justify-center">
-                                        <svg class="w-3 h-3 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z"></path>
-                                        </svg>
-                                    </div>
-                                    <div>
-                                        <h4 class="text-sm font-medium text-gray-900">Rendimento</h4>
-                                        <p class="text-xs text-gray-500">Performance acadêmica</p>
-                                    </div>
-                                </div>
-                                <div class="space-y-2">
-                                    <div class="flex justify-between text-sm">
-                                        <span class="text-gray-600">Média Geral:</span>
-                                        <span class="font-semibold text-blue-600">7.8</span>
-                                    </div>
-                                    <div class="flex justify-between text-sm">
-                                        <span class="text-gray-600">Aprovados:</span>
-                                        <span class="font-semibold text-green-600">89.3%</span>
-                                    </div>
-                                    <div class="flex justify-between text-sm">
-                                        <span class="text-gray-600">Em Recuperação:</span>
-                                        <span class="font-semibold text-orange-600">8.2%</span>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Módulo de Alimentação Escolar -->
-                    <div class="mb-8">
-                        <div class="flex items-center space-x-2 mb-4">
-                            <div class="w-6 h-6 bg-orange-100 rounded-md flex items-center justify-center">
-                                <svg class="w-4 h-4 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4m0 0L7 13m0 0l-2.5 5M7 13l2.5 5m6-5v6a2 2 0 01-2 2H9a2 2 0 01-2-2v-6m8 0V9a2 2 0 00-2-2H9a2 2 0 00-2 2v4.01"></path>
-                                </svg>
-                            </div>
-                            <div>
-                                <h3 class="text-lg font-semibold text-gray-900">Módulo de Alimentação Escolar</h3>
-                                <p class="text-xs text-gray-500">Gestão de estoque e pedidos</p>
-                            </div>
-                        </div>
-
-                        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                            <!-- Estoque Central -->
-                            <div class="bg-white p-4 rounded-lg border border-gray-200">
-                                <div class="flex items-center space-x-2 mb-3">
-                                    <div class="w-5 h-5 bg-blue-100 rounded flex items-center justify-center">
-                                        <svg class="w-3 h-3 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path>
-                                        </svg>
-                                    </div>
-                                    <div>
-                                        <h4 class="text-sm font-medium text-gray-900">Estoque Central</h4>
-                                        <p class="text-xs text-gray-500">Produtos disponíveis</p>
-                                    </div>
-                                </div>
-                                <div class="space-y-2">
-                                    <div class="flex justify-between text-sm">
-                                        <span class="text-gray-600">Produtos:</span>
-                                        <span class="font-semibold text-gray-900">47</span>
-                                    </div>
-                                    <div class="flex justify-between text-sm">
-                                        <span class="text-gray-600">Valor Total:</span>
-                                        <span class="font-semibold text-green-600">R$ 45.2K</span>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <!-- Pedidos Pendentes -->
-                            <div class="bg-white p-4 rounded-lg border border-gray-200">
-                                <div class="flex items-center space-x-2 mb-3">
-                                    <div class="w-5 h-5 bg-yellow-100 rounded flex items-center justify-center">
-                                        <svg class="w-3 h-3 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                                        </svg>
-                                    </div>
-                                    <div>
-                                        <h4 class="text-sm font-medium text-gray-900">Pedidos Pendentes</h4>
-                                        <p class="text-xs text-gray-500">Aguardando aprovação</p>
-                                    </div>
-                                </div>
-                                <div class="space-y-2">
-                                    <div class="flex justify-between text-sm">
-                                        <span class="text-gray-600">Pendentes:</span>
-                                        <span class="font-semibold text-yellow-600">8</span>
-                                    </div>
-                                    <div class="flex justify-between text-sm">
-                                        <span class="text-gray-600">Valor Total:</span>
-                                        <span class="font-semibold text-gray-900">R$ 12.8K</span>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <!-- Consumo Mensal -->
-                            <div class="bg-white p-4 rounded-lg border border-gray-200">
-                                <div class="flex items-center space-x-2 mb-3">
-                                    <div class="w-5 h-5 bg-green-100 rounded flex items-center justify-center">
-                                        <svg class="w-3 h-3 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"></path>
-                                        </svg>
-                                    </div>
-                                    <div>
-                                        <h4 class="text-sm font-medium text-gray-900">Consumo Mensal</h4>
-                                        <p class="text-xs text-gray-500">Último mês</p>
-                                    </div>
-                                </div>
-                                <div class="space-y-2">
-                                    <div class="flex justify-between text-sm">
-                                        <span class="text-gray-600">Refeições:</span>
-                                        <span class="font-semibold text-gray-900">45.2K</span>
-                                    </div>
-                                    <div class="flex justify-between text-sm">
-                                        <span class="text-gray-600">Custo Médio:</span>
-                                        <span class="font-semibold text-blue-600">R$ 3.20</span>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <!-- Produtos Vencendo -->
-                            <div class="bg-white p-4 rounded-lg border border-gray-200">
-                                <div class="flex items-center space-x-2 mb-3">
-                                    <div class="w-5 h-5 bg-red-100 rounded flex items-center justify-center">
-                                        <svg class="w-3 h-3 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z"></path>
-                                        </svg>
-                                    </div>
-                                    <div>
-                                        <h4 class="text-sm font-medium text-gray-900">Vencendo</h4>
-                                        <p class="text-xs text-gray-500">Próximos 30 dias</p>
-                                    </div>
-                                </div>
-                                <div class="space-y-2">
-                                    <div class="flex justify-between text-sm">
-                                        <span class="text-gray-600">Produtos:</span>
-                                        <span class="font-semibold text-red-600">5</span>
-                                    </div>
-                                    <div class="flex justify-between text-sm">
-                                        <span class="text-gray-600">Valor:</span>
-                                        <span class="font-semibold text-gray-900">R$ 2.1K</span>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-
-                    <!-- Gestão Administrativa -->
-                    <div class="mb-8">
-                        <div class="flex items-center space-x-2 mb-4">
-                            <div class="w-6 h-6 bg-purple-100 rounded-md flex items-center justify-center">
-                                <svg class="w-4 h-4 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path>
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
-                                </svg>
-                            </div>
-                            <div>
-                                <h3 class="text-lg font-semibold text-gray-900">Gestão Administrativa</h3>
-                                <p class="text-xs text-gray-500">Usuários, escolas e permissões</p>
-                            </div>
-                        </div>
-
-                        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                            <!-- Cadastro de Escolas -->
-                            <div class="bg-white p-4 rounded-lg border border-gray-200">
-                                <div class="flex items-center space-x-2 mb-3">
-                                    <div class="w-5 h-5 bg-blue-100 rounded flex items-center justify-center">
-                                        <svg class="w-3 h-3 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path>
-                                        </svg>
-                                    </div>
-                                    <div>
-                                        <h4 class="text-sm font-medium text-gray-900">Escolas</h4>
-                                        <p class="text-xs text-gray-500">Cadastro e gestão</p>
-                                    </div>
-                                </div>
-                                <div class="space-y-2">
-                                    <div class="flex justify-between text-sm">
-                                        <span class="text-gray-600">Total:</span>
-                                        <span class="font-semibold text-gray-900">12</span>
-                                    </div>
-                                    <div class="flex justify-between text-sm">
-                                        <span class="text-gray-600">Ativas:</span>
-                                        <span class="font-semibold text-green-600">11</span>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <!-- Usuários -->
-                            <div class="bg-white p-4 rounded-lg border border-gray-200">
-                                <div class="flex items-center space-x-2 mb-3">
-                                    <div class="w-5 h-5 bg-green-100 rounded flex items-center justify-center">
-                                        <svg class="w-3 h-3 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z"></path>
-                                        </svg>
-                                    </div>
-                                    <div>
-                                        <h4 class="text-sm font-medium text-gray-900">Usuários</h4>
-                                        <p class="text-xs text-gray-500">Gestores e professores</p>
-                                    </div>
-                                </div>
-                                <div class="space-y-2">
-                                    <div class="flex justify-between text-sm">
-                                        <span class="text-gray-600">Total:</span>
-                                        <span class="font-semibold text-gray-900">156</span>
-                                    </div>
-                                    <div class="flex justify-between text-sm">
-                                        <span class="text-gray-600">Ativos:</span>
-                                        <span class="font-semibold text-green-600">148</span>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <!-- Permissões -->
-                            <div class="bg-white p-4 rounded-lg border border-gray-200">
-                                <div class="flex items-center space-x-2 mb-3">
-                                    <div class="w-5 h-5 bg-yellow-100 rounded flex items-center justify-center">
-                                        <svg class="w-3 h-3 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"></path>
-                                        </svg>
-                                    </div>
-                                    <div>
-                                        <h4 class="text-sm font-medium text-gray-900">Permissões</h4>
-                                        <p class="text-xs text-gray-500">Controle de acesso</p>
-                                    </div>
-                                </div>
-                                <div class="space-y-2">
-                                    <div class="flex justify-between text-sm">
-                                        <span class="text-gray-600">Níveis:</span>
-                                        <span class="font-semibold text-gray-900">4</span>
-                                    </div>
-                                    <div class="flex justify-between text-sm">
-                                        <span class="text-gray-600">Ativas:</span>
-                                        <span class="font-semibold text-green-600">4</span>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <!-- Lotação -->
-                            <div class="bg-white p-4 rounded-lg border border-gray-200">
-                                <div class="flex items-center space-x-2 mb-3">
-                                    <div class="w-5 h-5 bg-purple-100 rounded flex items-center justify-center">
-                                        <svg class="w-3 h-3 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path>
-                                        </svg>
-                                    </div>
-                                    <div>
-                                        <h4 class="text-sm font-medium text-gray-900">Lotação</h4>
-                                        <p class="text-xs text-gray-500">Alocação de pessoal</p>
-                                    </div>
-                                </div>
-                                <div class="space-y-2">
-                                    <div class="flex justify-between text-sm">
-                                        <span class="text-gray-600">Lotações:</span>
-                                        <span class="font-semibold text-gray-900">89</span>
-                                    </div>
-                                    <div class="flex justify-between text-sm">
-                                        <span class="text-gray-600">Múltiplas:</span>
-                                        <span class="font-semibold text-blue-600">23</span>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    <?php endif; ?>
-
-                    <!-- ADM Quick Stats -->
-                    <?php if ($_SESSION['tipo'] === 'ADM') { ?>
-                    <div class="mb-8">
-                        <div class="bg-gradient-to-r from-primary-green to-green-600 text-white p-6 rounded-xl">
-                            <div class="flex items-center justify-between">
-                                <div>
-                                    <h3 class="text-lg font-semibold mb-2">Resumo do Sistema</h3>
-                                    <div class="flex space-x-6 text-sm">
-                                        <div>
-                                            <span class="text-green-200">Escolas:</span>
-                                            <span class="font-bold ml-1">12</span>
-                                        </div>
-                                        <div>
-                                            <span class="text-green-200">Usuários:</span>
-                                            <span class="font-bold ml-1">156</span>
-                                        </div>
-                                        <div>
-                                            <span class="text-green-200">Alunos:</span>
-                                            <span class="font-bold ml-1">2,847</span>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="w-12 h-12 bg-white bg-opacity-20 rounded-lg flex items-center justify-center">
-                                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
+                        <!-- Theme Settings -->
+                        <div class="bg-white rounded-2xl shadow-lg border border-gray-100 p-6 mb-8">
+                            <div class="flex items-center space-x-3 mb-6">
+                                <div class="w-10 h-10 bg-gradient-to-br from-yellow-500 to-orange-500 rounded-xl flex items-center justify-center">
+                                    <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"></path>
                                     </svg>
                                 </div>
+                                <h3 class="text-xl font-bold text-gray-900">Tema Visual</h3>
+                            </div>
+                            
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <button class="theme-option group p-4 border-2 border-gray-200 rounded-2xl hover:border-blue-500 hover:shadow-lg transition-all duration-300" data-theme="light">
+                                    <div class="flex items-center space-x-4">
+                                        <div class="w-12 h-12 bg-gradient-to-br from-yellow-400 to-orange-500 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
+                                            <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"></path>
+                                            </svg>
+                                        </div>
+                                        <div class="text-left">
+                                            <h4 class="font-semibold text-gray-900 group-hover:text-blue-600 transition-colors">Tema Claro</h4>
+                                            <p class="text-sm text-gray-500">Interface clara e brilhante</p>
+                                        </div>
+                                    </div>
+                                </button>
+                                
+                                <button class="theme-option group p-4 border-2 border-gray-200 rounded-2xl hover:border-purple-500 hover:shadow-lg transition-all duration-300" data-theme="dark">
+                                    <div class="flex items-center space-x-4">
+                                        <div class="w-12 h-12 bg-gradient-to-br from-purple-600 to-indigo-700 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
+                                            <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"></path>
+                                            </svg>
+                                        </div>
+                                        <div class="text-left">
+                                            <h4 class="font-semibold text-gray-900 group-hover:text-purple-600 transition-colors">Tema Escuro</h4>
+                                            <p class="text-sm text-gray-500">Interface escura e elegante</p>
+                                        </div>
+                                    </div>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Notification Settings -->
+                        <div class="bg-white rounded-2xl shadow-lg border border-gray-100 p-6 mb-8">
+                            <div class="flex items-center space-x-3 mb-6">
+                                <div class="w-10 h-10 bg-gradient-to-br from-green-500 to-emerald-600 rounded-xl flex items-center justify-center">
+                                    <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-5 5v-5zM4.828 7l2.586 2.586a2 2 0 002.828 0L12 7H4.828z"></path>
+                                    </svg>
+                                </div>
+                                <h3 class="text-xl font-bold text-gray-900">Notificações</h3>
+                            </div>
+                            
+                            <div class="space-y-4">
+                                <div class="flex items-center justify-between p-4 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors duration-200">
+                                    <div class="flex items-center space-x-3">
+                                        <div class="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center">
+                                            <svg class="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 4.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path>
+                                            </svg>
+                                        </div>
+                                        <div>
+                                            <h4 class="font-medium text-gray-900">Notificações por Email</h4>
+                                            <p class="text-sm text-gray-500">Receba atualizações importantes por email</p>
+                                        </div>
+                                    </div>
+                                    <label class="relative inline-flex items-center cursor-pointer">
+                                        <input type="checkbox" class="sr-only peer" checked>
+                                        <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                                    </label>
+                                </div>
+                                
+                                <div class="flex items-center justify-between p-4 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors duration-200">
+                                    <div class="flex items-center space-x-3">
+                                        <div class="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center">
+                                            <svg class="w-4 h-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-5 5v-5zM4.828 7l2.586 2.586a2 2 0 002.828 0L12 7H4.828z"></path>
+                                            </svg>
+                                        </div>
+                                        <div>
+                                            <h4 class="font-medium text-gray-900">Notificações do Sistema</h4>
+                                            <p class="text-sm text-gray-500">Alertas sobre status do sistema e manutenções</p>
+                                        </div>
+                                    </div>
+                                    <label class="relative inline-flex items-center cursor-pointer">
+                                        <input type="checkbox" class="sr-only peer" checked>
+                                        <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-green-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-green-600"></div>
+                                    </label>
+                                </div>
+                                
+                                <div class="flex items-center justify-between p-4 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors duration-200">
+                                    <div class="flex items-center space-x-3">
+                                        <div class="w-8 h-8 bg-purple-100 rounded-lg flex items-center justify-center">
+                                            <svg class="w-4 h-4 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
+                                            </svg>
+                                        </div>
+                                        <div>
+                                            <h4 class="font-medium text-gray-900">Notificações de Atividade</h4>
+                                            <p class="text-sm text-gray-500">Alertas sobre atividades importantes</p>
+                                        </div>
+                                    </div>
+                                    <label class="relative inline-flex items-center cursor-pointer">
+                                        <input type="checkbox" class="sr-only peer">
+                                        <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-purple-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-purple-600"></div>
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Action Buttons -->
+                        <div class="bg-white rounded-2xl shadow-lg border border-gray-100 p-6">
+                            <div class="flex flex-col sm:flex-row gap-4 justify-end">
+                                <button class="px-6 py-3 border-2 border-gray-300 text-gray-700 rounded-xl hover:bg-gray-50 hover:border-gray-400 transition-all duration-200 font-medium">
+                                    Cancelar
+                                </button>
+                                <button class="px-6 py-3 bg-gradient-to-r from-primary-green to-green-600 text-white rounded-xl hover:from-green-600 hover:to-green-700 transition-all duration-200 font-medium shadow-lg hover:shadow-xl transform hover:-translate-y-0.5">
+                                    Salvar Configurações
+                                </button>
                             </div>
                         </div>
                     </div>
-                    <?php } ?>
-
-                    <!-- Actions -->
-                    <div class="flex space-x-3">
-                        <button class="flex-1 px-4 py-2 text-primary-green border border-primary-green hover:bg-primary-green hover:text-white rounded-lg font-medium transition-colors duration-200">
-                            Editar Perfil
-                        </button>
-                        <button onclick="confirmLogout()" class="flex-1 px-4 py-2 text-red-600 border border-red-600 hover:bg-red-600 hover:text-white rounded-lg font-medium transition-colors duration-200">
-                            Sair do Sistema
-                        </button>
-                    </div>
-                </div>
             </div>
-        </div>
-    </div>
-
-    <!-- Add Product Modal -->
-    <div id="addProductModal" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden flex items-center justify-center p-4">
-        <div class="bg-white rounded-2xl p-6 max-w-md w-full mx-4 shadow-2xl">
-            <div class="flex items-center justify-between mb-6">
-                <h3 class="text-xl font-semibold text-gray-900">Adicionar Produto</h3>
-                <button onclick="closeAddProductModal()" class="p-2 hover:bg-gray-100 rounded-full transition-colors duration-200">
-                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-                    </svg>
-                </button>
-            </div>
-
-            <form id="addProductForm" class="space-y-4">
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-2">Nome do Produto</label>
-                    <input type="text" id="productName" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-green focus:border-transparent" placeholder="Ex: Arroz" required>
-                </div>
-
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-2">Quantidade</label>
-                    <input type="number" id="productQuantity" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-green focus:border-transparent" placeholder="Ex: 50" min="1" required>
-                </div>
-
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-2">Unidade</label>
-                    <select id="productUnit" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-green focus:border-transparent" required>
-                        <option value="">Selecione a unidade</option>
-                        <option value="kg">Quilograma (kg)</option>
-                        <option value="g">Grama (g)</option>
-                        <option value="l">Litro (l)</option>
-                        <option value="ml">Mililitro (ml)</option>
-                        <option value="un">Unidade</option>
-                        <option value="cx">Caixa</option>
-                        <option value="pct">Pacote</option>
-                    </select>
-                </div>
-
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-2">Data de Validade</label>
-                    <input type="date" id="productExpiry" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-green focus:border-transparent" required>
-                </div>
-
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-2">Categoria</label>
-                    <select id="productCategory" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-green focus:border-transparent" required>
-                        <option value="">Selecione a categoria</option>
-                        <option value="cereais">Cereais</option>
-                        <option value="legumes">Legumes</option>
-                        <option value="frutas">Frutas</option>
-                        <option value="proteinas">Proteínas</option>
-                        <option value="laticinios">Laticínios</option>
-                        <option value="temperos">Temperos</option>
-                        <option value="outros">Outros</option>
-                    </select>
-                </div>
-
-                <div class="flex space-x-3 pt-4">
-                    <button type="button" onclick="closeAddProductModal()" class="flex-1 px-4 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg font-medium transition-colors duration-200">
-                        Cancelar
-                    </button>
-                    <button type="submit" class="flex-1 px-4 py-2 text-white bg-primary-green hover:bg-green-700 rounded-lg font-medium transition-colors duration-200">
-                        Adicionar
-                    </button>
-                </div>
-            </form>
         </div>
     </div>
 
     <script>
-        // User types and permissions
-        const USER_TYPES = {
-            ADM_SME: 'adm_sme',
-            GESTOR: 'gestor',
-            PROFESSOR: 'professor',
-            NUTRICIONISTA: 'nutricionista',
-            ADM_MERENDA: 'adm_merenda',
-            ALUNO: 'aluno'
-        };
-
-        const PERMISSIONS = {
-            [USER_TYPES.ADM_SME]: {
-                dashboard: true,
-                alunos: true,
-                turmas: true,
-                frequencia: true,
-                notas: true,
-                relatorios: true,
-                merenda: true,
-                escolas: true,
-                usuarios: true,
-                estoque_central: true
-            },
-            [USER_TYPES.GESTOR]: {
-                dashboard: true,
-                alunos: true,
-                turmas: true,
-                frequencia: true,
-                notas: true,
-                relatorios: true,
-                merenda: false,
-                escolas: false,
-                usuarios: false,
-                estoque_central: false
-            },
-            [USER_TYPES.PROFESSOR]: {
-                dashboard: true,
-                alunos: true,
-                turmas: true,
-                frequencia: true,
-                notas: true,
-                relatorios: false,
-                merenda: false,
-                escolas: false,
-                usuarios: false,
-                estoque_central: false
-            },
-            [USER_TYPES.NUTRICIONISTA]: {
-                dashboard: true,
-                alunos: false,
-                turmas: false,
-                frequencia: false,
-                notas: false,
-                relatorios: true,
-                merenda: true,
-                escolas: false,
-                usuarios: false,
-                estoque_central: false
-            },
-            [USER_TYPES.ADM_MERENDA]: {
-                dashboard: true,
-                alunos: false,
-                turmas: false,
-                frequencia: false,
-                notas: false,
-                relatorios: true,
-                merenda: true,
-                escolas: false,
-                usuarios: false,
-                estoque_central: true
-            },
-            [USER_TYPES.ALUNO]: {
-                dashboard: true,
-                alunos: false,
-                turmas: false,
-                frequencia: true,
-                notas: true,
-                relatorios: false,
-                merenda: false,
-                escolas: false,
-                usuarios: false,
-                estoque_central: false
-            }
-        };
-
-        // Load user data and setup permissions
-        document.addEventListener('DOMContentLoaded', function() {
-            const user = JSON.parse(localStorage.getItem('user') || '{}');
-            if (user.nome) {
-                document.getElementById('userName').textContent = user.nome;
-                // Limit initials to first 2 names only
-                const initials = user.nome.split(' ').slice(0, 2).map(n => n[0]).join('').toUpperCase();
-                document.getElementById('userInitials').textContent = initials;
-
-                setupUserPermissions(user.tipo || USER_TYPES.PROFESSOR);
-
-                setDynamicPageTitle(user.tipo || USER_TYPES.PROFESSOR);
-            }
-
-            // Configurações de acessibilidade agora gerenciadas pelo theme-manager.js
-        });
-
-        function setDynamicPageTitle(userType) {
-            const pageTitle = document.getElementById('pageTitle');
-            const roleNames = {
-                'ADM': 'Dashboard ADM',
-                'ADM_SME': 'Dashboard ADM SME',
-                'GESTOR': 'Dashboard Gestor',
-                'PROFESSOR': 'Dashboard Professor',
-                'NUTRICIONISTA': 'Dashboard Nutricionista',
-                'ADM_MERENDA': 'Dashboard ADM Merenda',
-                'ALUNO': 'Dashboard Aluno'
-            };
-
-            if (pageTitle) {
-                pageTitle.textContent = roleNames[userType] || 'Dashboard ADM';
-            }
-        }
-
-        function setupUserPermissions(userType) {
-            const permissions = PERMISSIONS[userType] || PERMISSIONS[USER_TYPES.PROFESSOR];
-
-            const menuItems = {
-                'alunos': document.getElementById('alunos-menu'),
-                'turmas': document.getElementById('turmas-menu'),
-                'frequencia': document.getElementById('frequencia-menu'),
-                'notas': document.getElementById('notas-menu'),
-                'relatorios': document.getElementById('relatorios-menu'),
-                'merenda': document.getElementById('merenda-menu'),
-                'escolas': document.getElementById('escolas-menu'),
-                'usuarios': document.getElementById('usuarios-menu'),
-                'estoque-central': document.getElementById('estoque-central-menu')
-            };
-        }
-
-        // Toggle sidebar on mobile
-        function toggleSidebar() {
-            const sidebar = document.getElementById('sidebar');
-            const overlay = document.getElementById('mobileOverlay');
-
-            sidebar.classList.toggle('open');
-            overlay.classList.toggle('hidden');
-        }
-
-        // Close sidebar when clicking overlay
-        document.getElementById('mobileOverlay').addEventListener('click', function() {
-            toggleSidebar();
-        });
-
-
-        // Modal functions
-        function confirmLogout() {
-            document.getElementById('logoutModal').classList.remove('hidden');
-        }
-
-        function closeLogoutModal() {
-            document.getElementById('logoutModal').classList.add('hidden');
-        }
-
+        // Profile Modal Functions
         function openUserProfile() {
-            // Load user data into profile modal
-            const user = JSON.parse(localStorage.getItem('user') || '{}');
-            if (user.nome) {
-                document.getElementById('profileName').textContent = user.nome;
-                document.getElementById('profileFullName').textContent = user.nome;
-                // Pega as 2 primeiras letras do nome
-                const initials = user.nome.length >= 2 ? user.nome.substring(0, 2).toUpperCase() :
-                    user.nome.length === 1 ? user.nome.toUpperCase() : 'US';
-                document.getElementById('profileInitials').textContent = initials;
-
-                // Update role in profile
-                const roleNames = {
-                    [USER_TYPES.ADM_SME]: 'ADM SME',
-                    [USER_TYPES.GESTOR]: 'Gestor',
-                    [USER_TYPES.PROFESSOR]: 'Professor',
-                    [USER_TYPES.NUTRICIONISTA]: 'Nutricionista',
-                    [USER_TYPES.ADM_MERENDA]: 'ADM Merenda',
-                    [USER_TYPES.ALUNO]: 'Aluno'
-                };
-
-                const profileRole = document.getElementById('profileRole');
-                if (profileRole) {
-                    profileRole.textContent = roleNames[user.tipo] || 'Professor';
-                }
-
-                // Update schools section for multi-school users
-                updateSchoolsSection(user);
-            }
-            document.getElementById('userProfileModal').classList.remove('hidden');
-        }
-
-        function updateSchoolsSection(user) {
-            const schoolsContainer = document.getElementById('schoolsContainer');
-            const schoolsTitle = document.getElementById('schoolsTitle');
-            const totalSchoolsElement = document.getElementById('totalSchools');
-
-            if (schoolsContainer && user.escolas && user.escolas.length > 0) {
-                // Update title
-                if (user.escolas.length === 1) {
-                    schoolsTitle.textContent = 'Escola Atual';
-                } else {
-                    schoolsTitle.textContent = `Escolas (${user.escolas.length})`;
-                }
-
-                // Update total schools in general info
-                if (totalSchoolsElement) {
-                    if (user.escolas.length === 1) {
-                        totalSchoolsElement.textContent = '1 escola';
-                    } else {
-                        totalSchoolsElement.textContent = `${user.escolas.length} escolas`;
-                    }
-                }
-
-                // Clear container
-                schoolsContainer.innerHTML = '';
-
-                // Create school cards
-                user.escolas.forEach((escola, index) => {
-                    const schoolCard = document.createElement('div');
-                    schoolCard.className = 'bg-primary-green bg-opacity-10 p-4 rounded-lg border border-primary-green border-opacity-20 mb-3';
-
-                    schoolCard.innerHTML = `
-                        <div class="flex items-center space-x-3">
-                            <div class="flex-shrink-0">
-                                <div class="w-10 h-10 bg-primary-green bg-opacity-20 rounded-full flex items-center justify-center">
-                                    <span class="text-primary-green font-bold text-sm">${index + 1}</span>
-                                </div>
-                            </div>
-                            <div class="flex-1">
-                                <p class="font-semibold text-gray-900">${escola.nome}</p>
-                                <p class="text-sm text-gray-600">${escola.cargo || 'Professor'}</p>
-                            </div>
-                            <div class="flex-shrink-0">
-                                <svg class="w-6 h-6 text-primary-green" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path>
-                                </svg>
-                            </div>
-                        </div>
-                    `;
-
-                    schoolsContainer.appendChild(schoolCard);
-                });
-            }
+            const modal = document.getElementById('userProfileModal');
+            const modalContent = document.getElementById('modalContent');
+            
+            modal.classList.remove('hidden');
+            modal.classList.add('show');
+            
+            // Trigger animation after a small delay
+            setTimeout(() => {
+                modalContent.style.transform = 'scale(1) translateY(0)';
+                modalContent.style.opacity = '1';
+            }, 10);
         }
 
         function closeUserProfile() {
-            document.getElementById('userProfileModal').classList.add('hidden');
-        }
-
-        // Logout function
-        function logout() {
-            localStorage.removeItem('user');
-            window.location.href = '../../Models/sessao/sessions.php?sair';
-        }
-
-        // Handle window resize
-        window.addEventListener('resize', function() {
-            if (window.innerWidth >= 1024) {
-                document.getElementById('mobileOverlay').classList.add('hidden');
-                document.getElementById('sidebar').classList.remove('open');
-            }
-        });
-
-        // Close modals when clicking outside
-        document.getElementById('logoutModal').addEventListener('click', function(e) {
-            if (e.target === this) {
-                closeLogoutModal();
-            }
-        });
-
-
-        document.getElementById('addProductModal').addEventListener('click', function(e) {
-            if (e.target === this) {
-                closeAddProductModal();
-            }
-        });
-
-        document.getElementById('addTeachersModal').addEventListener('click', function(e) {
-            if (e.target === this) {
-                closeAddTeachersModal();
-            }
-        });
-
-        // Close modals with Escape key
-        document.addEventListener('keydown', function(e) {
-            if (e.key === 'Escape') {
-                closeLogoutModal();
-                closeUserProfile();
-                closeAddProductModal();
-                closeAddTeachersModal();
-            }
-        });
-
-        // Inventory Management Functions
-        let products = JSON.parse(localStorage.getItem('products') || '[]');
-
-        // Sample data for demonstration
-        if (products.length === 0) {
-            products = [{
-                    id: 1,
-                    name: 'Arroz',
-                    quantity: 50,
-                    unit: 'kg',
-                    expiryDate: '2024-03-15',
-                    category: 'cereais',
-                    status: 'ok'
-                },
-                {
-                    id: 2,
-                    name: 'Feijão',
-                    quantity: 25,
-                    unit: 'kg',
-                    expiryDate: '2024-02-28',
-                    category: 'legumes',
-                    status: 'expiring'
-                },
-                {
-                    id: 3,
-                    name: 'Leite',
-                    quantity: 5,
-                    unit: 'l',
-                    expiryDate: '2024-01-20',
-                    category: 'laticinios',
-                    status: 'low'
-                },
-                {
-                    id: 4,
-                    name: 'Macarrão',
-                    quantity: 30,
-                    unit: 'kg',
-                    expiryDate: '2024-06-10',
-                    category: 'cereais',
-                    status: 'ok'
-                }
-            ];
-            localStorage.setItem('products', JSON.stringify(products));
-        }
-
-        function loadProducts() {
-            const tbody = document.getElementById('productsTableBody');
-            tbody.innerHTML = '';
-
-            products.forEach(product => {
-                const row = document.createElement('tr');
-                const statusBadge = getStatusBadge(product.status);
-                const daysUntilExpiry = getDaysUntilExpiry(product.expiryDate);
-
-                row.innerHTML = `
-                    <td class="px-6 py-4 whitespace-nowrap">
-                        <div class="flex items-center">
-                            <div class="flex-shrink-0 h-10 w-10">
-                                <div class="h-10 w-10 rounded-full bg-gray-200 flex items-center justify-center">
-                                    <span class="text-sm font-medium text-gray-600">${product.name.charAt(0)}</span>
-                                </div>
-                            </div>
-                            <div class="ml-4">
-                                <div class="text-sm font-medium text-gray-900">${product.name}</div>
-                                <div class="text-sm text-gray-500">${product.category}</div>
-                            </div>
-                        </div>
-                    </td>
-                    <td class="px-6 py-4 whitespace-nowrap">
-                        <div class="text-sm text-gray-900">${product.quantity} ${product.unit}</div>
-                    </td>
-                    <td class="px-6 py-4 whitespace-nowrap">
-                        <div class="text-sm text-gray-900">${formatDate(product.expiryDate)}</div>
-                        <div class="text-xs text-gray-500">${daysUntilExpiry} dias</div>
-                    </td>
-                    <td class="px-6 py-4 whitespace-nowrap">
-                        ${statusBadge}
-                    </td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                        <button onclick="editProduct(${product.id})" class="text-primary-green hover:text-green-700 mr-3">Editar</button>
-                        <button onclick="deleteProduct(${product.id})" class="text-red-600 hover:text-red-700">Excluir</button>
-                    </td>
-                `;
-                tbody.appendChild(row);
-            });
-
-            updateStats();
-        }
-
-        function getStatusBadge(status) {
-            switch (status) {
-                case 'ok':
-                    return '<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">OK</span>';
-                case 'expiring':
-                    return '<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-orange-100 text-orange-800">Vencendo</span>';
-                case 'low':
-                    return '<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">Estoque Baixo</span>';
-                default:
-                    return '<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">-</span>';
-            }
-        }
-
-        function getDaysUntilExpiry(expiryDate) {
-            const today = new Date();
-            const expiry = new Date(expiryDate);
-            const diffTime = expiry - today;
-            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-            return diffDays;
-        }
-
-        function formatDate(dateString) {
-            const date = new Date(dateString);
-            return date.toLocaleDateString('pt-BR');
-        }
-
-        function updateStats() {
-            const total = products.length;
-            const expiring = products.filter(p => getDaysUntilExpiry(p.expiryDate) <= 30 && getDaysUntilExpiry(p.expiryDate) > 0).length;
-            const low = products.filter(p => p.quantity <= 10).length;
-
-            document.getElementById('totalProducts').textContent = total;
-            document.getElementById('expiringProducts').textContent = expiring;
-            document.getElementById('lowStockProducts').textContent = low;
-        }
-
-        function openAddProductModal() {
-            document.getElementById('addProductModal').classList.remove('hidden');
-        }
-
-        function closeAddProductModal() {
-            document.getElementById('addProductModal').classList.add('hidden');
-            document.getElementById('addProductForm').reset();
-        }
-
-        // Teachers Modal Functions
-        function openAddTeachersModal() {
-            document.getElementById('addTeachersModal').classList.remove('hidden');
-            loadAvailableTeachers();
-        }
-
-        function closeAddTeachersModal() {
-            document.getElementById('addTeachersModal').classList.add('hidden');
-            resetTeachersModal();
-        }
-
-        function resetTeachersModal() {
-            // Reset form
-            document.getElementById('teacherSearchInput').value = '';
-            document.getElementById('teacherSubjectFilter').value = '';
-            document.getElementById('selectAllTeachers').checked = false;
+            const modal = document.getElementById('userProfileModal');
+            const modalContent = document.getElementById('modalContent');
             
-            // Clear selections
-            document.querySelectorAll('.teacher-checkbox').forEach(checkbox => {
-                checkbox.checked = false;
-            });
+            // Animate out
+            modalContent.style.transform = 'scale(0.95) translateY(20px)';
+            modalContent.style.opacity = '0';
             
-            // Hide summary
-            document.getElementById('selectedTeachersSummary').classList.add('hidden');
-        }
-
-        function loadAvailableTeachers() {
-            // Dados de exemplo - em produção viria do backend
-            const teachers = [
-                { id: 1, nome: 'Maria Silva Santos', disciplina: 'matematica', email: 'maria.silva@email.com', telefone: '(85) 99999-1111' },
-                { id: 2, nome: 'João Carlos Oliveira', disciplina: 'portugues', email: 'joao.oliveira@email.com', telefone: '(85) 99999-2222' },
-                { id: 3, nome: 'Ana Paula Costa', disciplina: 'ciencias', email: 'ana.costa@email.com', telefone: '(85) 99999-3333' },
-                { id: 4, nome: 'Pedro Henrique Lima', disciplina: 'historia', email: 'pedro.lima@email.com', telefone: '(85) 99999-4444' },
-                { id: 5, nome: 'Carla Regina Ferreira', disciplina: 'geografia', email: 'carla.ferreira@email.com', telefone: '(85) 99999-5555' },
-                { id: 6, nome: 'Roberto Alves Souza', disciplina: 'artes', email: 'roberto.souza@email.com', telefone: '(85) 99999-6666' },
-                { id: 7, nome: 'Fernanda Mendes', disciplina: 'educacao-fisica', email: 'fernanda.mendes@email.com', telefone: '(85) 99999-7777' },
-                { id: 8, nome: 'Carlos Eduardo Rocha', disciplina: 'matematica', email: 'carlos.rocha@email.com', telefone: '(85) 99999-8888' },
-                { id: 9, nome: 'Lucia Helena Dias', disciplina: 'portugues', email: 'lucia.dias@email.com', telefone: '(85) 99999-9999' },
-                { id: 10, nome: 'Antonio Luiz Coelho', disciplina: 'ciencias', email: 'antonio.coelho@email.com', telefone: '(85) 99999-0000' }
-            ];
-
-            const container = document.getElementById('teachersListContainer');
-            container.innerHTML = '';
-
-            teachers.forEach(teacher => {
-                const teacherCard = document.createElement('div');
-                teacherCard.className = 'p-4 border-b border-gray-200 hover:bg-gray-50 transition-colors duration-200';
-                teacherCard.innerHTML = `
-                    <div class="flex items-center space-x-4">
-                        <input type="checkbox" class="teacher-checkbox w-4 h-4 text-primary-green border-gray-300 rounded focus:ring-primary-green" 
-                               data-teacher-id="${teacher.id}" data-teacher-name="${teacher.nome}" data-teacher-discipline="${teacher.disciplina}">
-                        <div class="flex-1">
-                            <div class="flex items-center justify-between">
-                                <div>
-                                    <h5 class="font-medium text-gray-900">${teacher.nome}</h5>
-                                    <p class="text-sm text-gray-600">${getDisciplineName(teacher.disciplina)}</p>
-                                </div>
-                                <div class="text-right text-sm text-gray-500">
-                                    <p>${teacher.email}</p>
-                                    <p>${teacher.telefone}</p>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                `;
-                container.appendChild(teacherCard);
-            });
-
-            // Add event listeners
-            setupTeachersEventListeners();
-        }
-
-        function getDisciplineName(discipline) {
-            const disciplines = {
-                'matematica': 'Matemática',
-                'portugues': 'Português',
-                'ciencias': 'Ciências',
-                'historia': 'História',
-                'geografia': 'Geografia',
-                'artes': 'Artes',
-                'educacao-fisica': 'Educação Física'
-            };
-            return disciplines[discipline] || discipline;
-        }
-
-        function setupTeachersEventListeners() {
-            // Search functionality
-            document.getElementById('teacherSearchInput').addEventListener('input', filterTeachers);
-            document.getElementById('teacherSubjectFilter').addEventListener('change', filterTeachers);
-            
-            // Select all functionality
-            document.getElementById('selectAllTeachers').addEventListener('change', function() {
-                const checkboxes = document.querySelectorAll('.teacher-checkbox');
-                checkboxes.forEach(checkbox => {
-                    checkbox.checked = this.checked;
-                });
-                updateSelectedTeachersSummary();
-            });
-
-            // Individual checkbox functionality
-            document.querySelectorAll('.teacher-checkbox').forEach(checkbox => {
-                checkbox.addEventListener('change', function() {
-                    updateSelectedTeachersSummary();
-                    updateSelectAllCheckbox();
-                });
-            });
-        }
-
-        function filterTeachers() {
-            const searchTerm = document.getElementById('teacherSearchInput').value.toLowerCase();
-            const subjectFilter = document.getElementById('teacherSubjectFilter').value;
-            const teacherCards = document.querySelectorAll('#teachersListContainer > div');
-
-            teacherCards.forEach(card => {
-                const teacherName = card.querySelector('h5').textContent.toLowerCase();
-                const teacherDiscipline = card.querySelector('.teacher-checkbox').dataset.teacherDiscipline;
-                
-                const matchesSearch = teacherName.includes(searchTerm);
-                const matchesSubject = !subjectFilter || teacherDiscipline === subjectFilter;
-                
-                if (matchesSearch && matchesSubject) {
-                    card.style.display = 'block';
-                } else {
-                    card.style.display = 'none';
-                }
-            });
-        }
-
-        function updateSelectedTeachersSummary() {
-            const selectedCheckboxes = document.querySelectorAll('.teacher-checkbox:checked');
-            const summaryDiv = document.getElementById('selectedTeachersSummary');
-            const selectedListDiv = document.getElementById('selectedTeachersList');
-
-            if (selectedCheckboxes.length > 0) {
-                summaryDiv.classList.remove('hidden');
-                selectedListDiv.innerHTML = selectedCheckboxes.map(checkbox => 
-                    `<span class="inline-block bg-green-100 text-green-800 px-2 py-1 rounded-full text-xs mr-2 mb-1">${checkbox.dataset.teacherName}</span>`
-                ).join('');
-            } else {
-                summaryDiv.classList.add('hidden');
-            }
-        }
-
-        function updateSelectAllCheckbox() {
-            const allCheckboxes = document.querySelectorAll('.teacher-checkbox');
-            const checkedCheckboxes = document.querySelectorAll('.teacher-checkbox:checked');
-            const selectAllCheckbox = document.getElementById('selectAllTeachers');
-            
-            selectAllCheckbox.checked = allCheckboxes.length === checkedCheckboxes.length;
-        }
-
-        function addSelectedTeachers() {
-            const selectedCheckboxes = document.querySelectorAll('.teacher-checkbox:checked');
-            
-            if (selectedCheckboxes.length === 0) {
-                alert('Por favor, selecione pelo menos um professor.');
-                return;
-            }
-
-            const selectedTeachers = Array.from(selectedCheckboxes).map(checkbox => ({
-                id: checkbox.dataset.teacherId,
-                nome: checkbox.dataset.teacherName,
-                disciplina: checkbox.dataset.teacherDiscipline
-            }));
-
-            // Aqui você faria a requisição para o backend
-            console.log('Professores selecionados:', selectedTeachers);
-            
-            // Simular sucesso
-            alert(`${selectedTeachers.length} professor(es) adicionado(s) com sucesso!`);
-            closeAddTeachersModal();
-            
-            // Recarregar a lista de professores da escola
-            // loadSchoolTeachers();
-        }
-
-        function editProduct(id) {
-            const product = products.find(p => p.id === id);
-            if (product) {
-                document.getElementById('productName').value = product.name;
-                document.getElementById('productQuantity').value = product.quantity;
-                document.getElementById('productUnit').value = product.unit;
-                document.getElementById('productExpiry').value = product.expiryDate;
-                document.getElementById('productCategory').value = product.category;
-                openAddProductModal();
-            }
-        }
-
-        function deleteProduct(id) {
-            if (confirm('Tem certeza que deseja excluir este produto?')) {
-                products = products.filter(p => p.id !== id);
-                localStorage.setItem('products', JSON.stringify(products));
-                loadProducts();
-            }
-        }
-
-        // Handle add product form submission
-        document.getElementById('addProductForm').addEventListener('submit', function(e) {
-            e.preventDefault();
-
-            const name = document.getElementById('productName').value;
-            const quantity = parseInt(document.getElementById('productQuantity').value);
-            const unit = document.getElementById('productUnit').value;
-            const expiryDate = document.getElementById('productExpiry').value;
-            const category = document.getElementById('productCategory').value;
-
-            // Determine status based on quantity and expiry
-            let status = 'ok';
-            const daysUntilExpiry = getDaysUntilExpiry(expiryDate);
-
-            if (quantity <= 10) {
-                status = 'low';
-            } else if (daysUntilExpiry <= 30 && daysUntilExpiry > 0) {
-                status = 'expiring';
-            }
-
-            const newProduct = {
-                id: Date.now(),
-                name,
-                quantity,
-                unit,
-                expiryDate,
-                category,
-                status
-            };
-
-            products.push(newProduct);
-            localStorage.setItem('products', JSON.stringify(products));
-            loadProducts();
-            closeAddProductModal();
-        });
-
-        // Schools Management Functions
-        let schools = JSON.parse(localStorage.getItem('schools') || '[]');
-
-        // Sample schools data
-        if (schools.length === 0) {
-            schools = [
-                {
-                    id: 1,
-                    name: 'EMEB José da Silva',
-                    code: '12345678',
-                    address: 'Rua das Flores, 123',
-                    cep: '61900-000',
-                    phone: '(85) 99999-9999',
-                    email: 'jose.silva@maranguape.ce.gov.br',
-                    type: 'EMEB',
-                    status: 'active',
-                    manager: 'João Silva',
-                    students: 245,
-                    teachers: 12,
-                    classes: 8
-                },
-                {
-                    id: 2,
-                    name: 'EMEB Maria Santos',
-                    code: '87654321',
-                    address: 'Av. Principal, 456',
-                    cep: '61900-001',
-                    phone: '(85) 88888-8888',
-                    email: 'maria.santos@maranguape.ce.gov.br',
-                    type: 'EMEB',
-                    status: 'active',
-                    manager: 'Maria Santos',
-                    students: 189,
-                    teachers: 9,
-                    classes: 6
-                },
-                {
-                    id: 3,
-                    name: 'EMEF Pedro Oliveira',
-                    code: '11223344',
-                    address: 'Rua da Escola, 789',
-                    cep: '61900-002',
-                    phone: '(85) 77777-7777',
-                    email: 'pedro.oliveira@maranguape.ce.gov.br',
-                    type: 'EMEF',
-                    status: 'active',
-                    manager: 'Pedro Oliveira',
-                    students: 156,
-                    teachers: 7,
-                    classes: 5
-                }
-            ];
-            localStorage.setItem('schools', JSON.stringify(schools));
-        }
-
-        function loadSchools() {
-            const schoolsGrid = document.getElementById('schoolsGrid');
-            schoolsGrid.innerHTML = '';
-
-            schools.forEach(school => {
-                const schoolCard = document.createElement('div');
-                schoolCard.className = 'bg-white rounded-xl border border-gray-200 p-5 hover:shadow-lg transition-shadow duration-200 cursor-pointer';
-                schoolCard.onclick = () => openSchoolConfig(school);
-
-                const statusColor = school.status === 'active' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800';
-                const statusText = school.status === 'active' ? 'Ativa' : 'Inativa';
-
-                schoolCard.innerHTML = `
-                    <!-- Header com Status -->
-                    <div class="flex items-start justify-between mb-4">
-                        <div class="flex-1 min-w-0 pr-3">
-                            <h3 class="text-lg font-bold text-gray-900 mb-1 truncate">${school.name}</h3>
-                            <p class="text-sm text-gray-600 mb-2 truncate">${school.address}</p>
-                        </div>
-                        <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${statusColor} flex-shrink-0 ml-2">
-                            ${statusText}
-                        </span>
-                    </div>
-                    
-                    <!-- Contato -->
-                    <div class="mb-4 space-y-2">
-                        <div class="flex items-center text-sm text-gray-600">
-                            <svg class="w-4 h-4 text-gray-400 mr-2 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"></path>
-                            </svg>
-                            <span class="truncate">${school.phone}</span>
-                        </div>
-                        <div class="flex items-center text-sm text-gray-600">
-                            <svg class="w-4 h-4 text-gray-400 mr-2 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 4.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path>
-                            </svg>
-                            <span class="truncate">${school.email}</span>
-                        </div>
-                    </div>
-                    
-                    <!-- Estatísticas -->
-                    <div class="grid grid-cols-3 gap-2 mb-4">
-                        <div class="text-center p-3 bg-blue-50 rounded-lg">
-                            <p class="text-lg font-bold text-blue-600">${school.students}</p>
-                            <p class="text-xs text-blue-600 font-medium">Alunos</p>
-                        </div>
-                        <div class="text-center p-3 bg-green-50 rounded-lg">
-                            <p class="text-lg font-bold text-green-600">${school.teachers}</p>
-                            <p class="text-xs text-green-600 font-medium">Professores</p>
-                        </div>
-                        <div class="text-center p-3 bg-purple-50 rounded-lg">
-                            <p class="text-lg font-bold text-purple-600">${school.classes}</p>
-                            <p class="text-xs text-purple-600 font-medium">Turmas</p>
-                        </div>
-                    </div>
-                    
-                    <!-- Gestor e Ações -->
-                    <div class="flex items-center justify-between pt-3 border-t border-gray-100">
-                        <div class="flex items-center space-x-2 min-w-0 flex-1">
-                            <div class="w-8 h-8 bg-primary-green rounded-full flex items-center justify-center flex-shrink-0">
-                                <span class="text-white font-bold text-xs">${school.manager.split(' ').map(n => n[0]).join('')}</span>
-                            </div>
-                            <div class="min-w-0 flex-1">
-                                <p class="text-sm font-medium text-gray-900 truncate">${school.manager}</p>
-                                <p class="text-xs text-gray-600">Gestor</p>
-                            </div>
-                        </div>
-                        <div class="flex space-x-1 ml-2">
-                            <button onclick="event.stopPropagation(); editSchool(${school.id})" class="p-2 text-gray-400 hover:text-primary-green transition-colors rounded-lg hover:bg-green-50">
-                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
-                                </svg>
-                            </button>
-                            <button onclick="event.stopPropagation(); deleteSchool(${school.id})" class="p-2 text-gray-400 hover:text-red-600 transition-colors rounded-lg hover:bg-red-50">
-                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
-                                </svg>
-                            </button>
-                        </div>
-                    </div>
-                `;
-
-                schoolsGrid.appendChild(schoolCard);
-            });
-
-            updateSchoolStats();
-        }
-
-        function updateSchoolStats() {
-            const totalSchools = schools.length;
-            const activeSchools = schools.filter(s => s.status === 'active').length;
-            const totalManagers = schools.filter(s => s.manager).length;
-            const totalStudents = schools.reduce((sum, s) => sum + s.students, 0);
-
-            document.getElementById('totalSchools').textContent = totalSchools;
-            document.getElementById('activeSchools').textContent = activeSchools;
-            document.getElementById('totalManagers').textContent = totalManagers;
-            document.getElementById('totalStudents').textContent = totalStudents.toLocaleString();
-        }
-
-        function openAddSchoolModal() {
-            document.getElementById('addSchoolModal').classList.remove('hidden');
-        }
-
-        function closeAddSchoolModal() {
-            document.getElementById('addSchoolModal').classList.add('hidden');
-            document.getElementById('addSchoolForm').reset();
-        }
-
-        function openSchoolConfig(school) {
-            // Hide all sections
-            document.querySelectorAll('.content-section').forEach(section => {
-                section.classList.add('hidden');
-            });
-
-            // Show school config section
-            document.getElementById('school-config').classList.remove('hidden');
-
-            // Update title
-            document.getElementById('schoolConfigTitle').textContent = `Configuração - ${school.name}`;
-            document.getElementById('schoolConfigSubtitle').textContent = `Gerencie todas as configurações da ${school.name}`;
-
-            // Load school data into forms
-            document.getElementById('schoolName').value = school.name;
-            document.getElementById('schoolCode').value = school.code;
-            document.getElementById('schoolAddress').value = school.address;
-            document.getElementById('schoolCEP').value = school.cep;
-            document.getElementById('schoolPhone').value = school.phone;
-            document.getElementById('schoolEmail').value = school.email;
-
-            // Load manager data
-            document.getElementById('managerName').textContent = school.manager;
-            document.getElementById('managerEmail').textContent = school.email;
-            document.getElementById('managerInitials').textContent = school.manager.split(' ').map(n => n[0]).join('');
-
-            // Show first tab
-            showSchoolTab('basic');
-            
-            // Setup student filters when students tab is accessed
+            // Hide modal after animation
             setTimeout(() => {
-                setupStudentFilters();
-                updateStudentStats();
-            }, 100);
+                modal.classList.add('hidden');
+                modal.classList.remove('show');
+            }, 300);
         }
 
-        function showSchoolTab(tabName) {
-            // Hide all tab contents
-            document.querySelectorAll('.school-tab-content').forEach(content => {
-                content.classList.add('hidden');
-            });
-
+        function switchProfileTab(tabName) {
             // Remove active class from all tabs
-            document.querySelectorAll('.school-tab').forEach(tab => {
-                tab.classList.remove('active', 'border-primary-green', 'text-primary-green');
-                tab.classList.add('border-transparent', 'text-gray-500');
+            document.querySelectorAll('.profile-tab').forEach(tab => {
+                tab.classList.remove('active');
             });
 
-            // Show selected tab content
-            document.getElementById(`content-${tabName}`).classList.remove('hidden');
-
-            // Add active class to selected tab
-            const activeTab = document.getElementById(`tab-${tabName}`);
-            activeTab.classList.add('active', 'border-primary-green', 'text-primary-green');
-            activeTab.classList.remove('border-transparent', 'text-gray-500');
-        }
-
-        function showStudentsTab(tabName) {
-            // Hide all students content
-            document.querySelectorAll('.students-content').forEach(content => {
+            // Hide all tab contents
+            document.querySelectorAll('.profile-tab-content').forEach(content => {
                 content.classList.add('hidden');
             });
 
-            // Remove active class from all students tabs
-            document.querySelectorAll('.students-tab').forEach(tab => {
-                tab.classList.remove('active', 'border-primary-green', 'text-primary-green');
-                tab.classList.add('border-transparent', 'text-gray-500');
-            });
+            // Add active class to clicked tab
+            document.querySelector(`[data-tab="${tabName}"]`).classList.add('active');
 
-            // Show selected students content
-            document.getElementById(`students-content-${tabName}`).classList.remove('hidden');
-
-            // Add active class to selected students tab
-            const activeTab = document.getElementById(`students-tab-${tabName}`);
-            activeTab.classList.add('active', 'border-primary-green', 'text-primary-green');
-            activeTab.classList.remove('border-transparent', 'text-gray-500');
+            // Show corresponding content
+            document.getElementById(`profile-${tabName}`).classList.remove('hidden');
         }
 
-        function showClassStudents(classId) {
-            // Hide all students content
-            document.querySelectorAll('.students-content').forEach(content => {
-                content.classList.remove('hidden');
-                content.classList.add('hidden');
-            });
-
-            // Show class detail content
-            document.getElementById('students-content-class-detail').classList.remove('hidden');
-
-            // Update title and subtitle
-            const classNames = {
-                '1A': '1º Ano A',
-                '2A': '2º Ano A', 
-                '3A': '3º Ano A',
-                '4A': '4º Ano A',
-                '5A': '5º Ano A',
-                '1B': '1º Ano B',
-                '2B': '2º Ano B',
-                '3B': '3º Ano B',
-                '4B': '4º Ano B',
-                '5B': '5º Ano B'
-            };
-
-            document.getElementById('classDetailTitle').textContent = `Alunos da ${classNames[classId] || classId}`;
-            document.getElementById('classDetailSubtitle').textContent = `Lista completa de alunos da ${classNames[classId] || classId}`;
-
-            // Load students for this class
-            loadClassStudents(classId);
-        }
-
-        function loadClassStudents(classId) {
-            const tableBody = document.getElementById('classStudentsTableBody');
-            tableBody.innerHTML = '';
-
-            // Sample data for different classes
-            const classStudents = {
-                '1A': [
-                    { name: 'Pedro Silva', initials: 'PS', age: 6, responsible: 'Maria Silva', color: 'blue' },
-                    { name: 'Lucas Santos', initials: 'LS', age: 6, responsible: 'João Santos', color: 'green' },
-                    { name: 'Julia Ferreira', initials: 'JF', age: 6, responsible: 'Ana Ferreira', color: 'purple' },
-                    { name: 'Carlos Oliveira', initials: 'CO', age: 6, responsible: 'Pedro Oliveira', color: 'orange' },
-                    { name: 'Mariana Costa', initials: 'MC', age: 6, responsible: 'Sofia Costa', color: 'pink' }
-                ],
-                '2A': [
-                    { name: 'Rafael Oliveira', initials: 'RO', age: 7, responsible: 'Carlos Oliveira', color: 'orange' },
-                    { name: 'Sofia Mendes', initials: 'SM', age: 7, responsible: 'Ana Mendes', color: 'pink' },
-                    { name: 'Gabriel Costa', initials: 'GC', age: 7, responsible: 'Maria Costa', color: 'indigo' },
-                    { name: 'Larissa Silva', initials: 'LS', age: 7, responsible: 'João Silva', color: 'teal' },
-                    { name: 'Felipe Santos', initials: 'FS', age: 7, responsible: 'Carla Santos', color: 'yellow' }
-                ],
-                '3A': [
-                    { name: 'Alice Lima', initials: 'AL', age: 8, responsible: 'Roberto Lima', color: 'teal' },
-                    { name: 'Bruno Rodrigues', initials: 'BR', age: 8, responsible: 'Patricia Rodrigues', color: 'yellow' },
-                    { name: 'Camila Lima', initials: 'CL', age: 8, responsible: 'Marcos Lima', color: 'red' },
-                    { name: 'Diego Alves', initials: 'DA', age: 8, responsible: 'Fernanda Alves', color: 'blue' },
-                    { name: 'Eduarda Souza', initials: 'ES', age: 8, responsible: 'Ricardo Souza', color: 'green' }
-                ]
-            };
-
-            const students = classStudents[classId] || [];
-
-            students.forEach(student => {
-                const row = document.createElement('tr');
-                row.innerHTML = `
-                    <td class="px-6 py-4 whitespace-nowrap">
-                        <div class="flex items-center">
-                            <div class="w-10 h-10 bg-${student.color}-100 rounded-full flex items-center justify-center">
-                                <span class="text-${student.color}-600 font-bold">${student.initials}</span>
-                            </div>
-                            <div class="ml-4">
-                                <div class="text-sm font-medium text-gray-900">${student.name}</div>
-                                <div class="text-sm text-gray-500">#${Date.now().toString().slice(-6)}</div>
-                            </div>
-                        </div>
-                    </td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${student.age} anos</td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${student.responsible}</td>
-                    <td class="px-6 py-4 whitespace-nowrap">
-                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                            Ativo
-                        </span>
-                    </td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                        <button class="text-primary-green hover:text-green-700 mr-3">Editar</button>
-                        <button class="text-blue-600 hover:text-blue-700 mr-3">Ver Histórico</button>
-                        <button class="text-red-600 hover:text-red-700">Transferir</button>
-                    </td>
-                `;
-                tableBody.appendChild(row);
-            });
-        }
-
-        function editSchool(id) {
-            const school = schools.find(s => s.id === id);
-            if (school) {
-                openSchoolConfig(school);
-            }
-        }
-
-        function deleteSchool(id) {
-            if (confirm('Tem certeza que deseja excluir esta escola?')) {
-                schools = schools.filter(s => s.id !== id);
-                localStorage.setItem('schools', JSON.stringify(schools));
-                loadSchools();
-            }
-        }
-
-        // Handle add school form submission
-        document.getElementById('addSchoolForm').addEventListener('submit', function(e) {
-            e.preventDefault();
-
-            const newSchool = {
-                id: Date.now(),
-                name: document.getElementById('newSchoolName').value,
-                code: document.getElementById('newSchoolCode').value,
-                address: document.getElementById('newSchoolAddress').value,
-                cep: document.getElementById('newSchoolCEP').value,
-                phone: document.getElementById('newSchoolPhone').value,
-                email: document.getElementById('newSchoolEmail').value,
-                type: document.getElementById('newSchoolType').value,
-                status: document.getElementById('newSchoolStatus').value,
-                manager: '',
-                students: 0,
-                teachers: 0,
-                classes: 0
-            };
-
-            schools.push(newSchool);
-            localStorage.setItem('schools', JSON.stringify(schools));
-            loadSchools();
-            closeAddSchoolModal();
-        });
-
-        // Search and filter functionality
-        function setupSchoolFilters() {
-            const searchInput = document.getElementById('searchSchools');
-            const statusFilter = document.getElementById('filterStatus');
-
-            if (searchInput) {
-                searchInput.addEventListener('input', function() {
-                    filterSchools();
-                });
-            }
-
-            if (statusFilter) {
-                statusFilter.addEventListener('change', function() {
-                    filterSchools();
-                });
-            }
-        }
-
-        function filterSchools() {
-            const searchTerm = document.getElementById('searchSchools').value.toLowerCase();
-            const statusFilter = document.getElementById('filterStatus').value;
-            const schoolsGrid = document.getElementById('schoolsGrid');
-
-            const filteredSchools = schools.filter(school => {
-                const matchesSearch = school.name.toLowerCase().includes(searchTerm) ||
-                                    school.address.toLowerCase().includes(searchTerm) ||
-                                    school.manager.toLowerCase().includes(searchTerm);
-                
-                const matchesStatus = !statusFilter || school.status === statusFilter;
-                
-                return matchesSearch && matchesStatus;
-            });
-
-            // Clear current grid
-            schoolsGrid.innerHTML = '';
-
-            // Render filtered schools
-            filteredSchools.forEach(school => {
-                const schoolCard = document.createElement('div');
-                schoolCard.className = 'bg-white rounded-lg border border-gray-200 p-6 hover:shadow-lg transition-shadow cursor-pointer';
-                schoolCard.onclick = () => openSchoolConfig(school);
-
-                const statusColor = school.status === 'active' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800';
-                const statusText = school.status === 'active' ? 'Ativa' : 'Inativa';
-
-                schoolCard.innerHTML = `
-                    <div class="flex items-start justify-between mb-4">
-                        <div class="flex-1">
-                            <h3 class="text-lg font-semibold text-gray-900 mb-1">${school.name}</h3>
-                            <p class="text-sm text-gray-600 mb-2">${school.address}</p>
-                            <div class="flex items-center space-x-4 text-xs text-gray-500">
-                                <span>📞 ${school.phone}</span>
-                                <span>✉️ ${school.email}</span>
-                            </div>
-                        </div>
-                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${statusColor}">
-                            ${statusText}
-                        </span>
-                    </div>
-                    
-                    <div class="grid grid-cols-3 gap-4 mb-4">
-                        <div class="text-center">
-                            <p class="text-2xl font-bold text-blue-600">${school.students}</p>
-                            <p class="text-xs text-gray-600">Alunos</p>
-                        </div>
-                        <div class="text-center">
-                            <p class="text-2xl font-bold text-green-600">${school.teachers}</p>
-                            <p class="text-xs text-gray-600">Professores</p>
-                        </div>
-                        <div class="text-center">
-                            <p class="text-2xl font-bold text-purple-600">${school.classes}</p>
-                            <p class="text-xs text-gray-600">Turmas</p>
-                        </div>
-                    </div>
-                    
-                    <div class="flex items-center justify-between">
-                        <div class="flex items-center space-x-2">
-                            <div class="w-8 h-8 bg-primary-green rounded-full flex items-center justify-center">
-                                <span class="text-white font-bold text-sm">${school.manager.split(' ').map(n => n[0]).join('')}</span>
-                            </div>
-                            <div>
-                                <p class="text-sm font-medium text-gray-900">${school.manager}</p>
-                                <p class="text-xs text-gray-600">Gestor</p>
-                            </div>
-                        </div>
-                        <div class="flex space-x-2">
-                            <button onclick="event.stopPropagation(); editSchool(${school.id})" class="p-2 text-gray-400 hover:text-primary-green transition-colors">
-                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
-                                </svg>
-                            </button>
-                            <button onclick="event.stopPropagation(); deleteSchool(${school.id})" class="p-2 text-gray-400 hover:text-red-600 transition-colors">
-                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
-                                </svg>
-                            </button>
-                        </div>
-                    </div>
-                `;
-
-                schoolsGrid.appendChild(schoolCard);
-            });
-        }
-
-        // Student search and filter functionality
-        function setupStudentFilters() {
-            const searchInput = document.getElementById('searchStudents');
-            const classFilter = document.getElementById('filterClass');
-
-            if (searchInput) {
-                searchInput.addEventListener('input', function() {
-                    filterStudents();
-                });
-            }
-
-            if (classFilter) {
-                classFilter.addEventListener('change', function() {
-                    filterStudents();
-                });
-            }
-        }
-
-        function filterStudents() {
-            const searchTerm = document.getElementById('searchStudents').value.toLowerCase();
-            const classFilter = document.getElementById('filterClass').value;
-            const tableBody = document.getElementById('allStudentsTableBody');
-
-            if (!tableBody) return;
-
-            const rows = tableBody.querySelectorAll('tr');
-            
-            rows.forEach(row => {
-                const studentName = row.querySelector('td:first-child .text-sm.font-medium')?.textContent.toLowerCase() || '';
-                const studentClass = row.querySelector('td:nth-child(2)')?.textContent.toLowerCase() || '';
-                
-                const matchesSearch = studentName.includes(searchTerm);
-                const matchesClass = !classFilter || studentClass.includes(classFilter.toLowerCase());
-                
-                if (matchesSearch && matchesClass) {
-                    row.style.display = '';
-                } else {
-                    row.style.display = 'none';
-                }
-            });
-        }
-
-        // Save school data functionality
-        function saveSchoolData() {
-            const schoolName = document.getElementById('schoolName').value;
-            const schoolCode = document.getElementById('schoolCode').value;
-            const schoolAddress = document.getElementById('schoolAddress').value;
-            const schoolCEP = document.getElementById('schoolCEP').value;
-            const schoolPhone = document.getElementById('schoolPhone').value;
-            const schoolEmail = document.getElementById('schoolEmail').value;
-
-            if (!schoolName || !schoolAddress) {
-                alert('Por favor, preencha pelo menos o nome e endereço da escola.');
-                return;
-            }
-
-            // Find current school being edited
-            const currentSchoolTitle = document.getElementById('schoolConfigTitle').textContent;
-            const schoolNameFromTitle = currentSchoolTitle.replace('Configuração - ', '');
-            const schoolIndex = schools.findIndex(s => s.name === schoolNameFromTitle);
-
-            if (schoolIndex !== -1) {
-                schools[schoolIndex].name = schoolName;
-                schools[schoolIndex].code = schoolCode;
-                schools[schoolIndex].address = schoolAddress;
-                schools[schoolIndex].cep = schoolCEP;
-                schools[schoolIndex].phone = schoolPhone;
-                schools[schoolIndex].email = schoolEmail;
-
-                localStorage.setItem('schools', JSON.stringify(schools));
-                alert('Dados da escola salvos com sucesso!');
-            }
-        }
-
-        // Add new student functionality
-        function addNewStudent() {
-            const studentName = prompt('Nome do aluno:');
-            if (!studentName) return;
-
-            const studentClass = prompt('Turma do aluno (ex: 5º Ano A):');
-            if (!studentClass) return;
-
-            const studentAge = prompt('Idade do aluno:');
-            if (!studentAge) return;
-
-            const responsible = prompt('Nome do responsável:');
-            if (!responsible) return;
-
-            // Add to table
-            const tableBody = document.getElementById('allStudentsTableBody');
-            if (tableBody) {
-                const newRow = document.createElement('tr');
-                const initials = studentName.split(' ').map(n => n[0]).join('').toUpperCase();
-                const randomColor = ['blue', 'green', 'purple', 'orange', 'pink', 'indigo', 'teal', 'yellow', 'red'][Math.floor(Math.random() * 9)];
-                
-                newRow.innerHTML = `
-                    <td class="px-6 py-4 whitespace-nowrap">
-                        <div class="flex items-center">
-                            <div class="w-10 h-10 bg-${randomColor}-100 rounded-full flex items-center justify-center">
-                                <span class="text-${randomColor}-600 font-bold">${initials}</span>
-                            </div>
-                            <div class="ml-4">
-                                <div class="text-sm font-medium text-gray-900">${studentName}</div>
-                                <div class="text-sm text-gray-500">#${Date.now().toString().slice(-6)}</div>
-                            </div>
-                        </div>
-                    </td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${studentClass}</td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${studentAge} anos</td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${responsible}</td>
-                    <td class="px-6 py-4 whitespace-nowrap">
-                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                            Ativo
-                        </span>
-                    </td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                        <button class="text-primary-green hover:text-green-700 mr-3">Editar</button>
-                        <button class="text-blue-600 hover:text-blue-700 mr-3">Ver Histórico</button>
-                        <button class="text-red-600 hover:text-red-700">Transferir</button>
-                    </td>
-                `;
-                
-                tableBody.appendChild(newRow);
-            }
-
-            // Update stats
-            updateStudentStats();
-        }
-
-        function updateStudentStats() {
-            const tableBody = document.getElementById('allStudentsTableBody');
-            if (!tableBody) return;
-
-            const totalStudents = tableBody.querySelectorAll('tr').length;
-            const activeStudents = tableBody.querySelectorAll('tr').length; // All are active for now
-            const newStudents = Math.floor(Math.random() * 10) + 5; // Random for demo
-            const avgAge = 10.5; // Fixed for demo
-
-            document.getElementById('totalStudentsSchool').textContent = totalStudents;
-            document.getElementById('activeStudentsSchool').textContent = activeStudents;
-            document.getElementById('newStudentsSchool').textContent = newStudents;
-            document.getElementById('avgAgeSchool').textContent = avgAge;
-        }
-
-        // Notes Tab Functions
-        function showNotesView(viewType) {
-            // Hide all notes content
-            document.querySelectorAll('.notes-content').forEach(content => {
-                content.classList.add('hidden');
-            });
-
-            if (viewType === 'by-class') {
-                document.getElementById('notes-content-by-class').classList.remove('hidden');
-                loadNotesClasses();
-            } else if (viewType === 'by-student') {
-                document.getElementById('notes-content-by-student').classList.remove('hidden');
-                loadNotesStudents();
-            } else if (viewType === 'back') {
-                // Hide all content to show navigation buttons
-                document.querySelectorAll('.notes-content').forEach(content => {
-                    content.classList.add('hidden');
-                });
-            }
-        }
-
-        function loadNotesClasses() {
-            const grid = document.getElementById('notesClassGrid');
-            grid.innerHTML = '';
-
-            const classes = [
-                { id: '1A', name: '1º Ano A', students: 25, color: 'blue' },
-                { id: '1B', name: '1º Ano B', students: 23, color: 'green' },
-                { id: '2A', name: '2º Ano A', students: 28, color: 'purple' },
-                { id: '2B', name: '2º Ano B', students: 26, color: 'orange' },
-                { id: '3A', name: '3º Ano A', students: 24, color: 'pink' },
-                { id: '3B', name: '3º Ano B', students: 27, color: 'indigo' },
-                { id: '4A', name: '4º Ano A', students: 25, color: 'teal' },
-                { id: '4B', name: '4º Ano B', students: 22, color: 'yellow' },
-                { id: '5A', name: '5º Ano A', students: 26, color: 'red' },
-                { id: '5B', name: '5º Ano B', students: 24, color: 'gray' }
-            ];
-
-            classes.forEach(cls => {
-                const card = document.createElement('div');
-                card.className = 'group bg-white rounded-2xl border border-gray-200 p-6 hover:shadow-2xl hover:border-primary-green transition-all duration-300 cursor-pointer transform hover:-translate-y-2';
-                card.onclick = () => showNotesClassDetail(cls.id, cls.name);
-                card.innerHTML = `
-                    <div class="text-center">
-                        <div class="relative w-20 h-20 bg-gradient-to-br from-${cls.color}-100 to-${cls.color}-200 rounded-2xl flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform duration-300">
-                            <span class="text-${cls.color}-800 font-bold text-2xl">${cls.id}</span>
-                            <div class="absolute -top-2 -right-2 w-6 h-6 bg-primary-green rounded-full flex items-center justify-center">
-                                <svg class="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
-                                </svg>
-                            </div>
-                        </div>
-                        <h3 class="text-xl font-bold text-gray-900 mb-2 group-hover:text-primary-green transition-colors duration-300">${cls.name}</h3>
-                        <div class="flex items-center justify-center space-x-2 text-gray-600">
-                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
-                            </svg>
-                            <span class="text-sm font-medium">${cls.students} alunos</span>
-                        </div>
-                        <div class="mt-3 inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-700 group-hover:bg-primary-green group-hover:text-white transition-colors duration-300">
-                            Ver notas
-                        </div>
-                    </div>
-                `;
-                grid.appendChild(card);
-            });
-        }
-
-        function loadNotesStudents() {
-            const grid = document.getElementById('notesStudentGrid');
-            grid.innerHTML = '';
-
-            const students = [
-                { name: 'Maria Silva', initials: 'MS', class: '5º Ano A', color: 'blue' },
-                { name: 'João Santos', initials: 'JS', class: '5º Ano A', color: 'green' },
-                { name: 'Ana Costa', initials: 'AC', class: '4º Ano B', color: 'purple' },
-                { name: 'Pedro Silva', initials: 'PS', class: '1º Ano A', color: 'orange' },
-                { name: 'Lucas Santos', initials: 'LS', class: '1º Ano A', color: 'pink' },
-                { name: 'Julia Ferreira', initials: 'JF', class: '2º Ano A', color: 'indigo' },
-                { name: 'Carlos Oliveira', initials: 'CO', class: '3º Ano B', color: 'teal' },
-                { name: 'Mariana Costa', initials: 'MC', class: '4º Ano A', color: 'yellow' }
-            ];
-
-            students.forEach(student => {
-                const card = document.createElement('div');
-                card.className = 'group bg-white rounded-2xl border border-gray-200 p-5 hover:shadow-2xl hover:border-primary-green transition-all duration-300 cursor-pointer transform hover:-translate-y-1';
-                card.onclick = () => showNotesStudentDetail(student.name, student.class);
-                card.innerHTML = `
-                    <div class="flex items-center space-x-4">
-                        <div class="relative">
-                            <div class="w-16 h-16 bg-gradient-to-br from-${student.color}-100 to-${student.color}-200 rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
-                                <span class="text-${student.color}-800 font-bold text-lg">${student.initials}</span>
-                            </div>
-                            <div class="absolute -top-1 -right-1 w-5 h-5 bg-primary-green rounded-full flex items-center justify-center">
-                                <svg class="w-2.5 h-2.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
-                                </svg>
-                            </div>
-                        </div>
-                        <div class="flex-1">
-                            <h4 class="text-lg font-bold text-gray-900 group-hover:text-primary-green transition-colors duration-300">${student.name}</h4>
-                            <div class="flex items-center space-x-2 text-gray-600 mt-1">
-                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path>
-                                </svg>
-                                <span class="text-sm font-medium">${student.class}</span>
-                            </div>
-                            <div class="mt-2 inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-700 group-hover:bg-primary-green group-hover:text-white transition-colors duration-300">
-                                Ver notas
-                            </div>
-                        </div>
-                    </div>
-                `;
-                grid.appendChild(card);
-            });
-        }
-
-        function showNotesClassDetail(classId, className) {
-            // Hide all notes content
-            document.querySelectorAll('.notes-content').forEach(content => {
-                content.classList.add('hidden');
-            });
-
-            // Show class detail
-            document.getElementById('notes-content-class-detail').classList.remove('hidden');
-
-            // Update title
-            document.getElementById('notesClassDetailTitle').textContent = `Notas da ${className}`;
-            document.getElementById('notesClassDetailSubtitle').textContent = `Lista de notas dos alunos da ${className}`;
-
-            // Load class students
-            loadNotesClassStudents(classId);
-        }
-
-        function showNotesStudentDetail(studentName, studentClass) {
-            // Hide all notes content
-            document.querySelectorAll('.notes-content').forEach(content => {
-                content.classList.add('hidden');
-            });
-
-            // Show student detail
-            document.getElementById('notes-content-student-detail').classList.remove('hidden');
-
-            // Update title
-            document.getElementById('notesStudentDetailTitle').textContent = `Notas de ${studentName}`;
-            document.getElementById('notesStudentDetailSubtitle').textContent = `Histórico de notas de ${studentName} - ${studentClass}`;
-
-            // Load student details
-            loadNotesStudentDetails(studentName, studentClass);
-        }
-
-        function loadNotesClassStudents(classId) {
-            const tableBody = document.getElementById('notesClassDetailTableBody');
-            tableBody.innerHTML = '';
-
-            // Sample data for different classes
-            const classStudents = {
-                '1A': [
-                    { name: 'Pedro Silva', initials: 'PS', math: 7.8, portuguese: 8.2, science: 7.5, history: 8.0, color: 'orange' },
-                    { name: 'Lucas Santos', initials: 'LS', math: 8.0, portuguese: 7.8, science: 8.2, history: 7.9, color: 'pink' },
-                    { name: 'Julia Ferreira', initials: 'JF', math: 8.5, portuguese: 8.8, science: 8.0, history: 8.3, color: 'purple' }
-                ],
-                '5A': [
-                    { name: 'Maria Silva', initials: 'MS', math: 8.5, portuguese: 9.0, science: 8.0, history: 8.8, color: 'blue' },
-                    { name: 'João Santos', initials: 'JS', math: 6.5, portuguese: 7.0, science: 6.8, history: 7.2, color: 'green' },
-                    { name: 'Ana Costa', initials: 'AC', math: 9.2, portuguese: 8.8, science: 9.5, history: 8.5, color: 'purple' }
-                ]
-            };
-
-            const students = classStudents[classId] || [];
-
-            students.forEach(student => {
-                const average = ((student.math + student.portuguese + student.science + student.history) / 4).toFixed(1);
-                const status = average >= 7.0 ? 'Aprovado' : average >= 5.0 ? 'Recuperação' : 'Reprovado';
-                const statusColor = average >= 7.0 ? 'green' : average >= 5.0 ? 'orange' : 'red';
-
-                const row = document.createElement('tr');
-                row.innerHTML = `
-                    <td class="px-6 py-4 whitespace-nowrap">
-                        <div class="flex items-center">
-                            <div class="w-10 h-10 bg-${student.color}-100 rounded-full flex items-center justify-center">
-                                <span class="text-${student.color}-600 font-bold">${student.initials}</span>
-                            </div>
-                            <div class="ml-4">
-                                <div class="text-sm font-medium text-gray-900">${student.name}</div>
-                                <div class="text-sm text-gray-500">#${Date.now().toString().slice(-6)}</div>
-                            </div>
-                        </div>
-                    </td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">${student.math}</span>
-                    </td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">${student.portuguese}</span>
-                    </td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">${student.science}</span>
-                    </td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">${student.history}</span>
-                    </td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">${average}</span>
-                    </td>
-                    <td class="px-6 py-4 whitespace-nowrap">
-                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-${statusColor}-100 text-${statusColor}-800">
-                            ${status}
-                        </span>
-                    </td>
-                `;
-                tableBody.appendChild(row);
-            });
-        }
-
-        function loadNotesStudentDetails(studentName, studentClass) {
-            const container = document.getElementById('notesStudentDetailContent');
-            
-            // Sample student data
-            const studentData = {
-                'Maria Silva': { math: 8.5, portuguese: 9.0, science: 8.0, history: 8.8, color: 'blue', initials: 'MS' },
-                'João Santos': { math: 6.5, portuguese: 7.0, science: 6.8, history: 7.2, color: 'green', initials: 'JS' },
-                'Ana Costa': { math: 9.2, portuguese: 8.8, science: 9.5, history: 8.5, color: 'purple', initials: 'AC' }
-            };
-
-            const student = studentData[studentName] || { math: 7.5, portuguese: 8.0, science: 7.8, history: 8.2, color: 'blue', initials: 'XX' };
-            const average = ((student.math + student.portuguese + student.science + student.history) / 4).toFixed(1);
-            const status = average >= 7.0 ? 'Aprovado' : average >= 5.0 ? 'Recuperação' : 'Reprovado';
-            const statusColor = average >= 7.0 ? 'green' : average >= 5.0 ? 'orange' : 'red';
-
-            container.innerHTML = `
-                <div class="bg-white rounded-lg border border-gray-200 p-6">
-                    <div class="flex items-center justify-between mb-6">
-                        <div class="flex items-center space-x-4">
-                            <div class="w-16 h-16 bg-${student.color}-100 rounded-full flex items-center justify-center">
-                                <span class="text-${student.color}-600 font-bold text-2xl">${student.initials}</span>
-                            </div>
-                            <div>
-                                <h3 class="text-2xl font-bold text-gray-900">${studentName}</h3>
-                                <p class="text-lg text-gray-600">${studentClass}</p>
-                            </div>
-                        </div>
-                        <span class="inline-flex items-center px-4 py-2 rounded-full text-sm font-medium bg-${statusColor}-100 text-${statusColor}-800">
-                            ${status}
-                        </span>
-                    </div>
-                    
-                    <div class="grid grid-cols-2 md:grid-cols-4 gap-6 mb-6">
-                        <div class="text-center p-4 bg-blue-50 rounded-lg">
-                            <p class="text-sm text-blue-600 font-medium">Matemática</p>
-                            <p class="text-3xl font-bold text-blue-800">${student.math}</p>
-                        </div>
-                        <div class="text-center p-4 bg-green-50 rounded-lg">
-                            <p class="text-sm text-green-600 font-medium">Português</p>
-                            <p class="text-3xl font-bold text-green-800">${student.portuguese}</p>
-                        </div>
-                        <div class="text-center p-4 bg-purple-50 rounded-lg">
-                            <p class="text-sm text-purple-600 font-medium">Ciências</p>
-                            <p class="text-3xl font-bold text-purple-800">${student.science}</p>
-                        </div>
-                        <div class="text-center p-4 bg-yellow-50 rounded-lg">
-                            <p class="text-sm text-yellow-600 font-medium">História</p>
-                            <p class="text-3xl font-bold text-yellow-800">${student.history}</p>
-                        </div>
-                    </div>
-                    
-                    <div class="border-t pt-4">
-                        <div class="flex justify-between items-center">
-                            <span class="text-lg font-medium text-gray-700">Média Geral:</span>
-                            <span class="text-2xl font-bold text-gray-900">${average}</span>
-                        </div>
-                    </div>
-                </div>
-            `;
-        }
-
-        function loadNotesByStudent() {
-            const container = document.getElementById('notes-content-by-student').querySelector('.grid');
-            container.innerHTML = '';
-
-            // Sample student cards with notes
-            const students = [
-                { name: 'Maria Silva', initials: 'MS', class: '5º Ano A', math: 8.5, portuguese: 9.0, science: 8.0, history: 8.8, color: 'blue' },
-                { name: 'João Santos', initials: 'JS', class: '5º Ano A', math: 6.5, portuguese: 7.0, science: 6.8, history: 7.2, color: 'green' },
-                { name: 'Ana Costa', initials: 'AC', class: '4º Ano B', math: 9.2, portuguese: 8.8, science: 9.5, history: 8.5, color: 'purple' }
-            ];
-
-            students.forEach(student => {
-                const average = ((student.math + student.portuguese + student.science + student.history) / 4).toFixed(1);
-                const status = average >= 7.0 ? 'Aprovado' : average >= 5.0 ? 'Recuperação' : 'Reprovado';
-                const statusColor = average >= 7.0 ? 'green' : average >= 5.0 ? 'orange' : 'red';
-
-                const card = document.createElement('div');
-                card.className = 'bg-white rounded-lg border border-gray-200 p-4';
-                card.innerHTML = `
-                    <div class="flex items-center justify-between mb-4">
-                        <div class="flex items-center space-x-3">
-                            <div class="w-12 h-12 bg-${student.color}-100 rounded-full flex items-center justify-center">
-                                <span class="text-${student.color}-600 font-bold text-lg">${student.initials}</span>
-                            </div>
-                            <div>
-                                <h4 class="text-lg font-semibold text-gray-900">${student.name}</h4>
-                                <p class="text-sm text-gray-600">${student.class}</p>
-                            </div>
-                        </div>
-                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-${statusColor}-100 text-${statusColor}-800">
-                            ${status}
-                        </span>
-                    </div>
-                    <div class="grid grid-cols-2 gap-3 mb-4">
-                        <div class="text-center">
-                            <p class="text-xs text-gray-500">Matemática</p>
-                            <p class="text-lg font-bold text-blue-600">${student.math}</p>
-                        </div>
-                        <div class="text-center">
-                            <p class="text-xs text-gray-500">Português</p>
-                            <p class="text-lg font-bold text-green-600">${student.portuguese}</p>
-                        </div>
-                        <div class="text-center">
-                            <p class="text-xs text-gray-500">Ciências</p>
-                            <p class="text-lg font-bold text-purple-600">${student.science}</p>
-                        </div>
-                        <div class="text-center">
-                            <p class="text-xs text-gray-500">História</p>
-                            <p class="text-lg font-bold text-yellow-600">${student.history}</p>
-                        </div>
-                    </div>
-                    <div class="border-t pt-3">
-                        <div class="flex justify-between items-center">
-                            <span class="text-sm text-gray-600">Média:</span>
-                            <span class="text-lg font-bold text-gray-900">${average}</span>
-                        </div>
-                    </div>
-                `;
-                container.appendChild(card);
-            });
-        }
-
-        // Attendance Tab Functions
-        function showAttendanceView(viewType) {
-            // Hide all attendance content
-            document.querySelectorAll('.attendance-content').forEach(content => {
-                content.classList.add('hidden');
-            });
-
-            if (viewType === 'by-class') {
-                document.getElementById('attendance-content-by-class').classList.remove('hidden');
-                loadAttendanceClasses();
-            } else if (viewType === 'by-student') {
-                document.getElementById('attendance-content-by-student').classList.remove('hidden');
-                loadAttendanceStudents();
-            } else if (viewType === 'back') {
-                // Hide all content to show navigation buttons
-                document.querySelectorAll('.attendance-content').forEach(content => {
-                    content.classList.add('hidden');
-                });
-            }
-        }
-
-        function loadAttendanceClasses() {
-            const grid = document.getElementById('attendanceClassGrid');
-            grid.innerHTML = '';
-
-            const classes = [
-                { id: '1A', name: '1º Ano A', students: 25, attendance: 96.5, color: 'blue' },
-                { id: '1B', name: '1º Ano B', students: 23, attendance: 94.2, color: 'green' },
-                { id: '2A', name: '2º Ano A', students: 28, attendance: 98.1, color: 'purple' },
-                { id: '2B', name: '2º Ano B', students: 26, attendance: 95.8, color: 'orange' },
-                { id: '3A', name: '3º Ano A', students: 24, attendance: 97.3, color: 'pink' },
-                { id: '3B', name: '3º Ano B', students: 27, attendance: 93.7, color: 'indigo' },
-                { id: '4A', name: '4º Ano A', students: 25, attendance: 96.9, color: 'teal' },
-                { id: '4B', name: '4º Ano B', students: 22, attendance: 95.4, color: 'yellow' },
-                { id: '5A', name: '5º Ano A', students: 26, attendance: 98.5, color: 'red' },
-                { id: '5B', name: '5º Ano B', students: 24, attendance: 94.8, color: 'gray' }
-            ];
-
-            classes.forEach(cls => {
-                const card = document.createElement('div');
-                card.className = 'group bg-white rounded-2xl border border-gray-200 p-6 hover:shadow-2xl hover:border-primary-green transition-all duration-300 cursor-pointer transform hover:-translate-y-2';
-                card.onclick = () => showAttendanceClassDetail(cls.id, cls.name);
-                card.innerHTML = `
-                    <div class="text-center">
-                        <div class="relative w-20 h-20 bg-gradient-to-br from-${cls.color}-100 to-${cls.color}-200 rounded-2xl flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform duration-300">
-                            <span class="text-${cls.color}-800 font-bold text-2xl">${cls.id}</span>
-                            <div class="absolute -top-2 -right-2 w-6 h-6 bg-primary-green rounded-full flex items-center justify-center">
-                                <svg class="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
-                                </svg>
-                            </div>
-                        </div>
-                        <h3 class="text-xl font-bold text-gray-900 mb-2 group-hover:text-primary-green transition-colors duration-300">${cls.name}</h3>
-                        <div class="flex items-center justify-center space-x-2 text-gray-600 mb-3">
-                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
-                            </svg>
-                            <span class="text-sm font-medium">${cls.students} alunos</span>
-                        </div>
-                        <div class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800 group-hover:bg-primary-green group-hover:text-white transition-colors duration-300">
-                            <svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                            </svg>
-                            ${cls.attendance}% frequência
-                        </div>
-                    </div>
-                `;
-                grid.appendChild(card);
-            });
-        }
-
-        function loadAttendanceStudents() {
-            const grid = document.getElementById('attendanceStudentGrid');
-            grid.innerHTML = '';
-
-            const students = [
-                { name: 'Maria Silva', initials: 'MS', class: '5º Ano A', attendance: 98.5, color: 'blue' },
-                { name: 'João Santos', initials: 'JS', class: '5º Ano A', attendance: 95.2, color: 'green' },
-                { name: 'Ana Costa', initials: 'AC', class: '4º Ano B', attendance: 97.8, color: 'purple' },
-                { name: 'Pedro Silva', initials: 'PS', class: '1º Ano A', attendance: 96.3, color: 'orange' },
-                { name: 'Lucas Santos', initials: 'LS', class: '1º Ano A', attendance: 94.7, color: 'pink' },
-                { name: 'Julia Ferreira', initials: 'JF', class: '2º Ano A', attendance: 98.1, color: 'indigo' },
-                { name: 'Carlos Oliveira', initials: 'CO', class: '3º Ano B', attendance: 93.5, color: 'teal' },
-                { name: 'Mariana Costa', initials: 'MC', class: '4º Ano A', attendance: 97.2, color: 'yellow' }
-            ];
-
-            students.forEach(student => {
-                const card = document.createElement('div');
-                card.className = 'group bg-white rounded-2xl border border-gray-200 p-5 hover:shadow-2xl hover:border-primary-green transition-all duration-300 cursor-pointer transform hover:-translate-y-1';
-                card.onclick = () => showAttendanceStudentDetail(student.name, student.class);
-                card.innerHTML = `
-                    <div class="flex items-center space-x-4">
-                        <div class="relative">
-                            <div class="w-16 h-16 bg-gradient-to-br from-${student.color}-100 to-${student.color}-200 rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
-                                <span class="text-${student.color}-800 font-bold text-lg">${student.initials}</span>
-                            </div>
-                            <div class="absolute -top-1 -right-1 w-5 h-5 bg-primary-green rounded-full flex items-center justify-center">
-                                <svg class="w-2.5 h-2.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
-                                </svg>
-                            </div>
-                        </div>
-                        <div class="flex-1">
-                            <h4 class="text-lg font-bold text-gray-900 group-hover:text-primary-green transition-colors duration-300">${student.name}</h4>
-                            <div class="flex items-center space-x-2 text-gray-600 mt-1">
-                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path>
-                                </svg>
-                                <span class="text-sm font-medium">${student.class}</span>
-                            </div>
-                            <div class="mt-2 inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800 group-hover:bg-primary-green group-hover:text-white transition-colors duration-300">
-                                <svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                                </svg>
-                                ${student.attendance}% frequência
-                            </div>
-                        </div>
-                    </div>
-                `;
-                grid.appendChild(card);
-            });
-        }
-
-        function showAttendanceClassDetail(classId, className) {
-            // Hide all attendance content
-            document.querySelectorAll('.attendance-content').forEach(content => {
-                content.classList.add('hidden');
-            });
-
-            // Show class detail
-            document.getElementById('attendance-content-class-detail').classList.remove('hidden');
-
-            // Update title
-            document.getElementById('attendanceClassDetailTitle').textContent = `Frequência da ${className}`;
-            document.getElementById('attendanceClassDetailSubtitle').textContent = `Lista de frequência dos alunos da ${className}`;
-
-            // Load class students
-            loadAttendanceClassStudents(classId);
-        }
-
-        function showAttendanceStudentDetail(studentName, studentClass) {
-            // Hide all attendance content
-            document.querySelectorAll('.attendance-content').forEach(content => {
-                content.classList.add('hidden');
-            });
-
-            // Show student detail
-            document.getElementById('attendance-content-student-detail').classList.remove('hidden');
-
-            // Update title
-            document.getElementById('attendanceStudentDetailTitle').textContent = `Frequência de ${studentName}`;
-            document.getElementById('attendanceStudentDetailSubtitle').textContent = `Histórico de frequência de ${studentName} - ${studentClass}`;
-
-            // Load student details
-            loadAttendanceStudentDetails(studentName, studentClass);
-        }
-
-        function loadAttendanceClassStudents(classId) {
-            const tableBody = document.getElementById('attendanceClassDetailTableBody');
-            tableBody.innerHTML = '';
-
-            // Sample data for different classes
-            const classStudents = {
-                '1A': [
-                    { name: 'Pedro Silva', initials: 'PS', present: 20, absent: 3, justified: 0, color: 'orange' },
-                    { name: 'Lucas Santos', initials: 'LS', present: 22, absent: 1, justified: 0, color: 'pink' },
-                    { name: 'Julia Ferreira', initials: 'JF', present: 23, absent: 0, justified: 0, color: 'purple' }
-                ],
-                '5A': [
-                    { name: 'Maria Silva', initials: 'MS', present: 22, absent: 1, justified: 0, color: 'blue' },
-                    { name: 'João Santos', initials: 'JS', present: 23, absent: 0, justified: 0, color: 'green' },
-                    { name: 'Ana Costa', initials: 'AC', present: 21, absent: 2, justified: 0, color: 'purple' }
-                ]
-            };
-
-            const students = classStudents[classId] || [];
-
-            students.forEach(student => {
-                const total = student.present + student.absent + student.justified;
-                const attendanceRate = ((student.present / total) * 100).toFixed(1);
-                const rateColor = attendanceRate >= 90 ? 'green' : attendanceRate >= 75 ? 'orange' : 'red';
-
-                const row = document.createElement('tr');
-                row.innerHTML = `
-                    <td class="px-6 py-4 whitespace-nowrap">
-                        <div class="flex items-center">
-                            <div class="w-10 h-10 bg-${student.color}-100 rounded-full flex items-center justify-center">
-                                <span class="text-${student.color}-600 font-bold">${student.initials}</span>
-                            </div>
-                            <div class="ml-4">
-                                <div class="text-sm font-medium text-gray-900">${student.name}</div>
-                                <div class="text-sm text-gray-500">#${Date.now().toString().slice(-6)}</div>
-                            </div>
-                        </div>
-                    </td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">${student.present}</span>
-                    </td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">${student.absent}</span>
-                    </td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">${student.justified}</span>
-                    </td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-${rateColor}-100 text-${rateColor}-800">${attendanceRate}%</span>
-                    </td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                        <button class="text-primary-green hover:text-green-700 mr-3">Editar</button>
-                        <button class="text-blue-600 hover:text-blue-700">Ver Histórico</button>
-                    </td>
-                `;
-                tableBody.appendChild(row);
-            });
-        }
-
-        function loadAttendanceStudentDetails(studentName, studentClass) {
-            const container = document.getElementById('attendanceStudentDetailContent');
-            
-            // Sample student data
-            const studentData = {
-                'Maria Silva': { present: 22, absent: 1, justified: 0, color: 'blue', initials: 'MS' },
-                'João Santos': { present: 23, absent: 0, justified: 0, color: 'green', initials: 'JS' },
-                'Ana Costa': { present: 21, absent: 2, justified: 0, color: 'purple', initials: 'AC' }
-            };
-
-            const student = studentData[studentName] || { present: 20, absent: 3, justified: 0, color: 'blue', initials: 'XX' };
-            const total = student.present + student.absent + student.justified;
-            const attendanceRate = ((student.present / total) * 100).toFixed(1);
-            const rateColor = attendanceRate >= 90 ? 'green' : attendanceRate >= 75 ? 'orange' : 'red';
-
-            container.innerHTML = `
-                <div class="bg-white rounded-lg border border-gray-200 p-6">
-                    <div class="flex items-center justify-between mb-6">
-                        <div class="flex items-center space-x-4">
-                            <div class="w-16 h-16 bg-${student.color}-100 rounded-full flex items-center justify-center">
-                                <span class="text-${student.color}-600 font-bold text-2xl">${student.initials}</span>
-                            </div>
-                            <div>
-                                <h3 class="text-2xl font-bold text-gray-900">${studentName}</h3>
-                                <p class="text-lg text-gray-600">${studentClass}</p>
-                            </div>
-                        </div>
-                        <span class="inline-flex items-center px-4 py-2 rounded-full text-sm font-medium bg-${rateColor}-100 text-${rateColor}-800">
-                            ${attendanceRate}% frequência
-                        </span>
-                    </div>
-                    
-                    <div class="grid grid-cols-3 gap-6 mb-6">
-                        <div class="text-center p-4 bg-green-50 rounded-lg">
-                            <p class="text-sm text-green-600 font-medium">Presenças</p>
-                            <p class="text-3xl font-bold text-green-800">${student.present}</p>
-                        </div>
-                        <div class="text-center p-4 bg-red-50 rounded-lg">
-                            <p class="text-sm text-red-600 font-medium">Faltas</p>
-                            <p class="text-3xl font-bold text-red-800">${student.absent}</p>
-                        </div>
-                        <div class="text-center p-4 bg-blue-50 rounded-lg">
-                            <p class="text-sm text-blue-600 font-medium">Justificadas</p>
-                            <p class="text-3xl font-bold text-blue-800">${student.justified}</p>
-                        </div>
-                    </div>
-                    
-                    <div class="border-t pt-4">
-                        <div class="flex justify-between items-center">
-                            <span class="text-lg font-medium text-gray-700">Total de dias:</span>
-                            <span class="text-2xl font-bold text-gray-900">${total}</span>
-                        </div>
-                    </div>
-                </div>
-            `;
-        }
-
-        function loadAttendanceByStudent() {
-            const container = document.getElementById('attendance-content-by-student').querySelector('.grid');
-            container.innerHTML = '';
-
-            // Sample student cards with attendance
-            const students = [
-                { name: 'Maria Silva', initials: 'MS', class: '5º Ano A', present: 22, absent: 1, justified: 0, color: 'blue' },
-                { name: 'João Santos', initials: 'JS', class: '5º Ano A', present: 23, absent: 0, justified: 0, color: 'green' },
-                { name: 'Ana Costa', initials: 'AC', class: '4º Ano B', present: 21, absent: 2, justified: 0, color: 'purple' }
-            ];
-
-            students.forEach(student => {
-                const total = student.present + student.absent + student.justified;
-                const attendanceRate = ((student.present / total) * 100).toFixed(1);
-                const rateColor = attendanceRate >= 90 ? 'green' : attendanceRate >= 75 ? 'orange' : 'red';
-
-                const card = document.createElement('div');
-                card.className = 'bg-white rounded-lg border border-gray-200 p-4';
-                card.innerHTML = `
-                    <div class="flex items-center justify-between mb-4">
-                        <div class="flex items-center space-x-3">
-                            <div class="w-12 h-12 bg-${student.color}-100 rounded-full flex items-center justify-center">
-                                <span class="text-${student.color}-600 font-bold text-lg">${student.initials}</span>
-                            </div>
-                            <div>
-                                <h4 class="text-lg font-semibold text-gray-900">${student.name}</h4>
-                                <p class="text-sm text-gray-600">${student.class}</p>
-                            </div>
-                        </div>
-                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-${rateColor}-100 text-${rateColor}-800">
-                            ${attendanceRate}%
-                        </span>
-                    </div>
-                    <div class="grid grid-cols-3 gap-3 mb-4">
-                        <div class="text-center">
-                            <p class="text-xs text-gray-500">Presenças</p>
-                            <p class="text-lg font-bold text-green-600">${student.present}</p>
-                        </div>
-                        <div class="text-center">
-                            <p class="text-xs text-gray-500">Faltas</p>
-                            <p class="text-lg font-bold text-red-600">${student.absent}</p>
-                        </div>
-                        <div class="text-center">
-                            <p class="text-xs text-gray-500">Justificadas</p>
-                            <p class="text-lg font-bold text-blue-600">${student.justified}</p>
-                        </div>
-                    </div>
-                    <div class="border-t pt-3">
-                        <div class="flex justify-between items-center">
-                            <span class="text-sm text-gray-600">Total de dias:</span>
-                            <span class="text-lg font-bold text-gray-900">${total}</span>
-                        </div>
-                    </div>
-                `;
-                container.appendChild(card);
-            });
-        }
-
-        // Load schools when escolas section is shown
-        function showSection(sectionId) {
-            // Hide all sections
-            document.querySelectorAll('.content-section').forEach(section => {
-                section.classList.add('hidden');
-            });
-
-            // Show selected section
-            const targetSection = document.getElementById(sectionId);
-            if (targetSection) {
-                targetSection.classList.remove('hidden');
-            }
-
-            // Update active menu item
-            document.querySelectorAll('.menu-item').forEach(item => {
-                item.classList.remove('active');
-                const svg = item.querySelector('svg');
-                if (svg) {
-                    svg.classList.remove('text-primary-green');
-                    svg.classList.add('text-gray-500');
-                }
-            });
-
-            // Set active state - find the menu item that corresponds to this section
-            const activeButton = document.querySelector(`[onclick*="showSection('${sectionId}')"]`);
-            if (activeButton) {
-            activeButton.classList.add('active');
-                const svg = activeButton.querySelector('svg');
-                if (svg) {
-                    svg.classList.remove('text-gray-500');
-                    svg.classList.add('text-primary-green');
-                }
-            }
-
-            // Update page title
-            const user = JSON.parse(localStorage.getItem('user') || '{}');
-            const userType = user.tipo || '<?= $_SESSION['tipo'] ?? 'Usuário' ?>';
-
-            if (sectionId === 'dashboard') {
-                // For dashboard, show dynamic title based on user type
-                setDynamicPageTitle(userType);
-            } else {
-                // For other sections, show section name
-                const titles = {
-                    'alunos': 'Alunos',
-                    'turmas': 'Turmas',
-                    'frequencia': 'Frequência',
-                    'notas': 'Notas',
-                    'relatorios': 'Relatórios',
-                    'merenda': 'Merenda',
-                    'escolas': 'Escolas',
-                    'usuarios': 'Usuários',
-                    'estoque-central': 'Estoque Central',
-                    'gestao': 'Gestão Escolar'
-                };
-                document.getElementById('pageTitle').textContent = titles[sectionId] || 'Dashboard';
-            }
-
-            // Load products if merenda section is shown
-            if (sectionId === 'merenda') {
-                loadProducts();
-            }
-
-            // Load schools if escolas section is shown
-            if (sectionId === 'escolas') {
-                loadSchools();
-                setupSchoolFilters();
-            }
-
-            // Close mobile sidebar
-            if (window.innerWidth < 1024) {
-                toggleSidebar();
-            }
-        }
-
-        // Accessibility Functions
-        // Função loadAccessibilitySettings agora é gerenciada pelo theme-manager.js
-
-        // Função setTheme agora é gerenciada pelo theme-manager.js
-
-        function setContrast(contrast) {
-            document.documentElement.setAttribute('data-contrast', contrast);
-
-            // Update button states
-            document.querySelectorAll('[id^="contrast-"]').forEach(btn => {
-                btn.classList.remove('bg-blue-500', 'text-white', 'border-blue-500');
-                btn.classList.add('border-gray-300', 'text-gray-700');
-            });
-
-            const activeBtn = document.getElementById(`contrast-${contrast}`);
-            if (activeBtn) {
-                activeBtn.classList.add('bg-blue-500', 'text-white', 'border-blue-500');
-                activeBtn.classList.remove('border-gray-300', 'text-gray-700');
-            }
-
-            // Apply contrast styles
-            if (contrast === 'high') {
-                document.documentElement.classList.add('high-contrast');
-                // Apply high contrast styles
-                const style = document.createElement('style');
-                style.id = 'high-contrast-styles';
-                style.textContent = `
-                    .high-contrast {
-                        --tw-bg-opacity: 1;
-                        --tw-text-opacity: 1;
-                    }
-                    .high-contrast .bg-white { background-color: #ffffff !important; }
-                    .high-contrast .bg-gray-50 { background-color: #f9fafb !important; }
-                    .high-contrast .text-gray-900 { color: #000000 !important; }
-                    .high-contrast .text-gray-700 { color: #000000 !important; }
-                    .high-contrast .text-gray-600 { color: #000000 !important; }
-                    .high-contrast .border-gray-200 { border-color: #000000 !important; }
-                    .high-contrast .border-gray-300 { border-color: #000000 !important; }
-                `;
-                document.head.appendChild(style);
-            } else {
-                document.documentElement.classList.remove('high-contrast');
-                const existingStyle = document.getElementById('high-contrast-styles');
-                if (existingStyle) {
-                    existingStyle.remove();
-                }
-            }
-
-            // Save setting
-            const settings = JSON.parse(localStorage.getItem('accessibilitySettings') || '{}');
-            settings.contrast = contrast;
-            localStorage.setItem('accessibilitySettings', JSON.stringify(settings));
-        }
-
-        function setFontSize(size) {
-            document.documentElement.setAttribute('data-font-size', size);
-
-            // Update button states
-            document.querySelectorAll('[id^="font-"]').forEach(btn => {
-                btn.classList.remove('bg-blue-500', 'text-white', 'border-blue-500');
-                btn.classList.add('border-gray-300', 'text-gray-700');
-            });
-
-            const activeBtn = document.getElementById(`font-${size}`);
-            if (activeBtn) {
-                activeBtn.classList.add('bg-blue-500', 'text-white', 'border-blue-500');
-                activeBtn.classList.remove('border-gray-300', 'text-gray-700');
-            }
-
-            // Apply font size styles
-            const existingStyle = document.getElementById('font-size-styles');
-            if (existingStyle) {
-                existingStyle.remove();
-            }
-
-            let fontSize = '16px';
-            switch (size) {
-                case 'large':
-                    fontSize = '18px';
-                    break;
-                case 'larger':
-                    fontSize = '20px';
-                    break;
-                default:
-                    fontSize = '16px';
-            }
-
-            const style = document.createElement('style');
-            style.id = 'font-size-styles';
-            style.textContent = `
-                body { font-size: ${fontSize} !important; }
-                .text-sm { font-size: ${parseInt(fontSize) * 0.875}px !important; }
-                .text-base { font-size: ${fontSize} !important; }
-                .text-lg { font-size: ${parseInt(fontSize) * 1.125}px !important; }
-                .text-xl { font-size: ${parseInt(fontSize) * 1.25}px !important; }
-            `;
-            document.head.appendChild(style);
-
-            // Save setting
-            const settings = JSON.parse(localStorage.getItem('accessibilitySettings') || '{}');
-            settings.fontSize = size;
-            localStorage.setItem('accessibilitySettings', JSON.stringify(settings));
-        }
-
-        function setReduceMotion(enabled) {
-            if (enabled) {
-                document.documentElement.setAttribute('data-reduce-motion', 'true');
-                // Apply reduced motion styles
-                const style = document.createElement('style');
-                style.id = 'reduce-motion-styles';
-                style.textContent = `
-                    *, *::before, *::after {
-                        animation-duration: 0.01ms !important;
-                        animation-iteration-count: 1 !important;
-                        transition-duration: 0.01ms !important;
-                        scroll-behavior: auto !important;
-                    }
-                `;
-                document.head.appendChild(style);
-            } else {
-                document.documentElement.removeAttribute('data-reduce-motion');
-                const existingStyle = document.getElementById('reduce-motion-styles');
-                if (existingStyle) {
-                    existingStyle.remove();
-                }
-            }
-
-            // Save setting
-            const settings = JSON.parse(localStorage.getItem('accessibilitySettings') || '{}');
-            settings.reduceMotion = enabled;
-            localStorage.setItem('accessibilitySettings', JSON.stringify(settings));
-        }
-
-        function toggleVLibras() {
-            const vlibrasWidget = document.getElementById('vlibras-widget');
-            const toggle = document.getElementById('vlibras-toggle');
-            
-            if (toggle.checked) {
-                // Ativar VLibras
-                vlibrasWidget.style.display = 'block';
-                vlibrasWidget.classList.remove('disabled');
-                vlibrasWidget.classList.add('enabled');
-                localStorage.setItem('vlibras-enabled', 'true');
-                
-                // Reinicializar o widget se necessário
-                if (window.VLibras && !window.vlibrasInstance) {
-                    window.vlibrasInstance = new window.VLibras.Widget('https://vlibras.gov.br/app');
-                }
-                
-                showNotification('VLibras ativado', 'success');
-            } else {
-                // Desativar VLibras
-                vlibrasWidget.style.display = 'none';
-                vlibrasWidget.classList.remove('enabled');
-                vlibrasWidget.classList.add('disabled');
-                localStorage.setItem('vlibras-enabled', 'false');
-                
-                // Limpar instância se existir
-                if (window.vlibrasInstance) {
-                    // Remover elementos do VLibras da DOM
-                    const vlibrasElements = document.querySelectorAll('[vw]');
-                    vlibrasElements.forEach(el => {
-                        if (el.id !== 'vlibras-widget') {
-                            el.remove();
-                        }
-                    });
-                    window.vlibrasInstance = null;
-                }
-                
-                showNotification('VLibras desativado', 'info');
-            }
-        }
-
-        function setKeyboardNavigation(enabled) {
-            if (enabled) {
-                document.documentElement.setAttribute('data-keyboard-nav', 'true');
-                // Apply keyboard navigation styles
-                const style = document.createElement('style');
-                style.id = 'keyboard-nav-styles';
-                style.textContent = `
-                    .keyboard-nav button:focus,
-                    .keyboard-nav a:focus,
-                    .keyboard-nav input:focus,
-                    .keyboard-nav select:focus,
-                    .keyboard-nav textarea:focus,
-                    .keyboard-nav [tabindex]:focus {
-                        outline: 3px solid #3b82f6 !important;
-                        outline-offset: 2px !important;
-                        box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.3) !important;
-                    }
-                `;
-                document.head.appendChild(style);
-                document.documentElement.classList.add('keyboard-nav');
-            } else {
-                document.documentElement.removeAttribute('data-keyboard-nav');
-                document.documentElement.classList.remove('keyboard-nav');
-                const existingStyle = document.getElementById('keyboard-nav-styles');
-                if (existingStyle) {
-                    existingStyle.remove();
-                }
-            }
-
-            // Save setting
-            const settings = JSON.parse(localStorage.getItem('accessibilitySettings') || '{}');
-            settings.keyboardNavigation = enabled;
-            localStorage.setItem('accessibilitySettings', JSON.stringify(settings));
-        }
-
-        // Keyboard navigation support
-        document.addEventListener('keydown', function(e) {
-            // Alt + 1 to 9 for quick navigation
-            if (e.altKey && e.key >= '1' && e.key <= '9') {
-                e.preventDefault();
-                const menuItems = document.querySelectorAll('.menu-item');
-                const index = parseInt(e.key) - 1;
-                if (menuItems[index]) {
-                    menuItems[index].click();
-                }
-            }
-
-            // Alt + A for accessibility settings
-            if (e.altKey && e.key.toLowerCase() === 'a') {
-                e.preventDefault();
+        // Keyboard shortcut for profile modal
+        document.addEventListener('keydown', function(event) {
+            if (event.altKey && event.key === 'a') {
+                event.preventDefault();
                 openUserProfile();
             }
-
-            // Alt + T for theme toggle
-            if (e.altKey && e.key.toLowerCase() === 't') {
-                e.preventDefault();
-                const currentTheme = document.documentElement.getAttribute('data-theme');
-                setTheme(currentTheme === 'dark' ? 'light' : 'dark');
+            if (event.key === 'Escape') {
+                closeUserProfile();
             }
         });
-
-        // Função para selecionar mês na seção de frequência
-        function selecionarMes(mes) {
-            // Remove a classe ativa de todos os botões
-            const meses = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
-            meses.forEach(m => {
-                const btn = document.getElementById(`btn-${m}`);
-                if (btn) {
-                    btn.classList.remove('bg-gradient-to-r', 'from-green-500', 'to-emerald-600', 'text-white', 'shadow-lg', 'border-b-2', 'border-green-500');
-                    btn.classList.add('bg-white', 'text-gray-600');
-                }
-            });
-
-            // Adiciona a classe ativa ao botão selecionado
-            const btnSelecionado = document.getElementById(`btn-${mes}`);
-            if (btnSelecionado) {
-                btnSelecionado.classList.remove('bg-white', 'text-gray-600');
-                btnSelecionado.classList.add('bg-gradient-to-r', 'from-green-500', 'to-emerald-600', 'text-white', 'shadow-lg', 'border-b-2', 'border-green-500');
-            }
-
-            // Aqui você pode adicionar lógica para carregar dados do mês selecionado
-            console.log(`Mês selecionado: ${mes}`);
-            
-            // Exemplo de como você poderia atualizar os dados da tabela
-            // carregarDadosFrequencia(mes);
-        }
-
-        // Função para carregar dados de frequência (exemplo)
-        function carregarDadosFrequencia(mes) {
-            // Esta função seria implementada para carregar dados específicos do mês
-            // Por exemplo, fazer uma requisição AJAX para buscar as faltas do mês
-            console.log(`Carregando dados de frequência para o mês: ${mes}`);
-        }
-
-        // Função para obter o ano atual
-        function obterAnoAtual() {
-            return new Date().getFullYear();
-        }
-
-        // Função para atualizar o ano letivo
-        function atualizarAnoLetivo() {
-            const anoAtual = obterAnoAtual();
-            const elementoAnoLetivo = document.getElementById('anoLetivoAtual');
-            if (elementoAnoLetivo) {
-                elementoAnoLetivo.textContent = `Ano Letivo ${anoAtual}`;
-            }
-        }
-
-        // Função para atualizar o seletor de ano com o ano atual
-        function atualizarSeletorAno() {
-            const anoAtual = obterAnoAtual();
-            const seletorAno = document.getElementById('anoSeletor');
-            if (seletorAno) {
-                // Remove a seleção atual
-                seletorAno.querySelectorAll('option').forEach(option => {
-                    option.removeAttribute('selected');
-                });
-                
-                // Seleciona o ano atual
-                const opcaoAtual = seletorAno.querySelector(`option[value="${anoAtual}"]`);
-                if (opcaoAtual) {
-                    opcaoAtual.setAttribute('selected', 'selected');
-                } else {
-                    // Se o ano atual não estiver nas opções, adiciona
-                    const novaOpcao = document.createElement('option');
-                    novaOpcao.value = anoAtual;
-                    novaOpcao.textContent = anoAtual;
-                    novaOpcao.setAttribute('selected', 'selected');
-                    seletorAno.appendChild(novaOpcao);
-                }
-            }
-        }
-
-        // Função para atualizar todas as datas
-        function atualizarTodasAsDatas() {
-            atualizarAnoLetivo();
-            atualizarSeletorAno();
-        }
-
-        // Inicializar o mês atual (Janeiro) quando a página carregar
-        document.addEventListener('DOMContentLoaded', function() {
-            // Atualiza todas as datas para o ano atual
-            atualizarTodasAsDatas();
-            
-            // Se a seção de frequência estiver visível, inicializar com Janeiro
-            const frequenciaSection = document.getElementById('frequencia');
-            if (frequenciaSection && !frequenciaSection.classList.contains('hidden')) {
-                selecionarMes('jan');
-            }
-        });
-    </script>
-
-    <!-- Modais da Gestão Escolar -->
-    
-    <!-- Modal de Turmas - Full Screen -->
-    <div id="turmasModal" class="fixed inset-0 bg-white hidden z-50 overflow-y-auto">
-        <!-- Header -->
-        <div class="bg-white border-b border-gray-200 px-6 py-4 sticky top-0 z-10">
-            <div class="flex items-center justify-between">
-                <div class="flex items-center space-x-4">
-                    <button onclick="closeModal('turmasModal')" class="text-gray-600 hover:text-gray-900 p-2 hover:bg-gray-100 rounded-lg transition-colors">
-                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
-                        </svg>
-                    </button>
-                    <h1 class="text-2xl font-bold text-gray-900">Gerenciar Turmas</h1>
-                </div>
-                <button onclick="openAddTurmaModal()" class="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center space-x-2">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
-                    </svg>
-                    <span>Nova Turma</span>
-                </button>
-            </div>
-        </div>
-        
-        <!-- Content -->
-        <div class="p-6">
-            <div class="max-w-7xl mx-auto">
-                <div class="mb-6">
-                    <h2 class="text-lg font-semibold text-gray-800 mb-4">Lista de Turmas</h2>
-                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6" id="turmasList">
-                        <!-- Turmas serão carregadas aqui -->
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Modal de Matrículas - Full Screen -->
-    <div id="matriculasModal" class="fixed inset-0 bg-white hidden z-50 overflow-y-auto">
-        <!-- Header -->
-        <div class="bg-white border-b border-gray-200 px-6 py-4 sticky top-0 z-10">
-            <div class="flex items-center justify-between">
-                <div class="flex items-center space-x-4">
-                    <button onclick="closeModal('matriculasModal')" class="text-gray-600 hover:text-gray-900 p-2 hover:bg-gray-100 rounded-lg transition-colors">
-                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
-                        </svg>
-                    </button>
-                    <h1 class="text-2xl font-bold text-gray-900">Gerenciar Cadastros</h1>
-                </div>
-                <div class="flex items-center space-x-3">
-                    <span class="text-sm text-gray-600">Total de cadastros: <strong>18</strong></span>
-                    <button class="bg-green-600 text-white px-6 py-2 rounded-lg hover:bg-green-700 transition-colors flex items-center space-x-2">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
-                        </svg>
-                        <span>Novo Cadastro</span>
-                    </button>
-                </div>
-            </div>
-        </div>
-        
-        <!-- Content -->
-        <div class="p-6">
-            <div class="max-w-7xl mx-auto">
-                <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                    <div>
-                        <div class="flex items-center justify-between mb-6">
-                            <h2 class="text-xl font-semibold text-gray-800">Novos Cadastros</h2>
-                            <span class="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm font-medium">3 hoje</span>
-                        </div>
-                        <div class="space-y-4" id="novosCadastros">
-                            <!-- Novos cadastros serão carregados aqui -->
-                        </div>
-                    </div>
-                    <div>
-                        <div class="flex items-center justify-between mb-6">
-                            <h2 class="text-xl font-semibold text-gray-800">Aguardando Aprovação</h2>
-                            <span class="bg-orange-100 text-orange-800 px-3 py-1 rounded-full text-sm font-medium">15 pendentes</span>
-                        </div>
-                        <div class="space-y-4" id="pendentesAprovacao">
-                            <!-- Cadastros pendentes serão carregados aqui -->
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Modal de Horários - Full Screen -->
-    <div id="horariosModal" class="fixed inset-0 bg-white hidden z-50 overflow-y-auto">
-        <!-- Header -->
-        <div class="bg-white border-b border-gray-200 px-6 py-4 sticky top-0 z-10">
-            <div class="flex items-center justify-between">
-                <div class="flex items-center space-x-4">
-                    <button onclick="closeModal('horariosModal')" class="text-gray-600 hover:text-gray-900 p-2 hover:bg-gray-100 rounded-lg transition-colors">
-                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
-                        </svg>
-                    </button>
-                    <h1 class="text-2xl font-bold text-gray-900">Gerenciar Horários</h1>
-                </div>
-                <div class="flex items-center space-x-3">
-                    <span class="text-sm text-gray-600">Aulas hoje: <strong>24</strong></span>
-                    <button class="bg-indigo-600 text-white px-6 py-2 rounded-lg hover:bg-indigo-700 transition-colors flex items-center space-x-2">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
-                        </svg>
-                        <span>Novo Horário</span>
-                    </button>
-                </div>
-            </div>
-        </div>
-        
-        <!-- Content -->
-        <div class="p-6">
-            <div class="max-w-7xl mx-auto">
-                <div class="grid grid-cols-1 xl:grid-cols-2 gap-8">
-                    <div>
-                        <div class="flex items-center justify-between mb-6">
-                            <h2 class="text-xl font-semibold text-gray-800">Calendário Escolar</h2>
-                            <span class="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm font-medium">Janeiro 2024</span>
-                        </div>
-                        <div id="calendarioEscolar" class="bg-white border border-gray-200 rounded-lg p-6 shadow-sm">
-                            <!-- Calendário será carregado aqui -->
-                        </div>
-                    </div>
-                    <div>
-                        <div class="flex items-center justify-between mb-6">
-                            <h2 class="text-xl font-semibold text-gray-800">Horários de Aulas</h2>
-                            <span class="bg-green-100 text-green-800 px-3 py-1 rounded-full text-sm font-medium">2 turnos</span>
-                        </div>
-                        <div id="horariosAulas" class="space-y-4">
-                            <!-- Horários serão carregados aqui -->
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Modal de Presença - Full Screen -->
-    <div id="presencaModal" class="fixed inset-0 bg-white hidden z-50 overflow-y-auto">
-        <!-- Header -->
-        <div class="bg-white border-b border-gray-200 px-6 py-4 sticky top-0 z-10">
-            <div class="flex items-center justify-between">
-                <div class="flex items-center space-x-4">
-                    <button onclick="closeModal('presencaModal')" class="text-gray-600 hover:text-gray-900 p-2 hover:bg-gray-100 rounded-lg transition-colors">
-                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
-                        </svg>
-                    </button>
-                    <h1 class="text-2xl font-bold text-gray-900">Controle de Presença</h1>
-                </div>
-                <div class="flex items-center space-x-4">
-                    <div class="text-right">
-                        <div class="text-sm text-gray-600">Frequência Geral</div>
-                        <div class="text-2xl font-bold text-green-600">94.2%</div>
-                    </div>
-                    <button class="bg-orange-600 text-white px-6 py-2 rounded-lg hover:bg-orange-700 transition-colors flex items-center space-x-2">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
-                        </svg>
-                        <span>Registrar Presença</span>
-                    </button>
-                </div>
-            </div>
-        </div>
-        
-        <!-- Content -->
-        <div class="p-6">
-            <div class="max-w-7xl mx-auto">
-                <div class="grid grid-cols-1 xl:grid-cols-2 gap-8">
-                    <div>
-                        <div class="flex items-center justify-between mb-6">
-                            <h2 class="text-xl font-semibold text-gray-800">Alunos Presentes</h2>
-                            <span class="bg-green-100 text-green-800 px-3 py-1 rounded-full text-sm font-medium">485 alunos</span>
-                        </div>
-                        <div class="bg-white border border-gray-200 rounded-lg p-6 shadow-sm">
-                            <div class="space-y-3 max-h-96 overflow-y-auto" id="alunosPresentes">
-                                <!-- Lista de alunos presentes -->
-                            </div>
-                        </div>
-                    </div>
-                    <div>
-                        <div class="flex items-center justify-between mb-6">
-                            <h2 class="text-xl font-semibold text-gray-800">Alunos Faltosos</h2>
-                            <span class="bg-red-100 text-red-800 px-3 py-1 rounded-full text-sm font-medium">29 alunos</span>
-                        </div>
-                        <div class="bg-white border border-gray-200 rounded-lg p-6 shadow-sm">
-                            <div class="space-y-3 max-h-96 overflow-y-auto" id="alunosFaltosos">
-                                <!-- Lista de alunos faltosos -->
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Modal de Notas - Full Screen -->
-    <div id="notasModal" class="fixed inset-0 bg-white hidden z-50 overflow-y-auto">
-        <!-- Header -->
-        <div class="bg-white border-b border-gray-200 px-6 py-4 sticky top-0 z-10">
-            <div class="flex items-center justify-between">
-                <div class="flex items-center space-x-4">
-                    <button onclick="closeModal('notasModal')" class="text-gray-600 hover:text-gray-900 p-2 hover:bg-gray-100 rounded-lg transition-colors">
-                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
-                        </svg>
-                    </button>
-                    <h1 class="text-2xl font-bold text-gray-900">Gerenciar Notas</h1>
-                </div>
-                <div class="flex items-center space-x-4">
-                    <div class="text-right">
-                        <div class="text-sm text-gray-600">Boletins Gerados</div>
-                        <div class="text-2xl font-bold text-blue-600">485</div>
-                    </div>
-                    <button class="bg-yellow-600 text-white px-6 py-2 rounded-lg hover:bg-yellow-700 transition-colors flex items-center space-x-2">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
-                        </svg>
-                        <span>Lançar Notas</span>
-                    </button>
-                </div>
-            </div>
-        </div>
-        
-        <!-- Content -->
-        <div class="p-6">
-            <div class="max-w-7xl mx-auto">
-                <div class="grid grid-cols-1 xl:grid-cols-2 gap-8">
-                    <div>
-                        <div class="flex items-center justify-between mb-6">
-                            <h2 class="text-xl font-semibold text-gray-800">Lançar Notas</h2>
-                            <span class="bg-yellow-100 text-yellow-800 px-3 py-1 rounded-full text-sm font-medium">Ativo</span>
-                        </div>
-                        <div class="bg-white border border-gray-200 rounded-lg p-6 shadow-sm">
-                            <div id="lancarNotas" class="space-y-4">
-                                <!-- Formulário para lançar notas -->
-                            </div>
-                        </div>
-                    </div>
-                    <div>
-                        <div class="flex items-center justify-between mb-6">
-                            <h2 class="text-xl font-semibold text-gray-800">Boletins Gerados</h2>
-                            <span class="bg-green-100 text-green-800 px-3 py-1 rounded-full text-sm font-medium">485 boletins</span>
-                        </div>
-                        <div class="bg-white border border-gray-200 rounded-lg p-6 shadow-sm">
-                            <div class="space-y-3 max-h-96 overflow-y-auto" id="boletinsGerados">
-                                <!-- Lista de boletins -->
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Modal de Equipe - Full Screen -->
-    <div id="equipeModal" class="fixed inset-0 bg-white hidden z-50 overflow-y-auto">
-        <!-- Header -->
-        <div class="bg-white border-b border-gray-200 px-6 py-4 sticky top-0 z-10">
-            <div class="flex items-center justify-between">
-                <div class="flex items-center space-x-4">
-                    <button onclick="closeModal('equipeModal')" class="text-gray-600 hover:text-gray-900 p-2 hover:bg-gray-100 rounded-lg transition-colors">
-                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
-                        </svg>
-                    </button>
-                    <h1 class="text-2xl font-bold text-gray-900">Gerenciar Equipe</h1>
-                </div>
-                <div class="flex items-center space-x-4">
-                    <div class="text-right">
-                        <div class="text-sm text-gray-600">Total da Equipe</div>
-                        <div class="text-2xl font-bold text-teal-600">28</div>
-                    </div>
-                    <button class="bg-teal-600 text-white px-6 py-2 rounded-lg hover:bg-teal-700 transition-colors flex items-center space-x-2">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
-                        </svg>
-                        <span>Novo Membro</span>
-                    </button>
-                </div>
-            </div>
-        </div>
-        
-        <!-- Content -->
-        <div class="p-6">
-            <div class="max-w-7xl mx-auto">
-                <div class="grid grid-cols-1 xl:grid-cols-2 gap-8">
-                    <div>
-                        <div class="flex items-center justify-between mb-6">
-                            <h2 class="text-xl font-semibold text-gray-800">Professores</h2>
-                            <span class="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm font-medium">18 professores</span>
-                        </div>
-                        <div class="bg-white border border-gray-200 rounded-lg p-6 shadow-sm">
-                            <div class="space-y-4 max-h-96 overflow-y-auto" id="listaProfessores">
-                                <!-- Lista de professores -->
-                            </div>
-                        </div>
-                    </div>
-                    <div>
-                        <div class="flex items-center justify-between mb-6">
-                            <h2 class="text-xl font-semibold text-gray-800">Funcionários</h2>
-                            <span class="bg-green-100 text-green-800 px-3 py-1 rounded-full text-sm font-medium">10 funcionários</span>
-                        </div>
-                        <div class="bg-white border border-gray-200 rounded-lg p-6 shadow-sm">
-                            <div class="space-y-4 max-h-96 overflow-y-auto" id="listaFuncionarios">
-                                <!-- Lista de funcionários -->
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Modal de Comunicação - Full Screen -->
-    <div id="comunicacaoModal" class="fixed inset-0 bg-white hidden z-50 overflow-y-auto">
-        <!-- Header -->
-        <div class="bg-white border-b border-gray-200 px-6 py-4 sticky top-0 z-10">
-            <div class="flex items-center justify-between">
-                <div class="flex items-center space-x-4">
-                    <button onclick="closeModal('comunicacaoModal')" class="text-gray-600 hover:text-gray-900 p-2 hover:bg-gray-100 rounded-lg transition-colors">
-                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
-                        </svg>
-                    </button>
-                    <h1 class="text-2xl font-bold text-gray-900">Comunicação</h1>
-                </div>
-                <div class="flex items-center space-x-4">
-                    <div class="text-right">
-                        <div class="text-sm text-gray-600">Mensagens Hoje</div>
-                        <div class="text-2xl font-bold text-pink-600">12</div>
-                    </div>
-                    <button class="bg-pink-600 text-white px-6 py-2 rounded-lg hover:bg-pink-700 transition-colors flex items-center space-x-2">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
-                        </svg>
-                        <span>Nova Mensagem</span>
-                    </button>
-                </div>
-            </div>
-        </div>
-        
-        <!-- Content -->
-        <div class="p-6">
-            <div class="max-w-7xl mx-auto">
-                <div class="grid grid-cols-1 xl:grid-cols-2 gap-8">
-                    <div>
-                        <div class="flex items-center justify-between mb-6">
-                            <h2 class="text-xl font-semibold text-gray-800">Nova Mensagem</h2>
-                            <span class="bg-pink-100 text-pink-800 px-3 py-1 rounded-full text-sm font-medium">Formulário</span>
-                        </div>
-                        <div class="bg-white border border-gray-200 rounded-lg p-6 shadow-sm">
-                            <div id="novaMensagemForm" class="space-y-4">
-                                <!-- Formulário de nova mensagem -->
-                            </div>
-                        </div>
-                    </div>
-                    <div>
-                        <div class="flex items-center justify-between mb-6">
-                            <h2 class="text-xl font-semibold text-gray-800">Mensagens Recentes</h2>
-                            <span class="bg-green-100 text-green-800 px-3 py-1 rounded-full text-sm font-medium">8 enviadas</span>
-                        </div>
-                        <div class="bg-white border border-gray-200 rounded-lg p-6 shadow-sm">
-                            <div class="space-y-3 max-h-96 overflow-y-auto" id="mensagensRecentes">
-                                <!-- Lista de mensagens -->
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Modal de Validação - Full Screen -->
-    <div id="validacaoModal" class="fixed inset-0 bg-white hidden z-50 overflow-y-auto">
-        <!-- Header -->
-        <div class="bg-white border-b border-gray-200 px-6 py-4 sticky top-0 z-10">
-            <div class="flex items-center justify-between">
-                <div class="flex items-center space-x-4">
-                    <button onclick="closeModal('validacaoModal')" class="text-gray-600 hover:text-gray-900 p-2 hover:bg-gray-100 rounded-lg transition-colors">
-                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
-                        </svg>
-                    </button>
-                    <h1 class="text-2xl font-bold text-gray-900">Validar Informações</h1>
-                </div>
-                <div class="flex items-center space-x-4">
-                    <div class="text-right">
-                        <div class="text-sm text-gray-600">Aguardando</div>
-                        <div class="text-2xl font-bold text-red-600">3</div>
-                    </div>
-                    <button class="bg-red-600 text-white px-6 py-2 rounded-lg hover:bg-red-700 transition-colors flex items-center space-x-2">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                        </svg>
-                        <span>Validar Todas</span>
-                    </button>
-                </div>
-            </div>
-        </div>
-        
-        <!-- Content -->
-        <div class="p-6">
-            <div class="max-w-5xl mx-auto">
-                <div class="mb-6">
-                    <h2 class="text-xl font-semibold text-gray-800 mb-2">Informações Pendentes de Validação</h2>
-                    <p class="text-gray-600">Aprove ou rejeite as informações enviadas por professores e coordenadores</p>
-                </div>
-                <div class="bg-white border border-gray-200 rounded-lg p-6 shadow-sm">
-                    <div class="space-y-4" id="listaValidacoes">
-                        <!-- Lista de informações para validação -->
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <script>
-        // Funções para gerenciar modais
-        function closeModal(modalId) {
-            document.getElementById(modalId).classList.add('hidden');
-        }
-
-        function openModal(modalId) {
-            document.getElementById(modalId).classList.remove('hidden');
-        }
-
-        // Funções específicas para cada card
-        function openTurmas() {
-            openModal('turmasModal');
-            loadTurmas();
-        }
-
-        function openMatriculas() {
-            openModal('matriculasModal');
-            loadMatriculas();
-        }
-
-        function openHorarios() {
-            openModal('horariosModal');
-            loadHorarios();
-        }
-
-        function openPresenca() {
-            openModal('presencaModal');
-            loadPresenca();
-        }
-
-        function openNotas() {
-            openModal('notasModal');
-            loadNotas();
-        }
-
-        function openEquipe() {
-            openModal('equipeModal');
-            loadEquipe();
-        }
-
-        function openComunicacao() {
-            openModal('comunicacaoModal');
-            loadComunicacao();
-        }
-
-        function openValidacao() {
-            openModal('validacaoModal');
-            loadValidacao();
-        }
-
-        // Funções de carregamento de dados
-        function loadTurmas() {
-            const turmasList = document.getElementById('turmasList');
-            const turmas = [
-                { id: 1, nome: '1º Ano A', serie: '1º Ano', turno: 'Matutino', alunos: 25, professor: 'Maria Silva' },
-                { id: 2, nome: '2º Ano B', serie: '2º Ano', turno: 'Vespertino', alunos: 28, professor: 'João Santos' },
-                { id: 3, nome: '3º Ano A', serie: '3º Ano', turno: 'Matutino', alunos: 23, professor: 'Ana Costa' }
-            ];
-
-            turmasList.innerHTML = turmas.map(turma => `
-                <div class="bg-gray-50 rounded-lg p-4 border border-gray-200">
-                    <div class="flex justify-between items-start mb-3">
-                        <h5 class="font-semibold text-gray-900">${turma.nome}</h5>
-                        <span class="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded-full">${turma.turno}</span>
-                    </div>
-                    <div class="space-y-2 text-sm text-gray-600">
-                        <p><strong>Série:</strong> ${turma.serie}</p>
-                        <p><strong>Alunos:</strong> ${turma.alunos}</p>
-                        <p><strong>Professor:</strong> ${turma.professor}</p>
-                    </div>
-                    <div class="flex space-x-2 mt-4">
-                        <button class="flex-1 bg-blue-600 text-white px-3 py-1.5 rounded text-xs hover:bg-blue-700">Editar</button>
-                        <button class="flex-1 bg-red-600 text-white px-3 py-1.5 rounded text-xs hover:bg-red-700">Excluir</button>
-                    </div>
-                </div>
-            `).join('');
-        }
-
-        function loadMatriculas() {
-            const novosCadastros = document.getElementById('novosCadastros');
-            const pendentesAprovacao = document.getElementById('pendentesAprovacao');
-
-            const novos = [
-                { id: 1, nome: 'Carlos Silva', serie: '1º Ano', data: 'Hoje' },
-                { id: 2, nome: 'Ana Costa', serie: '2º Ano', data: 'Hoje' },
-                { id: 3, nome: 'Pedro Santos', serie: '3º Ano', data: 'Hoje' }
-            ];
-
-            const pendentes = [
-                { id: 4, nome: 'Maria Oliveira', serie: '1º Ano', dias: 2 },
-                { id: 5, nome: 'João Pereira', serie: '2º Ano', dias: 5 },
-                { id: 6, nome: 'Lucia Ferreira', serie: '3º Ano', dias: 1 }
-            ];
-
-            novosCadastros.innerHTML = novos.map(cadastro => `
-                <div class="bg-blue-50 rounded-lg p-3 border border-blue-200">
-                    <div class="flex justify-between items-center">
-                        <div>
-                            <p class="font-medium text-gray-900">${cadastro.nome}</p>
-                            <p class="text-sm text-gray-600">${cadastro.serie} - ${cadastro.data}</p>
-                        </div>
-                        <button class="bg-green-600 text-white px-3 py-1 rounded text-xs hover:bg-green-700">Aprovar</button>
-                    </div>
-                </div>
-            `).join('');
-
-            pendentesAprovacao.innerHTML = pendentes.map(cadastro => `
-                <div class="bg-orange-50 rounded-lg p-3 border border-orange-200">
-                    <div class="flex justify-between items-center">
-                        <div>
-                            <p class="font-medium text-gray-900">${cadastro.nome}</p>
-                            <p class="text-sm text-gray-600">${cadastro.serie} - ${cadastro.dias} dias</p>
-                        </div>
-                        <button class="bg-blue-600 text-white px-3 py-1 rounded text-xs hover:bg-blue-700">Revisar</button>
-                    </div>
-                </div>
-            `).join('');
-        }
-
-        function loadHorarios() {
-            const calendario = document.getElementById('calendarioEscolar');
-            const horarios = document.getElementById('horariosAulas');
-
-            calendario.innerHTML = `
-                <div class="grid grid-cols-7 gap-2 text-center">
-                    <div class="font-semibold text-gray-700">Dom</div>
-                    <div class="font-semibold text-gray-700">Seg</div>
-                    <div class="font-semibold text-gray-700">Ter</div>
-                    <div class="font-semibold text-gray-700">Qua</div>
-                    <div class="font-semibold text-gray-700">Qui</div>
-                    <div class="font-semibold text-gray-700">Sex</div>
-                    <div class="font-semibold text-gray-700">Sáb</div>
-                    ${Array.from({length: 35}, (_, i) => {
-                        const day = i + 1;
-                        const isToday = day === 15;
-                        return `<div class="p-2 ${isToday ? 'bg-blue-600 text-white rounded' : 'text-gray-600'}">${day <= 31 ? day : ''}</div>`;
-                    }).join('')}
-                </div>
-            `;
-
-            const horariosData = [
-                { periodo: 'Matutino', inicio: '07:00', fim: '11:30', aulas: 5 },
-                { periodo: 'Vespertino', inicio: '13:00', fim: '17:30', aulas: 5 }
-            ];
-
-            horarios.innerHTML = horariosData.map(h => `
-                <div class="bg-gray-50 rounded-lg p-4">
-                    <h6 class="font-semibold text-gray-900 mb-2">${h.periodo}</h6>
-                    <p class="text-sm text-gray-600">${h.inicio} - ${h.fim}</p>
-                    <p class="text-sm text-gray-600">${h.aulas} aulas por dia</p>
-                </div>
-            `).join('');
-        }
-
-        function loadPresenca() {
-            const presentes = document.getElementById('alunosPresentes');
-            const faltosos = document.getElementById('alunosFaltosos');
-
-            const alunosPresentes = [
-                { nome: 'Carlos Silva', turma: '1º Ano A', hora: '07:30' },
-                { nome: 'Ana Costa', turma: '2º Ano B', hora: '07:25' },
-                { nome: 'Pedro Santos', turma: '3º Ano A', hora: '07:35' }
-            ];
-
-            const alunosFaltosos = [
-                { nome: 'Maria Oliveira', turma: '1º Ano A', motivo: 'Doença' },
-                { nome: 'João Pereira', turma: '2º Ano B', motivo: 'Falta justificada' }
-            ];
-
-            presentes.innerHTML = alunosPresentes.map(aluno => `
-                <div class="flex items-center justify-between bg-green-50 rounded-lg p-3 border border-green-200">
-                    <div>
-                        <p class="font-medium text-gray-900">${aluno.nome}</p>
-                        <p class="text-sm text-gray-600">${aluno.turma}</p>
-                    </div>
-                    <span class="text-xs bg-green-600 text-white px-2 py-1 rounded-full">${aluno.hora}</span>
-                </div>
-            `).join('');
-
-            faltosos.innerHTML = alunosFaltosos.map(aluno => `
-                <div class="flex items-center justify-between bg-red-50 rounded-lg p-3 border border-red-200">
-                    <div>
-                        <p class="font-medium text-gray-900">${aluno.nome}</p>
-                        <p class="text-sm text-gray-600">${aluno.turma}</p>
-                    </div>
-                    <span class="text-xs bg-red-600 text-white px-2 py-1 rounded-full">${aluno.motivo}</span>
-                </div>
-            `).join('');
-        }
-
-        function loadNotas() {
-            const lancarNotas = document.getElementById('lancarNotas');
-            const boletins = document.getElementById('boletinsGerados');
-
-            lancarNotas.innerHTML = `
-                <div class="bg-gray-50 rounded-lg p-4">
-                    <div class="space-y-4">
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-2">Turma</label>
-                            <select class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-500">
-                                <option>1º Ano A</option>
-                                <option>2º Ano B</option>
-                                <option>3º Ano A</option>
-                            </select>
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-2">Disciplina</label>
-                            <select class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-500">
-                                <option>Matemática</option>
-                                <option>Português</option>
-                                <option>História</option>
-                            </select>
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-2">Tipo de Avaliação</label>
-                            <select class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-500">
-                                <option>Prova</option>
-                                <option>Trabalho</option>
-                                <option>Participação</option>
-                            </select>
-                        </div>
-                        <button class="w-full bg-yellow-600 text-white py-2 rounded-lg hover:bg-yellow-700">Lançar Notas</button>
-                    </div>
-                </div>
-            `;
-
-            const boletinsData = [
-                { aluno: 'Carlos Silva', turma: '1º Ano A', bimestre: '1º Bimestre', media: 8.5 },
-                { aluno: 'Ana Costa', turma: '2º Ano B', bimestre: '1º Bimestre', media: 9.2 },
-                { aluno: 'Pedro Santos', turma: '3º Ano A', bimestre: '1º Bimestre', media: 7.8 }
-            ];
-
-            boletins.innerHTML = boletinsData.map(boletim => `
-                <div class="bg-gray-50 rounded-lg p-4 border border-gray-200">
-                    <div class="flex justify-between items-center">
-                        <div>
-                            <p class="font-medium text-gray-900">${boletim.aluno}</p>
-                            <p class="text-sm text-gray-600">${boletim.turma} - ${boletim.bimestre}</p>
-                        </div>
-                        <div class="text-right">
-                            <p class="text-lg font-bold text-gray-900">${boletim.media}</p>
-                            <button class="text-xs text-blue-600 hover:text-blue-800">Ver Boletim</button>
-                        </div>
-                    </div>
-                </div>
-            `).join('');
-        }
-
-        function loadEquipe() {
-            const professores = document.getElementById('listaProfessores');
-            const funcionarios = document.getElementById('listaFuncionarios');
-
-            const professoresData = [
-                { nome: 'Maria Silva', disciplina: 'Matemática', turmas: 3, status: 'Ativo' },
-                { nome: 'João Santos', disciplina: 'Português', turmas: 2, status: 'Ativo' },
-                { nome: 'Ana Costa', disciplina: 'História', turmas: 4, status: 'Ativo' }
-            ];
-
-            const funcionariosData = [
-                { nome: 'Pedro Oliveira', cargo: 'Secretário', status: 'Ativo' },
-                { nome: 'Lucia Ferreira', cargo: 'Bibliotecária', status: 'Ativo' },
-                { nome: 'Carlos Mendes', cargo: 'Zelador', status: 'Ativo' }
-            ];
-
-            professores.innerHTML = professoresData.map(prof => `
-                <div class="bg-blue-50 rounded-lg p-4 border border-blue-200">
-                    <div class="flex justify-between items-center">
-                        <div>
-                            <p class="font-medium text-gray-900">${prof.nome}</p>
-                            <p class="text-sm text-gray-600">${prof.disciplina} - ${prof.turmas} turmas</p>
-                        </div>
-                        <span class="text-xs bg-green-600 text-white px-2 py-1 rounded-full">${prof.status}</span>
-                    </div>
-                </div>
-            `).join('');
-
-            funcionarios.innerHTML = funcionariosData.map(func => `
-                <div class="bg-green-50 rounded-lg p-4 border border-green-200">
-                    <div class="flex justify-between items-center">
-                        <div>
-                            <p class="font-medium text-gray-900">${func.nome}</p>
-                            <p class="text-sm text-gray-600">${func.cargo}</p>
-                        </div>
-                        <span class="text-xs bg-green-600 text-white px-2 py-1 rounded-full">${func.status}</span>
-                    </div>
-                </div>
-            `).join('');
-        }
-
-        function loadComunicacao() {
-            const novaMensagem = document.getElementById('novaMensagemForm');
-            const mensagens = document.getElementById('mensagensRecentes');
-
-            novaMensagem.innerHTML = `
-                <div class="bg-gray-50 rounded-lg p-4">
-                    <div class="space-y-4">
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-2">Para</label>
-                            <select class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500">
-                                <option>Pais de 1º Ano A</option>
-                                <option>Pais de 2º Ano B</option>
-                                <option>Todos os pais</option>
-                            </select>
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-2">Assunto</label>
-                            <input type="text" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500" placeholder="Assunto da mensagem">
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-2">Mensagem</label>
-                            <textarea class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500" rows="4" placeholder="Digite sua mensagem"></textarea>
-                        </div>
-                        <button class="w-full bg-pink-600 text-white py-2 rounded-lg hover:bg-pink-700">Enviar Mensagem</button>
-                    </div>
-                </div>
-            `;
-
-            const mensagensData = [
-                { assunto: 'Reunião de Pais', destinatarios: '1º Ano A', data: 'Hoje', status: 'Enviada' },
-                { assunto: 'Festa Junina', destinatarios: 'Todos', data: 'Ontem', status: 'Enviada' },
-                { assunto: 'Boletim Online', destinatarios: '2º Ano B', data: '2 dias', status: 'Pendente' }
-            ];
-
-            mensagens.innerHTML = mensagensData.map(msg => `
-                <div class="bg-gray-50 rounded-lg p-4 border border-gray-200">
-                    <div class="flex justify-between items-start">
-                        <div>
-                            <p class="font-medium text-gray-900">${msg.assunto}</p>
-                            <p class="text-sm text-gray-600">Para: ${msg.destinatarios}</p>
-                            <p class="text-sm text-gray-600">${msg.data}</p>
-                        </div>
-                        <span class="text-xs ${msg.status === 'Enviada' ? 'bg-green-600' : 'bg-orange-600'} text-white px-2 py-1 rounded-full">${msg.status}</span>
-                    </div>
-                </div>
-            `).join('');
-        }
-
-        function loadValidacao() {
-            const validacoes = document.getElementById('listaValidacoes');
-
-            const validacoesData = [
-                { tipo: 'Nota de Aluno', detalhes: 'Carlos Silva - Matemática - 9.5', enviadoPor: 'Prof. Maria Silva', data: '2 horas', status: 'Aguardando' },
-                { tipo: 'Falta Justificada', detalhes: 'Ana Costa - 3º Ano A', enviadoPor: 'Prof. João Santos', data: '4 horas', status: 'Aguardando' },
-                { tipo: 'Mudança de Turma', detalhes: 'Pedro Santos - 1º para 2º Ano', enviadoPor: 'Coord. Ana Costa', data: '1 dia', status: 'Aguardando' }
-            ];
-
-            validacoes.innerHTML = validacoesData.map(validacao => `
-                <div class="bg-gray-50 rounded-lg p-4 border border-gray-200">
-                    <div class="flex justify-between items-start">
-                        <div class="flex-1">
-                            <h6 class="font-semibold text-gray-900">${validacao.tipo}</h6>
-                            <p class="text-sm text-gray-600 mt-1">${validacao.detalhes}</p>
-                            <p class="text-xs text-gray-500 mt-2">Enviado por: ${validacao.enviadoPor} - ${validacao.data}</p>
-                        </div>
-                        <div class="flex space-x-2 ml-4">
-                            <button class="bg-green-600 text-white px-3 py-1.5 rounded text-sm hover:bg-green-700">Aprovar</button>
-                            <button class="bg-red-600 text-white px-3 py-1.5 rounded text-sm hover:bg-red-700">Rejeitar</button>
-                        </div>
-                    </div>
-                </div>
-            `).join('');
-        }
-
-        // Adicionar event listeners aos cards
-        document.addEventListener('DOMContentLoaded', function() {
-            // Adicionar cliques aos cards
-            const cards = document.querySelectorAll('#gestao .group');
-            cards.forEach(card => {
-                const button = card.querySelector('button');
-                if (button) {
-                    button.addEventListener('click', function(e) {
-                        e.stopPropagation();
-                        const buttonText = button.textContent.trim();
-                        
-                        if (buttonText.includes('Turmas')) openTurmas();
-                        else if (buttonText.includes('Cadastros')) openMatriculas();
-                        else if (buttonText.includes('Horários')) openHorarios();
-                        else if (buttonText.includes('Presença')) openPresenca();
-                        else if (buttonText.includes('Notas')) openNotas();
-                        else if (buttonText.includes('Equipe')) openEquipe();
-                        else if (buttonText.includes('Mensagem')) openComunicacao();
-                        else if (buttonText.includes('Validar')) openValidacao();
-                    });
-                }
-            });
-        });
-    </script>
-
-    <!-- Modais da Administração da Merenda -->
-    
-    <!-- Modal de Cardápios - Full Screen -->
-    <div id="cardapiosModal" class="fixed inset-0 bg-white hidden z-50 overflow-y-auto">
-        <div class="bg-white border-b border-gray-200 px-6 py-4 sticky top-0 z-10">
-            <div class="flex items-center justify-between">
-                <div class="flex items-center space-x-4">
-                    <button onclick="closeModal('cardapiosModal')" class="text-gray-600 hover:text-gray-900 p-2 hover:bg-gray-100 rounded-lg transition-colors">
-                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
-                        </svg>
-                    </button>
-                    <h1 class="text-2xl font-bold text-gray-900">Gerenciar Cardápios</h1>
-                </div>
-                <button onclick="openAddCardapioModal()" class="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center space-x-2">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
-                    </svg>
-                    <span>Novo Cardápio</span>
-                </button>
-            </div>
-        </div>
-        <div class="p-6">
-            <div class="max-w-7xl mx-auto">
-                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" id="cardapiosList">
-                    <!-- Cardápios serão carregados aqui -->
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Modal de Estoque - Full Screen -->
-    <div id="estoqueModal" class="fixed inset-0 bg-white hidden z-50 overflow-y-auto">
-        <div class="bg-white border-b border-gray-200 px-6 py-4 sticky top-0 z-10">
-            <div class="flex items-center justify-between">
-                <div class="flex items-center space-x-4">
-                    <button onclick="closeModal('estoqueModal')" class="text-gray-600 hover:text-gray-900 p-2 hover:bg-gray-100 rounded-lg transition-colors">
-                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
-                        </svg>
-                    </button>
-                    <h1 class="text-2xl font-bold text-gray-900">Gerenciar Estoque</h1>
-                </div>
-                <div class="flex items-center space-x-3">
-                    <span class="text-sm text-gray-600">Total: <strong>245 itens</strong></span>
-                    <button class="bg-indigo-600 text-white px-6 py-2 rounded-lg hover:bg-indigo-700 transition-colors flex items-center space-x-2">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
-                        </svg>
-                        <span>Nova Entrada</span>
-                    </button>
-                </div>
-            </div>
-        </div>
-        <div class="p-6">
-            <div class="max-w-7xl mx-auto">
-                <div class="grid grid-cols-1 xl:grid-cols-2 gap-8">
-                    <div>
-                        <h2 class="text-xl font-semibold text-gray-800 mb-6">Entradas de Hoje</h2>
-                        <div class="space-y-4" id="entradasHoje">
-                            <!-- Entradas serão carregadas aqui -->
-                        </div>
-                    </div>
-                    <div>
-                        <h2 class="text-xl font-semibold text-gray-800 mb-6">Produtos com Baixo Estoque</h2>
-                        <div class="space-y-4" id="baixoEstoque">
-                            <!-- Produtos com baixo estoque -->
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Modal de Consumo - Full Screen -->
-    <div id="consumoModal" class="fixed inset-0 bg-white hidden z-50 overflow-y-auto">
-        <div class="bg-white border-b border-gray-200 px-6 py-4 sticky top-0 z-10">
-            <div class="flex items-center justify-between">
-                <div class="flex items-center space-x-4">
-                    <button onclick="closeModal('consumoModal')" class="text-gray-600 hover:text-gray-900 p-2 hover:bg-gray-100 rounded-lg transition-colors">
-                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
-                        </svg>
-                    </button>
-                    <h1 class="text-2xl font-bold text-gray-900">Registrar Consumo</h1>
-                </div>
-                <div class="flex items-center space-x-4">
-                    <div class="text-right">
-                        <div class="text-sm text-gray-600">Total Hoje</div>
-                        <div class="text-2xl font-bold text-green-600">485</div>
-                    </div>
-                    <button class="bg-green-600 text-white px-6 py-2 rounded-lg hover:bg-green-700 transition-colors flex items-center space-x-2">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
-                        </svg>
-                        <span>Nova Refeição</span>
-                    </button>
-                </div>
-            </div>
-        </div>
-        <div class="p-6">
-            <div class="max-w-7xl mx-auto">
-                <div class="grid grid-cols-1 xl:grid-cols-2 gap-8">
-                    <div>
-                        <h2 class="text-xl font-semibold text-gray-800 mb-6">Consumo por Turno</h2>
-                        <div class="space-y-4" id="consumoTurno">
-                            <!-- Consumo por turno -->
-                        </div>
-                    </div>
-                    <div>
-                        <h2 class="text-xl font-semibold text-gray-800 mb-6">Consumo por Turma</h2>
-                        <div class="space-y-4" id="consumoTurma">
-                            <!-- Consumo por turma -->
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Modal de Desperdício - Full Screen -->
-    <div id="desperdicioModal" class="fixed inset-0 bg-white hidden z-50 overflow-y-auto">
-        <div class="bg-white border-b border-gray-200 px-6 py-4 sticky top-0 z-10">
-            <div class="flex items-center justify-between">
-                <div class="flex items-center space-x-4">
-                    <button onclick="closeModal('desperdicioModal')" class="text-gray-600 hover:text-gray-900 p-2 hover:bg-gray-100 rounded-lg transition-colors">
-                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
-                        </svg>
-                    </button>
-                    <h1 class="text-2xl font-bold text-gray-900">Relatórios de Desperdício</h1>
-                </div>
-                <div class="flex items-center space-x-4">
-                    <div class="text-right">
-                        <div class="text-sm text-gray-600">Taxa de Desperdício</div>
-                        <div class="text-2xl font-bold text-red-600">3.2%</div>
-                    </div>
-                    <button class="bg-red-600 text-white px-6 py-2 rounded-lg hover:bg-red-700 transition-colors flex items-center space-x-2">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
-                        </svg>
-                        <span>Exportar Relatório</span>
-                    </button>
-                </div>
-            </div>
-        </div>
-        <div class="p-6">
-            <div class="max-w-7xl mx-auto">
-                <div class="grid grid-cols-1 xl:grid-cols-2 gap-8">
-                    <div>
-                        <h2 class="text-xl font-semibold text-gray-800 mb-6">Desperdício Diário</h2>
-                        <div class="space-y-4" id="desperdicioDiario">
-                            <!-- Desperdício diário -->
-                        </div>
-                    </div>
-                    <div>
-                        <h2 class="text-xl font-semibold text-gray-800 mb-6">Produtos Mais Desperdiçados</h2>
-                        <div class="space-y-4" id="produtosDesperdicados">
-                            <!-- Produtos mais desperdiçados -->
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Modal de Fornecedores - Full Screen -->
-    <div id="fornecedoresModal" class="fixed inset-0 bg-white hidden z-50 overflow-y-auto">
-        <div class="bg-white border-b border-gray-200 px-6 py-4 sticky top-0 z-10">
-            <div class="flex items-center justify-between">
-                <div class="flex items-center space-x-4">
-                    <button onclick="closeModal('fornecedoresModal')" class="text-gray-600 hover:text-gray-900 p-2 hover:bg-gray-100 rounded-lg transition-colors">
-                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
-                        </svg>
-                    </button>
-                    <h1 class="text-2xl font-bold text-gray-900">Gerenciar Fornecedores</h1>
-                </div>
-                <div class="flex items-center space-x-3">
-                    <span class="text-sm text-gray-600">Total: <strong>12 fornecedores</strong></span>
-                    <button class="bg-purple-600 text-white px-6 py-2 rounded-lg hover:bg-purple-700 transition-colors flex items-center space-x-2">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
-                        </svg>
-                        <span>Novo Fornecedor</span>
-                    </button>
-                </div>
-            </div>
-        </div>
-        <div class="p-6">
-            <div class="max-w-7xl mx-auto">
-                <div class="grid grid-cols-1 xl:grid-cols-2 gap-8">
-                    <div>
-                        <h2 class="text-xl font-semibold text-gray-800 mb-6">Pedidos Pendentes</h2>
-                        <div class="space-y-4" id="pedidosPendentes">
-                            <!-- Pedidos pendentes -->
-                        </div>
-                    </div>
-                    <div>
-                        <h2 class="text-xl font-semibold text-gray-800 mb-6">Entregas de Hoje</h2>
-                        <div class="space-y-4" id="entregasHoje">
-                            <!-- Entregas de hoje -->
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Modal de Distribuição - Full Screen -->
-    <div id="distribuicaoModal" class="fixed inset-0 bg-white hidden z-50 overflow-y-auto">
-        <div class="bg-white border-b border-gray-200 px-6 py-4 sticky top-0 z-10">
-            <div class="flex items-center justify-between">
-                <div class="flex items-center space-x-4">
-                    <button onclick="closeModal('distribuicaoModal')" class="text-gray-600 hover:text-gray-900 p-2 hover:bg-gray-100 rounded-lg transition-colors">
-                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
-                        </svg>
-                    </button>
-                    <h1 class="text-2xl font-bold text-gray-900">Ajustar Distribuição</h1>
-                </div>
-                <div class="flex items-center space-x-4">
-                    <div class="text-right">
-                        <div class="text-sm text-gray-600">Status</div>
-                        <div class="text-2xl font-bold text-teal-600">Aprovada</div>
-                    </div>
-                    <button class="bg-teal-600 text-white px-6 py-2 rounded-lg hover:bg-teal-700 transition-colors flex items-center space-x-2">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                        </svg>
-                        <span>Aprovar Distribuição</span>
-                    </button>
-                </div>
-            </div>
-        </div>
-        <div class="p-6">
-            <div class="max-w-7xl mx-auto">
-                <div class="grid grid-cols-1 xl:grid-cols-2 gap-8">
-                    <div>
-                        <h2 class="text-xl font-semibold text-gray-800 mb-6">Distribuição Matutino</h2>
-                        <div class="space-y-4" id="distribuicaoMatutino">
-                            <!-- Distribuição matutino -->
-                        </div>
-                    </div>
-                    <div>
-                        <h2 class="text-xl font-semibold text-gray-800 mb-6">Distribuição Vespertino</h2>
-                        <div class="space-y-4" id="distribuicaoVespertino">
-                            <!-- Distribuição vespertino -->
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Modal de Custos - Full Screen -->
-    <div id="custosModal" class="fixed inset-0 bg-white hidden z-50 overflow-y-auto">
-        <div class="bg-white border-b border-gray-200 px-6 py-4 sticky top-0 z-10">
-            <div class="flex items-center justify-between">
-                <div class="flex items-center space-x-4">
-                    <button onclick="closeModal('custosModal')" class="text-gray-600 hover:text-gray-900 p-2 hover:bg-gray-100 rounded-lg transition-colors">
-                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
-                        </svg>
-                    </button>
-                    <h1 class="text-2xl font-bold text-gray-900">Monitorar Custos</h1>
-                </div>
-                <div class="flex items-center space-x-4">
-                    <div class="text-right">
-                        <div class="text-sm text-gray-600">Este Mês</div>
-                        <div class="text-2xl font-bold text-yellow-600">R$ 2.450</div>
-                    </div>
-                    <button class="bg-yellow-600 text-white px-6 py-2 rounded-lg hover:bg-yellow-700 transition-colors flex items-center space-x-2">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
-                        </svg>
-                        <span>Gerar Relatório</span>
-                    </button>
-                </div>
-            </div>
-        </div>
-        <div class="p-6">
-            <div class="max-w-7xl mx-auto">
-                <div class="grid grid-cols-1 xl:grid-cols-2 gap-8">
-                    <div>
-                        <h2 class="text-xl font-semibold text-gray-800 mb-6">Custos por Categoria</h2>
-                        <div class="space-y-4" id="custosCategoria">
-                            <!-- Custos por categoria -->
-                        </div>
-                    </div>
-                    <div>
-                        <h2 class="text-xl font-semibold text-gray-800 mb-6">Custo por Aluno</h2>
-                        <div class="space-y-4" id="custoAluno">
-                            <!-- Custo por aluno -->
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Modal de Relatórios - Full Screen -->
-    <div id="relatoriosModal" class="fixed inset-0 bg-white hidden z-50 overflow-y-auto">
-        <div class="bg-white border-b border-gray-200 px-6 py-4 sticky top-0 z-10">
-            <div class="flex items-center justify-between">
-                <div class="flex items-center space-x-4">
-                    <button onclick="closeModal('relatoriosModal')" class="text-gray-600 hover:text-gray-900 p-2 hover:bg-gray-100 rounded-lg transition-colors">
-                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
-                        </svg>
-                    </button>
-                    <h1 class="text-2xl font-bold text-gray-900">Gerar Relatórios</h1>
-                </div>
-                <div class="flex items-center space-x-3">
-                    <span class="text-sm text-gray-600">Disponíveis: <strong>16 relatórios</strong></span>
-                    <button class="bg-gray-600 text-white px-6 py-2 rounded-lg hover:bg-gray-700 transition-colors flex items-center space-x-2">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
-                        </svg>
-                        <span>Novo Relatório</span>
-                    </button>
-                </div>
-            </div>
-        </div>
-        <div class="p-6">
-            <div class="max-w-7xl mx-auto">
-                <div class="grid grid-cols-1 xl:grid-cols-2 gap-8">
-                    <div>
-                        <h2 class="text-xl font-semibold text-gray-800 mb-6">Relatórios Mensais</h2>
-                        <div class="space-y-4" id="relatoriosMensais">
-                            <!-- Relatórios mensais -->
-                        </div>
-                    </div>
-                    <div>
-                        <h2 class="text-xl font-semibold text-gray-800 mb-6">Relatórios Trimestrais</h2>
-                        <div class="space-y-4" id="relatoriosTrimestrais">
-                            <!-- Relatórios trimestrais -->
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <script>
-        // Funções para modais da merenda
-        function openCardapios() {
-            openModal('cardapiosModal');
-            loadCardapios();
-        }
-
-        function openEstoque() {
-            openModal('estoqueModal');
-            loadEstoque();
-        }
-
-        function openConsumo() {
-            openModal('consumoModal');
-            loadConsumo();
-        }
-
-        function openDesperdicio() {
-            openModal('desperdicioModal');
-            loadDesperdicio();
-        }
-
-        function openFornecedores() {
-            openModal('fornecedoresModal');
-            loadFornecedores();
-        }
-
-        function openDistribuicao() {
-            openModal('distribuicaoModal');
-            loadDistribuicao();
-        }
-
-        function openCustos() {
-            openModal('custosModal');
-            loadCustos();
-        }
-
-        function openRelatorios() {
-            openModal('relatoriosModal');
-            loadRelatorios();
-        }
-
-        // Funções de carregamento de dados
-        function loadCardapios() {
-            const cardapiosList = document.getElementById('cardapiosList');
-            const cardapios = [
-                { id: 1, nome: 'Cardápio Semanal A', periodo: '01/01 - 07/01', status: 'Ativo', refeicoes: 5 },
-                { id: 2, nome: 'Cardápio Semanal B', periodo: '08/01 - 14/01', status: 'Pendente', refeicoes: 5 },
-                { id: 3, nome: 'Cardápio Semanal C', periodo: '15/01 - 21/01', status: 'Rascunho', refeicoes: 3 }
-            ];
-
-            cardapiosList.innerHTML = cardapios.map(cardapio => `
-                <div class="bg-white border border-gray-200 rounded-lg p-6 shadow-sm">
-                    <div class="flex justify-between items-start mb-4">
-                        <h3 class="text-lg font-semibold text-gray-900">${cardapio.nome}</h3>
-                        <span class="text-xs px-2 py-1 rounded-full ${
-                            cardapio.status === 'Ativo' ? 'bg-green-100 text-green-800' :
-                            cardapio.status === 'Pendente' ? 'bg-orange-100 text-orange-800' :
-                            'bg-gray-100 text-gray-800'
-                        }">${cardapio.status}</span>
-                    </div>
-                    <p class="text-sm text-gray-600 mb-2">Período: ${cardapio.periodo}</p>
-                    <p class="text-sm text-gray-600 mb-4">Refeições: ${cardapio.refeicoes}</p>
-                    <div class="flex space-x-2">
-                        <button class="flex-1 bg-blue-600 text-white px-3 py-2 rounded text-sm hover:bg-blue-700">Editar</button>
-                        <button class="flex-1 bg-green-600 text-white px-3 py-2 rounded text-sm hover:bg-green-700">Aplicar</button>
-                    </div>
-                </div>
-            `).join('');
-        }
-
-        function loadEstoque() {
-            const entradasHoje = document.getElementById('entradasHoje');
-            const baixoEstoque = document.getElementById('baixoEstoque');
-
-            const entradas = [
-                { produto: 'Arroz', quantidade: '50kg', fornecedor: 'Distribuidora ABC' },
-                { produto: 'Feijão', quantidade: '30kg', fornecedor: 'Distribuidora XYZ' },
-                { produto: 'Óleo', quantidade: '20L', fornecedor: 'Distribuidora ABC' }
-            ];
-
-            const baixos = [
-                { produto: 'Açúcar', estoque: '2kg', minimo: '10kg' },
-                { produto: 'Sal', estoque: '1kg', minimo: '5kg' },
-                { produto: 'Macarrão', estoque: '5kg', minimo: '15kg' }
-            ];
-
-            entradasHoje.innerHTML = entradas.map(entrada => `
-                <div class="bg-green-50 rounded-lg p-4 border border-green-200">
-                    <div class="flex justify-between items-center">
-                        <div>
-                            <p class="font-medium text-gray-900">${entrada.produto}</p>
-                            <p class="text-sm text-gray-600">${entrada.quantidade} - ${entrada.fornecedor}</p>
-                        </div>
-                        <span class="text-xs bg-green-600 text-white px-2 py-1 rounded-full">Entrada</span>
-                    </div>
-                </div>
-            `).join('');
-
-            baixoEstoque.innerHTML = baixos.map(item => `
-                <div class="bg-red-50 rounded-lg p-4 border border-red-200">
-                    <div class="flex justify-between items-center">
-                        <div>
-                            <p class="font-medium text-gray-900">${item.produto}</p>
-                            <p class="text-sm text-gray-600">${item.estoque} / Mín: ${item.minimo}</p>
-                        </div>
-                        <button class="text-xs bg-red-600 text-white px-3 py-1 rounded-full hover:bg-red-700">Pedir</button>
-                    </div>
-                </div>
-            `).join('');
-        }
-
-        function loadConsumo() {
-            const consumoTurno = document.getElementById('consumoTurno');
-            const consumoTurma = document.getElementById('consumoTurma');
-
-            const turnos = [
-                { turno: 'Matutino', refeicoes: 245, percentual: '51%' },
-                { turno: 'Vespertino', refeicoes: 240, percentual: '49%' }
-            ];
-
-            const turmas = [
-                { turma: '1º Ano A', alunos: 25, refeicoes: 25 },
-                { turma: '2º Ano B', alunos: 28, refeicoes: 27 },
-                { turma: '3º Ano A', alunos: 23, refeicoes: 23 }
-            ];
-
-            consumoTurno.innerHTML = turnos.map(t => `
-                <div class="bg-green-50 rounded-lg p-4 border border-green-200">
-                    <div class="flex justify-between items-center">
-                        <div>
-                            <p class="font-medium text-gray-900">${t.turno}</p>
-                            <p class="text-sm text-gray-600">${t.refeicoes} refeições</p>
-                        </div>
-                        <span class="text-lg font-bold text-green-600">${t.percentual}</span>
-                    </div>
-                </div>
-            `).join('');
-
-            consumoTurma.innerHTML = turmas.map(t => `
-                <div class="bg-blue-50 rounded-lg p-4 border border-blue-200">
-                    <div class="flex justify-between items-center">
-                        <div>
-                            <p class="font-medium text-gray-900">${t.turma}</p>
-                            <p class="text-sm text-gray-600">${t.alunos} alunos</p>
-                        </div>
-                        <span class="text-sm font-semibold text-blue-600">${t.refeicoes} refeições</span>
-                    </div>
-                </div>
-            `).join('');
-        }
-
-        function loadDesperdicio() {
-            const desperdicioDiario = document.getElementById('desperdicioDiario');
-            const produtosDesperdicados = document.getElementById('produtosDesperdicados');
-
-            const desperdicio = [
-                { produto: 'Arroz', quantidade: '5.2kg', valor: 'R$ 8,50' },
-                { produto: 'Feijão', quantidade: '3.8kg', valor: 'R$ 12,00' },
-                { produto: 'Legumes', quantidade: '6.5kg', valor: 'R$ 15,00' }
-            ];
-
-            const produtos = [
-                { produto: 'Arroz', desperdicio: '8.5%', motivo: 'Excesso de porção' },
-                { produto: 'Legumes', desperdicio: '12.3%', motivo: 'Preparo inadequado' },
-                { produto: 'Macarrão', desperdicio: '6.2%', motivo: 'Temperatura incorreta' }
-            ];
-
-            desperdicioDiario.innerHTML = desperdicio.map(d => `
-                <div class="bg-red-50 rounded-lg p-4 border border-red-200">
-                    <div class="flex justify-between items-center">
-                        <div>
-                            <p class="font-medium text-gray-900">${d.produto}</p>
-                            <p class="text-sm text-gray-600">${d.quantidade}</p>
-                        </div>
-                        <span class="text-sm font-semibold text-red-600">${d.valor}</span>
-                    </div>
-                </div>
-            `).join('');
-
-            produtosDesperdicados.innerHTML = produtos.map(p => `
-                <div class="bg-orange-50 rounded-lg p-4 border border-orange-200">
-                    <div class="flex justify-between items-center">
-                        <div>
-                            <p class="font-medium text-gray-900">${p.produto}</p>
-                            <p class="text-sm text-gray-600">${p.motivo}</p>
-                        </div>
-                        <span class="text-sm font-semibold text-orange-600">${p.desperdicio}</span>
-                    </div>
-                </div>
-            `).join('');
-        }
-
-        function loadFornecedores() {
-            const pedidosPendentes = document.getElementById('pedidosPendentes');
-            const entregasHoje = document.getElementById('entregasHoje');
-
-            const pedidos = [
-                { fornecedor: 'Distribuidora ABC', produto: 'Arroz', quantidade: '100kg', data: '15/01' },
-                { fornecedor: 'Distribuidora XYZ', produto: 'Óleo', quantidade: '50L', data: '16/01' },
-                { fornecedor: 'Mercearia Central', produto: 'Açúcar', quantidade: '30kg', data: '17/01' }
-            ];
-
-            const entregas = [
-                { fornecedor: 'Distribuidora ABC', produto: 'Feijão', quantidade: '80kg', hora: '08:30' },
-                { fornecedor: 'Distribuidora XYZ', produto: 'Macarrão', quantidade: '40kg', hora: '10:15' }
-            ];
-
-            pedidosPendentes.innerHTML = pedidos.map(p => `
-                <div class="bg-orange-50 rounded-lg p-4 border border-orange-200">
-                    <div class="flex justify-between items-center">
-                        <div>
-                            <p class="font-medium text-gray-900">${p.fornecedor}</p>
-                            <p class="text-sm text-gray-600">${p.produto} - ${p.quantidade}</p>
-                        </div>
-                        <span class="text-xs bg-orange-600 text-white px-2 py-1 rounded-full">${p.data}</span>
-                    </div>
-                </div>
-            `).join('');
-
-            entregasHoje.innerHTML = entregas.map(e => `
-                <div class="bg-green-50 rounded-lg p-4 border border-green-200">
-                    <div class="flex justify-between items-center">
-                        <div>
-                            <p class="font-medium text-gray-900">${e.fornecedor}</p>
-                            <p class="text-sm text-gray-600">${e.produto} - ${e.quantidade}</p>
-                        </div>
-                        <span class="text-xs bg-green-600 text-white px-2 py-1 rounded-full">${e.hora}</span>
-                    </div>
-                </div>
-            `).join('');
-        }
-
-        function loadDistribuicao() {
-            const distribuicaoMatutino = document.getElementById('distribuicaoMatutino');
-            const distribuicaoVespertino = document.getElementById('distribuicaoVespertino');
-
-            const matutino = [
-                { turma: '1º Ano A', alunos: 25, refeicoes: 25, status: 'Completa' },
-                { turma: '2º Ano A', alunos: 28, refeicoes: 28, status: 'Completa' },
-                { turma: '3º Ano A', alunos: 23, refeicoes: 22, status: 'Parcial' }
-            ];
-
-            const vespertino = [
-                { turma: '1º Ano B', alunos: 26, refeicoes: 26, status: 'Completa' },
-                { turma: '2º Ano B', alunos: 24, refeicoes: 24, status: 'Completa' },
-                { turma: '3º Ano B', alunos: 27, refeicoes: 27, status: 'Completa' }
-            ];
-
-            distribuicaoMatutino.innerHTML = matutino.map(t => `
-                <div class="bg-blue-50 rounded-lg p-4 border border-blue-200">
-                    <div class="flex justify-between items-center">
-                        <div>
-                            <p class="font-medium text-gray-900">${t.turma}</p>
-                            <p class="text-sm text-gray-600">${t.alunos} alunos</p>
-                        </div>
-                        <div class="text-right">
-                            <p class="text-sm font-semibold text-blue-600">${t.refeicoes} refeições</p>
-                            <span class="text-xs ${t.status === 'Completa' ? 'bg-green-600' : 'bg-orange-600'} text-white px-2 py-1 rounded-full">${t.status}</span>
-                        </div>
-                    </div>
-                </div>
-            `).join('');
-
-            distribuicaoVespertino.innerHTML = vespertino.map(t => `
-                <div class="bg-orange-50 rounded-lg p-4 border border-orange-200">
-                    <div class="flex justify-between items-center">
-                        <div>
-                            <p class="font-medium text-gray-900">${t.turma}</p>
-                            <p class="text-sm text-gray-600">${t.alunos} alunos</p>
-                        </div>
-                        <div class="text-right">
-                            <p class="text-sm font-semibold text-orange-600">${t.refeicoes} refeições</p>
-                            <span class="text-xs ${t.status === 'Completa' ? 'bg-green-600' : 'bg-orange-600'} text-white px-2 py-1 rounded-full">${t.status}</span>
-                        </div>
-                    </div>
-                </div>
-            `).join('');
-        }
-
-        function loadCustos() {
-            const custosCategoria = document.getElementById('custosCategoria');
-            const custoAluno = document.getElementById('custoAluno');
-
-            const categorias = [
-                { categoria: 'Proteínas', valor: 'R$ 850', percentual: '35%' },
-                { categoria: 'Carboidratos', valor: 'R$ 650', percentual: '27%' },
-                { categoria: 'Legumes/Verduras', valor: 'R$ 480', percentual: '20%' },
-                { categoria: 'Outros', valor: 'R$ 470', percentual: '18%' }
-            ];
-
-            const custoPorAluno = [
-                { periodo: 'Este mês', valor: 'R$ 5,05', refeicoes: 22 },
-                { periodo: 'Último mês', valor: 'R$ 4,85', refeicoes: 20 },
-                { periodo: 'Média anual', valor: 'R$ 4,95', refeicoes: 21 }
-            ];
-
-            custosCategoria.innerHTML = categorias.map(c => `
-                <div class="bg-yellow-50 rounded-lg p-4 border border-yellow-200">
-                    <div class="flex justify-between items-center">
-                        <div>
-                            <p class="font-medium text-gray-900">${c.categoria}</p>
-                            <p class="text-sm text-gray-600">${c.percentual}</p>
-                        </div>
-                        <span class="text-sm font-semibold text-yellow-600">${c.valor}</span>
-                    </div>
-                </div>
-            `).join('');
-
-            custoAluno.innerHTML = custoPorAluno.map(c => `
-                <div class="bg-green-50 rounded-lg p-4 border border-green-200">
-                    <div class="flex justify-between items-center">
-                        <div>
-                            <p class="font-medium text-gray-900">${c.periodo}</p>
-                            <p class="text-sm text-gray-600">${c.refeicoes} refeições</p>
-                        </div>
-                        <span class="text-sm font-semibold text-green-600">${c.valor}</span>
-                    </div>
-                </div>
-            `).join('');
-        }
-
-        function loadRelatorios() {
-            const relatoriosMensais = document.getElementById('relatoriosMensais');
-            const relatoriosTrimestrais = document.getElementById('relatoriosTrimestrais');
-
-            const mensais = [
-                { nome: 'Relatório de Consumo', periodo: 'Janeiro 2024', status: 'Gerado' },
-                { nome: 'Relatório de Custos', periodo: 'Janeiro 2024', status: 'Pendente' },
-                { nome: 'Relatório de Desperdício', periodo: 'Janeiro 2024', status: 'Gerado' },
-                { nome: 'Relatório de Fornecedores', periodo: 'Janeiro 2024', status: 'Gerado' }
-            ];
-
-            const trimestrais = [
-                { nome: 'Relatório Geral Q4', periodo: 'Out-Dez 2023', status: 'Gerado' },
-                { nome: 'Análise de Custos Q4', periodo: 'Out-Dez 2023', status: 'Pendente' },
-                { nome: 'Relatório de Eficiência Q4', periodo: 'Out-Dez 2023', status: 'Gerado' }
-            ];
-
-            relatoriosMensais.innerHTML = mensais.map(r => `
-                <div class="bg-gray-50 rounded-lg p-4 border border-gray-200">
-                    <div class="flex justify-between items-center">
-                        <div>
-                            <p class="font-medium text-gray-900">${r.nome}</p>
-                            <p class="text-sm text-gray-600">${r.periodo}</p>
-                        </div>
-                        <div class="flex space-x-2">
-                            <span class="text-xs ${r.status === 'Gerado' ? 'bg-green-600' : 'bg-orange-600'} text-white px-2 py-1 rounded-full">${r.status}</span>
-                            <button class="text-xs text-blue-600 hover:text-blue-800">Ver</button>
-                        </div>
-                    </div>
-                </div>
-            `).join('');
-
-            relatoriosTrimestrais.innerHTML = trimestrais.map(r => `
-                <div class="bg-gray-50 rounded-lg p-4 border border-gray-200">
-                    <div class="flex justify-between items-center">
-                        <div>
-                            <p class="font-medium text-gray-900">${r.nome}</p>
-                            <p class="text-sm text-gray-600">${r.periodo}</p>
-                        </div>
-                        <div class="flex space-x-2">
-                            <span class="text-xs ${r.status === 'Gerado' ? 'bg-green-600' : 'bg-orange-600'} text-white px-2 py-1 rounded-full">${r.status}</span>
-                            <button class="text-xs text-blue-600 hover:text-blue-800">Ver</button>
-                        </div>
-                    </div>
-                </div>
-            `).join('');
-        }
-
-        // Adicionar event listeners para os cards da merenda
-        document.addEventListener('DOMContentLoaded', function() {
-            const merendaCards = document.querySelectorAll('#merenda .group');
-            merendaCards.forEach(card => {
-                const button = card.querySelector('button');
-                if (button) {
-                    button.addEventListener('click', function(e) {
-                        e.stopPropagation();
-                        const buttonText = button.textContent.trim();
-                        
-                        if (buttonText.includes('Cardápios')) openCardapios();
-                        else if (buttonText.includes('Estoque')) openEstoque();
-                        else if (buttonText.includes('Consumo')) openConsumo();
-                        else if (buttonText.includes('Desperdício')) openDesperdicio();
-                        else if (buttonText.includes('Fornecedores')) openFornecedores();
-                        else if (buttonText.includes('Distribuição')) openDistribuicao();
-                        else if (buttonText.includes('Custos')) openCustos();
-                        else if (buttonText.includes('Relatórios')) openRelatorios();
-                    });
-                }
-            });
-            
-            // Carregar configurações de acessibilidade salvas
-            loadAccessibilitySettings();
-
-            // ===== MELHORIAS DE UX/UI =====
-            
-            // Feedback visual para ações
-            function showFeedback(message, type = 'success') {
-                const feedback = document.createElement('div');
-                feedback.className = type === 'success' ? 'success-feedback' : 'error-feedback';
-                feedback.textContent = message;
-                feedback.style.display = 'block';
-                
-                // Inserir no topo do conteúdo principal
-                const mainContent = document.querySelector('main');
-                mainContent.insertBefore(feedback, mainContent.firstChild);
-                
-                // Remover após 3 segundos
-                setTimeout(() => {
-                    feedback.remove();
-                }, 3000);
-            }
-            
-            // Loading state para botões
-            function setButtonLoading(button, loading = true) {
-                if (loading) {
-                    button.disabled = true;
-                    button.classList.add('loading');
-                    const originalText = button.textContent;
-                    button.setAttribute('data-original-text', originalText);
-                    button.textContent = 'Carregando...';
-                } else {
-                    button.disabled = false;
-                    button.classList.remove('loading');
-                    button.textContent = button.getAttribute('data-original-text') || 'Salvar';
-                }
-            }
-            
-            // Melhorar acessibilidade - navegação por teclado
-            document.addEventListener('keydown', function(e) {
-                // ESC para fechar modais
-                if (e.key === 'Escape') {
-                    const modals = document.querySelectorAll('[id$="Modal"]');
-                    modals.forEach(modal => {
-                        if (!modal.classList.contains('hidden')) {
-                            modal.classList.add('hidden');
-                        }
-                    });
-                }
-                
-                // Enter para ativar botões focados
-                if (e.key === 'Enter' && e.target.tagName === 'BUTTON') {
-                    e.target.click();
-                }
-            });
-            
-            // Melhorar foco visível
-            document.addEventListener('focusin', function(e) {
-                e.target.classList.add('focus-visible');
-            });
-            
-            document.addEventListener('focusout', function(e) {
-                e.target.classList.remove('focus-visible');
-            });
-            
-            // Microinterações para cards
-            document.addEventListener('DOMContentLoaded', function() {
-                const cards = document.querySelectorAll('.card-hover');
-                cards.forEach(card => {
-                    card.classList.add('micro-interaction');
-                });
-            });
-        });
-        
-        // Função para carregar configurações de acessibilidade salvas
-        function loadAccessibilitySettings() {
-            // Carregar configuração do VLibras
-            const vlibrasEnabled = localStorage.getItem('vlibras-enabled');
-            const vlibrasToggle = document.getElementById('vlibras-toggle');
-            const vlibrasWidget = document.getElementById('vlibras-widget');
-            
-            if (vlibrasToggle) {
-                if (vlibrasEnabled === 'false') {
-                    vlibrasToggle.checked = false;
-                    vlibrasWidget.style.display = 'none';
-                    vlibrasWidget.classList.remove('enabled');
-                    vlibrasWidget.classList.add('disabled');
-                } else {
-                    vlibrasToggle.checked = true;
-                    vlibrasWidget.style.display = 'block';
-                    vlibrasWidget.classList.remove('disabled');
-                    vlibrasWidget.classList.add('enabled');
-                }
-            }
-            
-            // Carregar outras configurações de acessibilidade
-            const settings = JSON.parse(localStorage.getItem('accessibilitySettings') || '{}');
-            
-            // Aplicar configuração de redução de movimento
-            if (settings.reduceMotion) {
-                const reduceMotionToggle = document.getElementById('reduce-motion');
-                if (reduceMotionToggle) {
-                    reduceMotionToggle.checked = true;
-                    setReduceMotion(true);
-                }
-            }
-            
-            // Aplicar configuração de navegação por teclado
-            if (settings.keyboardNav) {
-                const keyboardNavToggle = document.getElementById('keyboard-nav');
-                if (keyboardNavToggle) {
-                    keyboardNavToggle.checked = true;
-                    setKeyboardNavigation(true);
-                }
-            }
-        }
     </script>
 
 </body>
-
 </html>
