@@ -1987,9 +1987,28 @@ $escolas = listarEscolas($busca);
         }
         
         function carregarDadosEscola(id) {
-            // Aqui você pode fazer uma requisição AJAX para carregar os dados da escola
-            // Por enquanto, vou deixar como placeholder
-            console.log('Carregando dados da escola:', id);
+            const endpoint = `../../Controllers/gestao/EscolaController.php?id=${encodeURIComponent(id)}`;
+            fetch(endpoint)
+                .then(response => response.json())
+                .then(data => {
+                    if (!data || !data.status || !data.escola) {
+                        console.error('Não foi possível carregar a escola.');
+                        return;
+                    }
+                    const escola = data.escola;
+                    // Preencher campos básicos
+                    document.getElementById('edit_nome').value = escola.nome || '';
+                    document.getElementById('edit_endereco').value = escola.endereco || '';
+                    document.getElementById('edit_telefone').value = escola.telefone || '';
+                    document.getElementById('edit_email').value = escola.email || '';
+                    document.getElementById('edit_municipio').value = escola.municipio || '';
+                    document.getElementById('edit_cep').value = escola.cep || '';
+                    document.getElementById('edit_qtd_salas').value = escola.qtd_salas || '';
+                    document.getElementById('edit_codigo').value = escola.codigo || '';
+                })
+                .catch(err => {
+                    console.error('Erro ao carregar dados da escola:', err);
+                });
         }
         
         function mostrarAbaEdicao(abaId) {
@@ -2075,35 +2094,28 @@ $escolas = listarEscolas($busca);
                 </div>
             `;
 
-            // Aqui você faria a requisição para o backend
-            // fetch('buscar_professores.php')
-            //     .then(response => response.json())
-            //     .then(professores => {
-            //         renderizarProfessores(professores);
-            //     })
-            //     .catch(error => {
-            //         console.error('Erro ao carregar professores:', error);
-            //         container.innerHTML = `
-            //             <div class="p-8 text-center">
-            //                 <p class="text-red-600">Erro ao carregar professores</p>
-            //             </div>
-            //         `;
-            //     });
-
-            // Por enquanto, mostrar mensagem de que não há professores
-            setTimeout(() => {
-                container.innerHTML = `
-                    <div class="p-8 text-center">
-                        <svg class="w-12 h-12 text-gray-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 14l9-5-9-5-9 5 9 5z"></path>
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 14l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14z"></path>
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
-                        </svg>
-                        <p class="text-gray-600">Nenhum professor disponível</p>
-                        <p class="text-sm text-gray-500 mt-2">Os professores serão carregados do banco de dados</p>
-                    </div>
-                `;
-            }, 1000);
+            // Buscar professores no backend
+            fetch('../../Controllers/gestao/ProfessorController.php')
+                .then(resp => resp.json())
+                .then(data => {
+                    if (data && data.status && Array.isArray(data.professores)) {
+                        renderizarProfessores(data.professores);
+                    } else {
+                        container.innerHTML = `
+                            <div class="p-8 text-center">
+                                <p class="text-gray-600">Nenhum professor disponível</p>
+                            </div>
+                        `;
+                    }
+                })
+                .catch(error => {
+                    console.error('Erro ao carregar professores:', error);
+                    container.innerHTML = `
+                        <div class="p-8 text-center">
+                            <p class="text-red-600">Erro ao carregar professores</p>
+                        </div>
+                    `;
+                });
         }
 
         function renderizarProfessores(professores) {
