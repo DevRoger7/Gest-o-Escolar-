@@ -1335,6 +1335,9 @@ $escolas = listarEscolas($busca);
                     <button onclick="showTab('tab-adicionar-professor')" class="tab-btn py-4 px-1 focus:outline-none">
                         Adicionar Professor
                     </button>
+                    <button onclick="showTab('tab-lotacao')" class="tab-btn py-4 px-1 focus:outline-none">
+                        Lotação de Pessoal
+                    </button>
                 </div>
             </div>
             
@@ -1642,6 +1645,173 @@ $escolas = listarEscolas($busca);
                                 <h3 class="text-lg font-medium text-gray-900 mb-4">Professores da Escola</h3>
                                 <div id="lista-professores-escola" class="space-y-3">
                                     <!-- Lista será carregada aqui -->
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tab Lotação de Pessoal -->
+            <div id="tab-lotacao" class="tab-content hidden">
+                <div class="p-6">
+                    <h2 class="text-xl font-semibold text-gray-900 mb-6">Lotação de Pessoal</h2>
+                    
+                    <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+                        <div class="flex items-center space-x-2">
+                            <svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                            </svg>
+                            <p class="text-sm text-blue-800">
+                                <strong>Importante:</strong> Selecione uma escola para visualizar e gerenciar a lotação de professores e gestores.
+                            </p>
+                        </div>
+                    </div>
+
+                    <div class="space-y-6">
+                        <!-- Seleção da Escola -->
+                        <div>
+                            <label for="escola_lotacao" class="block text-sm font-medium text-gray-700 mb-2">Selecionar Escola *</label>
+                            <select id="escola_lotacao" name="escola_lotacao" required 
+                                    class="block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-primary-green focus:border-primary-green"
+                                    onchange="carregarLotacaoEscola(this.value)">
+                                <option value="">Selecione uma escola...</option>
+                                <?php 
+                                $escolas = listarEscolas();
+                                foreach ($escolas as $escola): 
+                                ?>
+                                    <option value="<?php echo $escola['id']; ?>">
+                                        <?php echo htmlspecialchars($escola['nome']); ?>
+                                    </option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
+
+                        <!-- Informações da Escola Selecionada -->
+                        <div id="info-escola-lotacao" class="hidden bg-gray-50 border border-gray-200 rounded-lg p-4">
+                            <h3 class="text-lg font-medium text-gray-900 mb-2">Informações da Escola</h3>
+                            <div id="detalhes-escola-lotacao" class="text-sm text-gray-600">
+                                <!-- Detalhes serão carregados aqui -->
+                            </div>
+                        </div>
+
+                        <!-- Seção de Lotação -->
+                        <div id="secao-lotacao" class="hidden">
+                            <!-- Abas para Professores e Gestores -->
+                            <div class="border-b border-gray-200 mb-6">
+                                <nav class="-mb-px flex space-x-8">
+                                    <button onclick="showLotacaoTab('professores')" id="tab-professores-btn" 
+                                            class="lotacao-tab-btn active py-2 px-1 border-b-2 border-primary-green text-primary-green font-medium text-sm">
+                                        Professores
+                                    </button>
+                                    <button onclick="showLotacaoTab('gestores')" id="tab-gestores-btn"
+                                            class="lotacao-tab-btn py-2 px-1 border-b-2 border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 font-medium text-sm">
+                                        Gestores
+                                    </button>
+                                </nav>
+                            </div>
+
+                            <!-- Conteúdo da aba Professores -->
+                            <div id="lotacao-professores" class="lotacao-tab-content">
+                                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                                    <!-- Adicionar Professor -->
+                                    <div class="bg-white border border-gray-200 rounded-lg p-4">
+                                        <h4 class="text-lg font-medium text-gray-900 mb-4">Adicionar Professor</h4>
+                                        
+                                        <div class="space-y-4">
+                                            <div>
+                                                <label for="buscar_professor_lotacao" class="block text-sm font-medium text-gray-700 mb-2">Buscar Professor</label>
+                                                <div class="relative">
+                                                    <input type="text" id="buscar_professor_lotacao" placeholder="Digite o nome do professor..."
+                                                           class="block w-full px-3 py-2 pl-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-green focus:border-transparent"
+                                                           oninput="buscarProfessoresLotacao(this.value)">
+                                                    <svg class="w-5 h-5 text-gray-400 absolute left-3 top-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                                                    </svg>
+                                                </div>
+                                                <div id="resultados_professores_lotacao" class="mt-2 max-h-60 overflow-y-auto border border-gray-200 rounded-lg hidden">
+                                                    <!-- Resultados da busca serão carregados aqui -->
+                                                </div>
+                                            </div>
+
+                                            <div>
+                                                <label for="data_inicio_professor" class="block text-sm font-medium text-gray-700 mb-2">Data de Início</label>
+                                                <input type="date" id="data_inicio_professor" 
+                                                       class="block w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-green focus:border-transparent">
+                                            </div>
+
+                                            <button type="button" onclick="lotarProfessor()" 
+                                                    class="w-full bg-primary-green text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors duration-200">
+                                                Lotar Professor
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    <!-- Lista de Professores Lotados -->
+                                    <div class="bg-white border border-gray-200 rounded-lg p-4">
+                                        <h4 class="text-lg font-medium text-gray-900 mb-4">Professores Lotados</h4>
+                                        <div id="lista-professores-lotados" class="space-y-3">
+                                            <!-- Lista será carregada aqui -->
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Conteúdo da aba Gestores -->
+                            <div id="lotacao-gestores" class="lotacao-tab-content hidden">
+                                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                                    <!-- Adicionar Gestor -->
+                                    <div class="bg-white border border-gray-200 rounded-lg p-4">
+                                        <h4 class="text-lg font-medium text-gray-900 mb-4">Adicionar Gestor</h4>
+                                        
+                                        <div class="space-y-4">
+                                            <div>
+                                                <label for="buscar_gestor_lotacao" class="block text-sm font-medium text-gray-700 mb-2">Buscar Gestor</label>
+                                                <div class="relative">
+                                                    <input type="text" id="buscar_gestor_lotacao" placeholder="Digite o nome do gestor..."
+                                                           class="block w-full px-3 py-2 pl-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-green focus:border-transparent"
+                                                           oninput="buscarGestoresLotacao(this.value)">
+                                                    <svg class="w-5 h-5 text-gray-400 absolute left-3 top-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                                                    </svg>
+                                                </div>
+                                                <div id="resultados_gestores_lotacao" class="mt-2 max-h-60 overflow-y-auto border border-gray-200 rounded-lg hidden">
+                                                    <!-- Resultados da busca serão carregados aqui -->
+                                                </div>
+                                            </div>
+
+                                            <div>
+                                                <label for="cargo_gestor" class="block text-sm font-medium text-gray-700 mb-2">Cargo</label>
+                                                <select id="cargo_gestor" 
+                                                        class="block w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-green focus:border-transparent">
+                                                    <option value="">Selecione o cargo...</option>
+                                                    <option value="diretor">Diretor</option>
+                                                    <option value="vice_diretor">Vice-Diretor</option>
+                                                    <option value="coordenador">Coordenador</option>
+                                                    <option value="supervisor">Supervisor</option>
+                                                </select>
+                                            </div>
+
+                                            <div>
+                                                <label for="data_inicio_gestor" class="block text-sm font-medium text-gray-700 mb-2">Data de Início</label>
+                                                <input type="date" id="data_inicio_gestor" 
+                                                       class="block w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-green focus:border-transparent">
+                                            </div>
+
+                                            <button type="button" onclick="lotarGestor()" 
+                                                    class="w-full bg-primary-green text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors duration-200">
+                                                Lotar Gestor
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    <!-- Lista de Gestores Lotados -->
+                                    <div class="bg-white border border-gray-200 rounded-lg p-4">
+                                        <h4 class="text-lg font-medium text-gray-900 mb-4">Gestores Lotados</h4>
+                                        <div id="lista-gestores-lotados" class="space-y-3">
+                                            <!-- Lista será carregada aqui -->
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -3200,6 +3370,421 @@ $escolas = listarEscolas($busca);
         document.addEventListener('DOMContentLoaded', function() {
             loadAccessibilitySettings();
         });
+
+        // Variáveis globais para lotação
+        let professorSelecionadoLotacao = null;
+        let gestorSelecionadoLotacao = null;
+        let escolaAtualLotacao = null;
+
+        // Função para alternar entre as abas de lotação (professores/gestores)
+        function showLotacaoTab(tipo) {
+            // Remover classe ativa de todos os botões
+            document.querySelectorAll('.lotacao-tab-btn').forEach(btn => {
+                btn.classList.remove('active', 'border-primary-green', 'text-primary-green');
+                btn.classList.add('border-transparent', 'text-gray-500');
+            });
+            
+            // Esconder todos os conteúdos
+            document.querySelectorAll('.lotacao-tab-content').forEach(content => {
+                content.classList.add('hidden');
+            });
+            
+            // Mostrar o conteúdo selecionado
+            document.getElementById(`lotacao-${tipo}`).classList.remove('hidden');
+            
+            // Ativar o botão selecionado
+            const btnAtivo = document.getElementById(`tab-${tipo}-btn`);
+            btnAtivo.classList.add('active', 'border-primary-green', 'text-primary-green');
+            btnAtivo.classList.remove('border-transparent', 'text-gray-500');
+        }
+
+        // Função para carregar informações da escola e lotação
+        function carregarLotacaoEscola(escolaId) {
+            if (!escolaId) {
+                document.getElementById('info-escola-lotacao').classList.add('hidden');
+                document.getElementById('secao-lotacao').classList.add('hidden');
+                return;
+            }
+
+            escolaAtualLotacao = escolaId;
+
+            // Carregar informações da escola
+            fetch(`../../Controllers/gestao/EscolaController.php?id=${escolaId}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        const escola = data.escola;
+                        document.getElementById('detalhes-escola-lotacao').innerHTML = `
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                    <p><strong>Nome:</strong> ${escola.nome}</p>
+                                    <p><strong>Código INEP:</strong> ${escola.codigo_inep || 'Não informado'}</p>
+                                </div>
+                                <div>
+                                    <p><strong>Endereço:</strong> ${escola.endereco || 'Não informado'}</p>
+                                    <p><strong>Telefone:</strong> ${escola.telefone || 'Não informado'}</p>
+                                </div>
+                            </div>
+                        `;
+                        document.getElementById('info-escola-lotacao').classList.remove('hidden');
+                        document.getElementById('secao-lotacao').classList.remove('hidden');
+                        
+                        // Carregar listas de lotação
+                        carregarProfessoresLotados();
+                        carregarGestoresLotados();
+                    }
+                })
+                .catch(error => {
+                    console.error('Erro ao carregar escola:', error);
+                    alert('Erro ao carregar informações da escola');
+                });
+        }
+
+        // Função para buscar professores disponíveis para lotação
+        function buscarProfessoresLotacao(termo) {
+            if (termo.length < 2) {
+                document.getElementById('resultados_professores_lotacao').classList.add('hidden');
+                return;
+            }
+
+            fetch(`../../Controllers/gestao/ProfessorLotacaoController.php?acao=buscar_disponiveis&termo=${encodeURIComponent(termo)}`)
+                .then(response => response.json())
+                .then(data => {
+                    const resultados = document.getElementById('resultados_professores_lotacao');
+                    
+                    if (data.success && data.professores.length > 0) {
+                        let html = '';
+                        data.professores.forEach(professor => {
+                            html += `
+                                <div class="p-3 hover:bg-gray-50 cursor-pointer border-b border-gray-100" 
+                                     onclick="selecionarProfessorLotacao(${professor.id}, '${professor.nome}')">
+                                    <div class="flex justify-between items-center">
+                                        <div>
+                                            <p class="font-medium text-gray-900">${professor.nome}</p>
+                                            <p class="text-sm text-gray-600">${professor.email}</p>
+                                        </div>
+                                        <span class="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">Professor</span>
+                                    </div>
+                                </div>
+                            `;
+                        });
+                        resultados.innerHTML = html;
+                        resultados.classList.remove('hidden');
+                    } else {
+                        resultados.innerHTML = '<div class="p-3 text-gray-500 text-center">Nenhum professor encontrado</div>';
+                        resultados.classList.remove('hidden');
+                    }
+                })
+                .catch(error => {
+                    console.error('Erro ao buscar professores:', error);
+                });
+        }
+
+        // Função para selecionar professor para lotação
+        function selecionarProfessorLotacao(id, nome) {
+            professorSelecionadoLotacao = { id, nome };
+            document.getElementById('buscar_professor_lotacao').value = nome;
+            document.getElementById('resultados_professores_lotacao').classList.add('hidden');
+        }
+
+        // Função para buscar gestores disponíveis para lotação
+        function buscarGestoresLotacao(termo) {
+            if (termo.length < 2) {
+                document.getElementById('resultados_gestores_lotacao').classList.add('hidden');
+                return;
+            }
+
+            fetch(`../../Controllers/gestao/GestorLotacaoController.php?acao=buscar_disponiveis&termo=${encodeURIComponent(termo)}`)
+                .then(response => response.json())
+                .then(data => {
+                    const resultados = document.getElementById('resultados_gestores_lotacao');
+                    
+                    if (data.success && data.gestores.length > 0) {
+                        let html = '';
+                        data.gestores.forEach(gestor => {
+                            html += `
+                                <div class="p-3 hover:bg-gray-50 cursor-pointer border-b border-gray-100" 
+                                     onclick="selecionarGestorLotacao(${gestor.id}, '${gestor.nome}')">
+                                    <div class="flex justify-between items-center">
+                                        <div>
+                                            <p class="font-medium text-gray-900">${gestor.nome}</p>
+                                            <p class="text-sm text-gray-600">${gestor.email}</p>
+                                        </div>
+                                        <span class="text-xs bg-purple-100 text-purple-800 px-2 py-1 rounded">Gestor</span>
+                                    </div>
+                                </div>
+                            `;
+                        });
+                        resultados.innerHTML = html;
+                        resultados.classList.remove('hidden');
+                    } else {
+                        resultados.innerHTML = '<div class="p-3 text-gray-500 text-center">Nenhum gestor encontrado</div>';
+                        resultados.classList.remove('hidden');
+                    }
+                })
+                .catch(error => {
+                    console.error('Erro ao buscar gestores:', error);
+                });
+        }
+
+        // Função para selecionar gestor para lotação
+        function selecionarGestorLotacao(id, nome) {
+            gestorSelecionadoLotacao = { id, nome };
+            document.getElementById('buscar_gestor_lotacao').value = nome;
+            document.getElementById('resultados_gestores_lotacao').classList.add('hidden');
+        }
+
+        // Função para lotar professor
+        function lotarProfessor() {
+            if (!professorSelecionadoLotacao) {
+                alert('Selecione um professor primeiro');
+                return;
+            }
+
+            if (!escolaAtualLotacao) {
+                alert('Selecione uma escola primeiro');
+                return;
+            }
+
+            const dataInicio = document.getElementById('data_inicio_professor').value;
+            if (!dataInicio) {
+                alert('Informe a data de início');
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('acao', 'lotar');
+            formData.append('professor_id', professorSelecionadoLotacao.id);
+            formData.append('escola_id', escolaAtualLotacao);
+            formData.append('data_inicio', dataInicio);
+
+            fetch('../../Controllers/gestao/ProfessorLotacaoController.php', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert('Professor lotado com sucesso!');
+                    // Limpar campos
+                    document.getElementById('buscar_professor_lotacao').value = '';
+                    document.getElementById('data_inicio_professor').value = '';
+                    professorSelecionadoLotacao = null;
+                    // Recarregar lista
+                    carregarProfessoresLotados();
+                } else {
+                    alert('Erro ao lotar professor: ' + data.message);
+                }
+            })
+            .catch(error => {
+                console.error('Erro ao lotar professor:', error);
+                alert('Erro ao lotar professor');
+            });
+        }
+
+        // Função para lotar gestor
+        function lotarGestor() {
+            if (!gestorSelecionadoLotacao) {
+                alert('Selecione um gestor primeiro');
+                return;
+            }
+
+            if (!escolaAtualLotacao) {
+                alert('Selecione uma escola primeiro');
+                return;
+            }
+
+            const cargo = document.getElementById('cargo_gestor').value;
+            const dataInicio = document.getElementById('data_inicio_gestor').value;
+            
+            if (!cargo) {
+                alert('Selecione o cargo');
+                return;
+            }
+
+            if (!dataInicio) {
+                alert('Informe a data de início');
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('acao', 'lotar');
+            formData.append('gestor_id', gestorSelecionadoLotacao.id);
+            formData.append('escola_id', escolaAtualLotacao);
+            formData.append('cargo', cargo);
+            formData.append('data_inicio', dataInicio);
+
+            fetch('../../Controllers/gestao/GestorLotacaoController.php', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert('Gestor lotado com sucesso!');
+                    // Limpar campos
+                    document.getElementById('buscar_gestor_lotacao').value = '';
+                    document.getElementById('cargo_gestor').value = '';
+                    document.getElementById('data_inicio_gestor').value = '';
+                    gestorSelecionadoLotacao = null;
+                    // Recarregar lista
+                    carregarGestoresLotados();
+                } else {
+                    alert('Erro ao lotar gestor: ' + data.message);
+                }
+            })
+            .catch(error => {
+                console.error('Erro ao lotar gestor:', error);
+                alert('Erro ao lotar gestor');
+            });
+        }
+
+        // Função para carregar professores lotados
+        function carregarProfessoresLotados() {
+            if (!escolaAtualLotacao) return;
+
+            fetch(`../../Controllers/gestao/ProfessorLotacaoController.php?acao=listar_lotados&escola_id=${escolaAtualLotacao}`)
+                .then(response => response.json())
+                .then(data => {
+                    const lista = document.getElementById('lista-professores-lotados');
+                    
+                    if (data.success && data.professores.length > 0) {
+                        let html = '';
+                        data.professores.forEach(professor => {
+                            html += `
+                                <div class="bg-gray-50 border border-gray-200 rounded-lg p-3">
+                                    <div class="flex justify-between items-center">
+                                        <div>
+                                            <p class="font-medium text-gray-900">${professor.nome}</p>
+                                            <p class="text-sm text-gray-600">Início: ${professor.data_inicio}</p>
+                                            ${professor.data_fim ? `<p class="text-sm text-red-600">Fim: ${professor.data_fim}</p>` : ''}
+                                        </div>
+                                        <div class="flex space-x-2">
+                                            ${professor.ativo == 1 ? `
+                                                <button onclick="removerLotacaoProfessor(${professor.id})" 
+                                                        class="text-red-600 hover:text-red-800 text-sm">
+                                                    Remover
+                                                </button>
+                                            ` : `
+                                                <span class="text-xs bg-red-100 text-red-800 px-2 py-1 rounded">Inativo</span>
+                                            `}
+                                        </div>
+                                    </div>
+                                </div>
+                            `;
+                        });
+                        lista.innerHTML = html;
+                    } else {
+                        lista.innerHTML = '<div class="text-gray-500 text-center py-4">Nenhum professor lotado</div>';
+                    }
+                })
+                .catch(error => {
+                    console.error('Erro ao carregar professores lotados:', error);
+                });
+        }
+
+        // Função para carregar gestores lotados
+        function carregarGestoresLotados() {
+            if (!escolaAtualLotacao) return;
+
+            fetch(`../../Controllers/gestao/GestorLotacaoController.php?acao=listar_lotados&escola_id=${escolaAtualLotacao}`)
+                .then(response => response.json())
+                .then(data => {
+                    const lista = document.getElementById('lista-gestores-lotados');
+                    
+                    if (data.success && data.gestores.length > 0) {
+                        let html = '';
+                        data.gestores.forEach(gestor => {
+                            html += `
+                                <div class="bg-gray-50 border border-gray-200 rounded-lg p-3">
+                                    <div class="flex justify-between items-center">
+                                        <div>
+                                            <p class="font-medium text-gray-900">${gestor.nome}</p>
+                                            <p class="text-sm text-gray-600">Cargo: ${gestor.cargo}</p>
+                                            <p class="text-sm text-gray-600">Início: ${gestor.data_inicio}</p>
+                                            ${gestor.data_fim ? `<p class="text-sm text-red-600">Fim: ${gestor.data_fim}</p>` : ''}
+                                        </div>
+                                        <div class="flex space-x-2">
+                                            ${gestor.ativo == 1 ? `
+                                                <button onclick="removerLotacaoGestor(${gestor.id})" 
+                                                        class="text-red-600 hover:text-red-800 text-sm">
+                                                    Remover
+                                                </button>
+                                            ` : `
+                                                <span class="text-xs bg-red-100 text-red-800 px-2 py-1 rounded">Inativo</span>
+                                            `}
+                                        </div>
+                                    </div>
+                                </div>
+                            `;
+                        });
+                        lista.innerHTML = html;
+                    } else {
+                        lista.innerHTML = '<div class="text-gray-500 text-center py-4">Nenhum gestor lotado</div>';
+                    }
+                })
+                .catch(error => {
+                    console.error('Erro ao carregar gestores lotados:', error);
+                });
+        }
+
+        // Função para remover lotação de professor
+        function removerLotacaoProfessor(lotacaoId) {
+            if (!confirm('Tem certeza que deseja remover esta lotação?')) {
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('acao', 'remover');
+            formData.append('lotacao_id', lotacaoId);
+
+            fetch('../../Controllers/gestao/ProfessorLotacaoController.php', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert('Lotação removida com sucesso!');
+                    carregarProfessoresLotados();
+                } else {
+                    alert('Erro ao remover lotação: ' + data.message);
+                }
+            })
+            .catch(error => {
+                console.error('Erro ao remover lotação:', error);
+                alert('Erro ao remover lotação');
+            });
+        }
+
+        // Função para remover lotação de gestor
+        function removerLotacaoGestor(lotacaoId) {
+            if (!confirm('Tem certeza que deseja remover esta lotação?')) {
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('acao', 'remover');
+            formData.append('lotacao_id', lotacaoId);
+
+            fetch('../../Controllers/gestao/GestorLotacaoController.php', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert('Lotação removida com sucesso!');
+                    carregarGestoresLotados();
+                } else {
+                    alert('Erro ao remover lotação: ' + data.message);
+                }
+            })
+            .catch(error => {
+                console.error('Erro ao remover lotação:', error);
+                alert('Erro ao remover lotação');
+            });
+        }
     </script>
 
     <!-- User Profile Modal -->
