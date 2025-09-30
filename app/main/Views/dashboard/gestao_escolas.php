@@ -409,6 +409,72 @@ $escolas = listarEscolas($busca);
             display: block;
         }
         
+        /* Estilos para botões de salvar */
+        button[type="submit"]:not(:disabled) {
+            animation: pulseGlow 2s infinite;
+        }
+        
+        @keyframes pulseGlow {
+            0%, 100% {
+                box-shadow: 0 0 20px rgba(34, 197, 94, 0.4), 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            }
+            50% {
+                box-shadow: 0 0 30px rgba(34, 197, 94, 0.6), 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            }
+        }
+        
+        button[type="submit"]:disabled {
+            animation: none;
+            box-shadow: none;
+        }
+        
+        /* Estilos para Modal de Sucesso */
+        @keyframes slideInDown {
+            from {
+                transform: translateY(-100px);
+                opacity: 0;
+            }
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+        
+        @keyframes checkmark {
+            0% {
+                stroke-dashoffset: 100;
+            }
+            100% {
+                stroke-dashoffset: 0;
+            }
+        }
+        
+        @keyframes scaleIn {
+            0% {
+                transform: scale(0);
+            }
+            50% {
+                transform: scale(1.1);
+            }
+            100% {
+                transform: scale(1);
+            }
+        }
+        
+        .modal-sucesso-show {
+            animation: slideInDown 0.4s ease-out;
+        }
+        
+        .checkmark-circle {
+            animation: scaleIn 0.5s ease-out;
+        }
+        
+        .checkmark-check {
+            stroke-dasharray: 100;
+            stroke-dashoffset: 100;
+            animation: checkmark 0.6s ease-out 0.3s forwards;
+        }
+        
         /* Estilos para o menu lateral */
         .sidebar-transition {
             transition: all 0.3s ease-in-out;
@@ -1729,6 +1795,16 @@ $escolas = listarEscolas($busca);
                                 
                             </div>
                         </div>
+                        
+                        <!-- Botões de Ação - Dados Básicos -->
+                        <div id="botoes-dados-basicos" class="flex justify-end space-x-3 pt-6 border-t border-gray-200 mt-6">
+                            <button type="button" onclick="fecharModalEdicaoEscola()" class="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 transition-colors duration-200">
+                                Cancelar
+                            </button>
+                            <button type="submit" id="btn-salvar-dados-basicos" class="px-4 py-2 bg-primary-green text-white rounded-lg hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-green transition-colors duration-200">
+                                Salvar Alterações
+                            </button>
+                        </div>
                     </div>
                     
                     <!-- Aba Gestor -->
@@ -1864,22 +1940,49 @@ $escolas = listarEscolas($busca);
                                 </div>
                             </div>
                         </div>
-                    </div>
-                    
-                    <!-- Botões de Ação -->
-                    <div class="flex justify-end space-x-3 pt-6 border-t border-gray-200 mt-auto">
-                        <button type="button" onclick="fecharModalEdicaoEscola()" class="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 transition-colors duration-200">
-                            Cancelar
-                        </button>
-                        <button type="submit" class="px-4 py-2 bg-primary-green text-white rounded-lg hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-green transition-colors duration-200">
-                            Salvar Alterações
-                        </button>
+                        
+                        <!-- Botões de Ação - Corpo Docente -->
+                        <div id="botoes-corpo-docente" class="flex justify-end space-x-3 pt-6 border-t border-gray-200 mt-6 hidden">
+                            <button type="button" onclick="fecharModalEdicaoEscola()" class="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 transition-colors duration-200">
+                                Cancelar
+                            </button>
+                            <button type="submit" id="btn-salvar-corpo-docente" class="px-4 py-2 bg-primary-green text-white rounded-lg hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-green transition-colors duration-200">
+                                Salvar Alterações
+                            </button>
+                        </div>
                     </div>
                 </form>
             </div>
         </div>
     </div>
 
+    <!-- Modal de Sucesso -->
+    <div id="modalSucesso" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl p-8 max-w-md w-full mx-4 shadow-2xl modal-sucesso-show">
+            <!-- Ícone de Sucesso -->
+            <div class="flex justify-center mb-6">
+                <div class="relative">
+                    <div class="checkmark-circle w-20 h-20 bg-green-100 rounded-full flex items-center justify-center">
+                        <svg class="w-12 h-12 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                            <path class="checkmark-check" stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"></path>
+                        </svg>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Mensagem -->
+            <div class="text-center">
+                <h3 class="text-2xl font-bold text-gray-900 mb-3">Sucesso!</h3>
+                <p class="text-gray-600 text-lg mb-6">
+                    Escola atualizada com sucesso!
+                </p>
+                
+                <button onclick="fecharModalSucesso()" class="w-full px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-all duration-200 font-semibold shadow-lg hover:shadow-xl">
+                    Entendi
+                </button>
+            </div>
+        </div>
+    </div>
     
     <script>
         // Função para alternar entre as tabs
@@ -1984,8 +2087,38 @@ $escolas = listarEscolas($busca);
         
         function fecharModalEdicaoEscola() {
             document.getElementById('modalEdicaoEscola').classList.add('hidden');
+            
+            // Resetar estado dos botões
+            desabilitarBotoesSalvar();
+            
+            // Resetar seleção de professores
+            ocultarAdicionarProfessores();
+            
+            // Voltar para a primeira aba
+            mostrarAbaEdicao('dados-basicos');
         }
         
+        // Funções para Modal de Sucesso
+        function mostrarModalSucesso() {
+            const modal = document.getElementById('modalSucesso');
+            modal.classList.remove('hidden');
+            
+            // Fechar automaticamente após 3 segundos
+            setTimeout(() => {
+                fecharModalSucesso();
+            }, 3000);
+        }
+        
+        function fecharModalSucesso() {
+            const modal = document.getElementById('modalSucesso');
+            modal.classList.add('hidden');
+            // Recarregar a página após fechar o modal
+            window.location.reload();
+        }
+        
+        // Variável global para armazenar dados originais
+        let dadosOriginaisEscola = {};
+
         function carregarDadosEscola(id) {
             const endpoint = `../../Controllers/gestao/EscolaController.php?id=${encodeURIComponent(id)}`;
             fetch(endpoint)
@@ -2005,6 +2138,24 @@ $escolas = listarEscolas($busca);
                     document.getElementById('edit_cep').value = escola.cep || '';
                     document.getElementById('edit_qtd_salas').value = escola.qtd_salas || '';
                     document.getElementById('edit_codigo').value = escola.codigo || '';
+                    
+                    // Armazenar dados originais para comparação
+                    dadosOriginaisEscola = {
+                        nome: escola.nome || '',
+                        endereco: escola.endereco || '',
+                        telefone: escola.telefone || '',
+                        email: escola.email || '',
+                        municipio: escola.municipio || '',
+                        cep: escola.cep || '',
+                        qtd_salas: escola.qtd_salas || '',
+                        codigo: escola.codigo || ''
+                    };
+                    
+                    // Configurar monitoramento de mudanças
+                    configurarMonitoramentoMudancas();
+                    
+                    // Desabilitar botões inicialmente
+                    desabilitarBotoesSalvar();
                 })
                 .catch(err => {
                     console.error('Erro ao carregar dados da escola:', err);
@@ -2030,6 +2181,86 @@ $escolas = listarEscolas($busca);
             const botaoAtivo = document.getElementById(`tab-${abaId}`);
             botaoAtivo.classList.add('active', 'border-primary-green', 'text-primary-green');
             botaoAtivo.classList.remove('border-transparent', 'text-gray-500');
+        }
+        
+        // Função para configurar monitoramento de mudanças nos campos
+        function configurarMonitoramentoMudancas() {
+            const campos = [
+                'edit_nome', 'edit_endereco', 'edit_telefone', 'edit_email',
+                'edit_municipio', 'edit_cep', 'edit_qtd_salas', 'edit_codigo'
+            ];
+            
+            campos.forEach(campoId => {
+                const campo = document.getElementById(campoId);
+                if (campo) {
+                    campo.removeEventListener('input', verificarMudancas); // Remove listeners anteriores
+                    campo.addEventListener('input', verificarMudancas);
+                }
+            });
+        }
+        
+        // Função para verificar se houve mudanças
+        function verificarMudancas() {
+            const camposAtuais = {
+                nome: document.getElementById('edit_nome').value || '',
+                endereco: document.getElementById('edit_endereco').value || '',
+                telefone: document.getElementById('edit_telefone').value || '',
+                email: document.getElementById('edit_email').value || '',
+                municipio: document.getElementById('edit_municipio').value || '',
+                cep: document.getElementById('edit_cep').value || '',
+                qtd_salas: document.getElementById('edit_qtd_salas').value || '',
+                codigo: document.getElementById('edit_codigo').value || ''
+            };
+            
+            // Comparar com dados originais
+            let houveAlteracao = false;
+            for (let campo in dadosOriginaisEscola) {
+                if (camposAtuais[campo] !== dadosOriginaisEscola[campo]) {
+                    houveAlteracao = true;
+                    break;
+                }
+            }
+            
+            // Obter botão de salvar da aba Dados Básicos
+            const botaoSalvarDadosBasicos = document.getElementById('btn-salvar-dados-basicos');
+            
+            if (houveAlteracao) {
+                habilitarBotaoSalvar(botaoSalvarDadosBasicos);
+            } else {
+                desabilitarBotaoSalvar(botaoSalvarDadosBasicos);
+            }
+        }
+        
+        // Função para habilitar botão de salvar
+        function habilitarBotaoSalvar(botao) {
+            if (botao) {
+                botao.disabled = false;
+                botao.classList.remove('opacity-50', 'cursor-not-allowed', 'bg-primary-green');
+                botao.classList.add('bg-green-600', 'hover:bg-green-700', 'shadow-lg', 'transform', 'hover:scale-105', 'transition-all');
+                botao.style.cursor = 'pointer';
+            }
+        }
+        
+        // Função para desabilitar botão de salvar
+        function desabilitarBotaoSalvar(botao) {
+            if (botao) {
+                botao.disabled = true;
+                botao.classList.remove('bg-green-600', 'hover:bg-green-700', 'shadow-lg', 'transform', 'hover:scale-105');
+                botao.classList.add('opacity-50', 'cursor-not-allowed', 'bg-primary-green');
+                botao.style.cursor = 'not-allowed';
+            }
+        }
+        
+        // Função para desabilitar todos os botões de salvar
+        function desabilitarBotoesSalvar() {
+            const botaoDadosBasicos = document.getElementById('btn-salvar-dados-basicos');
+            desabilitarBotaoSalvar(botaoDadosBasicos);
+            
+            // Ocultar botões da aba Corpo Docente inicialmente
+            const botoesCorpoDocente = document.getElementById('botoes-corpo-docente');
+            if (botoesCorpoDocente) {
+                botoesCorpoDocente.classList.add('hidden');
+            }
         }
         
         function mostrarAdicionarProfessores() {
@@ -2080,6 +2311,12 @@ $escolas = listarEscolas($busca);
             
             // Hide summary
             document.getElementById('resumoProfessoresSelecionadosEdicao').classList.add('hidden');
+            
+            // Ocultar botões de ação
+            const botoesCorpoDocente = document.getElementById('botoes-corpo-docente');
+            if (botoesCorpoDocente) {
+                botoesCorpoDocente.classList.add('hidden');
+            }
         }
 
         function carregarProfessoresDisponiveisEdicao() {
@@ -2218,14 +2455,30 @@ $escolas = listarEscolas($busca);
             const checkboxesSelecionados = document.querySelectorAll('.checkbox-professor-edicao:checked');
             const resumoDiv = document.getElementById('resumoProfessoresSelecionadosEdicao');
             const listaDiv = document.getElementById('listaProfessoresSelecionadosEdicao');
+            
+            // Obter container de botões da aba Corpo Docente
+            const botoesCorpoDocente = document.getElementById('botoes-corpo-docente');
+            const botaoSalvar = document.getElementById('btn-salvar-corpo-docente');
 
             if (checkboxesSelecionados.length > 0) {
                 resumoDiv.classList.remove('hidden');
-                listaDiv.innerHTML = checkboxesSelecionados.map(checkbox => 
+                // Converter NodeList para Array antes de usar map
+                listaDiv.innerHTML = Array.from(checkboxesSelecionados).map(checkbox => 
                     `<span class="inline-block bg-green-100 text-green-800 px-2 py-1 rounded-full text-xs mr-2 mb-1">${checkbox.dataset.professorNome}</span>`
                 ).join('');
+                
+                // Mostrar botões de salvar quando há professores selecionados
+                if (botoesCorpoDocente) {
+                    botoesCorpoDocente.classList.remove('hidden');
+                    habilitarBotaoSalvar(botaoSalvar);
+                }
             } else {
                 resumoDiv.classList.add('hidden');
+                
+                // Ocultar botões quando não há professores selecionados
+                if (botoesCorpoDocente) {
+                    botoesCorpoDocente.classList.add('hidden');
+                }
             }
         }
 
@@ -2394,53 +2647,64 @@ $escolas = listarEscolas($busca);
             if (formCadastro) {
                 formCadastro.addEventListener('submit', function(e) {
                     // Validar se um gestor foi selecionado
-                    const gestorId = document.getElementById('gestor_id').value;
-                    if (!gestorId) {
-                        e.preventDefault();
-                        alert('Por favor, selecione um gestor para a escola.');
-                        document.getElementById('gestor_search').focus();
-                        return false;
+                    const gestorIdField = document.getElementById('gestor_id');
+                    if (gestorIdField) {
+                        const gestorId = gestorIdField.value;
+                        if (!gestorId) {
+                            e.preventDefault();
+                            alert('Por favor, selecione um gestor para a escola.');
+                            const gestorSearchField = document.getElementById('gestor_search');
+                            if (gestorSearchField) gestorSearchField.focus();
+                            return false;
+                        }
                     }
                 });
             }
         });
 
         // Event listener para o formulário de edição
-        document.getElementById('formEdicaoEscola').addEventListener('submit', function(e) {
-            e.preventDefault();
-            
-            // Coletar dados do formulário
-            const formData = new FormData();
-            formData.append('acao', 'editar');
-            formData.append('id', document.getElementById('edit_escola_id').value);
-            formData.append('nome', document.getElementById('edit_nome').value);
-            formData.append('endereco', document.getElementById('edit_endereco').value);
-            formData.append('telefone', document.getElementById('edit_telefone').value);
-            formData.append('email', document.getElementById('edit_email').value);
-            formData.append('municipio', document.getElementById('edit_municipio').value);
-            formData.append('cep', document.getElementById('edit_cep').value);
-            formData.append('qtd_salas', document.getElementById('edit_qtd_salas').value);
-            formData.append('obs', '');
-            formData.append('codigo', document.getElementById('edit_codigo').value);
-            formData.append('gestor_id', document.getElementById('edit_gestor_id').value || '');
-            
-            // Enviar dados para o servidor
-            fetch('gestao_escolas.php', {
-                method: 'POST',
-                body: formData
-            })
-            .then(response => response.text())
-            .then(data => {
-                // Verificar se houve sucesso (a página será recarregada)
-                alert('Escola atualizada com sucesso!');
-                fecharModalEdicaoEscola();
-                // Recarregar a página para mostrar as alterações
-                window.location.reload();
-            })
-            .catch(error => {
-                console.error('Erro ao salvar alterações:', error);
-                alert('Erro ao salvar alterações. Tente novamente.');
-            });
+        document.addEventListener('DOMContentLoaded', function() {
+            const formEdicao = document.getElementById('formEdicaoEscola');
+            if (formEdicao) {
+                formEdicao.addEventListener('submit', function(e) {
+                    e.preventDefault();
+                    
+                    // Coletar dados do formulário
+                    const formData = new FormData();
+                    formData.append('acao', 'editar');
+                    formData.append('id', document.getElementById('edit_escola_id').value);
+                    formData.append('nome', document.getElementById('edit_nome').value);
+                    formData.append('endereco', document.getElementById('edit_endereco').value);
+                    formData.append('telefone', document.getElementById('edit_telefone').value);
+                    formData.append('email', document.getElementById('edit_email').value);
+                    formData.append('municipio', document.getElementById('edit_municipio').value);
+                    formData.append('cep', document.getElementById('edit_cep').value);
+                    formData.append('qtd_salas', document.getElementById('edit_qtd_salas').value);
+                    formData.append('obs', '');
+                    formData.append('codigo', document.getElementById('edit_codigo').value);
+                    
+                    const gestorIdField = document.getElementById('edit_gestor_id');
+                    formData.append('gestor_id', gestorIdField ? gestorIdField.value || '' : '');
+                    
+                    // Enviar dados para o servidor
+                    fetch('gestao_escolas.php', {
+                        method: 'POST',
+                        body: formData
+                    })
+                    .then(response => response.text())
+                    .then(data => {
+                        // Fechar modal de edição
+                        fecharModalEdicaoEscola();
+                        
+                        // Mostrar modal de sucesso
+                        mostrarModalSucesso();
+                    })
+                    .catch(error => {
+                        console.error('Erro ao salvar alterações:', error);
+                        alert('Erro ao salvar alterações. Tente novamente.');
+                    });
+                });
+            }
         });
         
         // Funções para busca de gestor na edição
@@ -2493,59 +2757,74 @@ $escolas = listarEscolas($busca);
             document.getElementById('edit_gestor_selected').classList.add('hidden');
         }
         
-        // Máscara para CEP
-        document.getElementById('cep').addEventListener('input', function (e) {
-            let value = e.target.value.replace(/\D/g, '');
-            if (value.length > 8) value = value.slice(0, 8);
-            
-            if (value.length > 5) {
-                value = value.replace(/^(\d{5})(\d{0,3}).*/, '$1-$2');
+        // Máscaras para campos - com verificação de existência
+        document.addEventListener('DOMContentLoaded', function() {
+            // Máscara para CEP (cadastro)
+            const cepField = document.getElementById('cep');
+            if (cepField) {
+                cepField.addEventListener('input', function (e) {
+                    let value = e.target.value.replace(/\D/g, '');
+                    if (value.length > 8) value = value.slice(0, 8);
+                    
+                    if (value.length > 5) {
+                        value = value.replace(/^(\d{5})(\d{0,3}).*/, '$1-$2');
+                    }
+                    
+                    e.target.value = value;
+                });
             }
             
-            e.target.value = value;
-        });
-        
-        // Máscara para telefone
-        document.getElementById('telefone').addEventListener('input', function (e) {
-            let value = e.target.value.replace(/\D/g, '');
-            if (value.length > 11) value = value.slice(0, 11);
-            
-            if (value.length > 10) {
-                value = value.replace(/^(\d{2})(\d{5})(\d{4}).*/, '($1) $2-$3');
-            } else if (value.length > 6) {
-                value = value.replace(/^(\d{2})(\d{4})(\d{0,4}).*/, '($1) $2-$3');
-            } else if (value.length > 2) {
-                value = value.replace(/^(\d{2})(\d{0,5}).*/, '($1) $2');
+            // Máscara para telefone (cadastro)
+            const telefoneField = document.getElementById('telefone');
+            if (telefoneField) {
+                telefoneField.addEventListener('input', function (e) {
+                    let value = e.target.value.replace(/\D/g, '');
+                    if (value.length > 11) value = value.slice(0, 11);
+                    
+                    if (value.length > 10) {
+                        value = value.replace(/^(\d{2})(\d{5})(\d{4}).*/, '($1) $2-$3');
+                    } else if (value.length > 6) {
+                        value = value.replace(/^(\d{2})(\d{4})(\d{0,4}).*/, '($1) $2-$3');
+                    } else if (value.length > 2) {
+                        value = value.replace(/^(\d{2})(\d{0,5}).*/, '($1) $2');
+                    }
+                    
+                    e.target.value = value;
+                });
             }
             
-            e.target.value = value;
-        });
-        
-        // Máscaras para campos de edição
-        document.getElementById('edit_telefone').addEventListener('input', function (e) {
-            let value = e.target.value.replace(/\D/g, '');
-            if (value.length > 11) value = value.slice(0, 11);
-            
-            if (value.length > 10) {
-                value = value.replace(/^(\d{2})(\d{5})(\d{4}).*/, '($1) $2-$3');
-            } else if (value.length > 6) {
-                value = value.replace(/^(\d{2})(\d{4})(\d{0,4}).*/, '($1) $2-$3');
-            } else if (value.length > 2) {
-                value = value.replace(/^(\d{2})(\d{0,5}).*/, '($1) $2');
+            // Máscaras para campos de edição
+            const editTelefoneField = document.getElementById('edit_telefone');
+            if (editTelefoneField) {
+                editTelefoneField.addEventListener('input', function (e) {
+                    let value = e.target.value.replace(/\D/g, '');
+                    if (value.length > 11) value = value.slice(0, 11);
+                    
+                    if (value.length > 10) {
+                        value = value.replace(/^(\d{2})(\d{5})(\d{4}).*/, '($1) $2-$3');
+                    } else if (value.length > 6) {
+                        value = value.replace(/^(\d{2})(\d{4})(\d{0,4}).*/, '($1) $2-$3');
+                    } else if (value.length > 2) {
+                        value = value.replace(/^(\d{2})(\d{0,5}).*/, '($1) $2');
+                    }
+                    
+                    e.target.value = value;
+                });
             }
             
-            e.target.value = value;
-        });
-        
-        document.getElementById('edit_cep').addEventListener('input', function (e) {
-            let value = e.target.value.replace(/\D/g, '');
-            if (value.length > 8) value = value.slice(0, 8);
-            
-            if (value.length > 5) {
-                value = value.replace(/^(\d{5})(\d{0,3}).*/, '$1-$2');
+            const editCepField = document.getElementById('edit_cep');
+            if (editCepField) {
+                editCepField.addEventListener('input', function (e) {
+                    let value = e.target.value.replace(/\D/g, '');
+                    if (value.length > 8) value = value.slice(0, 8);
+                    
+                    if (value.length > 5) {
+                        value = value.replace(/^(\d{5})(\d{0,3}).*/, '$1-$2');
+                    }
+                    
+                    e.target.value = value;
+                });
             }
-            
-            e.target.value = value;
         });
         
         // FORÇA VISIBILIDADE DO HEADER MOBILE
@@ -2589,36 +2868,53 @@ $escolas = listarEscolas($busca);
             overlay.classList.toggle('hidden');
         }
 
-        // Close sidebar when clicking overlay
-        document.getElementById('mobileOverlay').addEventListener('click', function() {
-            toggleSidebar();
+        // Configurar event listeners após DOM carregar
+        document.addEventListener('DOMContentLoaded', function() {
+            // Close sidebar when clicking overlay
+            const mobileOverlay = document.getElementById('mobileOverlay');
+            if (mobileOverlay) {
+                mobileOverlay.addEventListener('click', function() {
+                    toggleSidebar();
+                });
+            }
+            
+            // Event listeners para busca de gestores
+            const gestorSearch = document.getElementById('gestor_search');
+            if (gestorSearch) {
+                gestorSearch.addEventListener('input', function(e) {
+                    buscarGestores(e.target.value);
+                });
+            }
+            
+            // Event listeners para busca de gestores na edição
+            const editGestorSearch = document.getElementById('edit_gestor_search');
+            if (editGestorSearch) {
+                editGestorSearch.addEventListener('input', function(e) {
+                    buscarGestoresEdicao(e.target.value);
+                });
+            }
+            
+            // Fechar modal de edição clicando fora dele
+            const modalEdicao = document.getElementById('modalEdicaoEscola');
+            if (modalEdicao) {
+                modalEdicao.addEventListener('click', function(e) {
+                    if (e.target === this) {
+                        fecharModalEdicaoEscola();
+                    }
+                });
+            }
         });
-        
-        // Event listeners para busca de gestores
-        document.getElementById('gestor_search').addEventListener('input', function(e) {
-            buscarGestores(e.target.value);
-        });
-        
-        // Event listeners para busca de gestores na edição
-        document.getElementById('edit_gestor_search').addEventListener('input', function(e) {
-            buscarGestoresEdicao(e.target.value);
-        });
-        
         
         // Fechar resultados ao clicar fora
         document.addEventListener('click', function(e) {
-            if (!e.target.closest('#gestor_search') && !e.target.closest('#gestor_results')) {
-                document.getElementById('gestor_results').classList.add('hidden');
+            const gestorResults = document.getElementById('gestor_results');
+            if (gestorResults && !e.target.closest('#gestor_search') && !e.target.closest('#gestor_results')) {
+                gestorResults.classList.add('hidden');
             }
-            if (!e.target.closest('#edit_gestor_search') && !e.target.closest('#edit_gestor_results')) {
-                document.getElementById('edit_gestor_results').classList.add('hidden');
-            }
-        });
-        
-        // Fechar modal de edição clicando fora dele
-        document.getElementById('modalEdicaoEscola').addEventListener('click', function(e) {
-            if (e.target === this) {
-                fecharModalEdicaoEscola();
+            
+            const editGestorResults = document.getElementById('edit_gestor_results');
+            if (editGestorResults && !e.target.closest('#edit_gestor_search') && !e.target.closest('#edit_gestor_results')) {
+                editGestorResults.classList.add('hidden');
             }
         });
         
@@ -2668,24 +2964,20 @@ $escolas = listarEscolas($busca);
         }
 
         function closeUserProfile() {
-            document.getElementById('userProfileModal').classList.add('hidden');
+            const modal = document.getElementById('userProfileModal');
+            if (modal) modal.classList.add('hidden');
         }
-
-        // Close modal when clicking outside
-        document.getElementById('userProfileModal').addEventListener('click', function(e) {
-            if (e.target === this) {
-                closeUserProfile();
-            }
-        });
 
         // ===== FUNÇÕES DE LOGOUT =====
         
         function confirmLogout() {
-            document.getElementById('logoutModal').classList.remove('hidden');
+            const modal = document.getElementById('logoutModal');
+            if (modal) modal.classList.remove('hidden');
         }
 
         function closeLogoutModal() {
-            document.getElementById('logoutModal').classList.add('hidden');
+            const modal = document.getElementById('logoutModal');
+            if (modal) modal.classList.add('hidden');
         }
 
         function logout() {
@@ -2693,10 +2985,36 @@ $escolas = listarEscolas($busca);
             window.location.href = '../../Models/sessao/sessions.php?sair';
         }
 
-        // Close logout modal when clicking outside
-        document.getElementById('logoutModal').addEventListener('click', function(e) {
-            if (e.target === this) {
-                closeLogoutModal();
+        // Configurar modais após DOM carregar
+        document.addEventListener('DOMContentLoaded', function() {
+            // Close user profile modal when clicking outside
+            const userProfileModal = document.getElementById('userProfileModal');
+            if (userProfileModal) {
+                userProfileModal.addEventListener('click', function(e) {
+                    if (e.target === this) {
+                        closeUserProfile();
+                    }
+                });
+            }
+
+            // Close logout modal when clicking outside
+            const logoutModal = document.getElementById('logoutModal');
+            if (logoutModal) {
+                logoutModal.addEventListener('click', function(e) {
+                    if (e.target === this) {
+                        closeLogoutModal();
+                    }
+                });
+            }
+            
+            // Close modal de sucesso when clicking outside
+            const modalSucesso = document.getElementById('modalSucesso');
+            if (modalSucesso) {
+                modalSucesso.addEventListener('click', function(e) {
+                    if (e.target === this) {
+                        fecharModalSucesso();
+                    }
+                });
             }
         });
 
