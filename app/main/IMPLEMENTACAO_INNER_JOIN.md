@@ -2,13 +2,13 @@
 
 ## 📋 Resumo da Implementação
 
-Foi implementada uma estrutura de banco de dados normalizada com **INNER JOIN** entre as tabelas `pessoas` e `usuarios`, separando dados pessoais das credenciais de acesso.
+Foi implementada uma estrutura de banco de dados normalizada com **INNER JOIN** entre as tabelas `pessoa` e `usuario`, separando dados pessoais das credenciais de acesso.
 
 ## 🗄️ Estrutura do Banco de Dados
 
-### Tabela `pessoas`
+### Tabela `pessoa`
 ```sql
-CREATE TABLE pessoas (
+CREATE TABLE pessoa (
     id INT AUTO_INCREMENT PRIMARY KEY,
     nome VARCHAR(100) NOT NULL,
     cpf VARCHAR(14) UNIQUE NOT NULL,        -- CPF está aqui
@@ -22,19 +22,21 @@ CREATE TABLE pessoas (
 );
 ```
 
-### Tabela `usuarios`
+### Tabela `usuario`
 ```sql
-CREATE TABLE usuarios (
+CREATE TABLE usuario (
     id INT AUTO_INCREMENT PRIMARY KEY,
     pessoa_id INT NOT NULL,                 -- Chave estrangeira
-    senha VARCHAR(255) NOT NULL,            -- Senha está aqui
-    tipo ENUM('admin', 'funcionario', 'nutricionista') DEFAULT 'funcionario',
+    username VARCHAR(50) UNIQUE NOT NULL,
+    senha_hash VARCHAR(255) NOT NULL,       -- Senha está aqui
+    role VARCHAR(50) DEFAULT 'FUNCIONARIO',
+    ativo BOOLEAN DEFAULT TRUE,
     ultimo_login TIMESTAMP NULL,
     tentativas_login INT DEFAULT 0,
     bloqueado BOOLEAN DEFAULT FALSE,
     data_criacao TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     data_atualizacao TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    FOREIGN KEY (pessoa_id) REFERENCES pessoas(id) ON DELETE CASCADE
+    FOREIGN KEY (pessoa_id) REFERENCES pessoa(id) ON DELETE CASCADE
 );
 ```
 
@@ -45,8 +47,8 @@ CREATE TABLE usuarios (
 SELECT 
     u.id as usuario_id,
     u.pessoa_id,
-    u.senha,
-    u.tipo,
+    u.senha_hash,
+    u.role,
     u.bloqueado,
     u.tentativas_login,
     p.id as pessoa_id,
@@ -54,23 +56,23 @@ SELECT
     p.cpf,
     p.email,
     p.ativo
-FROM usuarios u
-INNER JOIN pessoas p ON u.pessoa_id = p.id
+FROM usuario u
+INNER JOIN pessoa p ON u.pessoa_id = p.id
 WHERE p.cpf = ? AND p.ativo = 1
 ```
 
 ### Explicação do INNER JOIN:
-- **usuarios u**: Alias para tabela usuarios
-- **pessoas p**: Alias para tabela pessoas  
+- **usuario u**: Alias para tabela usuario
+- **pessoa p**: Alias para tabela pessoa  
 - **ON u.pessoa_id = p.id**: Condição de junção
-- **WHERE p.cpf = ?**: Busca pelo CPF na tabela pessoas
+- **WHERE p.cpf = ?**: Busca pelo CPF na tabela pessoa
 - **AND p.ativo = 1**: Apenas pessoas ativas
 
 ## 📁 Arquivos Modificados/Criados
 
 ### 1. `database_setup.sql` ✅ Atualizado
-- Criada tabela `pessoas` com CPF
-- Modificada tabela `usuarios` com relacionamento
+- Criada tabela `pessoa` com CPF
+- Modificada tabela `usuario` com relacionamento
 - Inseridos dados de teste com relacionamento
 
 ### 2. `modelLogin.php` ✅ Completamente Reescrito
@@ -117,7 +119,7 @@ private function validarCPF($cpf) {
 ### 4. **Controle de Tentativas**
 ```php
 private function incrementarTentativasLogin($usuarioId) {
-    $sql = "UPDATE usuarios SET 
+    $sql = "UPDATE usuario SET 
             tentativas_login = tentativas_login + 1,
             bloqueado = CASE WHEN tentativas_login >= 4 THEN 1 ELSE 0 END
             WHERE id = ?";
@@ -194,19 +196,19 @@ Se você já tinha dados na estrutura antiga:
 
 ```sql
 -- 1. Backup dos dados existentes
-CREATE TABLE usuarios_backup AS SELECT * FROM usuarios;
+CREATE TABLE usuario_backup AS SELECT * FROM usuario;
 
 -- 2. Migrar dados para nova estrutura
-INSERT INTO pessoas (nome, cpf, email, ativo)
-SELECT nome, cpf, email, ativo FROM usuarios_backup;
+INSERT INTO pessoa (nome, cpf, email, ativo)
+SELECT nome, cpf, email, ativo FROM usuario_backup;
 
-INSERT INTO usuarios (pessoa_id, senha, tipo)
-SELECT p.id, u.senha, u.tipo 
-FROM usuarios_backup u
-JOIN pessoas p ON p.cpf = u.cpf;
+INSERT INTO usuario (pessoa_id, username, senha_hash, role)
+SELECT p.id, u.username, u.senha_hash, u.role 
+FROM usuario_backup u
+JOIN pessoa p ON p.cpf = u.cpf;
 
 -- 3. Verificar migração e remover backup
--- DROP TABLE usuarios_backup;
+-- DROP TABLE usuario_backup;
 ```
 
 ## 🚀 Próximos Passos
@@ -230,4 +232,4 @@ Em caso de problemas:
 
 **✅ Implementação Concluída com Sucesso!**
 
-O sistema agora usa INNER JOIN corretamente entre as tabelas `pessoas` e `usuarios`, com o CPF na tabela `pessoas` e a senha na tabela `usuarios`, exatamente como solicitado.
+O sistema agora usa INNER JOIN corretamente entre as tabelas `pessoa` e `usuario`, com o CPF na tabela `pessoa` e a senha na tabela `usuario`, exatamente como solicitado.

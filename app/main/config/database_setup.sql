@@ -9,8 +9,8 @@ COLLATE utf8mb4_unicode_ci;
 -- Usar o banco de dados
 USE escola_merenda;
 
--- Tabela de pessoas (dados pessoais básicos)
-CREATE TABLE IF NOT EXISTS pessoas (
+-- Tabela de pessoa (dados pessoais básicos)
+CREATE TABLE IF NOT EXISTS pessoa (
     id INT AUTO_INCREMENT PRIMARY KEY,
     nome VARCHAR(100) NOT NULL,
     cpf VARCHAR(14) UNIQUE NOT NULL,
@@ -18,23 +18,26 @@ CREATE TABLE IF NOT EXISTS pessoas (
     telefone VARCHAR(20),
     endereco TEXT,
     data_nascimento DATE,
+    tipo VARCHAR(50) DEFAULT 'FUNCIONARIO',
     ativo BOOLEAN DEFAULT TRUE,
     data_criacao TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     data_atualizacao TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 );
 
 -- Tabela de usuários (credenciais e permissões)
-CREATE TABLE IF NOT EXISTS usuarios (
+CREATE TABLE IF NOT EXISTS usuario (
     id INT AUTO_INCREMENT PRIMARY KEY,
     pessoa_id INT NOT NULL,
-    senha VARCHAR(255) NOT NULL,
-    tipo ENUM('admin', 'funcionario', 'nutricionista') DEFAULT 'funcionario',
+    username VARCHAR(50) UNIQUE NOT NULL,
+    senha_hash VARCHAR(255) NOT NULL,
+    role VARCHAR(50) DEFAULT 'FUNCIONARIO',
+    ativo BOOLEAN DEFAULT TRUE,
     ultimo_login TIMESTAMP NULL,
     tentativas_login INT DEFAULT 0,
     bloqueado BOOLEAN DEFAULT FALSE,
     data_criacao TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     data_atualizacao TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    FOREIGN KEY (pessoa_id) REFERENCES pessoas(id) ON DELETE CASCADE
+    FOREIGN KEY (pessoa_id) REFERENCES pessoa(id) ON DELETE CASCADE
 );
 
 -- Tabela de escolas
@@ -129,25 +132,25 @@ CREATE TABLE IF NOT EXISTS relatorios_consumo (
     observacoes TEXT,
     criado_por INT NOT NULL,
     data_criacao TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (escola_id) REFERENCES escolas(id) ON DELETE CASCADE,
-    FOREIGN KEY (criado_por) REFERENCES usuarios(id) ON DELETE CASCADE
+    FOREIGN KEY (escola_id) REFERENCES escola(id) ON DELETE CASCADE,
+    FOREIGN KEY (criado_por) REFERENCES usuario(id) ON DELETE CASCADE
 );
 
 -- Inserir pessoa e usuário administrador padrão
-INSERT INTO pessoas (nome, cpf, email) VALUES 
+INSERT INTO pessoa (nome, cpf, email) VALUES 
 ('Administrador do Sistema', '000.000.000-00', 'admin@escola.com');
 
-INSERT INTO usuarios (pessoa_id, senha, tipo) VALUES 
-(1, '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'admin');
+INSERT INTO usuario (pessoa_id, username, senha_hash, role) VALUES 
+(1, 'admin', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'ADM');
 
 -- Inserir mais exemplos de pessoas e usuários
-INSERT INTO pessoas (nome, cpf, email, telefone) VALUES 
+INSERT INTO pessoa (nome, cpf, email, telefone) VALUES 
 ('Maria Silva Santos', '111.222.333-44', 'maria@escola.com', '(11) 98765-4321'),
 ('João Carlos Oliveira', '555.666.777-88', 'joao@escola.com', '(11) 91234-5678');
 
-INSERT INTO usuarios (pessoa_id, senha, tipo) VALUES 
-(2, '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'funcionario'),
-(3, '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'nutricionista');
+INSERT INTO usuario (pessoa_id, username, senha_hash, role) VALUES 
+(2, 'maria', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'FUNCIONARIO'),
+(3, 'joao', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'PROFESSOR');
 
 -- Inserir algumas categorias de alimentos básicas
 INSERT INTO alimentos (nome, categoria, unidade_medida) VALUES 
@@ -161,5 +164,5 @@ INSERT INTO alimentos (nome, categoria, unidade_medida) VALUES
 ('Pão Francês', 'Panificados', 'unidade');
 
 -- Inserir escola exemplo
-INSERT INTO escolas (nome, endereco, telefone, total_alunos) VALUES 
-('Escola Municipal Exemplo', 'Rua das Flores, 123 - Centro', '(11) 1234-5678', 300);
+INSERT INTO escola (nome, endereco, telefone, qtd_salas) VALUES 
+('Escola Municipal Exemplo', 'Rua das Flores, 123 - Centro', '(11) 1234-5678', 10);
