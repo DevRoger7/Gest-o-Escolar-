@@ -1947,6 +1947,13 @@ if ($_SESSION['tipo'] === 'ADM') {
                                                 </select>
                                             </div>
 
+                                            <div>
+                                                <label for="data_inicio_professor" class="block text-sm font-medium text-gray-700 mb-2">Data de Início</label>
+                                                <input type="date" id="data_inicio_professor" 
+                                                       class="block w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-green focus:border-transparent"
+                                                       required>
+                                            </div>
+
                                             <button type="button" onclick="lotarProfessor()" 
                                                     class="w-full bg-primary-green text-white px-4 py-2.5 rounded-lg hover:bg-green-700 transition-colors duration-200 font-medium flex items-center justify-center space-x-2">
                                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
