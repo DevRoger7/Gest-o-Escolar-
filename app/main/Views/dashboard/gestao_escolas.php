@@ -419,6 +419,7 @@ $escolas = listarEscolas($busca);
     <!-- Favicon -->
     <link rel="icon" href="https://upload.wikimedia.org/wikipedia/commons/thumb/1/19/Bras%C3%A3o_de_Maranguape.png/250px-Bras%C3%A3o_de_Maranguape.png" type="image/png">
     
+    
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
@@ -439,6 +440,38 @@ $escolas = listarEscolas($busca);
                 }
             }
         }
+
+        // ===== PREVENÇÃO DE ERROS DE EXTENSÕES =====
+        // Capturar e suprimir erros de extensões do navegador
+        window.addEventListener('error', function(e) {
+            if (e.message && (
+                e.message.includes('content-all.js') ||
+                e.message.includes('Could not establish connection') ||
+                e.message.includes('Receiving end does not exist') ||
+                e.message.includes('message channel closed')
+            )) {
+                e.preventDefault();
+                console.warn('Erro de extensão do navegador suprimido:', e.message);
+                return false;
+            }
+        });
+
+        window.addEventListener('unhandledrejection', function(e) {
+            if (e.reason && (
+                e.reason.message && (
+                    e.reason.message.includes('content-all.js') ||
+                    e.reason.message.includes('Could not establish connection') ||
+                    e.reason.message.includes('Receiving end does not exist') ||
+                    e.reason.message.includes('message channel closed')
+                )
+            )) {
+                e.preventDefault();
+                console.warn('Promise rejection de extensão suprimida:', e.reason);
+                return false;
+            }
+        });
+
+        // Função toggleSidebar já definida globalmente
     </script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     
@@ -583,11 +616,26 @@ $escolas = listarEscolas($busca);
         @media (max-width: 1023px) {
             .sidebar-mobile {
                 transform: translateX(-100%);
+                transition: transform 0.3s ease-in-out;
+                z-index: 999 !important;
+                position: fixed !important;
+                left: 0 !important;
+                top: 0 !important;
+                height: 100vh !important;
+                width: 16rem !important;
             }
 
             .sidebar-mobile.open {
-                transform: translateX(0);
+                transform: translateX(0) !important;
+                z-index: 999 !important;
             }
+        }
+
+        /* Classe para reduzir opacidade do conteúdo principal quando menu está aberto */
+        .content-dimmed {
+            opacity: 0.5 !important;
+            transition: opacity 0.3s ease-in-out;
+            pointer-events: none;
         }
 
         /* Tema Escuro */
@@ -1346,7 +1394,7 @@ echo $iniciais;
             <div class="px-4 sm:px-6 lg:px-8">
                 <div class="flex justify-between items-center h-16">
                     <!-- Mobile Menu Button -->
-                    <button onclick="toggleSidebar()" class="mobile-menu-btn p-2 rounded-md text-gray-600 hover:text-gray-900 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-primary-green" aria-label="Abrir menu">
+                    <button onclick="toggleSidebar()" class="lg:hidden p-2 rounded-md text-gray-600 hover:text-gray-900 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-primary-green" aria-label="Abrir menu">
                         <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
                         </svg>
@@ -3147,55 +3195,28 @@ if ($_SESSION['tipo'] === 'ADM') {
         });
         
         // FORÇA VISIBILIDADE DO HEADER MOBILE
-        function forceMobileHeaderVisibility() {
-            const header = document.querySelector('header');
-            const mobileBtn = document.querySelector('.mobile-menu-btn');
-            
-            if (window.innerWidth < 1024) {
-                // Mobile - forçar visibilidade
-                if (header) {
-                    header.style.display = 'block';
-                    header.style.visibility = 'visible';
-                    header.style.opacity = '1';
-                    header.style.position = 'sticky';
-                    header.style.top = '0';
-                    header.style.zIndex = '100';
-                }
-                if (mobileBtn) {
-                    mobileBtn.style.display = 'flex';
-                    mobileBtn.style.visibility = 'visible';
-                    mobileBtn.style.opacity = '1';
-                }
-            } else {
-                // Desktop - esconder botão mobile
-                if (mobileBtn) {
-                    mobileBtn.style.display = 'none';
-                }
-            }
-        }
-
-        // Executar na carga da página
-        document.addEventListener('DOMContentLoaded', forceMobileHeaderVisibility);
-        window.addEventListener('resize', forceMobileHeaderVisibility);
-        
-        // Toggle sidebar on mobile
-        function toggleSidebar() {
-            const sidebar = document.getElementById('sidebar');
-            const overlay = document.getElementById('mobileOverlay');
-
-            sidebar.classList.toggle('open');
-            overlay.classList.toggle('hidden');
-        }
-
-        // Configurar event listeners após DOM carregar
+        // Event listeners simples
         document.addEventListener('DOMContentLoaded', function() {
-            // Close sidebar when clicking overlay
-            const mobileOverlay = document.getElementById('mobileOverlay');
-            if (mobileOverlay) {
-                mobileOverlay.addEventListener('click', function() {
-                    toggleSidebar();
+            const overlay = document.getElementById('mobileOverlay');
+            
+            // Event listener para fechar sidebar ao clicar no overlay
+            if (overlay) {
+                overlay.addEventListener('click', function() {
+                    const sidebar = document.getElementById('sidebar');
+                    const main = document.querySelector('main');
+                    
+                    if (sidebar && sidebar.classList.contains('open')) {
+                        sidebar.classList.remove('open');
+                        overlay.classList.add('hidden');
+                        
+                        // Remover opacidade do conteúdo principal
+                        if (main) {
+                            main.classList.remove('content-dimmed');
+                        }
+                    }
                 });
             }
+            
             
             // Event listeners para busca de gestores
             const gestorSearch = document.getElementById('gestor_search');
@@ -4579,6 +4600,26 @@ if ($_SESSION['tipo'] === 'ADM') {
                 console.error('Erro na função showTab:', error);
             }
         }
+    </script>
+
+    <!-- Script para toggleSidebar global -->
+    <script>
+        // Função SIMPLES para toggleSidebar
+        window.toggleSidebar = function() {
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.getElementById('mobileOverlay');
+            const main = document.querySelector('main');
+            
+            if (sidebar && overlay) {
+                sidebar.classList.toggle('open');
+                overlay.classList.toggle('hidden');
+                
+                // Adicionar/remover opacidade no conteúdo principal (incluindo header)
+                if (main) {
+                    main.classList.toggle('content-dimmed');
+                }
+            }
+        };
     </script>
 
     <!-- User Profile Modal -->
