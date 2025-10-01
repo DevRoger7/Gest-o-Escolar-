@@ -11,11 +11,19 @@ if (!isset($_SESSION['tipo']) || $_SESSION['tipo'] !== 'ADM') {
 // Incluir arquivo de conexão com o banco de dados
 require_once('../../config/Database.php');
 
+if (isset($_POST['btngestor'])) {
+    $escolaprofessor = $_POST['escola_professor'];
+} else {
+    # code...
+}
+
+
 // Funções para gerenciamento de escolas
-function listarEscolas($busca = '') {
+function listarEscolas($busca = '')
+{
     $db = Database::getInstance();
     $conn = $db->getConnection();
-    
+
     $sql = "SELECT e.id, e.nome, e.endereco, e.telefone, e.email, e.municipio, e.cep, e.qtd_salas, e.obs, e.codigo, e.criado_em as data_criacao,
                    p.nome as gestor_nome, p.email as gestor_email
             FROM escola e 
@@ -23,61 +31,92 @@ function listarEscolas($busca = '') {
             LEFT JOIN gestor g ON gl.gestor_id = g.id
             LEFT JOIN pessoa p ON g.pessoa_id = p.id
             WHERE 1=1";
-    
+
     if (!empty($busca)) {
         $sql .= " AND (e.nome LIKE :busca OR e.endereco LIKE :busca OR e.email LIKE :busca OR e.municipio LIKE :busca OR p.nome LIKE :busca)";
     }
-    
+
     $sql .= " ORDER BY e.nome ASC";
-    
+
     $stmt = $conn->prepare($sql);
-    
+
     if (!empty($busca)) {
         $busca = "%{$busca}%";
         $stmt->bindParam(':busca', $busca);
     }
-    
+
     $stmt->execute();
     return $stmt->fetchAll(PDO::FETCH_ASSOC);
 }
 
-function buscarGestores($busca = '') {
+function buscarGestores($busca = '')
+{
     $db = Database::getInstance();
     $conn = $db->getConnection();
-    
+
     $sql = "SELECT u.id, p.nome, p.email, p.telefone, u.role
             FROM usuario u 
             JOIN pessoa p ON u.pessoa_id = p.id 
             WHERE u.role = 'GESTAO' AND u.ativo = 1";
-    
+
     if (!empty($busca)) {
         $sql .= " AND (p.nome LIKE :busca OR p.email LIKE :busca)";
     }
-    
+
     $sql .= " ORDER BY p.nome ASC LIMIT 10";
-    
+
     $stmt = $conn->prepare($sql);
-    
+
     if (!empty($busca)) {
         $busca = "%{$busca}%";
         $stmt->bindParam(':busca', $busca);
     }
-    
+
     $stmt->execute();
     return $stmt->fetchAll(PDO::FETCH_ASSOC);
 }
 
-function cadastrarEscola($dados) {
+function buscarGestoresNovo(): array
+{
     $db = Database::getInstance();
     $conn = $db->getConnection();
-    
+
+    $sql = "SELECT 
+            g.id AS gestor_id,
+            p.nome AS nome_gestor,
+            p.telefone AS telefone_gestor,
+            p.email AS email_gestor,
+            p.cpf,
+            g.cargo,
+            g.ativo
+        FROM 
+            gestor g
+        INNER JOIN 
+            pessoa p ON g.pessoa_id = p.id
+        WHERE 
+            g.ativo = 1
+        ORDER BY 
+            p.nome";
+    $stmt = $conn->prepare($sql);
+
+    $stmt->execute();
+    return $stmt->fetchAll(PDO::FETCH_ASSOC);
+}
+
+
+
+function cadastrarEscola($dados)
+{
+    $db = Database::getInstance();
+    $conn = $db->getConnection();
+
     try {
         $conn->beginTransaction();
-        
+
         // Inserir escola
         $stmt = $conn->prepare("INSERT INTO escola (nome, endereco, telefone, email, municipio, cep, qtd_salas, obs, codigo) 
                                 VALUES (:nome, :endereco, :telefone, :email, :municipio, :cep, :qtd_salas, :obs, :codigo)");
-        
+
         $stmt->bindParam(':nome', $dados['nome']);
         $stmt->bindParam(':endereco', $dados['endereco']);
         $stmt->bindParam(':telefone', $dados['telefone']);
@@ -87,10 +126,10 @@ function cadastrarEscola($dados) {
         $stmt->bindParam(':qtd_salas', $dados['qtd_salas']);
         $stmt->bindParam(':obs', $dados['obs']);
         $stmt->bindParam(':codigo', $dados['codigo']);
-        
+
         $stmt->execute();
         $escolaId = $conn->lastInsertId();
-        
+
         // Se um gestor (usuario) foi selecionado, criar a lotação mapeando para a tabela gestor
         if (!empty($dados['gestor_id'])) {
             // Primeiro, localizar o gestor.id correspondente ao usuario.id informado
@@ -138,9 +177,9 @@ function cadastrarEscola($dados) {
             $stmt->bindParam(':escola_id', $escolaId);
             $stmt->execute();
         }
-        
+
         $conn->commit();
-        
+
         return ['status' => true, 'mensagem' => 'Escola cadastrada com sucesso!'];
     } catch (PDOException $e) {
         $conn->rollBack();
@@ -148,19 +187,20 @@ function cadastrarEscola($dados) {
     }
 }
 
-function excluirEscola($id) {
+function excluirEscola($id)
+{
     $db = Database::getInstance();
     $conn = $db->getConnection();
-    
+
     try {
         $conn->beginTransaction();
-        
+
         $stmt = $conn->prepare("DELETE FROM escola WHERE id = :id");
         $stmt->bindParam(':id', $id);
         $stmt->execute();
-        
+
         $conn->commit();
-        
+
         return ['status' => true, 'mensagem' => 'Escola excluída com sucesso!'];
     } catch (PDOException $e) {
         $conn->rollBack();
@@ -168,13 +208,14 @@ function excluirEscola($id) {
     }
 }
 
-function atualizarEscola($id, $dados) {
+function atualizarEscola($id, $dados)
+{
     $db = Database::getInstance();
     $conn = $db->getConnection();
-    
+
     try {
         $conn->beginTransaction();
-        
+
         // Atualizar dados da escola
         $stmt = $conn->prepare("UPDATE escola SET 
                                 nome = :nome, 
@@ -187,7 +228,7 @@ function atualizarEscola($id, $dados) {
                                 obs = :obs, 
                                 codigo = :codigo 
                                 WHERE id = :id");
-        
+
         $stmt->bindParam(':id', $id);
         $stmt->bindParam(':nome', $dados['nome']);
         $stmt->bindParam(':endereco', $dados['endereco']);
@@ -198,20 +239,20 @@ function atualizarEscola($id, $dados) {
         $stmt->bindParam(':qtd_salas', $dados['qtd_salas']);
         $stmt->bindParam(':obs', $dados['obs']);
         $stmt->bindParam(':codigo', $dados['codigo']);
-        
+
         $stmt->execute();
-        
+
         // Gerenciar lotação do gestor
         // Primeiro, remover lotação atual (se houver)
         $stmt = $conn->prepare("DELETE FROM gestor_lotacao WHERE escola_id = :escola_id AND responsavel = 1");
         $stmt->bindParam(':escola_id', $id);
         $stmt->execute();
-        
+
         // Se um novo gestor foi selecionado, criar a lotação
         if (!empty($dados['gestor_id'])) {
             // Localizar o gestor.id correspondente ao usuario.id informado
             $gestorId = null;
-            
+
             // 1) Tentar via tabela gestor com coluna usuario_id
             try {
                 $stmt = $conn->prepare("SELECT id FROM gestor WHERE usuario_id = :usuario_id LIMIT 1");
@@ -254,9 +295,9 @@ function atualizarEscola($id, $dados) {
             $stmt->bindParam(':escola_id', $id);
             $stmt->execute();
         }
-        
+
         $conn->commit();
-        
+
         return ['status' => true, 'mensagem' => 'Escola atualizada com sucesso!'];
     } catch (PDOException $e) {
         $conn->rollBack();
@@ -284,12 +325,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 'codigo' => $_POST['codigo'] ?? '',
                 'gestor_id' => $_POST['gestor_id'] ?? null
             ];
-            
+
             $resultado = cadastrarEscola($dados);
             $mensagem = $resultado['mensagem'];
             $tipoMensagem = $resultado['status'] ? 'success' : 'error';
         }
-        
+
         // Editar escola
         if ($_POST['acao'] === 'editar' && isset($_POST['id'])) {
             $dados = [
@@ -304,12 +345,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 'codigo' => $_POST['codigo'] ?? '',
                 'gestor_id' => $_POST['gestor_id'] ?? null
             ];
-            
+
             $resultado = atualizarEscola($_POST['id'], $dados);
             $mensagem = $resultado['mensagem'];
             $tipoMensagem = $resultado['status'] ? 'success' : 'error';
         }
-        
+
         // Excluir escola
         if ($_POST['acao'] === 'excluir' && isset($_POST['id'])) {
             $resultado = excluirEscola($_POST['id']);
@@ -1129,16 +1170,16 @@ $escolas = listarEscolas($busca);
                     <span class="text-2 font-bold text-white" id="profileInitials"><?php
                                                                                     // Pega as 2 primeiras letras do nome da sessão
                                                                                     $nome = $_SESSION['nome'] ?? '';
-                                                                                    $iniciais = '';
-                                                                                    if (strlen($nome) >= 2) {
-                                                                                        $iniciais = strtoupper(substr($nome, 0, 2));
-                                                                                    } elseif (strlen($nome) == 1) {
-                                                                                        $iniciais = strtoupper($nome);
-                                                                                    } else {
-                                                                                        $iniciais = 'US'; // Fallback para "User"
-                                                                                    }
-                                                                                    echo $iniciais;
-                                                                                    ?></span>
+$iniciais = '';
+if (strlen($nome) >= 2) {
+    $iniciais = strtoupper(substr($nome, 0, 2));
+} elseif (strlen($nome) == 1) {
+    $iniciais = strtoupper($nome);
+} else {
+    $iniciais = 'US'; // Fallback para "User"
+}
+echo $iniciais;
+?></span>
                 </div>
                 <div>
                     <p class="text-sm font-medium text-gray-800" id="userName"><?= $_SESSION['nome'] ?? 'Usuário' ?></p>
@@ -1285,22 +1326,22 @@ $escolas = listarEscolas($busca);
                         <!-- Escola atual (desktop) -->
                         <div class="text-right hidden lg:block">
                             <p class="text-sm font-medium text-gray-800" id="currentSchool">
-                                <?php 
+                                <?php
                                 if ($_SESSION['tipo'] === 'ADM') {
                                     echo 'Secretaria Municipal da Educação';
                                 } else {
                                     echo $_SESSION['escola_atual'] ?? 'Escola Municipal';
                                 }
-                                ?>
+?>
                             </p>
                             <p class="text-xs text-gray-500">
-                                <?php 
-                                if ($_SESSION['tipo'] === 'ADM') {
-                                    echo 'Órgão Central';
-                                } else {
-                                    echo 'Escola Atual';
-                                }
-                                ?>
+                                <?php
+if ($_SESSION['tipo'] === 'ADM') {
+    echo 'Órgão Central';
+} else {
+    echo 'Escola Atual';
+}
+?>
                             </p>
                         </div>
                         
@@ -1550,7 +1591,7 @@ $escolas = listarEscolas($busca);
             <!-- Tab Adicionar Professor -->
             <div id="tab-adicionar-professor" class="tab-content hidden">
                 <div class="p-6">
-                    <h2 class="text-xl font-semibold text-gray-900 mb-6">Adicionar Professor à Escola</h2>
+                    <h2 class="text-xl font-semibold text-gray-900 mb-6">Adicionar Gestor à Escola</h3>
                     
                     <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
                         <div class="flex items-center space-x-2">
@@ -1558,30 +1599,45 @@ $escolas = listarEscolas($busca);
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
                             </svg>
                             <p class="text-sm text-blue-800">
-                                <strong>Importante:</strong> Selecione uma escola e depois adicione os professores desejados.
+                                <strong>Importante:</strong> Selecione uma escola e depois adicione o gestor desejado.
                             </p>
                         </div>
                     </div>
 
                     <div class="space-y-6">
                         <!-- Seleção da Escola -->
+ <form method='POST' action='../dashboard/gestao_escolas.php'>
+
                         <div>
                             <label for="escola_professor" class="block text-sm font-medium text-gray-700 mb-2">Selecionar Escola *</label>
                             <select id="escola_professor" name="escola_professor" required 
                                     class="block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-primary-green focus:border-primary-green"
                                     onchange="carregarProfessoresEscola(this.value)">
-                                <option value="">Selecione uma escola...</option>
-                                <?php 
-                                $escolas = listarEscolas();
-                                foreach ($escolas as $escola): 
-                                ?>
+                                    <option value=<?php$escola['id']?>>Selecione uma escola...</option>
+<?php
+$escolas = listarEscolas();
+foreach ($escolas as $escola):
+    ?>
                                     <option value="<?php echo $escola['id']; ?>">
                                         <?php echo htmlspecialchars($escola['nome']); ?>
                                     </option>
                                 <?php endforeach; ?>
                             </select>
-                        </div>
 
+
+                  
+                        </div>
+                        <div>
+                  
+<?php
+  $gestores = buscarGestoresNovo();
+foreach ($gestores as $gestor) {
+    echo "<input type='radio' name='gestor' value='{$gestor['gestor_id']}'> {$gestor['nome_gestor']}";
+}
+?>
+                          <input type='submit' name='btngestor' value='Selecionar' style=' border: 2px solid black' >
+                          </form>
+                        </div>
                         <!-- Informações da Escola Selecionada -->
                         <div id="info-escola-selecionada" class="hidden bg-gray-50 border border-gray-200 rounded-lg p-4">
                             <h3 class="text-lg font-medium text-gray-900 mb-2">Informações da Escola</h3>
@@ -1676,10 +1732,10 @@ $escolas = listarEscolas($busca);
                                     class="block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-primary-green focus:border-primary-green"
                                     onchange="carregarLotacaoEscola(this.value)">
                                 <option value="">Selecione uma escola...</option>
-                                <?php 
-                                $escolas = listarEscolas();
-                                foreach ($escolas as $escola): 
-                                ?>
+                                <?php
+    $escolas = listarEscolas();
+foreach ($escolas as $escola):
+    ?>
                                     <option value="<?php echo $escola['id']; ?>">
                                         <?php echo htmlspecialchars($escola['nome']); ?>
                                     </option>
@@ -3797,18 +3853,18 @@ $escolas = listarEscolas($busca);
                         <div class="flex items-center space-x-4">
                             <div class="w-16 h-16 bg-white bg-opacity-20 rounded-full flex items-center justify-center">
                                 <span class="text-2xl font-bold text-white" id="profileInitials"><?php
-                                    // Pega as 2 primeiras letras do nome da sessão
-                                    $nome = $_SESSION['nome'] ?? '';
-                                    $iniciais = '';
-                                    if (strlen($nome) >= 2) {
-                                        $iniciais = strtoupper(substr($nome, 0, 2));
-                                    } elseif (strlen($nome) == 1) {
-                                        $iniciais = strtoupper($nome);
-                                    } else {
-                                        $iniciais = 'US'; // Fallback para "User"
-                                    }
-                                    echo $iniciais;
-                                ?></span>
+        // Pega as 2 primeiras letras do nome da sessão
+        $nome = $_SESSION['nome'] ?? '';
+$iniciais = '';
+if (strlen($nome) >= 2) {
+    $iniciais = strtoupper(substr($nome, 0, 2));
+} elseif (strlen($nome) == 1) {
+    $iniciais = strtoupper($nome);
+} else {
+    $iniciais = 'US'; // Fallback para "User"
+}
+echo $iniciais;
+?></span>
                             </div>
                             <div>
                                 <h2 class="text-2xl font-bold" id="profileName"><?php echo $_SESSION['nome']; ?></h2>
@@ -3834,17 +3890,17 @@ $escolas = listarEscolas($busca);
                                 <div class="flex items-center space-x-4">
                                     <div class="w-16 h-16 bg-primary-green rounded-full flex items-center justify-center">
                                         <span class="text-2xl font-bold text-white" id="profileInitials"><?php
-                                            $nome = $_SESSION['nome'] ?? '';
-                                            $iniciais = '';
-                                            if (strlen($nome) >= 2) {
-                                                $iniciais = strtoupper(substr($nome, 0, 2));
-                                            } elseif (strlen($nome) == 1) {
-                                                $iniciais = strtoupper($nome);
-                                            } else {
-                                                $iniciais = 'AD';
-                                            }
-                                            echo $iniciais;
-                                        ?></span>
+            $nome = $_SESSION['nome'] ?? '';
+                            $iniciais = '';
+                            if (strlen($nome) >= 2) {
+                                $iniciais = strtoupper(substr($nome, 0, 2));
+                            } elseif (strlen($nome) == 1) {
+                                $iniciais = strtoupper($nome);
+                            } else {
+                                $iniciais = 'AD';
+                            }
+                            echo $iniciais;
+                            ?></span>
                                     </div>
                                     <div>
                                         <h4 class="text-xl font-bold text-gray-900"><?php echo $_SESSION['nome']; ?></h4>
@@ -3879,13 +3935,13 @@ $escolas = listarEscolas($busca);
                     <!-- School Information -->
                     <div class="mb-8">
                         <h3 class="text-lg font-semibold text-gray-900 mb-4" id="schoolsTitle">
-                            <?php 
+                            <?php
                             if ($_SESSION['tipo'] === 'ADM') {
                                 echo 'Secretaria Municipal da Educação';
                             } else {
                                 echo 'Escola Atual';
                             }
-                            ?>
+?>
                         </h3>
                         <div id="schoolsContainer">
                             <?php if ($_SESSION['tipo'] === 'ADM') { ?>
