@@ -16,7 +16,31 @@ if (isset($_POST['btngestor'])) {
 } else {
     # code...
 }
+//Lotar gestor no banco de dados
 
+if (isset($_POST['btn-adicionar-gestor'])) {
+    $gestorid = $_POST['gestor_id'];
+    $escolaid = $_POST['escola_id'];
+    lotarGestor($gestorid, $escolaid);
+    
+} else {
+    $gestorid = null;
+    $escolaid = null;
+}
+
+
+
+//função para lotar gestor no banco de dados
+function lotarGestor($gestorid, $escolaid) {
+    $db = Database::getInstance();
+    $conn = $db->getConnection();
+    
+    $sql = "INSERT INTO gestor_lotacao (`id`, `gestor_id`, `escola_id`, `inicio`, `fim`, `responsavel`) VALUES (NULL,:gestorid, :escolaid, CURRENT_TIMESTAMP, NULL, 1)";
+    $stmt = $conn->prepare($sql);
+    $stmt->bindParam(':gestorid', $gestorid);
+    $stmt->bindParam(':escolaid', $escolaid);
+    $stmt->execute();
+}
 
 // Funções para gerenciamento de escolas
 function listarEscolas($busca = '')
@@ -1766,7 +1790,7 @@ if ($_SESSION['tipo'] === 'ADM') {
                                             <span>Limpar Seleção</span>
                                         </span>
                                     </button>
-                                    <button type="submit" id="btn-adicionar-gestor" disabled
+                                    <button type="submit" id="btn-adicionar-gestor" disabled name="btn-adicionar-gestor"
                                             class="px-6 py-2.5 bg-primary-green text-white rounded-lg hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-green disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 font-medium shadow-sm hover:shadow-md">
                                         <span class="flex items-center space-x-2">
                                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
