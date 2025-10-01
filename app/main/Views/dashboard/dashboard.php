@@ -20,14 +20,11 @@ if (!defined('BASE_URL')) {
         echo "Dashboard $userTypeFormatted - SIGAE";
     ?></title>
 
-    <!-- Favicon -->
     <link rel="icon" href="https://upload.wikimedia.org/wikipedia/commons/thumb/1/19/Bras%C3%A3o_de_Maranguape.png/250px-Bras%C3%A3o_de_Maranguape.png" type="image/png">
     <link rel="shortcut icon" href="https://upload.wikimedia.org/wikipedia/commons/thumb/1/19/Bras%C3%A3o_de_Maranguape.png/250px-Bras%C3%A3o_de_Maranguape.png" type="image/png">
     <link rel="apple-touch-icon" href="https://upload.wikimedia.org/wikipedia/commons/thumb/1/19/Bras%C3%A3o_de_Maranguape.png/250px-Bras%C3%A3o_de_Maranguape.png">
 
-    <!-- Script para interceptar erros de extensões ANTES de qualquer coisa -->
     <script>
-        // Interceptar erros de extensões antes de qualquer script
         (function() {
             const originalError = window.onerror;
             const originalUnhandledRejection = window.onunhandledrejection;
@@ -40,7 +37,7 @@ if (!defined('BASE_URL')) {
                     message.includes('Extension context invalidated') ||
                     message.includes('content-all.js')
                 )) {
-                    return true; // Suprimir o erro
+                    return true; 
                 }
                 if (originalError) return originalError.apply(this, arguments);
                 return false;
@@ -81,10 +78,7 @@ if (!defined('BASE_URL')) {
             }
         }
     </script>
-
-    <!-- Script de emergência para toggleSidebar -->
     <script>
-        // Função SIMPLES para toggleSidebar
         window.toggleSidebar = function() {
             const sidebar = document.getElementById('sidebar');
             const overlay = document.getElementById('mobileOverlay');
@@ -94,7 +88,6 @@ if (!defined('BASE_URL')) {
                 sidebar.classList.toggle('open');
                 overlay.classList.toggle('hidden');
                 
-                // Adicionar/remover opacidade no conteúdo principal (incluindo header)
                 if (main) {
                     main.classList.toggle('content-dimmed');
                 }
@@ -103,17 +96,12 @@ if (!defined('BASE_URL')) {
     </script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 
-    <!-- Theme Manager -->
     <script src="theme-manager.js"></script>
 
-    <!-- Script adicional de emergência para toggleSidebar -->
     <script>
-        // Função já definida acima, apenas confirmar
         console.log('toggleSidebar já definida:', typeof window.toggleSidebar);
 
-        // Handlers globais para suprimir erros de extensões do browser
         window.addEventListener('error', function(event) {
-            // Suprimir erros específicos de extensões
             if (event.message && (
                 event.message.includes('message channel closed') ||
                 event.message.includes('Could not establish connection') ||
