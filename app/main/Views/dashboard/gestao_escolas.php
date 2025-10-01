@@ -16,7 +16,52 @@ if (isset($_POST['btngestor'])) {
 } else {
     # code...
 }
+//Lotar gestor no banco de dados
 
+if (isset($_POST['btn-adicionar-gestor'])) {
+    $gestorid = $_POST['gestor_id'];
+    $escolaid = $_POST['escola_id'];
+    lotarGestor($gestorid, $escolaid);
+    
+} else {
+    $gestorid = null;
+    $escolaid = null;
+}
+
+
+
+//funções para lotar gestor no banco de dados
+function lotarGestor($gestorid, $escolaid) {
+    $db = Database::getInstance();
+    $conn = $db->getConnection();
+    
+    $sql = "INSERT INTO gestor_lotacao (`id`, `gestor_id`, `escola_id`, `inicio`, `fim`, `responsavel`) VALUES (NULL,:gestorid, :escolaid, CURRENT_TIMESTAMP, NULL, 1)";
+    $stmt = $conn->prepare($sql);
+    $stmt->bindParam(':gestorid', $gestorid);
+    $stmt->bindParam(':escolaid', $escolaid);
+    $stmt->execute();
+}
+
+//função dados_gestor_lotacao
+function dados_gestor_lotacao($gestorid, $escolaid) {
+$db = Database::getInstance();
+    $conn = $db->getConnection();
+
+    $sql = "SELECT 
+    p.nome,
+    p.email,
+    g.cargo as funcao
+FROM gestor_lotacao gl
+INNER JOIN gestor g ON gl.gestor_id = g.id
+INNER JOIN pessoa p ON g.pessoa_id = p.id
+WHERE gl.fim IS NULL;  -- Para pegar apenas lotações ativas";
+
+    $stmt = $conn->prepare($sql);
+    $stmt->bindParam(':gestorid', $gestorid);
+    $stmt->bindParam(':escolaid', $escolaid);
+    $stmt->execute();
+    return $stmt->fetchAll(PDO::FETCH_ASSOC);
+}
 
 // Funções para gerenciamento de escolas
 function listarEscolas($busca = '')
@@ -1834,7 +1879,7 @@ if ($_SESSION['tipo'] === 'ADM') {
                                             <span>Limpar Seleção</span>
                                         </span>
                                     </button>
-                                    <button type="submit" id="btn-adicionar-gestor" disabled
+                                    <button type="submit" id="btn-adicionar-gestor" disabled name="btn-adicionar-gestor"
                                             class="px-6 py-2.5 bg-primary-green text-white rounded-lg hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-green disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 font-medium shadow-sm hover:shadow-md">
                                         <span class="flex items-center space-x-2">
                                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1968,6 +2013,13 @@ if ($_SESSION['tipo'] === 'ADM') {
                                                     <option value="ingles">Inglês</option>
                                                     <option value="espanhol">Espanhol</option>
                                                 </select>
+                                            </div>
+
+                                            <div>
+                                                <label for="data_inicio_professor" class="block text-sm font-medium text-gray-700 mb-2">Data de Início</label>
+                                                <input type="date" id="data_inicio_professor" 
+                                                       class="block w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-green focus:border-transparent"
+                                                       required>
                                             </div>
 
                                             <button type="button" onclick="lotarProfessor()" 

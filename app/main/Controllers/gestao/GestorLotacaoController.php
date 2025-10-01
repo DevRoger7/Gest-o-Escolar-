@@ -1,6 +1,8 @@
 <?php
-// Iniciar sessão
-session_start();
+// Verificar se a sessão já foi iniciada
+if (session_status() == PHP_SESSION_NONE) {
+    session_start();
+}
 
 // Configurar headers para AJAX
 header('Content-Type: application/json');

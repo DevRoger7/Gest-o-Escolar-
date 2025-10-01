@@ -127,9 +127,9 @@ require_once 'Models/autenticacao/modelLogin.php';
                                 O sistema agora usa duas tabelas relacionadas:
                             </p>
                             <ul class="mb-0">
-                                <li><strong>pessoas:</strong> Contém dados pessoais (nome, CPF, email, etc.)</li>
-                                <li><strong>usuarios:</strong> Contém credenciais (senha, tipo, controle de acesso)</li>
-                                <li><strong>Relacionamento:</strong> usuarios.pessoa_id → pessoas.id</li>
+                                <li><strong>pessoa:</strong> Contém dados pessoais (nome, CPF, email, etc.)</li>
+                <li><strong>usuario:</strong> Contém credenciais (senha, tipo, controle de acesso)</li>
+                <li><strong>Relacionamento:</strong> usuario.pessoa_id → pessoa.id</li>
                                 <li><strong>Query:</strong> INNER JOIN entre as tabelas para buscar por CPF e validar senha</li>
                             </ul>
                         </div>

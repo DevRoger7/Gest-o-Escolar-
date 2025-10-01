@@ -3,6 +3,7 @@ require_once('../../Models/sessao/sessions.php');
 $session = new sessions();
 $session->autenticar_session();
 $session->tempo_session();
+
 if (!defined('BASE_URL')) {
     define('BASE_URL', 'http://localhost/GitHub/Gest-o-Escolar-');
 }
@@ -1542,6 +1543,16 @@ if (!defined('BASE_URL')) {
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
                         </svg>
                         <span>Gestão Escolar</span>
+                    </a>
+                </li>
+                <?php } ?>
+                <?php if ($_SESSION['tipo'] === 'ADM' || $_SESSION['tipo'] === 'GESTAO') { ?>
+                <li id="lotacao-professores-menu">
+                    <a href="lotacao_professores.php" class="menu-item flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path>
+                        </svg>
+                        <span>Lotação de Professores</span>
                     </a>
                 </li>
                 <?php } ?>

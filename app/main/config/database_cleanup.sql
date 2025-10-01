@@ -16,7 +16,7 @@ DROP TABLE IF EXISTS estoque;
 DROP TABLE IF EXISTS alimentos;
 DROP TABLE IF EXISTS escolas;
 DROP TABLE IF EXISTS usuarios;
-DROP TABLE IF EXISTS pessoas;
+DROP TABLE IF EXISTS pessoa;
 
 -- Remover tabelas adicionais que possam ter sido criadas
 DROP TABLE IF EXISTS aluno;
