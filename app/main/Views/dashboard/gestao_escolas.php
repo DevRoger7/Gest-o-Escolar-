@@ -452,16 +452,7 @@ $escolas = listarEscolas($busca);
         
         /* Estilos para botões de salvar */
         button[type="submit"]:not(:disabled) {
-            animation: pulseGlow 2s infinite;
-        }
-        
-        @keyframes pulseGlow {
-            0%, 100% {
-                box-shadow: 0 0 20px rgba(34, 197, 94, 0.4), 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-            }
-            50% {
-                box-shadow: 0 0 30px rgba(34, 197, 94, 0.6), 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-            }
+            /* Animação removida */
         }
         
         button[type="submit"]:disabled {
@@ -1373,8 +1364,8 @@ if ($_SESSION['tipo'] === 'ADM') {
                     <button onclick="showTab('tab-cadastrar')" class="tab-btn py-4 px-1 focus:outline-none">
                         Cadastrar Nova Escola
                     </button>
-                    <button onclick="showTab('tab-adicionar-professor')" class="tab-btn py-4 px-1 focus:outline-none">
-                        Adicionar Professor
+                    <button onclick="showTab('tab-adicionar-gestor')" class="tab-btn py-4 px-1 focus:outline-none">
+                        Adicionar Gestor
                     </button>
                     <button onclick="showTab('tab-lotacao')" class="tab-btn py-4 px-1 focus:outline-none">
                         Lotação de Pessoal
@@ -1588,10 +1579,10 @@ if ($_SESSION['tipo'] === 'ADM') {
                 </div>
             </div>
 
-            <!-- Tab Adicionar Professor -->
-            <div id="tab-adicionar-professor" class="tab-content hidden">
+            <!-- Tab Adicionar Gestor -->
+            <div id="tab-adicionar-gestor" class="tab-content hidden">
                 <div class="p-6">
-                    <h2 class="text-xl font-semibold text-gray-900 mb-6">Adicionar Gestor à Escola</h3>
+                    <h2 class="text-xl font-semibold text-gray-900 mb-6">Adicionar Gestor à Escola</h2>
                     
                     <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
                         <div class="flex items-center space-x-2">
@@ -1599,110 +1590,148 @@ if ($_SESSION['tipo'] === 'ADM') {
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
                             </svg>
                             <p class="text-sm text-blue-800">
-                                <strong>Importante:</strong> Selecione uma escola e depois adicione o gestor desejado.
+                                <strong>Importante:</strong> Selecione uma escola primeiro e depois escolha o gestor desejado.
                             </p>
                         </div>
                     </div>
 
                     <div class="space-y-6">
-                        <!-- Seleção da Escola -->
- <form method='POST' action='../dashboard/gestao_escolas.php'>
-
-                        <div>
-                            <label for="escola_professor" class="block text-sm font-medium text-gray-700 mb-2">Selecionar Escola *</label>
-                            <select id="escola_professor" name="escola_professor" required 
-                                    class="block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-primary-green focus:border-primary-green"
-                                    onchange="carregarProfessoresEscola(this.value)">
-                                    <option value=<?php$escola['id']?>>Selecione uma escola...</option>
-<?php
-$escolas = listarEscolas();
-foreach ($escolas as $escola):
-    ?>
-                                    <option value="<?php echo $escola['id']; ?>">
-                                        <?php echo htmlspecialchars($escola['nome']); ?>
-                                    </option>
-                                <?php endforeach; ?>
-                            </select>
-
-
-                  
-                        </div>
-                        <div>
-                  
-<?php
-  $gestores = buscarGestoresNovo();
-foreach ($gestores as $gestor) {
-    echo "<input type='radio' name='gestor' value='{$gestor['gestor_id']}'> {$gestor['nome_gestor']}";
-}
-?>
-                          <input type='submit' name='btngestor' value='Selecionar' style=' border: 2px solid black' >
-                          </form>
-                        </div>
-                        <!-- Informações da Escola Selecionada -->
-                        <div id="info-escola-selecionada" class="hidden bg-gray-50 border border-gray-200 rounded-lg p-4">
-                            <h3 class="text-lg font-medium text-gray-900 mb-2">Informações da Escola</h3>
-                            <div id="detalhes-escola" class="text-sm text-gray-600">
-                                <!-- Detalhes serão carregados aqui -->
+                        <!-- Passo 1: Seleção da Escola -->
+                        <div class="bg-white border border-gray-200 rounded-lg p-6">
+                            <div class="flex items-center space-x-2 mb-4">
+                                <div class="w-8 h-8 bg-blue-600 text-white rounded-full flex items-center justify-center text-sm font-semibold">1</div>
+                                <h3 class="text-lg font-medium text-gray-900">Selecionar Escola</h3>
+                            </div>
+                            
+                            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                                <div>
+                                    <label for="escola_gestor" class="block text-sm font-medium text-gray-700 mb-2">Escola *</label>
+                                    <select id="escola_gestor" name="escola_gestor" required 
+                                            class="block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-primary-green focus:border-primary-green"
+                                            onchange="carregarInfoEscolaGestor(this.value)">
+                                        <option value="">Selecione uma escola...</option>
+                                        <?php
+                                        $escolas = listarEscolas();
+                                        foreach ($escolas as $escola):
+                                        ?>
+                                            <option value="<?php echo $escola['id']; ?>">
+                                                <?php echo htmlspecialchars($escola['nome']); ?>
+                                            </option>
+                                        <?php endforeach; ?>
+                                    </select>
+                                </div>
+                                
+                                <!-- Informações da Escola Selecionada -->
+                                <div id="info-escola-gestor" class="hidden">
+                                    <h4 class="text-sm font-medium text-gray-700 mb-2">Informações da Escola</h4>
+                                    <div id="detalhes-escola-gestor" class="bg-gray-50 border border-gray-200 rounded-lg p-3 text-sm text-gray-600">
+                                        <!-- Detalhes serão carregados aqui -->
+                                    </div>
+                                </div>
                             </div>
                         </div>
 
-                        <!-- Seção de Adicionar Professor -->
-                        <div id="secao-adicionar-professor" class="hidden">
-                            <div class="border-t border-gray-200 pt-6">
-                                <h3 class="text-lg font-medium text-gray-900 mb-4">Adicionar Professor</h3>
+                        <!-- Passo 2: Seleção do Gestor -->
+                        <div id="passo-selecionar-gestor" class="hidden bg-white border border-gray-200 rounded-lg p-6">
+                            <div class="flex items-center space-x-2 mb-4">
+                                <div class="w-8 h-8 bg-green-600 text-white rounded-full flex items-center justify-center text-sm font-semibold">2</div>
+                                <h3 class="text-lg font-medium text-gray-900">Selecionar Gestor</h3>
+                            </div>
+                            
+                            <form method="POST" id="form-adicionar-gestor">
+                                <input type="hidden" name="acao" value="adicionar_gestor">
+                                <input type="hidden" id="escola_id_gestor" name="escola_id">
                                 
-                                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                    <!-- Buscar Professor -->
+                                <div class="space-y-4">
+                                    <!-- Busca de Gestores -->
                                     <div>
-                                        <label for="buscar_professor" class="block text-sm font-medium text-gray-700 mb-2">Buscar Professor</label>
+                                        <label for="buscar_gestor" class="block text-sm font-medium text-gray-700 mb-2">Buscar Gestor</label>
                                         <div class="relative">
-                                            <input type="text" id="buscar_professor" placeholder="Digite o nome ou CPF do professor..."
+                                            <input type="text" id="buscar_gestor" placeholder="Digite o nome do gestor..."
                                                    class="block w-full px-3 py-2 pl-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-green focus:border-transparent"
-                                                   oninput="buscarProfessores(this.value)">
+                                                   oninput="buscarGestores(this.value)">
                                             <svg class="w-5 h-5 text-gray-400 absolute left-3 top-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
                                             </svg>
                                         </div>
-                                        <div id="resultados_professores" class="mt-2 max-h-60 overflow-y-auto border border-gray-200 rounded-lg hidden">
-                                            <!-- Resultados da busca serão carregados aqui -->
-                                        </div>
                                     </div>
-
-                                    <!-- Disciplina -->
-                                    <div>
-                                        <label for="disciplina_professor" class="block text-sm font-medium text-gray-700 mb-2">Disciplina</label>
-                                        <select id="disciplina_professor" name="disciplina_professor" 
-                                                class="block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-primary-green focus:border-primary-green">
-                                            <option value="">Selecione uma disciplina...</option>
-                                            <option value="matematica">Matemática</option>
-                                            <option value="portugues">Português</option>
-                                            <option value="ciencias">Ciências</option>
-                                            <option value="historia">História</option>
-                                            <option value="geografia">Geografia</option>
-                                            <option value="educacao_fisica">Educação Física</option>
-                                            <option value="artes">Artes</option>
-                                            <option value="ingles">Inglês</option>
-                                            <option value="espanhol">Espanhol</option>
-                                        </select>
-                                    </div>
+                                    
+                                     <!-- Lista de Gestores Disponíveis -->
+                                     <div>
+                                         <h4 class="text-sm font-medium text-gray-700 mb-3">Gestores Disponíveis</h4>
+                                         <div id="lista-gestores" class="space-y-3 max-h-60 overflow-y-auto border border-gray-200 rounded-lg p-4 bg-gray-50">
+                                             <?php
+                                             $gestores = buscarGestoresNovo();
+                                             foreach ($gestores as $gestor):
+                                             ?>
+                                                 <div class="gestor-item group flex items-center space-x-3 p-4 bg-white border border-gray-200 rounded-lg hover:border-gray-300 hover:shadow-sm cursor-pointer transition-all duration-200"
+                                                      onclick="selecionarGestor(<?php echo $gestor['gestor_id']; ?>, '<?php echo htmlspecialchars($gestor['nome_gestor']); ?>')">
+                                                     <input type="radio" name="gestor_id" value="<?php echo $gestor['gestor_id']; ?>" 
+                                                            id="gestor_<?php echo $gestor['gestor_id']; ?>" class="gestor-radio hidden">
+                                                     
+                                                     <!-- Avatar do Gestor -->
+                                                     <div class="w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center text-white font-semibold text-sm shadow-sm">
+                                                         <?php echo strtoupper(substr($gestor['nome_gestor'], 0, 2)); ?>
+                                                     </div>
+                                                     
+                                                     <!-- Informações do Gestor -->
+                                                     <div class="flex-1">
+                                                         <div class="font-medium text-gray-900 group-hover:text-blue-600 transition-colors">
+                                                             <?php echo htmlspecialchars($gestor['nome_gestor']); ?>
+                                                         </div>
+                                                         <div class="text-sm text-gray-500">ID: <?php echo $gestor['gestor_id']; ?></div>
+                                                     </div>
+                                                     
+                                                     <!-- Ícone de seleção -->
+                                                     <div class="w-6 h-6 border-2 border-gray-300 rounded-full flex items-center justify-center group-hover:border-blue-500 transition-colors">
+                                                         <div class="w-2 h-2 bg-transparent rounded-full group-hover:bg-blue-500 transition-colors"></div>
+                                                     </div>
+                                                 </div>
+                                             <?php endforeach; ?>
+                                         </div>
+                                     </div>
+                                    
+                                     <!-- Gestor Selecionado -->
+                                     <div id="gestor-selecionado" class="hidden bg-blue-50 border border-blue-200 rounded-lg p-4">
+                                         <div class="flex items-center space-x-3">
+                                             <div class="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center">
+                                                 <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                                                 </svg>
+                                             </div>
+                                             <div>
+                                                 <div class="text-sm font-medium text-blue-800">Gestor selecionado:</div>
+                                                 <div id="nome-gestor-selecionado" class="text-sm font-semibold text-blue-900"></div>
+                                             </div>
+                                         </div>
+                                         <div class="mt-2 text-xs text-blue-600">
+                                             💡 Dica: Clique novamente no gestor para deselecionar
+                                         </div>
+                                     </div>
                                 </div>
-
-                                <!-- Botão Adicionar -->
-                                <div class="mt-4">
-                                    <button type="button" onclick="adicionarProfessorEscola()" 
-                                            class="bg-primary-green text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors duration-200">
-                                        Adicionar Professor
+                                
+                                <!-- Botões de Ação -->
+                                <div class="flex justify-end space-x-3 pt-6 border-t border-gray-200 mt-6">
+                                    <button type="button" onclick="limparSelecaoGestor()" 
+                                            class="px-6 py-2.5 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 hover:border-gray-400 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 transition-all duration-200 font-medium">
+                                        <span class="flex items-center space-x-2">
+                                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                                            </svg>
+                                            <span>Limpar Seleção</span>
+                                        </span>
+                                    </button>
+                                    <button type="submit" id="btn-adicionar-gestor" disabled
+                                            class="px-6 py-2.5 bg-primary-green text-white rounded-lg hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-green disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 font-medium shadow-sm hover:shadow-md">
+                                        <span class="flex items-center space-x-2">
+                                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
+                                            </svg>
+                                            <span>Adicionar Gestor</span>
+                                        </span>
                                     </button>
                                 </div>
-                            </div>
-
-                            <!-- Lista de Professores da Escola -->
-                            <div class="mt-8">
-                                <h3 class="text-lg font-medium text-gray-900 mb-4">Professores da Escola</h3>
-                                <div id="lista-professores-escola" class="space-y-3">
-                                    <!-- Lista será carregada aqui -->
-                                </div>
-                            </div>
+                            </form>
                         </div>
                     </div>
                 </div>
@@ -2211,24 +2240,6 @@ foreach ($escolas as $escola):
     </div>
     
     <script>
-        // Função para alternar entre as tabs
-        function showTab(tabId) {
-            // Esconder todas as tabs
-            document.querySelectorAll('.tab-content').forEach(tab => {
-                tab.classList.remove('active');
-            });
-            
-            // Remover classe ativa de todos os botões
-            document.querySelectorAll('.tab-btn').forEach(btn => {
-                btn.classList.remove('tab-active');
-            });
-            
-            // Mostrar a tab selecionada
-            document.getElementById(tabId).classList.add('active');
-            
-            // Adicionar classe ativa ao botão clicado
-            event.currentTarget.classList.add('tab-active');
-        }
         
         // Função para abrir modal de exclusão de escola
         function abrirModalExclusaoEscola(id, nome) {
@@ -3840,6 +3851,241 @@ foreach ($escolas as $escola):
                 console.error('Erro ao remover lotação:', error);
                 alert('Erro ao remover lotação');
             });
+        }
+
+        // ===== FUNÇÕES PARA ADICIONAR GESTOR À ESCOLA =====
+        
+        // Função para carregar informações da escola selecionada
+        function carregarInfoEscolaGestor(escolaId) {
+            if (!escolaId) {
+                document.getElementById('info-escola-gestor').classList.add('hidden');
+                document.getElementById('passo-selecionar-gestor').classList.add('hidden');
+                return;
+            }
+
+             // Obter o nome da escola selecionada
+             const selectEscola = document.getElementById('escola_gestor');
+             const nomeEscola = selectEscola.options[selectEscola.selectedIndex].text;
+             
+             // Simular carregamento das informações da escola
+             const detalhesEscola = document.getElementById('detalhes-escola-gestor');
+             detalhesEscola.innerHTML = `
+                 <div class="space-y-2">
+                     <div class="flex items-center space-x-2">
+                         <div class="w-2 h-2 bg-green-500 rounded-full"></div>
+                         <span class="text-sm"><strong>Nome:</strong> ${nomeEscola}</span>
+                     </div>
+                     <div class="flex items-center space-x-2">
+                         <div class="w-2 h-2 bg-blue-500 rounded-full"></div>
+                         <span class="text-sm"><strong>Município:</strong> Maranguape - CE</span>
+                     </div>
+                     <div class="flex items-center space-x-2">
+                         <div class="w-2 h-2 bg-gray-400 rounded-full"></div>
+                         <span class="text-sm"><strong>ID:</strong> ${escolaId}</span>
+                     </div>
+                 </div>
+             `;
+            
+            // Mostrar informações da escola
+            document.getElementById('info-escola-gestor').classList.remove('hidden');
+            
+            // Mostrar passo 2 (seleção do gestor)
+            document.getElementById('passo-selecionar-gestor').classList.remove('hidden');
+            
+            // Definir o ID da escola no formulário
+            document.getElementById('escola_id_gestor').value = escolaId;
+        }
+
+        // Função para buscar gestores
+        function buscarGestores(termo) {
+            const gestorItems = document.querySelectorAll('.gestor-item');
+            const termoLower = termo.toLowerCase();
+            
+            gestorItems.forEach(item => {
+                const nomeGestor = item.querySelector('.font-medium').textContent.toLowerCase();
+                if (nomeGestor.includes(termoLower)) {
+                    item.style.display = 'flex';
+                } else {
+                    item.style.display = 'none';
+                }
+            });
+        }
+
+        // Função para selecionar/deselecionar um gestor
+        function selecionarGestor(gestorId, nomeGestor) {
+            const radioSelecionado = document.getElementById(`gestor_${gestorId}`);
+            
+            // Verificar se o gestor já está selecionado
+            if (radioSelecionado && radioSelecionado.checked) {
+                // Se já está selecionado, deselecionar
+                deselecionarGestor();
+                return;
+            }
+            
+            // Desmarcar todos os radio buttons e remover estilos de seleção
+            document.querySelectorAll('.gestor-radio').forEach(radio => {
+                radio.checked = false;
+                const gestorItem = radio.closest('.gestor-item');
+                if (gestorItem) {
+                    gestorItem.classList.remove('ring-2', 'ring-blue-500', 'bg-blue-50', 'border-blue-300');
+                    gestorItem.classList.add('border-gray-200');
+                    
+                    // Resetar ícone de seleção
+                    const iconContainer = gestorItem.querySelector('.w-6.h-6');
+                    if (iconContainer) {
+                        iconContainer.classList.remove('border-blue-500', 'bg-blue-500');
+                        iconContainer.classList.add('border-gray-300');
+                        const dot = iconContainer.querySelector('.w-2.h-2');
+                        if (dot) {
+                            dot.classList.remove('bg-white');
+                            dot.classList.add('bg-transparent');
+                        }
+                    }
+                }
+            });
+            
+            // Marcar o selecionado
+            if (radioSelecionado) {
+                radioSelecionado.checked = true;
+                const gestorItem = radioSelecionado.closest('.gestor-item');
+                if (gestorItem) {
+                    gestorItem.classList.add('ring-2', 'ring-blue-500', 'bg-blue-50', 'border-blue-300');
+                    gestorItem.classList.remove('border-gray-200');
+                    
+                    // Atualizar ícone de seleção
+                    const iconContainer = gestorItem.querySelector('.w-6.h-6');
+                    if (iconContainer) {
+                        iconContainer.classList.add('border-blue-500', 'bg-blue-500');
+                        iconContainer.classList.remove('border-gray-300');
+                        const dot = iconContainer.querySelector('.w-2.h-2');
+                        if (dot) {
+                            dot.classList.add('bg-white');
+                            dot.classList.remove('bg-transparent');
+                        }
+                    }
+                }
+            }
+            
+            // Mostrar gestor selecionado
+            document.getElementById('nome-gestor-selecionado').textContent = nomeGestor;
+            document.getElementById('gestor-selecionado').classList.remove('hidden');
+            
+            // Habilitar botão de adicionar
+            document.getElementById('btn-adicionar-gestor').disabled = false;
+        }
+
+        // Função para deselecionar o gestor atual
+        function deselecionarGestor() {
+            // Desmarcar todos os radio buttons
+            document.querySelectorAll('.gestor-radio').forEach(radio => {
+                radio.checked = false;
+                const gestorItem = radio.closest('.gestor-item');
+                if (gestorItem) {
+                    gestorItem.classList.remove('ring-2', 'ring-blue-500', 'bg-blue-50', 'border-blue-300');
+                    gestorItem.classList.add('border-gray-200');
+                    
+                    // Resetar ícone de seleção
+                    const iconContainer = gestorItem.querySelector('.w-6.h-6');
+                    if (iconContainer) {
+                        iconContainer.classList.remove('border-blue-500', 'bg-blue-500');
+                        iconContainer.classList.add('border-gray-300');
+                        const dot = iconContainer.querySelector('.w-2.h-2');
+                        if (dot) {
+                            dot.classList.remove('bg-white');
+                            dot.classList.add('bg-transparent');
+                        }
+                    }
+                }
+            });
+            
+            // Ocultar gestor selecionado
+            document.getElementById('gestor-selecionado').classList.add('hidden');
+            
+            // Desabilitar botão de adicionar
+            document.getElementById('btn-adicionar-gestor').disabled = true;
+        }
+
+        // Função para limpar seleção
+        function limparSelecaoGestor() {
+            try {
+                // Primeiro deselecionar qualquer gestor selecionado
+                deselecionarGestor();
+                
+                // Limpar campo de busca
+                const buscarGestor = document.getElementById('buscar_gestor');
+                if (buscarGestor) {
+                    buscarGestor.value = '';
+                }
+                
+                // Mostrar todos os gestores novamente
+                document.querySelectorAll('.gestor-item').forEach(item => {
+                    item.style.display = 'flex';
+                });
+            } catch (error) {
+                console.error('Erro na função limparSelecaoGestor:', error);
+            }
+        }
+
+        // Função para mostrar tab (atualizada para incluir nova aba)
+        function showTab(tabId) {
+            try {
+                // Esconder todas as tabs
+                document.querySelectorAll('.tab-content').forEach(tab => {
+                    tab.classList.remove('active');
+                    tab.classList.add('hidden');
+                });
+                
+                // Remover classe ativa de todos os botões
+                document.querySelectorAll('.tab-btn').forEach(btn => {
+                    btn.classList.remove('tab-active');
+                });
+                
+                // Mostrar a tab selecionada
+                const tabSelecionada = document.getElementById(tabId);
+                if (tabSelecionada) {
+                    tabSelecionada.classList.remove('hidden');
+                    tabSelecionada.classList.add('active');
+                }
+                
+                // Adicionar classe ativa ao botão clicado
+                if (event && event.currentTarget) {
+                    event.currentTarget.classList.add('tab-active');
+                }
+                
+                // Resetar formulário quando mudar para a aba de adicionar gestor
+                if (tabId === 'tab-adicionar-gestor') {
+                    // Verificar se os elementos existem antes de tentar acessá-los
+                    const elementosGestor = [
+                        'escola_gestor',
+                        'info-escola-gestor', 
+                        'passo-selecionar-gestor'
+                    ];
+                    
+                    elementosGestor.forEach(id => {
+                        const elemento = document.getElementById(id);
+                        if (elemento) {
+                            if (id === 'escola_gestor') {
+                                elemento.value = '';
+                            } else {
+                                elemento.classList.add('hidden');
+                            }
+                        }
+                    });
+                    
+                    // Chamar limparSelecaoGestor apenas se os elementos existirem
+                    setTimeout(() => {
+                        try {
+                            if (document.getElementById('buscar_gestor')) {
+                                limparSelecaoGestor();
+                            }
+                        } catch (e) {
+                            console.log('Elementos de gestor ainda não carregados');
+                        }
+                    }, 100);
+                }
+            } catch (error) {
+                console.error('Erro na função showTab:', error);
+            }
         }
     </script>
 
