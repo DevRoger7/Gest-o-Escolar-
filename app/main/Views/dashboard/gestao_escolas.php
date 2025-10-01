@@ -3825,14 +3825,18 @@ if ($_SESSION['tipo'] === 'ADM') {
 
         // Função para carregar professores lotados
         function carregarProfessoresLotados() {
-            if (!escolaAtualLotacao) return;
+            if (!escolaAtualLotacao) {
+                return;
+            }
 
-            fetch(`../../Controllers/gestao/ProfessorLotacaoController.php?acao=listar_lotados&escola_id=${escolaAtualLotacao}`)
+            const url = `../../Controllers/gestao/ProfessorLotacaoController.php?acao=listar_lotados&escola_id=${escolaAtualLotacao}`;
+
+            fetch(url)
                 .then(response => response.json())
                 .then(data => {
                     const lista = document.getElementById('lista-professores-lotados');
                     
-                    if (data.success && data.professores.length > 0) {
+                    if (data.success && data.professores && data.professores.length > 0) {
                         let html = '';
                         data.professores.forEach(professor => {
                             html += `
