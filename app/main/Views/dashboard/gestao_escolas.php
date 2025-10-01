@@ -30,7 +30,7 @@ if (isset($_POST['btn-adicionar-gestor'])) {
 
 
 
-//função para lotar gestor no banco de dados
+//funções para lotar gestor no banco de dados
 function lotarGestor($gestorid, $escolaid) {
     $db = Database::getInstance();
     $conn = $db->getConnection();
@@ -40,6 +40,27 @@ function lotarGestor($gestorid, $escolaid) {
     $stmt->bindParam(':gestorid', $gestorid);
     $stmt->bindParam(':escolaid', $escolaid);
     $stmt->execute();
+}
+
+//função dados_gestor_lotacao
+function dados_gestor_lotacao($gestorid, $escolaid) {
+$db = Database::getInstance();
+    $conn = $db->getConnection();
+
+    $sql = "SELECT 
+    p.nome,
+    p.email,
+    g.cargo as funcao
+FROM gestor_lotacao gl
+INNER JOIN gestor g ON gl.gestor_id = g.id
+INNER JOIN pessoa p ON g.pessoa_id = p.id
+WHERE gl.fim IS NULL;  -- Para pegar apenas lotações ativas";
+
+    $stmt = $conn->prepare($sql);
+    $stmt->bindParam(':gestorid', $gestorid);
+    $stmt->bindParam(':escolaid', $escolaid);
+    $stmt->execute();
+    return $stmt->fetchAll(PDO::FETCH_ASSOC);
 }
 
 // Funções para gerenciamento de escolas
