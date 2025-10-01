@@ -388,6 +388,26 @@ $usuarios = listarUsuarios($busca);
             }
         }
     </script>
+
+    <!-- Script para toggleSidebar global -->
+    <script>
+        // Função SIMPLES para toggleSidebar
+        window.toggleSidebar = function() {
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.getElementById('mobileOverlay');
+            const main = document.querySelector('main');
+            
+            if (sidebar && overlay) {
+                sidebar.classList.toggle('open');
+                overlay.classList.toggle('hidden');
+                
+                // Adicionar/remover opacidade no conteúdo principal (incluindo header)
+                if (main) {
+                    main.classList.toggle('content-dimmed');
+                }
+            }
+        };
+    </script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     
     <!-- Theme Manager -->
@@ -474,11 +494,26 @@ $usuarios = listarUsuarios($busca);
         @media (max-width: 1023px) {
             .sidebar-mobile {
                 transform: translateX(-100%);
+                transition: transform 0.3s ease-in-out;
+                z-index: 999 !important;
+                position: fixed !important;
+                left: 0 !important;
+                top: 0 !important;
+                height: 100vh !important;
+                width: 16rem !important;
             }
 
             .sidebar-mobile.open {
-                transform: translateX(0);
+                transform: translateX(0) !important;
+                z-index: 999 !important;
             }
+        }
+
+        /* Classe para reduzir opacidade do conteúdo principal quando menu está aberto */
+        .content-dimmed {
+            opacity: 0.5 !important;
+            transition: opacity 0.3s ease-in-out;
+            pointer-events: none;
         }
 
         /* Tema Escuro */
@@ -1681,18 +1716,27 @@ $usuarios = listarUsuarios($busca);
             e.target.value = value;
         });
         
-        // Toggle sidebar on mobile
-        function toggleSidebar() {
-            const sidebar = document.getElementById('sidebar');
-            const overlay = document.getElementById('mobileOverlay');
-
-            sidebar.classList.toggle('open');
-            overlay.classList.toggle('hidden');
-        }
+        // Função toggleSidebar já definida globalmente
 
         // Close sidebar when clicking overlay
-        document.getElementById('mobileOverlay').addEventListener('click', function() {
-            toggleSidebar();
+        document.addEventListener('DOMContentLoaded', function() {
+            const overlay = document.getElementById('mobileOverlay');
+            if (overlay) {
+                overlay.addEventListener('click', function() {
+                    const sidebar = document.getElementById('sidebar');
+                    const main = document.querySelector('main');
+                    
+                    if (sidebar && sidebar.classList.contains('open')) {
+                        sidebar.classList.remove('open');
+                        overlay.classList.add('hidden');
+                        
+                        // Remover opacidade do conteúdo principal
+                        if (main) {
+                            main.classList.remove('content-dimmed');
+                        }
+                    }
+                });
+            }
         });
         
         // Inicialização
@@ -1703,7 +1747,7 @@ $usuarios = listarUsuarios($busca);
                 item.addEventListener('click', function() {
                     // Se estiver no mobile, fechar o menu lateral
                     if (window.innerWidth < 1024) {
-                        toggleSidebar();
+                        window.toggleSidebar();
                     }
                 });
             });
