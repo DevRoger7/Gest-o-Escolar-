@@ -24,6 +24,42 @@ if (!defined('BASE_URL')) {
     <link rel="shortcut icon" href="https://upload.wikimedia.org/wikipedia/commons/thumb/1/19/Bras%C3%A3o_de_Maranguape.png/250px-Bras%C3%A3o_de_Maranguape.png" type="image/png">
     <link rel="apple-touch-icon" href="https://upload.wikimedia.org/wikipedia/commons/thumb/1/19/Bras%C3%A3o_de_Maranguape.png/250px-Bras%C3%A3o_de_Maranguape.png">
 
+    <!-- Script para interceptar erros de extensões ANTES de qualquer coisa -->
+    <script>
+        // Interceptar erros de extensões antes de qualquer script
+        (function() {
+            const originalError = window.onerror;
+            const originalUnhandledRejection = window.onunhandledrejection;
+            
+            window.onerror = function(message, source, lineno, colno, error) {
+                if (typeof message === 'string' && (
+                    message.includes('message channel closed') ||
+                    message.includes('Could not establish connection') ||
+                    message.includes('Receiving end does not exist') ||
+                    message.includes('Extension context invalidated') ||
+                    message.includes('content-all.js')
+                )) {
+                    return true; // Suprimir o erro
+                }
+                if (originalError) return originalError.apply(this, arguments);
+                return false;
+            };
+            
+            window.onunhandledrejection = function(event) {
+                if (event.reason && typeof event.reason === 'object' && event.reason.message && (
+                    event.reason.message.includes('message channel closed') ||
+                    event.reason.message.includes('Could not establish connection') ||
+                    event.reason.message.includes('Receiving end does not exist')
+                )) {
+                    event.preventDefault();
+                    return true;
+                }
+                if (originalUnhandledRejection) return originalUnhandledRejection.apply(this, arguments);
+                return false;
+            };
+        })();
+    </script>
+    
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
         tailwind.config = {
@@ -44,10 +80,66 @@ if (!defined('BASE_URL')) {
             }
         }
     </script>
+
+    <!-- Script de emergência para toggleSidebar -->
+    <script>
+        // Função SIMPLES para toggleSidebar
+        window.toggleSidebar = function() {
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.getElementById('mobileOverlay');
+            const main = document.querySelector('main');
+            
+            if (sidebar && overlay) {
+                sidebar.classList.toggle('open');
+                overlay.classList.toggle('hidden');
+                
+                // Adicionar/remover opacidade no conteúdo principal (incluindo header)
+                if (main) {
+                    main.classList.toggle('content-dimmed');
+                }
+            }
+        };
+    </script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 
     <!-- Theme Manager -->
     <script src="theme-manager.js"></script>
+
+    <!-- Script adicional de emergência para toggleSidebar -->
+    <script>
+        // Função já definida acima, apenas confirmar
+        console.log('toggleSidebar já definida:', typeof window.toggleSidebar);
+
+        // Handlers globais para suprimir erros de extensões do browser
+        window.addEventListener('error', function(event) {
+            // Suprimir erros específicos de extensões
+            if (event.message && (
+                event.message.includes('message channel closed') ||
+                event.message.includes('Could not establish connection') ||
+                event.message.includes('Receiving end does not exist') ||
+                event.message.includes('Extension context invalidated') ||
+                event.message.includes('content-all.js') ||
+                event.message.includes('extension')
+            )) {
+                event.preventDefault();
+                event.stopPropagation();
+                return false;
+            }
+        });
+
+        window.addEventListener('unhandledrejection', function(event) {
+            // Suprimir promises rejeitadas de extensões
+            if (event.reason && event.reason.message && (
+                event.reason.message.includes('message channel closed') ||
+                event.reason.message.includes('Could not establish connection') ||
+                event.reason.message.includes('Receiving end does not exist') ||
+                event.reason.message.includes('Extension context invalidated')
+            )) {
+                event.preventDefault();
+                return false;
+            }
+        });
+    </script>
 
     <!-- VLibras -->
     <div id="vlibras-widget" vw class="enabled">
@@ -161,17 +253,23 @@ if (!defined('BASE_URL')) {
                 transform: translateX(-100%);
                 transition: transform 0.3s ease-in-out;
                 z-index: 999 !important;
+                position: fixed !important;
+                left: 0 !important;
+                top: 0 !important;
+                height: 100vh !important;
+                width: 16rem !important;
             }
 
             .sidebar-mobile.open {
-                transform: translateX(0);
+                transform: translateX(0) !important;
                 z-index: 999 !important;
             }
             
-        /* Classe para reduzir opacidade do header quando menu está aberto */
-        .header-dimmed {
-            opacity: 0.3 !important;
+        /* Classe para reduzir opacidade do conteúdo principal quando menu está aberto */
+        .content-dimmed {
+            opacity: 0.5 !important;
             transition: opacity 0.3s ease-in-out;
+            pointer-events: none;
         }
 
         /* Profile Modal Tabs */
@@ -1555,7 +1653,7 @@ if (!defined('BASE_URL')) {
             <div class="px-4 sm:px-6 lg:px-8">
                 <div class="flex justify-between items-center h-16 header-content">
                     <!-- Mobile Menu Button - SEMPRE VISÍVEL NO MOBILE -->
-                    <button onclick="toggleSidebar()" class="mobile-menu-btn p-2 rounded-md text-gray-600 hover:text-gray-900 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-primary-green" aria-label="Abrir menu">
+                    <button onclick="window.toggleSidebar();" class="mobile-menu-btn p-2 rounded-md text-gray-600 hover:text-gray-900 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-primary-green" aria-label="Abrir menu">
                         <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
                         </svg>
@@ -7783,6 +7881,58 @@ if (!defined('BASE_URL')) {
                 closeUserProfile();
             }
         });
+
+        // Event listeners simples
+        document.addEventListener('DOMContentLoaded', function() {
+            const mobileButton = document.querySelector('.mobile-menu-btn');
+            const overlay = document.getElementById('mobileOverlay');
+            
+            // Event listener para fechar sidebar ao clicar no overlay
+            if (overlay) {
+                overlay.addEventListener('click', function() {
+                    const sidebar = document.getElementById('sidebar');
+                    const main = document.querySelector('main');
+                    
+                    if (sidebar && sidebar.classList.contains('open')) {
+                        sidebar.classList.remove('open');
+                        overlay.classList.add('hidden');
+                        
+                        // Remover opacidade do conteúdo principal
+                        if (main) {
+                            main.classList.remove('content-dimmed');
+                        }
+                    }
+                });
+            }
+        });
+
+        // Handler adicional para erros de extensões
+        (function() {
+            const originalConsoleError = console.error;
+            const originalConsoleWarn = console.warn;
+            
+            console.error = function(...args) {
+                const message = args.join(' ');
+                if (message.includes('message channel closed') || 
+                    message.includes('Could not establish connection') ||
+                    message.includes('Receiving end does not exist')) {
+                    return; // Suprimir esses erros específicos
+                }
+                originalConsoleError.apply(console, args);
+            };
+            
+            console.warn = function(...args) {
+                const message = args.join(' ');
+                if (message.includes('message channel closed') || 
+                    message.includes('Could not establish connection') ||
+                    message.includes('Receiving end does not exist')) {
+                    return; // Suprimir esses warnings específicos
+                }
+                originalConsoleWarn.apply(console, args);
+            };
+        })();
+
+        // Sidebar configurado
     </script>
 
 </body>

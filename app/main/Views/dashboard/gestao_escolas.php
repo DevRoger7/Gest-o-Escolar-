@@ -374,6 +374,27 @@ $escolas = listarEscolas($busca);
     <!-- Favicon -->
     <link rel="icon" href="https://upload.wikimedia.org/wikipedia/commons/thumb/1/19/Bras%C3%A3o_de_Maranguape.png/250px-Bras%C3%A3o_de_Maranguape.png" type="image/png">
     
+    <!-- Script de emergência para toggleSidebar -->
+    <script>
+        // Função de emergência para toggleSidebar
+        window.toggleSidebar = window.toggleSidebar || function() {
+            try {
+                const sidebar = document.getElementById('sidebar');
+                const overlay = document.getElementById('mobileOverlay');
+                
+                if (sidebar && overlay) {
+                    sidebar.classList.toggle('open');
+                    overlay.classList.toggle('hidden');
+                    console.log('Sidebar toggled successfully');
+                } else {
+                    console.warn('Sidebar ou overlay não encontrados:', {sidebar: !!sidebar, overlay: !!overlay});
+                }
+            } catch (error) {
+                console.error('Erro ao toggle sidebar:', error);
+            }
+        };
+    </script>
+    
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
@@ -394,6 +415,53 @@ $escolas = listarEscolas($busca);
                 }
             }
         }
+
+        // ===== PREVENÇÃO DE ERROS DE EXTENSÕES =====
+        // Capturar e suprimir erros de extensões do navegador
+        window.addEventListener('error', function(e) {
+            if (e.message && (
+                e.message.includes('content-all.js') ||
+                e.message.includes('Could not establish connection') ||
+                e.message.includes('Receiving end does not exist') ||
+                e.message.includes('message channel closed')
+            )) {
+                e.preventDefault();
+                console.warn('Erro de extensão do navegador suprimido:', e.message);
+                return false;
+            }
+        });
+
+        window.addEventListener('unhandledrejection', function(e) {
+            if (e.reason && (
+                e.reason.message && (
+                    e.reason.message.includes('content-all.js') ||
+                    e.reason.message.includes('Could not establish connection') ||
+                    e.reason.message.includes('Receiving end does not exist') ||
+                    e.reason.message.includes('message channel closed')
+                )
+            )) {
+                e.preventDefault();
+                console.warn('Promise rejection de extensão suprimida:', e.reason);
+                return false;
+            }
+        });
+
+        // ===== FUNÇÃO TOGGLE SIDEBAR - DEFINIDA IMEDIATAMENTE =====
+        window.toggleSidebar = function() {
+            try {
+                const sidebar = document.getElementById('sidebar');
+                const overlay = document.getElementById('mobileOverlay');
+
+                if (sidebar && overlay) {
+                    sidebar.classList.toggle('open');
+                    overlay.classList.toggle('hidden');
+                } else {
+                    console.warn('Elementos sidebar ou overlay não encontrados');
+                }
+            } catch (error) {
+                console.error('Erro ao toggle sidebar:', error);
+            }
+        };
     </script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     
@@ -1301,7 +1369,7 @@ echo $iniciais;
             <div class="px-4 sm:px-6 lg:px-8">
                 <div class="flex justify-between items-center h-16">
                     <!-- Mobile Menu Button -->
-                    <button onclick="toggleSidebar()" class="mobile-menu-btn p-2 rounded-md text-gray-600 hover:text-gray-900 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-primary-green" aria-label="Abrir menu">
+                    <button id="mobile-menu-button" onclick="if(typeof window.toggleSidebar === 'function') { window.toggleSidebar(); } else { console.error('toggleSidebar não está definida'); }" class="mobile-menu-btn p-2 rounded-md text-gray-600 hover:text-gray-900 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-primary-green" aria-label="Abrir menu">
                         <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
                         </svg>
@@ -3126,22 +3194,34 @@ if ($_SESSION['tipo'] === 'ADM') {
         document.addEventListener('DOMContentLoaded', forceMobileHeaderVisibility);
         window.addEventListener('resize', forceMobileHeaderVisibility);
         
-        // Toggle sidebar on mobile
-        function toggleSidebar() {
-            const sidebar = document.getElementById('sidebar');
-            const overlay = document.getElementById('mobileOverlay');
-
-            sidebar.classList.toggle('open');
-            overlay.classList.toggle('hidden');
-        }
 
         // Configurar event listeners após DOM carregar
         document.addEventListener('DOMContentLoaded', function() {
+            // Event listener alternativo para o botão mobile
+            const mobileButton = document.getElementById('mobile-menu-button');
+            if (mobileButton) {
+                mobileButton.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    if (typeof window.toggleSidebar === 'function') {
+                        window.toggleSidebar();
+                    } else {
+                        console.error('toggleSidebar não está definida no event listener');
+                        // Fallback direto
+                        const sidebar = document.getElementById('sidebar');
+                        const overlay = document.getElementById('mobileOverlay');
+                        if (sidebar && overlay) {
+                            sidebar.classList.toggle('open');
+                            overlay.classList.toggle('hidden');
+                        }
+                    }
+                });
+            }
+            
             // Close sidebar when clicking overlay
             const mobileOverlay = document.getElementById('mobileOverlay');
             if (mobileOverlay) {
                 mobileOverlay.addEventListener('click', function() {
-                    toggleSidebar();
+                    window.toggleSidebar();
                 });
             }
             
@@ -3193,7 +3273,7 @@ if ($_SESSION['tipo'] === 'ADM') {
                 item.addEventListener('click', function() {
                     // Se estiver no mobile, fechar o menu lateral
                     if (window.innerWidth < 1024) {
-                        toggleSidebar();
+                        window.toggleSidebar();
                     }
                 });
             });
