@@ -7584,64 +7584,43 @@ if (!defined('BASE_URL')) {
                 <div class="p-4 sm:p-6 lg:p-8 xl:p-12 min-h-full">
                     <!-- Tab Content: Overview -->
                     <div id="profile-overview" class="profile-tab-content">
-                        <!-- User Profile Hero Card - Mobile Otimizado -->
-                        <div class="bg-gradient-to-br from-white to-gray-50 rounded-2xl sm:rounded-3xl shadow-xl border border-gray-100 overflow-hidden mb-6 sm:mb-8 transform hover:scale-[1.01] sm:hover:scale-[1.02] transition-all duration-300">
-                            <div class="bg-gradient-to-r from-primary-green via-green-500 to-emerald-600 p-4 sm:p-6 lg:p-8 relative overflow-hidden">
+                        <!-- User Profile Hero Card - Estilo Métricas -->
+                        <div class="bg-white rounded-2xl sm:rounded-3xl shadow-xl border border-gray-100 overflow-hidden mb-6 sm:mb-8 transform hover:scale-[1.01] sm:hover:scale-[1.02] transition-all duration-300">
+                            <div class="bg-gradient-to-r from-slate-800 via-gray-800 to-slate-900 p-4 sm:p-6 lg:p-8 relative overflow-hidden">
                                 <!-- Elementos decorativos - ocultos no mobile -->
-                                <div class="absolute top-0 right-0 w-20 h-20 sm:w-32 sm:h-32 bg-white/10 rounded-full -translate-y-10 sm:-translate-y-16 translate-x-10 sm:translate-x-16 hidden sm:block"></div>
-                                <div class="absolute bottom-0 left-0 w-16 h-16 sm:w-24 sm:h-24 bg-white/5 rounded-full translate-y-8 sm:translate-y-12 -translate-x-8 sm:-translate-x-12 hidden sm:block"></div>
+                                <div class="absolute top-0 right-0 w-20 h-20 sm:w-32 sm:h-32 bg-blue-500/10 rounded-full -translate-y-10 sm:-translate-y-16 translate-x-10 sm:translate-x-16 hidden sm:block"></div>
+                                <div class="absolute bottom-0 left-0 w-16 h-16 sm:w-24 sm:h-24 bg-green-500/5 rounded-full translate-y-8 sm:translate-y-12 -translate-x-8 sm:-translate-x-12 hidden sm:block"></div>
                                 
-                                <!-- Layout Mobile: Empilhado verticalmente -->
-                                <div class="relative z-10 flex flex-col space-y-4 sm:flex-row sm:items-start sm:space-y-0 sm:space-x-4 lg:space-x-6">
-                                    <!-- Avatar e Nome - Mobile Centralizado -->
-                                    <div class="flex flex-col items-center space-y-3 sm:flex-row sm:space-y-0 sm:space-x-4 lg:space-x-6">
-                                        <div class="w-20 h-20 sm:w-20 sm:h-20 lg:w-24 lg:h-24 bg-white rounded-xl sm:rounded-2xl flex items-center justify-center shadow-2xl transform hover:rotate-6 transition-transform duration-300 flex-shrink-0">
-                                            <span class="text-2xl sm:text-2xl lg:text-3xl font-bold text-primary-green"><?php
-                                                $nome = $_SESSION['nome'] ?? '';
-                                                $iniciais = '';
-                                                if (strlen($nome) >= 2) {
-                                                    $iniciais = strtoupper(substr($nome, 0, 2));
-                                                } elseif (strlen($nome) == 1) {
-                                                    $iniciais = strtoupper($nome);
-                                                } else {
-                                                    $iniciais = 'US';
-                                                }
-                                                echo $iniciais;
-                                            ?></span>
-                                        </div>
-                                        <div class="text-white text-center sm:text-left">
-                                            <h2 class="text-2xl sm:text-2xl lg:text-3xl font-bold mb-2"><?php echo $_SESSION['nome']; ?></h2>
-                                            <!-- Badges - Mobile em linha única -->
-                                            <div class="flex flex-wrap gap-2 justify-center sm:justify-start">
-                                                <span class="bg-white/20 backdrop-blur-sm text-white px-3 py-1.5 rounded-full text-xs font-semibold border border-white/30">
-                                                    Administrador Geral
-                                                </span>
-                                                <span class="bg-blue-500/80 backdrop-blur-sm text-white px-3 py-1.5 rounded-full text-xs font-semibold border border-blue-400/30">
-                                                    Acesso Total
-                                                </span>
-                                            </div>
-                                        </div>
+                                <!-- Layout Simples e Organizado -->
+                                <div class="relative z-10 flex items-center space-x-4 sm:space-x-6">
+                                    <!-- Avatar -->
+                                    <div class="w-16 h-16 sm:w-20 sm:h-20 bg-gray-600 rounded-xl flex items-center justify-center shadow-2xl flex-shrink-0">
+                                        <span class="text-xl sm:text-2xl font-bold text-white"><?php
+                                            $nome = $_SESSION['nome'] ?? '';
+                                            $iniciais = '';
+                                            if (strlen($nome) >= 2) {
+                                                $iniciais = strtoupper(substr($nome, 0, 2));
+                                            } elseif (strlen($nome) == 1) {
+                                                $iniciais = strtoupper($nome);
+                                            } else {
+                                                $iniciais = 'US';
+                                            }
+                                            echo $iniciais;
+                                        ?></span>
                                     </div>
                                     
-                                    <!-- Email e Status - Mobile em linha -->
-                                    <div class="flex flex-col space-y-3 sm:flex-row sm:items-end sm:space-y-0 sm:space-x-4 lg:space-x-6 sm:flex-1">
-                                        <!-- Email -->
-                                        <div class="flex-1 text-center sm:text-left">
-                                            <div class="space-y-1">
-                                                <p class="text-green-100 text-xs font-medium">Email</p>
-                                                <p class="text-white text-sm font-semibold break-all"><?php echo $_SESSION['email']; ?></p>
-                                            </div>
-                                        </div>
-                                        
-                                        <!-- Status Online -->
-                                        <div class="text-center sm:text-right">
-                                            <div class="bg-white/10 backdrop-blur-sm rounded-xl p-3 sm:p-4 lg:p-6 border border-white/20">
-                                                <div class="flex items-center justify-center space-x-2 mb-1">
-                                                    <div class="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
-                                                    <p class="text-green-100 text-xs font-medium">Online</p>
-                                                </div>
-                                                <p class="text-white font-bold text-sm">Agora</p>
-                                            </div>
+                                    <!-- Informações do Usuário -->
+                                    <div class="flex-1 min-w-0">
+                                        <h2 class="text-white text-lg sm:text-xl font-bold mb-1 truncate"><?php echo $_SESSION['nome']; ?></h2>
+                                        <p class="text-gray-300 text-sm mb-2">Administrador do Sistema</p>
+                                        <p class="text-white text-sm font-medium"><?php echo $_SESSION['email']; ?></p>
+                                    </div>
+                                    
+                                    <!-- Status Online -->
+                                    <div class="flex-shrink-0">
+                                        <div class="flex items-center space-x-2">
+                                            <div class="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
+                                            <span class="text-green-100 text-sm font-medium">Online</span>
                                         </div>
                                     </div>
                                 </div>
@@ -7659,7 +7638,7 @@ if (!defined('BASE_URL')) {
                                     </div>
                             </div>
                             
-                            <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-6">
+                            <div class="grid grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 lg:gap-6">
                                 <div class="bg-white rounded-xl sm:rounded-2xl p-3 sm:p-4 lg:p-6 shadow-lg border border-gray-100 hover:shadow-xl hover:-translate-y-1 transition-all duration-300 group">
                                     <div class="flex items-center justify-between mb-2 sm:mb-3 lg:mb-4">
                                         <div class="w-8 h-8 sm:w-10 sm:h-10 lg:w-12 lg:h-12 bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg sm:rounded-xl flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform duration-300">
@@ -7723,26 +7702,6 @@ if (!defined('BASE_URL')) {
                                     </div>
                                 </div>
 
-                                <div class="bg-white rounded-xl sm:rounded-2xl p-3 sm:p-4 lg:p-6 shadow-lg border border-gray-100 hover:shadow-xl hover:-translate-y-1 transition-all duration-300 group">
-                                    <div class="flex items-center justify-between mb-2 sm:mb-3 lg:mb-4">
-                                        <div class="w-8 h-8 sm:w-10 sm:h-10 lg:w-12 lg:h-12 bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-lg sm:rounded-xl flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform duration-300">
-                                            <svg class="w-4 h-4 sm:w-5 sm:h-5 lg:w-6 lg:h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                                        </svg>
-                                    </div>
-                                        <div class="text-right hidden sm:block">
-                                            <div class="w-3 h-3 bg-green-400 rounded-full animate-pulse"></div>
-                                </div>
-                            </div>
-                                    <div>
-                                        <p class="text-xl sm:text-2xl lg:text-3xl font-bold text-green-600">Online</p>
-                                        <p class="text-xs sm:text-sm font-semibold text-gray-600 mt-1">Status</p>
-                                        <div class="mt-1 sm:mt-2 bg-gray-200 rounded-full h-1.5 sm:h-2">
-                                            <div class="bg-gradient-to-r from-emerald-500 to-emerald-600 h-1.5 sm:h-2 rounded-full w-full"></div>
-                                        </div>
-                                        <div class="w-2 h-2 bg-green-400 rounded-full animate-pulse mt-1 sm:hidden mx-auto"></div>
-                                    </div>
-                                </div>
                             </div>
                         </div>
                     </div>
