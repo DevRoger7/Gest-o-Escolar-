@@ -332,6 +332,162 @@ if (!defined('BASE_URL')) {
             display: none;
         }
 
+        /* Estilos melhorados para as abas do perfil */
+        .profile-tab {
+            position: relative;
+            overflow: hidden;
+        }
+
+        .profile-tab.active {
+            background: white !important;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            transform: translateY(-1px);
+            border: 1px solid rgba(0, 0, 0, 0.1);
+        }
+
+        .profile-tab.active .w-6.h-6,
+        .profile-tab.active .w-7.h-7,
+        .profile-tab.active .w-8.h-8 {
+            background: linear-gradient(135deg, #22c55e, #16a34a) !important;
+            border: none;
+        }
+
+        .profile-tab.active .w-4.h-4,
+        .profile-tab.active .w-3.h-3,
+        .profile-tab.active .w-3\\.5.h-3\\.5 {
+            color: white !important;
+        }
+
+        .profile-tab.active span {
+            color: #1f2937 !important;
+            font-weight: 600;
+        }
+
+        .profile-tab:not(.active) {
+            background: transparent !important;
+            border: 1px solid transparent;
+        }
+
+        .profile-tab:not(.active) span {
+            color: #6b7280 !important;
+            font-weight: 500;
+        }
+
+        .profile-tab:hover:not(.active) {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            background: rgba(255, 255, 255, 0.9);
+            border: 1px solid rgba(0, 0, 0, 0.1);
+        }
+
+        .profile-tab:hover:not(.active) .w-6.h-6,
+        .profile-tab:hover:not(.active) .w-7.h-7,
+        .profile-tab:hover:not(.active) .w-8.h-8 {
+            background: rgba(34, 197, 94, 0.1) !important;
+            border: 1px solid rgba(34, 197, 94, 0.3);
+        }
+
+        .profile-tab:hover:not(.active) .w-4.h-4,
+        .profile-tab:hover:not(.active) .w-3.h-3,
+        .profile-tab:hover:not(.active) .w-3\\.5.h-3\\.5 {
+            color: #22c55e !important;
+        }
+
+        .profile-tab:hover:not(.active) span {
+            color: #1f2937 !important;
+            font-weight: 600;
+        }
+
+        /* Estilos para modo escuro */
+        [data-theme="dark"] .profile-tab.active {
+            background: var(--bg-secondary) !important;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+            border: 1px solid var(--border-color);
+        }
+
+        [data-theme="dark"] .profile-tab.active span {
+            color: #ffffff !important;
+        }
+
+        [data-theme="dark"] .profile-tab:hover:not(.active) {
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        [data-theme="dark"] .profile-tab:hover:not(.active) span {
+            color: #ffffff !important;
+        }
+
+        [data-theme="dark"] .profile-tab:not(.active) {
+            background: transparent !important;
+            border: 1px solid transparent;
+        }
+
+        [data-theme="dark"] .profile-tab:not(.active) span {
+            color: #d1d5db !important;
+        }
+
+        [data-theme="dark"] .profile-tab .w-4.h-4,
+        [data-theme="dark"] .profile-tab .w-3.h-3,
+        [data-theme="dark"] .profile-tab .w-3\\.5.h-3\\.5 {
+            color: #9ca3af !important;
+        }
+
+        [data-theme="dark"] .profile-tab.active .w-4.h-4,
+        [data-theme="dark"] .profile-tab.active .w-3.h-3,
+        [data-theme="dark"] .profile-tab.active .w-3\\.5.h-3\\.5 {
+            color: white !important;
+        }
+
+        /* Custom Scrollbar para o modal */
+        .overflow-y-auto::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .overflow-y-auto::-webkit-scrollbar-track {
+            background: #f1f5f9;
+            border-radius: 10px;
+        }
+
+        .overflow-y-auto::-webkit-scrollbar-thumb {
+            background: linear-gradient(135deg, #22c55e, #16a34a);
+            border-radius: 10px;
+            border: 2px solid #f1f5f9;
+        }
+
+        .overflow-y-auto::-webkit-scrollbar-thumb:hover {
+            background: linear-gradient(135deg, #16a34a, #15803d);
+        }
+
+        /* Firefox scrollbar */
+        .overflow-y-auto {
+            scrollbar-width: thin;
+            scrollbar-color: #22c55e #f1f5f9;
+        }
+
+        /* Smooth scrolling */
+        .overflow-y-auto {
+            scroll-behavior: smooth;
+        }
+
+        /* Indicador de scroll */
+        .overflow-y-auto::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 20px;
+            background: linear-gradient(transparent, rgba(241, 245, 249, 0.8));
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .overflow-y-auto.scrolled::after {
+            opacity: 1;
+        }
+
         @keyframes fadeInUp {
             from {
                 opacity: 0;
@@ -365,7 +521,7 @@ if (!defined('BASE_URL')) {
             box-shadow: none;
         }
 
-        /* Responsive Design */
+        /* Responsive Design - Melhorada */
         @media (max-width: 768px) {
             #userProfileModal {
                 padding: 0;
@@ -376,24 +532,63 @@ if (!defined('BASE_URL')) {
                 margin: 0;
             }
             
+            /* Navegação mobile melhorada */
+            .bg-gray-100.rounded-2xl.p-2 {
+                padding: 0.5rem;
+                gap: 0.25rem;
+                background: rgba(243, 244, 246, 0.8) !important;
+                backdrop-filter: blur(10px);
+            }
+            
             .profile-tab {
-                padding: 10px 16px;
-                min-width: 100px;
-                font-size: 0.8rem;
+                padding: 0.75rem 0.5rem !important;
+                min-width: auto;
+                flex-direction: column;
+                text-align: center;
+                border-radius: 0.75rem !important;
             }
             
-            .profile-tab svg {
-                width: 4rem;
-                height: 4rem;
-                margin-right: 0.75rem;
+            /* Aba ativa no mobile - respeitando o tema */
+            .profile-tab.active {
+                background: white !important;
+                box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+                border: 1px solid rgba(0, 0, 0, 0.1) !important;
             }
             
-            /* Mobile navigation layout */
-            .flex.items-center.justify-start {
-                justify-content: center;
-                flex-wrap: wrap;
-                gap: 0.5rem;
-                padding: 0.75rem;
+            .profile-tab.active span {
+                color: #1f2937 !important;
+                font-weight: 700;
+            }
+            
+            /* Abas inativas no mobile - transparentes */
+            .profile-tab:not(.active) {
+                background: transparent !important;
+                border: 1px solid transparent;
+            }
+            
+            .profile-tab:not(.active) span {
+                color: #6b7280 !important;
+                font-weight: 500;
+            }
+            
+            .profile-tab .w-8.h-8 {
+                width: 2rem !important;
+                height: 2rem !important;
+                margin: 0 auto 0.5rem auto;
+            }
+            
+            .profile-tab .w-4.h-4 {
+                width: 1rem !important;
+                height: 1rem !important;
+            }
+            
+            .profile-tab span {
+                font-size: 0.75rem !important;
+                line-height: 1;
+            }
+            
+            .profile-tab p {
+                display: none !important;
             }
             
             /* Mobile hero card adjustments */
@@ -404,6 +599,10 @@ if (!defined('BASE_URL')) {
             /* Mobile content padding */
             .p-8 {
                 padding: 1rem;
+            }
+            
+            .lg\\:p-12 {
+                padding: 1rem !important;
             }
             
             .bg-gradient-to-r.from-primary-green .flex.items-center {
@@ -421,10 +620,93 @@ if (!defined('BASE_URL')) {
                 font-size: 1.5rem;
             }
             
-            /* Mobile stats grid */
+            /* Mobile stats grid - melhorada */
             .grid.grid-cols-1.md\\:grid-cols-2.lg\\:grid-cols-4 {
                 grid-template-columns: repeat(2, 1fr);
                 gap: 1rem;
+            }
+
+            /* Mobile scroll adjustments */
+            .overflow-y-auto {
+                max-height: calc(100vh - 120px) !important;
+                -webkit-overflow-scrolling: touch;
+            }
+
+            /* Mobile scrollbar */
+            .overflow-y-auto::-webkit-scrollbar {
+                width: 4px;
+            }
+
+            /* Melhorias específicas para telas muito pequenas */
+            @media (max-width: 480px) {
+                /* Header ainda mais compacto */
+                .px-4.sm\\:px-6.lg\\:px-8 {
+                    padding-left: 0.75rem !important;
+                    padding-right: 0.75rem !important;
+                }
+                
+                .py-4.sm\\:py-6 {
+                    padding-top: 0.75rem !important;
+                    padding-bottom: 0.75rem !important;
+                }
+                
+                /* Abas ainda mais compactas com melhor contraste */
+                .space-x-0\\.5.sm\\:space-x-1 {
+                    gap: 0.125rem !important;
+                }
+                
+                .p-1.sm\\:p-2 {
+                    padding: 0.25rem !important;
+                }
+                
+                /* Aba ativa em telas pequenas - respeitando o tema */
+                .profile-tab.active {
+                    background: white !important;
+                    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+                    border: 1px solid rgba(0, 0, 0, 0.1) !important;
+                }
+                
+                .profile-tab.active span {
+                    color: #1f2937 !important;
+                    font-weight: 800;
+                }
+                
+                /* Abas inativas em telas pequenas */
+                .profile-tab:not(.active) {
+                    background: transparent !important;
+                    border: 1px solid transparent;
+                }
+                
+                .profile-tab:not(.active) span {
+                    color: #6b7280 !important;
+                    font-weight: 600;
+                }
+                
+                /* Texto das abas menor */
+                .text-xs.sm\\:text-sm {
+                    font-size: 0.625rem !important;
+                }
+                
+                /* Conteúdo mais compacto */
+                .p-4.sm\\:p-6.lg\\:p-8.xl\\:p-12 {
+                    padding: 0.75rem !important;
+                }
+                
+                /* Cards mais compactas */
+                .p-3.sm\\:p-4.lg\\:p-6 {
+                    padding: 0.5rem !important;
+                }
+                
+                /* Botão scroll menor */
+                .bottom-4.right-4 {
+                    bottom: 1rem !important;
+                    right: 1rem !important;
+                }
+                
+                .w-10.h-10 {
+                    width: 2rem !important;
+                    height: 2rem !important;
+                }
             }
             
             .bg-white.rounded-2xl.p-6 {
@@ -7178,74 +7460,111 @@ if (!defined('BASE_URL')) {
     <!-- User Profile Modal -->
     <div id="userProfileModal" class="fixed inset-0 bg-white z-50 hidden flex flex-col backdrop-blur-sm">
         <div class="bg-white w-full h-full overflow-hidden transform transition-all duration-300 ease-out scale-95 opacity-0" id="modalContent">
-            <!-- Header -->
+            <!-- Header - Responsivo -->
             <div class="bg-gradient-to-br from-slate-800 via-slate-700 to-slate-800 text-white relative overflow-hidden">
                 <div class="absolute inset-0 bg-gradient-to-r from-primary-green/20 to-blue-600/20"></div>
-                <div class="relative z-10 flex items-center justify-between px-8 py-6">
-                    <div class="flex items-center space-x-4">
-                        <div class="w-12 h-12 bg-white/10 backdrop-blur-sm rounded-xl flex items-center justify-center">
-                            <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/1/19/Bras%C3%A3o_de_Maranguape.png/250px-Bras%C3%A3o_de_Maranguape.png" alt="Brasão de Maranguape" class="w-8 h-8 object-contain">
+                <div class="relative z-10 flex items-center justify-between px-4 sm:px-6 lg:px-8 py-4 sm:py-6">
+                    <div class="flex items-center space-x-2 sm:space-x-4 flex-1 min-w-0">
+                        <div class="w-8 h-8 sm:w-10 sm:h-10 lg:w-12 lg:h-12 bg-white/10 backdrop-blur-sm rounded-lg sm:rounded-xl flex items-center justify-center flex-shrink-0">
+                            <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/1/19/Bras%C3%A3o_de_Maranguape.png/250px-Bras%C3%A3o_de_Maranguape.png" alt="Brasão de Maranguape" class="w-5 h-5 sm:w-6 sm:h-6 lg:w-8 lg:h-8 object-contain">
                         </div>
-                        <div>
-                            <h1 class="text-2xl font-bold">Perfil do Usuário</h1>
-                            <p class="text-slate-300 text-sm">Gerencie suas informações e configurações</p>
+                        <div class="min-w-0 flex-1">
+                            <h1 class="text-lg sm:text-xl lg:text-2xl font-bold truncate">Perfil do Usuário</h1>
+                            <p class="text-slate-300 text-xs sm:text-sm hidden sm:block">Gerencie suas informações e configurações</p>
                         </div>
                     </div>
-                    <button onclick="closeUserProfile()" class="p-3 hover:bg-white/10 rounded-xl transition-all duration-200 group">
-                        <svg class="w-6 h-6 group-hover:rotate-90 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <button onclick="closeUserProfile()" class="p-2 sm:p-3 hover:bg-white/10 rounded-lg sm:rounded-xl transition-all duration-200 group flex-shrink-0">
+                        <svg class="w-5 h-5 sm:w-6 sm:h-6 group-hover:rotate-90 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
                         </svg>
                     </button>
                 </div>
             </div>
 
-            <!-- Navigation Tabs -->
-            <div class="bg-gradient-to-r from-slate-800 via-slate-700 to-slate-800 border-b border-gray-200 sticky top-0 z-20">
-                <nav class="flex items-center justify-start px-8 py-3 space-x-2">
-                    <button class="profile-tab active group" data-tab="overview" onclick="switchProfileTab('overview')">
-                        <svg class="w-5 h-5 mr-3 group-hover:scale-110 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <!-- Navigation Tabs - Responsiva -->
+            <div class="bg-white sticky top-0 z-20">
+                <div class="px-2 sm:px-4 lg:px-8 py-2 sm:py-4">
+                    <nav class="flex items-center justify-center space-x-0.5 sm:space-x-1 bg-gray-100 rounded-xl sm:rounded-2xl p-1 sm:p-2 shadow-inner">
+                        <button class="profile-tab active group flex-1 flex items-center justify-center px-2 sm:px-3 lg:px-6 py-2 sm:py-3 rounded-lg sm:rounded-xl transition-all duration-300" data-tab="overview" onclick="switchProfileTab('overview')">
+                            <div class="flex items-center space-x-1 sm:space-x-2 lg:space-x-3 w-full">
+                                <div class="w-6 h-6 sm:w-7 sm:h-7 lg:w-8 lg:h-8 bg-white rounded-md sm:rounded-lg flex items-center justify-center shadow-sm group-hover:scale-110 transition-transform duration-300 flex-shrink-0">
+                                    <svg class="w-3 h-3 sm:w-3.5 sm:h-3.5 lg:w-4 lg:h-4 text-primary-green" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
                         </svg>
-                        <span class="font-semibold">Visão Geral</span>
+                                </div>
+                                <div class="text-left min-w-0 flex-1">
+                                    <span class="font-semibold text-xs sm:text-sm text-gray-900 truncate block">Visão Geral</span>
+                                    <p class="text-xs text-gray-500 hidden lg:block">Dashboard principal</p>
+                                </div>
+                            </div>
                     </button>
                     
-                    <button class="profile-tab group" data-tab="personal" onclick="switchProfileTab('personal')">
-                        <svg class="w-5 h-5 mr-3 group-hover:scale-110 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <button class="profile-tab group flex-1 flex items-center justify-center px-2 sm:px-3 lg:px-6 py-2 sm:py-3 rounded-lg sm:rounded-xl transition-all duration-300 hover:bg-white/50" data-tab="personal" onclick="switchProfileTab('personal')">
+                            <div class="flex items-center space-x-1 sm:space-x-2 lg:space-x-3 w-full">
+                                <div class="w-6 h-6 sm:w-7 sm:h-7 lg:w-8 lg:h-8 bg-gray-200 rounded-md sm:rounded-lg flex items-center justify-center group-hover:bg-blue-100 group-hover:scale-110 transition-all duration-300 flex-shrink-0">
+                                    <svg class="w-3 h-3 sm:w-3.5 sm:h-3.5 lg:w-4 lg:h-4 text-gray-600 group-hover:text-blue-600 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
                         </svg>
-                        <span class="font-semibold">Perfil</span>
+                                </div>
+                                <div class="text-left min-w-0 flex-1">
+                                    <span class="font-semibold text-xs sm:text-sm text-gray-700 group-hover:text-gray-900 transition-colors truncate block">Perfil</span>
+                                    <p class="text-xs text-gray-500 hidden lg:block">Informações pessoais</p>
+                                </div>
+                            </div>
                     </button>
                     
-                    <button class="profile-tab group" data-tab="system" onclick="switchProfileTab('system')">
-                        <svg class="w-5 h-5 mr-3 group-hover:scale-110 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <button class="profile-tab group flex-1 flex items-center justify-center px-2 sm:px-3 lg:px-6 py-2 sm:py-3 rounded-lg sm:rounded-xl transition-all duration-300 hover:bg-white/50" data-tab="system" onclick="switchProfileTab('system')">
+                            <div class="flex items-center space-x-1 sm:space-x-2 lg:space-x-3 w-full">
+                                <div class="w-6 h-6 sm:w-7 sm:h-7 lg:w-8 lg:h-8 bg-gray-200 rounded-md sm:rounded-lg flex items-center justify-center group-hover:bg-purple-100 group-hover:scale-110 transition-all duration-300 flex-shrink-0">
+                                    <svg class="w-3 h-3 sm:w-3.5 sm:h-3.5 lg:w-4 lg:h-4 text-gray-600 group-hover:text-purple-600 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z"></path>
                         </svg>
-                        <span class="font-semibold">Sistema</span>
+                                </div>
+                                <div class="text-left min-w-0 flex-1">
+                                    <span class="font-semibold text-xs sm:text-sm text-gray-700 group-hover:text-gray-900 transition-colors truncate block">Sistema</span>
+                                    <p class="text-xs text-gray-500 hidden lg:block">Status e métricas</p>
+                                </div>
+                            </div>
                     </button>
                     
-                    <button class="profile-tab group" data-tab="settings" onclick="switchProfileTab('settings')">
-                        <svg class="w-5 h-5 mr-3 group-hover:scale-110 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <button class="profile-tab group flex-1 flex items-center justify-center px-2 sm:px-3 lg:px-6 py-2 sm:py-3 rounded-lg sm:rounded-xl transition-all duration-300 hover:bg-white/50" data-tab="settings" onclick="switchProfileTab('settings')">
+                            <div class="flex items-center space-x-1 sm:space-x-2 lg:space-x-3 w-full">
+                                <div class="w-6 h-6 sm:w-7 sm:h-7 lg:w-8 lg:h-8 bg-gray-200 rounded-md sm:rounded-lg flex items-center justify-center group-hover:bg-green-100 group-hover:scale-110 transition-all duration-300 flex-shrink-0">
+                                    <svg class="w-3 h-3 sm:w-3.5 sm:h-3.5 lg:w-4 lg:h-4 text-gray-600 group-hover:text-green-600 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path>
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
                         </svg>
-                        <span class="font-semibold">Configurações</span>
+                                </div>
+                                <div class="text-left min-w-0 flex-1">
+                                    <span class="font-semibold text-xs sm:text-sm text-gray-700 group-hover:text-gray-900 transition-colors truncate block">Configurações</span>
+                                    <p class="text-xs text-gray-500 hidden lg:block">Preferências</p>
+                                </div>
+                            </div>
                     </button>
                 </nav>
+                </div>
             </div>
 
             <!-- Content -->
-            <div class="flex-1 overflow-y-auto bg-gradient-to-br from-gray-50 to-gray-100">
-                <div class="p-8 lg:p-12 min-h-full">
+            <div class="flex-1 overflow-y-auto bg-gray-50 relative" style="max-height: calc(100vh - 200px);">
+                <!-- Scroll to Top Button -->
+                <button id="scrollToTop" onclick="scrollToTop()" class="fixed bottom-4 right-4 sm:bottom-8 sm:right-8 w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-r from-primary-green to-green-600 text-white rounded-full shadow-lg hover:shadow-xl transform hover:scale-110 transition-all duration-300 opacity-0 pointer-events-none z-50 flex items-center justify-center">
+                    <svg class="w-5 h-5 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 10l7-7m0 0l7 7m-7-7v18"></path>
+                    </svg>
+                </button>
+                
+                <div class="p-4 sm:p-6 lg:p-8 xl:p-12 min-h-full">
                     <!-- Tab Content: Overview -->
                     <div id="profile-overview" class="profile-tab-content">
-                        <!-- User Profile Hero Card -->
-                        <div class="bg-gradient-to-br from-white to-gray-50 rounded-3xl shadow-xl border border-gray-100 overflow-hidden mb-8 transform hover:scale-[1.02] transition-all duration-300">
-                            <div class="bg-gradient-to-r from-primary-green via-green-500 to-emerald-600 p-8 relative overflow-hidden">
-                                <div class="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -translate-y-16 translate-x-16"></div>
-                                <div class="absolute bottom-0 left-0 w-24 h-24 bg-white/5 rounded-full translate-y-12 -translate-x-12"></div>
-                                <div class="relative z-10 flex items-center space-x-6">
-                                    <div class="w-24 h-24 bg-white rounded-2xl flex items-center justify-center shadow-2xl transform hover:rotate-6 transition-transform duration-300">
-                                        <span class="text-3xl font-bold text-primary-green"><?php
+                        <!-- User Profile Hero Card - Responsivo -->
+                        <div class="bg-gradient-to-br from-white to-gray-50 rounded-2xl sm:rounded-3xl shadow-xl border border-gray-100 overflow-hidden mb-6 sm:mb-8 transform hover:scale-[1.01] sm:hover:scale-[1.02] transition-all duration-300">
+                            <div class="bg-gradient-to-r from-primary-green via-green-500 to-emerald-600 p-4 sm:p-6 lg:p-8 relative overflow-hidden">
+                                <div class="absolute top-0 right-0 w-20 h-20 sm:w-32 sm:h-32 bg-white/10 rounded-full -translate-y-10 sm:-translate-y-16 translate-x-10 sm:translate-x-16"></div>
+                                <div class="absolute bottom-0 left-0 w-16 h-16 sm:w-24 sm:h-24 bg-white/5 rounded-full translate-y-8 sm:translate-y-12 -translate-x-8 sm:-translate-x-12"></div>
+                                <div class="relative z-10 flex flex-col sm:flex-row items-center sm:items-start space-y-4 sm:space-y-0 sm:space-x-4 lg:space-x-6">
+                                    <div class="w-16 h-16 sm:w-20 sm:h-20 lg:w-24 lg:h-24 bg-white rounded-xl sm:rounded-2xl flex items-center justify-center shadow-2xl transform hover:rotate-6 transition-transform duration-300 flex-shrink-0">
+                                        <span class="text-xl sm:text-2xl lg:text-3xl font-bold text-primary-green"><?php
                                             $nome = $_SESSION['nome'] ?? '';
                                             $iniciais = '';
                                             if (strlen($nome) >= 2) {
@@ -7258,95 +7577,127 @@ if (!defined('BASE_URL')) {
                                             echo $iniciais;
                                         ?></span>
                                     </div>
-                                    <div class="flex-1 text-white">
-                                        <h2 class="text-3xl font-bold mb-2"><?php echo $_SESSION['nome']; ?></h2>
-                                        <div class="flex flex-wrap gap-3 mb-4">
-                                            <span class="bg-white/20 backdrop-blur-sm text-white px-4 py-2 rounded-full text-sm font-semibold border border-white/30">
+                                    <div class="flex-1 text-white text-center sm:text-left min-w-0">
+                                        <h2 class="text-xl sm:text-2xl lg:text-3xl font-bold mb-2 truncate"><?php echo $_SESSION['nome']; ?></h2>
+                                        <div class="flex flex-wrap gap-2 sm:gap-3 mb-3 sm:mb-4 justify-center sm:justify-start">
+                                            <span class="bg-white/20 backdrop-blur-sm text-white px-3 sm:px-4 py-1 sm:py-2 rounded-full text-xs sm:text-sm font-semibold border border-white/30">
                                                 Administrador Geral
                                             </span>
-                                            <span class="bg-blue-500/80 backdrop-blur-sm text-white px-4 py-2 rounded-full text-sm font-semibold border border-blue-400/30">
+                                            <span class="bg-blue-500/80 backdrop-blur-sm text-white px-3 sm:px-4 py-1 sm:py-2 rounded-full text-xs sm:text-sm font-semibold border border-blue-400/30">
                                                 Acesso Total
                                             </span>
                                         </div>
                                         <div class="space-y-1">
-                                            <p class="text-green-100 text-sm font-medium">Email</p>
-                                            <p class="text-white text-lg font-semibold"><?php echo $_SESSION['email']; ?></p>
+                                            <p class="text-green-100 text-xs sm:text-sm font-medium">Email</p>
+                                            <p class="text-white text-sm sm:text-base lg:text-lg font-semibold truncate"><?php echo $_SESSION['email']; ?></p>
                                         </div>
                                     </div>
-                                    <div class="text-right text-white">
-                                        <div class="bg-white/10 backdrop-blur-sm rounded-2xl p-6 border border-white/20">
-                                            <div class="flex items-center space-x-2 mb-2">
-                                                <div class="w-3 h-3 bg-green-400 rounded-full animate-pulse"></div>
-                                                <p class="text-green-100 text-sm font-medium">Online</p>
+                                    <div class="text-center sm:text-right text-white flex-shrink-0">
+                                        <div class="bg-white/10 backdrop-blur-sm rounded-xl sm:rounded-2xl p-3 sm:p-4 lg:p-6 border border-white/20">
+                                            <div class="flex items-center justify-center sm:justify-start space-x-2 mb-1 sm:mb-2">
+                                                <div class="w-2 h-2 sm:w-3 sm:h-3 bg-green-400 rounded-full animate-pulse"></div>
+                                                <p class="text-green-100 text-xs sm:text-sm font-medium">Online</p>
                                             </div>
-                                            <p class="text-white font-bold text-lg">Agora</p>
+                                            <p class="text-white font-bold text-sm sm:text-base lg:text-lg">Agora</p>
                                         </div>
                                     </div>
                                 </div>
                             </div>
                         </div>
 
-                        <!-- Stats Cards -->
-                        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-                            <div class="bg-white rounded-2xl p-6 shadow-lg border border-gray-100 hover:shadow-xl hover:-translate-y-1 transition-all duration-300 group">
-                                <div class="flex items-center justify-between">
-                                    <div>
-                                        <p class="text-4xl font-bold text-gray-900 group-hover:text-blue-600 transition-colors">12</p>
-                                        <p class="text-sm font-semibold text-gray-600 mt-1">Escolas</p>
-                                        <p class="text-xs text-green-600 font-medium mt-1">+2 este mês</p>
+                        <!-- Stats Cards - Limpas -->
+                        <div class="mb-6 sm:mb-8">
+                            <div class="flex flex-col sm:flex-row sm:items-center justify-between mb-4 sm:mb-6 gap-2 sm:gap-0">
+                                <h3 class="text-lg sm:text-xl font-bold text-gray-900">Métricas do Sistema</h3>
+                                <div class="flex items-center space-x-2 text-xs sm:text-sm text-gray-500">
+                                    <div class="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
+                                    <span class="hidden sm:inline">Atualizado agora</span>
+                                    <span class="sm:hidden">Agora</span>
                                     </div>
-                                    <div class="w-14 h-14 bg-gradient-to-br from-blue-500 to-blue-600 rounded-2xl flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform duration-300">
-                                        <svg class="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            </div>
+                            
+                            <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-6">
+                                <div class="bg-white rounded-xl sm:rounded-2xl p-3 sm:p-4 lg:p-6 shadow-lg border border-gray-100 hover:shadow-xl hover:-translate-y-1 transition-all duration-300 group">
+                                    <div class="flex items-center justify-between mb-2 sm:mb-3 lg:mb-4">
+                                        <div class="w-8 h-8 sm:w-10 sm:h-10 lg:w-12 lg:h-12 bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg sm:rounded-xl flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform duration-300">
+                                            <svg class="w-4 h-4 sm:w-5 sm:h-5 lg:w-6 lg:h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path>
                                         </svg>
                                     </div>
+                                        <div class="text-right hidden sm:block">
+                                            <p class="text-xs text-green-600 font-medium">+2 este mês</p>
                                 </div>
                             </div>
-
-                            <div class="bg-white rounded-2xl p-6 shadow-lg border border-gray-100 hover:shadow-xl hover:-translate-y-1 transition-all duration-300 group">
-                                <div class="flex items-center justify-between">
                                     <div>
-                                        <p class="text-4xl font-bold text-gray-900 group-hover:text-green-600 transition-colors">248</p>
-                                        <p class="text-sm font-semibold text-gray-600 mt-1">Usuários</p>
-                                        <p class="text-xs text-green-600 font-medium mt-1">+15 esta semana</p>
+                                        <p class="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900 group-hover:text-blue-600 transition-colors">12</p>
+                                        <p class="text-xs sm:text-sm font-semibold text-gray-600 mt-1">Escolas</p>
+                                        <div class="mt-1 sm:mt-2 bg-gray-200 rounded-full h-1.5 sm:h-2">
+                                            <div class="bg-gradient-to-r from-blue-500 to-blue-600 h-1.5 sm:h-2 rounded-full" style="width: 85%"></div>
                                     </div>
-                                    <div class="w-14 h-14 bg-gradient-to-br from-green-500 to-green-600 rounded-2xl flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform duration-300">
-                                        <svg class="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <p class="text-xs text-green-600 font-medium mt-1 sm:hidden">+2 este mês</p>
+                                    </div>
+                                </div>
+
+                                <div class="bg-white rounded-xl sm:rounded-2xl p-3 sm:p-4 lg:p-6 shadow-lg border border-gray-100 hover:shadow-xl hover:-translate-y-1 transition-all duration-300 group">
+                                    <div class="flex items-center justify-between mb-2 sm:mb-3 lg:mb-4">
+                                        <div class="w-8 h-8 sm:w-10 sm:h-10 lg:w-12 lg:h-12 bg-gradient-to-br from-green-500 to-green-600 rounded-lg sm:rounded-xl flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform duration-300">
+                                            <svg class="w-4 h-4 sm:w-5 sm:h-5 lg:w-6 lg:h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z"></path>
                                         </svg>
                                     </div>
+                                        <div class="text-right hidden sm:block">
+                                            <p class="text-xs text-green-600 font-medium">+15 esta semana</p>
                                 </div>
                             </div>
-
-                            <div class="bg-white rounded-2xl p-6 shadow-lg border border-gray-100 hover:shadow-xl hover:-translate-y-1 transition-all duration-300 group">
-                                <div class="flex items-center justify-between">
                                     <div>
-                                        <p class="text-4xl font-bold text-gray-900 group-hover:text-purple-600 transition-colors">99.9%</p>
-                                        <p class="text-sm font-semibold text-gray-600 mt-1">Sistema</p>
-                                        <p class="text-xs text-green-600 font-medium mt-1">Excelente</p>
+                                        <p class="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900 group-hover:text-green-600 transition-colors">248</p>
+                                        <p class="text-xs sm:text-sm font-semibold text-gray-600 mt-1">Usuários</p>
+                                        <div class="mt-1 sm:mt-2 bg-gray-200 rounded-full h-1.5 sm:h-2">
+                                            <div class="bg-gradient-to-r from-green-500 to-green-600 h-1.5 sm:h-2 rounded-full" style="width: 92%"></div>
                                     </div>
-                                    <div class="w-14 h-14 bg-gradient-to-br from-purple-500 to-purple-600 rounded-2xl flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform duration-300">
-                                        <svg class="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <p class="text-xs text-green-600 font-medium mt-1 sm:hidden">+15 esta semana</p>
+                                    </div>
+                                </div>
+
+                                <div class="bg-white rounded-xl sm:rounded-2xl p-3 sm:p-4 lg:p-6 shadow-lg border border-gray-100 hover:shadow-xl hover:-translate-y-1 transition-all duration-300 group">
+                                    <div class="flex items-center justify-between mb-2 sm:mb-3 lg:mb-4">
+                                        <div class="w-8 h-8 sm:w-10 sm:h-10 lg:w-12 lg:h-12 bg-gradient-to-br from-purple-500 to-purple-600 rounded-lg sm:rounded-xl flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform duration-300">
+                                            <svg class="w-4 h-4 sm:w-5 sm:h-5 lg:w-6 lg:h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
                                         </svg>
                                     </div>
+                                        <div class="text-right hidden sm:block">
+                                            <p class="text-xs text-green-600 font-medium">Excelente</p>
                                 </div>
                             </div>
-
-                            <div class="bg-white rounded-2xl p-6 shadow-lg border border-gray-100 hover:shadow-xl hover:-translate-y-1 transition-all duration-300 group">
-                                <div class="flex items-center justify-between">
                                     <div>
-                                        <div class="flex items-center space-x-2">
-                                            <div class="w-3 h-3 bg-green-400 rounded-full animate-pulse"></div>
-                                            <p class="text-2xl font-bold text-green-600">Online</p>
+                                        <p class="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900 group-hover:text-purple-600 transition-colors">99.9%</p>
+                                        <p class="text-xs sm:text-sm font-semibold text-gray-600 mt-1">Uptime</p>
+                                        <div class="mt-1 sm:mt-2 bg-gray-200 rounded-full h-1.5 sm:h-2">
+                                            <div class="bg-gradient-to-r from-purple-500 to-purple-600 h-1.5 sm:h-2 rounded-full" style="width: 99.9%"></div>
                                         </div>
-                                        <p class="text-sm font-semibold text-gray-600 mt-1">Status</p>
-                                        <p class="text-xs text-green-600 font-medium mt-1">Conectado</p>
+                                        <p class="text-xs text-green-600 font-medium mt-1 sm:hidden">Excelente</p>
                                     </div>
-                                    <div class="w-14 h-14 bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-2xl flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform duration-300">
-                                        <svg class="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                </div>
+
+                                <div class="bg-white rounded-xl sm:rounded-2xl p-3 sm:p-4 lg:p-6 shadow-lg border border-gray-100 hover:shadow-xl hover:-translate-y-1 transition-all duration-300 group">
+                                    <div class="flex items-center justify-between mb-2 sm:mb-3 lg:mb-4">
+                                        <div class="w-8 h-8 sm:w-10 sm:h-10 lg:w-12 lg:h-12 bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-lg sm:rounded-xl flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform duration-300">
+                                            <svg class="w-4 h-4 sm:w-5 sm:h-5 lg:w-6 lg:h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
                                         </svg>
+                                    </div>
+                                        <div class="text-right hidden sm:block">
+                                            <div class="w-3 h-3 bg-green-400 rounded-full animate-pulse"></div>
+                                </div>
+                            </div>
+                                    <div>
+                                        <p class="text-xl sm:text-2xl lg:text-3xl font-bold text-green-600">Online</p>
+                                        <p class="text-xs sm:text-sm font-semibold text-gray-600 mt-1">Status</p>
+                                        <div class="mt-1 sm:mt-2 bg-gray-200 rounded-full h-1.5 sm:h-2">
+                                            <div class="bg-gradient-to-r from-emerald-500 to-emerald-600 h-1.5 sm:h-2 rounded-full w-full"></div>
+                                        </div>
+                                        <div class="w-2 h-2 bg-green-400 rounded-full animate-pulse mt-1 sm:hidden mx-auto"></div>
                                     </div>
                                 </div>
                             </div>
@@ -7695,21 +8046,34 @@ if (!defined('BASE_URL')) {
                             </div>
                         </div>
 
-                        <!-- Theme Settings -->
+                        <!-- Theme Settings - Melhorada -->
                         <div class="bg-white rounded-2xl shadow-lg border border-gray-100 p-6 mb-8">
-                            <div class="flex items-center space-x-3 mb-6">
+                            <div class="flex items-center justify-between mb-6">
+                                <div class="flex items-center space-x-3">
                                 <div class="w-10 h-10 bg-gradient-to-br from-yellow-500 to-orange-500 rounded-xl flex items-center justify-center">
                                     <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"></path>
                                     </svg>
                                 </div>
+                                    <div>
                                 <h3 class="text-xl font-bold text-gray-900">Tema Visual</h3>
+                                        <p class="text-sm text-gray-500">Escolha o tema que mais combina com você</p>
+                                    </div>
+                                </div>
+                                <div class="text-right">
+                                    <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800">
+                                        <div class="w-2 h-2 bg-green-400 rounded-full mr-2 animate-pulse"></div>
+                                        Ativo
+                                    </span>
+                                </div>
                             </div>
                             
-                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <button class="theme-option group p-4 border-2 border-gray-200 rounded-2xl hover:border-blue-500 hover:shadow-lg transition-all duration-300" data-theme="light">
-                                    <div class="flex items-center space-x-4">
-                                        <div class="w-12 h-12 bg-gradient-to-br from-yellow-400 to-orange-500 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <button id="theme-light" class="theme-option group p-6 border-2 border-gray-200 rounded-2xl hover:border-blue-500 hover:shadow-lg transition-all duration-300 relative overflow-hidden">
+                                    <div class="absolute top-0 right-0 w-16 h-16 bg-yellow-100 rounded-full -translate-y-8 translate-x-8 opacity-50"></div>
+                                    <div class="relative z-10">
+                                        <div class="flex items-center space-x-4 mb-4">
+                                            <div class="w-12 h-12 bg-gradient-to-br from-yellow-400 to-orange-500 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform duration-300 shadow-lg">
                                             <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"></path>
                                             </svg>
@@ -7717,13 +8081,24 @@ if (!defined('BASE_URL')) {
                                         <div class="text-left">
                                             <h4 class="font-semibold text-gray-900 group-hover:text-blue-600 transition-colors">Tema Claro</h4>
                                             <p class="text-sm text-gray-500">Interface clara e brilhante</p>
+                                            </div>
+                                        </div>
+                                        <div class="flex items-center justify-between">
+                                            <div class="text-xs text-gray-400">
+                                                Ideal para uso diurno
+                                            </div>
+                                            <div class="w-8 h-4 bg-blue-200 rounded-full relative">
+                                                <div class="w-3 h-3 bg-blue-500 rounded-full absolute top-0.5 left-0.5 transition-transform duration-200"></div>
+                                            </div>
                                         </div>
                                     </div>
                                 </button>
                                 
-                                <button class="theme-option group p-4 border-2 border-gray-200 rounded-2xl hover:border-purple-500 hover:shadow-lg transition-all duration-300" data-theme="dark">
-                                    <div class="flex items-center space-x-4">
-                                        <div class="w-12 h-12 bg-gradient-to-br from-purple-600 to-indigo-700 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
+                                <button id="theme-dark" class="theme-option group p-6 border-2 border-gray-200 rounded-2xl hover:border-purple-500 hover:shadow-lg transition-all duration-300 relative overflow-hidden">
+                                    <div class="absolute top-0 right-0 w-16 h-16 bg-purple-100 rounded-full -translate-y-8 translate-x-8 opacity-50"></div>
+                                    <div class="relative z-10">
+                                        <div class="flex items-center space-x-4 mb-4">
+                                            <div class="w-12 h-12 bg-gradient-to-br from-purple-600 to-indigo-700 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform duration-300 shadow-lg">
                                             <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"></path>
                                             </svg>
@@ -7731,6 +8106,15 @@ if (!defined('BASE_URL')) {
                                         <div class="text-left">
                                             <h4 class="font-semibold text-gray-900 group-hover:text-purple-600 transition-colors">Tema Escuro</h4>
                                             <p class="text-sm text-gray-500">Interface escura e elegante</p>
+                                            </div>
+                                        </div>
+                                        <div class="flex items-center justify-between">
+                                            <div class="text-xs text-gray-400">
+                                                Ideal para uso noturno
+                                            </div>
+                                            <div class="w-8 h-4 bg-gray-200 rounded-full relative">
+                                                <div class="w-3 h-3 bg-gray-400 rounded-full absolute top-0.5 right-0.5 transition-transform duration-200"></div>
+                                            </div>
                                         </div>
                                     </div>
                                 </button>
@@ -7829,12 +8213,19 @@ if (!defined('BASE_URL')) {
             
             modal.classList.remove('hidden');
             modal.classList.add('show');
+            document.body.style.overflow = 'hidden';
             
             // Trigger animation after a small delay
             setTimeout(() => {
                 modalContent.style.transform = 'scale(1) translateY(0)';
                 modalContent.style.opacity = '1';
             }, 10);
+            
+            // Initialize theme buttons
+            setTimeout(() => {
+                initializeThemeButtons();
+                initializeScrollIndicator();
+            }, 100);
         }
 
         function closeUserProfile() {
@@ -7849,13 +8240,28 @@ if (!defined('BASE_URL')) {
             setTimeout(() => {
                 modal.classList.add('hidden');
                 modal.classList.remove('show');
+                document.body.style.overflow = '';
             }, 300);
         }
 
         function switchProfileTab(tabName) {
-            // Remove active class from all tabs
+            // Remove active class from all tabs and reset styles
             document.querySelectorAll('.profile-tab').forEach(tab => {
                 tab.classList.remove('active');
+                
+                // Reset tab styles
+                const icon = tab.querySelector('.w-8.h-8');
+                const text = tab.querySelector('span');
+                
+                if (icon) {
+                    icon.classList.remove('bg-white');
+                    icon.classList.add('bg-gray-200');
+                }
+                
+                if (text) {
+                    text.classList.remove('text-gray-900', 'font-semibold');
+                    text.classList.add('text-gray-700');
+                }
             });
 
             // Hide all tab contents
@@ -7863,11 +8269,139 @@ if (!defined('BASE_URL')) {
                 content.classList.add('hidden');
             });
 
-            // Add active class to clicked tab
-            document.querySelector(`[data-tab="${tabName}"]`).classList.add('active');
+            // Add active class to clicked tab and apply styles
+            const activeTab = document.querySelector(`[data-tab="${tabName}"]`);
+            if (activeTab) {
+                activeTab.classList.add('active');
+                
+                // Apply active styles
+                const icon = activeTab.querySelector('.w-8.h-8');
+                const text = activeTab.querySelector('span');
+                
+                if (icon) {
+                    icon.classList.remove('bg-gray-200');
+                    icon.classList.add('bg-white');
+                }
+                
+                if (text) {
+                    text.classList.remove('text-gray-700');
+                    text.classList.add('text-gray-900', 'font-semibold');
+                }
+            }
 
             // Show corresponding content
-            document.getElementById(`profile-${tabName}`).classList.remove('hidden');
+            const selectedContent = document.getElementById(`profile-${tabName}`);
+            if (selectedContent) {
+                selectedContent.classList.remove('hidden');
+                
+                // Initialize theme buttons if settings tab is selected
+                if (tabName === 'settings') {
+                    setTimeout(() => {
+                        initializeThemeButtons();
+                    }, 100);
+                }
+            }
+        }
+
+        // Initialize theme buttons with better functionality
+        function initializeThemeButtons() {
+            const lightBtn = document.getElementById('theme-light');
+            const darkBtn = document.getElementById('theme-dark');
+            
+            if (lightBtn) {
+                lightBtn.onclick = function(e) {
+                    e.preventDefault();
+                    setTheme('light');
+                    updateThemeButtons('light');
+                };
+            }
+            
+            if (darkBtn) {
+                darkBtn.onclick = function(e) {
+                    e.preventDefault();
+                    setTheme('dark');
+                    updateThemeButtons('dark');
+                };
+            }
+        }
+
+        function updateThemeButtons(theme) {
+            const lightBtn = document.getElementById('theme-light');
+            const darkBtn = document.getElementById('theme-dark');
+            
+            // Reset both buttons
+            [lightBtn, darkBtn].forEach(btn => {
+                if (btn) {
+                    btn.classList.remove('border-blue-500', 'border-purple-500', 'bg-blue-50', 'bg-purple-50');
+                    btn.classList.add('border-gray-200');
+                }
+            });
+            
+            // Activate selected theme button
+            const activeBtn = theme === 'light' ? lightBtn : darkBtn;
+            if (activeBtn) {
+                const isLight = theme === 'light';
+                activeBtn.classList.remove('border-gray-200');
+                activeBtn.classList.add(
+                    isLight ? 'border-blue-500' : 'border-purple-500',
+                    isLight ? 'bg-blue-50' : 'bg-purple-50'
+                );
+            }
+        }
+
+        // Initialize scroll indicator
+        function initializeScrollIndicator() {
+            const scrollContainer = document.querySelector('#userProfileModal .overflow-y-auto');
+            if (scrollContainer) {
+                scrollContainer.addEventListener('scroll', function() {
+                    const { scrollTop, scrollHeight, clientHeight } = this;
+                    const isScrolled = scrollTop > 10;
+                    const isAtBottom = scrollTop + clientHeight >= scrollHeight - 10;
+                    
+                    // Add/remove scrolled class for visual feedback
+                    if (isScrolled) {
+                        this.classList.add('scrolled');
+                    } else {
+                        this.classList.remove('scrolled');
+                    }
+                    
+                    // Add shadow to header when scrolled
+                    const header = document.querySelector('#userProfileModal .bg-white.border-b');
+                    if (header) {
+                        if (isScrolled) {
+                            header.classList.add('shadow-lg');
+                        } else {
+                            header.classList.remove('shadow-lg');
+                        }
+                    }
+                    
+                    // Show/hide scroll to top button
+                    const scrollToTopBtn = document.getElementById('scrollToTop');
+                    if (scrollToTopBtn) {
+                        if (isScrolled) {
+                            scrollToTopBtn.classList.remove('opacity-0', 'pointer-events-none');
+                            scrollToTopBtn.classList.add('opacity-100');
+                        } else {
+                            scrollToTopBtn.classList.add('opacity-0', 'pointer-events-none');
+                            scrollToTopBtn.classList.remove('opacity-100');
+                        }
+                    }
+                });
+                
+                // Initial check
+                scrollContainer.dispatchEvent(new Event('scroll'));
+            }
+        }
+
+        // Scroll to top function
+        function scrollToTop() {
+            const scrollContainer = document.querySelector('#userProfileModal .overflow-y-auto');
+            if (scrollContainer) {
+                scrollContainer.scrollTo({
+                    top: 0,
+                    behavior: 'smooth'
+                });
+            }
         }
 
         // Keyboard shortcut for profile modal
