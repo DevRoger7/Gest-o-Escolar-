@@ -141,9 +141,23 @@ if (!defined('BASE_URL')) {
     <script>
         // Inicializar VLibras apenas se estiver habilitado
         function initializeVLibras() {
-            if (localStorage.getItem('vlibras-enabled') !== 'false') {
+            const vlibrasEnabled = localStorage.getItem('vlibras-enabled');
+            const vlibrasWidget = document.getElementById('vlibras-widget');
+            
+            if (vlibrasEnabled !== 'false') {
                 if (window.VLibras) {
                     new window.VLibras.Widget('https://vlibras.gov.br/app');
+                }
+                if (vlibrasWidget) {
+                    vlibrasWidget.style.display = 'block';
+                    vlibrasWidget.classList.remove('disabled');
+                    vlibrasWidget.classList.add('enabled');
+                }
+            } else {
+                if (vlibrasWidget) {
+                    vlibrasWidget.style.display = 'none';
+                    vlibrasWidget.classList.remove('enabled');
+                    vlibrasWidget.classList.add('disabled');
                 }
             }
         }
@@ -303,24 +317,33 @@ if (!defined('BASE_URL')) {
             border-radius: 2px 2px 0 0;
         }
 
-        .profile-tab.active::after {
-            content: '';
-            position: absolute;
-            bottom: -9px;
-            left: 50%;
-            transform: translateX(-50%);
-            width: 8px;
-            height: 8px;
-            background: #22c55e;
-            border-radius: 50%;
-            box-shadow: 0 0 8px rgba(34, 197, 94, 0.6);
-        }
+        /* Indicador por cor do ícone - sem bolinha */
 
-        /* Ocultar ::after no mobile para evitar bugs */
-        @media (max-width: 768px) {
-            .profile-tab.active::after {
-                display: none;
-            }
+        /* High Contrast Mode */
+        .high-contrast {
+            filter: contrast(150%) brightness(110%);
+        }
+        
+        .high-contrast * {
+            border-color: #000000 !important;
+        }
+        
+        .high-contrast .bg-white {
+            background-color: #ffffff !important;
+            border: 2px solid #000000 !important;
+        }
+        
+        .high-contrast .bg-gray-50,
+        .high-contrast .bg-gray-100 {
+            background-color: #f0f0f0 !important;
+            border: 1px solid #000000 !important;
+        }
+        
+        .high-contrast .text-gray-600,
+        .high-contrast .text-gray-700,
+        .high-contrast .text-gray-800,
+        .high-contrast .text-gray-900 {
+            color: #000000 !important;
         }
 
         /* Navigation bar styling */
@@ -1443,11 +1466,18 @@ if (!defined('BASE_URL')) {
                 margin-bottom: 1rem;
             }
             
-            /* Tabelas responsivas */
-            .table-responsive {
-                overflow-x: auto;
-                -webkit-overflow-scrolling: touch;
-            }
+        /* Alinhamento perfeito do botão hamburger */
+        .mobile-menu-btn {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        /* Tabelas responsivas */
+        .table-responsive {
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+        }
             
             .table-responsive table {
                 min-width: 600px;
@@ -1961,8 +1991,8 @@ if (!defined('BASE_URL')) {
             <div class="px-4 sm:px-6 lg:px-8">
                 <div class="flex justify-between items-center h-16 header-content">
                     <!-- Mobile Menu Button - SEMPRE VISÍVEL NO MOBILE -->
-                    <button onclick="window.toggleSidebar();" class="mobile-menu-btn p-2 rounded-md text-gray-600 hover:text-gray-900 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-primary-green" aria-label="Abrir menu">
-                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <button onclick="window.toggleSidebar();" class="mobile-menu-btn p-4 rounded-xl text-gray-600 hover:text-gray-900 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-primary-green transition-all duration-200 flex items-center justify-center" aria-label="Abrir menu">
+                        <svg class="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
                         </svg>
                     </button>
@@ -7511,7 +7541,7 @@ if (!defined('BASE_URL')) {
             <!-- Navigation Tabs - Responsiva -->
             <div class="bg-white sticky top-0 z-20">
                 <div class="px-2 sm:px-4 lg:px-8 py-2 sm:py-4">
-                    <nav class="flex items-center justify-center space-x-0.5 sm:space-x-1 bg-gray-100 rounded-xl sm:rounded-2xl p-1 sm:p-2 shadow-inner">
+                    <nav class="flex items-center justify-center space-x-0.5 sm:space-x-1 bg-gray-100 rounded-xl sm:rounded-2xl p-1 sm:p-2 shadow-inner relative">
                         <button class="profile-tab active group flex-1 flex items-center justify-center px-2 sm:px-3 lg:px-6 py-2 sm:py-3 rounded-lg sm:rounded-xl transition-all duration-300" data-tab="overview" onclick="switchProfileTab('overview')">
                             <div class="flex items-center space-x-1 sm:space-x-2 lg:space-x-3 w-full">
                                 <div class="w-6 h-6 sm:w-7 sm:h-7 lg:w-8 lg:h-8 bg-white rounded-md sm:rounded-lg flex items-center justify-center shadow-sm group-hover:scale-110 transition-transform duration-300 flex-shrink-0">
@@ -8191,6 +8221,94 @@ if (!defined('BASE_URL')) {
                             </div>
                         </div>
 
+                        <!-- Accessibility Settings -->
+                        <div class="bg-white rounded-2xl shadow-lg border border-gray-100 p-6 mb-8">
+                            <div class="flex items-center space-x-3 mb-6">
+                                <div class="w-10 h-10 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center">
+                                    <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
+                                    </svg>
+                                </div>
+                                <div>
+                                    <h3 class="text-xl font-bold text-gray-900">Acessibilidade</h3>
+                                    <p class="text-sm text-gray-500">Configure recursos de acessibilidade</p>
+                                </div>
+                            </div>
+                            
+                            <div class="space-y-6">
+                                <!-- VLibras Toggle -->
+                                <div class="flex items-center justify-between p-4 bg-gray-50 rounded-xl">
+                                    <div class="flex items-center space-x-4">
+                                        <div class="w-12 h-12 bg-gradient-to-br from-green-500 to-emerald-600 rounded-xl flex items-center justify-center">
+                                            <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"></path>
+                                            </svg>
+                                        </div>
+                                        <div>
+                                            <h4 class="font-semibold text-gray-900">VLibras (Libras)</h4>
+                                            <p class="text-sm text-gray-500">Tradução automática para Libras</p>
+                                        </div>
+                                    </div>
+                                    <label class="relative inline-flex items-center cursor-pointer">
+                                        <input type="checkbox" id="vlibras-toggle" class="sr-only peer" checked>
+                                        <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                                    </label>
+                                </div>
+                                
+                                <!-- High Contrast Toggle -->
+                                <div class="flex items-center justify-between p-4 bg-gray-50 rounded-xl">
+                                    <div class="flex items-center space-x-4">
+                                        <div class="w-12 h-12 bg-gradient-to-br from-orange-500 to-red-600 rounded-xl flex items-center justify-center">
+                                            <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"></path>
+                                            </svg>
+                                        </div>
+                                        <div>
+                                            <h4 class="font-semibold text-gray-900">Alto Contraste</h4>
+                                            <p class="text-sm text-gray-500">Melhora a visibilidade dos elementos</p>
+                                        </div>
+                                    </div>
+                                    <label class="relative inline-flex items-center cursor-pointer">
+                                        <input type="checkbox" id="contrast-toggle" class="sr-only peer">
+                                        <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-orange-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-orange-600"></div>
+                                    </label>
+                                </div>
+                                
+                                <!-- Font Size Controls -->
+                                <div class="p-4 bg-gray-50 rounded-xl">
+                                    <div class="flex items-center space-x-4 mb-4">
+                                        <div class="w-12 h-12 bg-gradient-to-br from-purple-500 to-indigo-600 rounded-xl flex items-center justify-center">
+                                            <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"></path>
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 9h6m-6 4h6m-2 4H9"></path>
+                                            </svg>
+                                        </div>
+                                        <div>
+                                            <h4 class="font-semibold text-gray-900">Tamanho da Fonte</h4>
+                                            <p class="text-sm text-gray-500">Ajuste o tamanho do texto</p>
+                                        </div>
+                                    </div>
+                                    <div class="flex items-center space-x-4">
+                                        <button id="font-decrease" class="p-2 bg-white rounded-lg border border-gray-200 hover:bg-gray-50 transition-colors">
+                                            <svg class="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 12H4"></path>
+                                            </svg>
+                                        </button>
+                                        <span id="font-size-display" class="px-3 py-1 bg-white rounded-lg border border-gray-200 text-sm font-medium">100%</span>
+                                        <button id="font-increase" class="p-2 bg-white rounded-lg border border-gray-200 hover:bg-gray-50 transition-colors">
+                                            <svg class="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+                                            </svg>
+                                        </button>
+                                        <button id="font-reset" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm">
+                                            Padrão
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
                         <!-- Action Buttons -->
                         <div class="bg-white rounded-2xl shadow-lg border border-gray-100 p-6">
                             <div class="flex flex-col sm:flex-row gap-4 justify-end">
@@ -8223,10 +8341,11 @@ if (!defined('BASE_URL')) {
                 modalContent.style.opacity = '1';
             }, 10);
             
-            // Initialize theme buttons
+            // Initialize theme buttons and accessibility
             setTimeout(() => {
                 initializeThemeButtons();
                 initializeScrollIndicator();
+                initializeAccessibilityControls();
             }, 100);
         }
 
@@ -8251,13 +8370,19 @@ if (!defined('BASE_URL')) {
             document.querySelectorAll('.profile-tab').forEach(tab => {
                 tab.classList.remove('active');
                 
-                // Reset tab styles
-                const icon = tab.querySelector('.w-8.h-8');
+                // Reset tab styles - use correct class selectors
+                const icon = tab.querySelector('.w-6.h-6, .w-7.h-7, .w-8.h-8');
+                const iconSvg = tab.querySelector('svg');
                 const text = tab.querySelector('span');
                 
                 if (icon) {
                     icon.classList.remove('bg-white');
                     icon.classList.add('bg-gray-200');
+                }
+                
+                if (iconSvg) {
+                    iconSvg.classList.remove('text-primary-green', 'text-green-600');
+                    iconSvg.classList.add('text-gray-600');
                 }
                 
                 if (text) {
@@ -8276,13 +8401,19 @@ if (!defined('BASE_URL')) {
             if (activeTab) {
                 activeTab.classList.add('active');
                 
-                // Apply active styles
-                const icon = activeTab.querySelector('.w-8.h-8');
+                // Apply active styles - use correct class selectors
+                const icon = activeTab.querySelector('.w-6.h-6, .w-7.h-7, .w-8.h-8');
+                const iconSvg = activeTab.querySelector('svg');
                 const text = activeTab.querySelector('span');
                 
                 if (icon) {
                     icon.classList.remove('bg-gray-200');
                     icon.classList.add('bg-white');
+                }
+                
+                if (iconSvg) {
+                    iconSvg.classList.remove('text-gray-600');
+                    iconSvg.classList.add('text-primary-green');
                 }
                 
                 if (text) {
@@ -8300,7 +8431,116 @@ if (!defined('BASE_URL')) {
                 if (tabName === 'settings') {
                     setTimeout(() => {
                         initializeThemeButtons();
+                        initializeAccessibilityControls();
                     }, 100);
+                }
+            }
+        }
+
+        // Initialize accessibility controls
+        function initializeAccessibilityControls() {
+            // VLibras Toggle
+            const vlibrasToggle = document.getElementById('vlibras-toggle');
+            if (vlibrasToggle) {
+                vlibrasToggle.addEventListener('change', function() {
+                    const vlibrasWidget = document.getElementById('vlibras-widget');
+                    if (vlibrasWidget) {
+                        if (this.checked) {
+                            vlibrasWidget.style.display = 'block';
+                            vlibrasWidget.classList.remove('disabled');
+                            vlibrasWidget.classList.add('enabled');
+                            localStorage.setItem('vlibras-enabled', 'true');
+                            // Reinicializar VLibras se necessário
+                            if (window.VLibras) {
+                                new window.VLibras.Widget('https://vlibras.gov.br/app');
+                            }
+                        } else {
+                            vlibrasWidget.style.display = 'none';
+                            vlibrasWidget.classList.remove('enabled');
+                            vlibrasWidget.classList.add('disabled');
+                            localStorage.setItem('vlibras-enabled', 'false');
+                        }
+                    }
+                });
+                
+                // Load saved state
+                const vlibrasEnabled = localStorage.getItem('vlibras-enabled');
+                if (vlibrasEnabled === 'false') {
+                    vlibrasToggle.checked = false;
+                    const vlibrasWidget = document.getElementById('vlibras-widget');
+                    if (vlibrasWidget) {
+                        vlibrasWidget.style.display = 'none';
+                        vlibrasWidget.classList.remove('enabled');
+                        vlibrasWidget.classList.add('disabled');
+                    }
+                } else {
+                    // Garantir que está visível se habilitado
+                    vlibrasToggle.checked = true;
+                    const vlibrasWidget = document.getElementById('vlibras-widget');
+                    if (vlibrasWidget) {
+                        vlibrasWidget.style.display = 'block';
+                        vlibrasWidget.classList.remove('disabled');
+                        vlibrasWidget.classList.add('enabled');
+                    }
+                }
+            }
+            
+            // High Contrast Toggle
+            const contrastToggle = document.getElementById('contrast-toggle');
+            if (contrastToggle) {
+                contrastToggle.addEventListener('change', function() {
+                    if (this.checked) {
+                        document.body.classList.add('high-contrast');
+                        localStorage.setItem('high-contrast', 'true');
+                    } else {
+                        document.body.classList.remove('high-contrast');
+                        localStorage.setItem('high-contrast', 'false');
+                    }
+                });
+                
+                // Load saved state
+                const highContrast = localStorage.getItem('high-contrast');
+                if (highContrast === 'true') {
+                    contrastToggle.checked = true;
+                    document.body.classList.add('high-contrast');
+                }
+            }
+            
+            // Font Size Controls
+            const fontDecrease = document.getElementById('font-decrease');
+            const fontIncrease = document.getElementById('font-increase');
+            const fontReset = document.getElementById('font-reset');
+            const fontSizeDisplay = document.getElementById('font-size-display');
+            
+            if (fontDecrease && fontIncrease && fontReset && fontSizeDisplay) {
+                let currentFontSize = parseInt(localStorage.getItem('font-size') || '100');
+                updateFontSize(currentFontSize);
+                
+                fontDecrease.addEventListener('click', function() {
+                    if (currentFontSize > 80) {
+                        currentFontSize -= 10;
+                        updateFontSize(currentFontSize);
+                        localStorage.setItem('font-size', currentFontSize.toString());
+                    }
+                });
+                
+                fontIncrease.addEventListener('click', function() {
+                    if (currentFontSize < 150) {
+                        currentFontSize += 10;
+                        updateFontSize(currentFontSize);
+                        localStorage.setItem('font-size', currentFontSize.toString());
+                    }
+                });
+                
+                fontReset.addEventListener('click', function() {
+                    currentFontSize = 100;
+                    updateFontSize(currentFontSize);
+                    localStorage.setItem('font-size', currentFontSize.toString());
+                });
+                
+                function updateFontSize(size) {
+                    document.documentElement.style.fontSize = size + '%';
+                    fontSizeDisplay.textContent = size + '%';
                 }
             }
         }
