@@ -316,6 +316,13 @@ if (!defined('BASE_URL')) {
             box-shadow: 0 0 8px rgba(34, 197, 94, 0.6);
         }
 
+        /* Ocultar ::after no mobile para evitar bugs */
+        @media (max-width: 768px) {
+            .profile-tab.active::after {
+                display: none;
+            }
+        }
+
         /* Navigation bar styling */
         .navigation-bar {
             backdrop-filter: blur(10px);
@@ -470,23 +477,7 @@ if (!defined('BASE_URL')) {
             scroll-behavior: smooth;
         }
 
-        /* Indicador de scroll */
-        .overflow-y-auto::after {
-            content: '';
-            position: absolute;
-            bottom: 0;
-            left: 0;
-            right: 0;
-            height: 20px;
-            background: linear-gradient(transparent, rgba(241, 245, 249, 0.8));
-            pointer-events: none;
-            opacity: 0;
-            transition: opacity 0.3s ease;
-        }
-
-        .overflow-y-auto.scrolled::after {
-            opacity: 1;
-        }
+        /* Indicador de scroll - removido para evitar bugs no mobile */
 
         @keyframes fadeInUp {
             from {
@@ -594,6 +585,42 @@ if (!defined('BASE_URL')) {
             /* Mobile hero card adjustments */
             .bg-gradient-to-r.from-primary-green {
                 padding: 1.5rem !important;
+            }
+            
+            /* Hero card mobile layout */
+            @media (max-width: 640px) {
+                .bg-gradient-to-r.from-primary-green {
+                    padding: 1rem !important;
+                }
+                
+                /* Avatar maior no mobile */
+                .w-20.h-20 {
+                    width: 4rem !important;
+                    height: 4rem !important;
+                }
+                
+                /* Nome maior no mobile */
+                .text-2xl {
+                    font-size: 1.5rem !important;
+                }
+                
+                /* Badges mais compactas */
+                .bg-white\/20,
+                .bg-blue-500\/80 {
+                    padding: 0.375rem 0.75rem !important;
+                    font-size: 0.75rem !important;
+                }
+                
+                /* Email com quebra de linha */
+                .break-all {
+                    word-break: break-all;
+                    overflow-wrap: break-word;
+                }
+                
+                /* Status card mais compacto */
+                .bg-white\/10 {
+                    padding: 0.75rem !important;
+                }
             }
             
             /* Mobile content padding */
@@ -7557,48 +7584,64 @@ if (!defined('BASE_URL')) {
                 <div class="p-4 sm:p-6 lg:p-8 xl:p-12 min-h-full">
                     <!-- Tab Content: Overview -->
                     <div id="profile-overview" class="profile-tab-content">
-                        <!-- User Profile Hero Card - Responsivo -->
+                        <!-- User Profile Hero Card - Mobile Otimizado -->
                         <div class="bg-gradient-to-br from-white to-gray-50 rounded-2xl sm:rounded-3xl shadow-xl border border-gray-100 overflow-hidden mb-6 sm:mb-8 transform hover:scale-[1.01] sm:hover:scale-[1.02] transition-all duration-300">
                             <div class="bg-gradient-to-r from-primary-green via-green-500 to-emerald-600 p-4 sm:p-6 lg:p-8 relative overflow-hidden">
-                                <div class="absolute top-0 right-0 w-20 h-20 sm:w-32 sm:h-32 bg-white/10 rounded-full -translate-y-10 sm:-translate-y-16 translate-x-10 sm:translate-x-16"></div>
-                                <div class="absolute bottom-0 left-0 w-16 h-16 sm:w-24 sm:h-24 bg-white/5 rounded-full translate-y-8 sm:translate-y-12 -translate-x-8 sm:-translate-x-12"></div>
-                                <div class="relative z-10 flex flex-col sm:flex-row items-center sm:items-start space-y-4 sm:space-y-0 sm:space-x-4 lg:space-x-6">
-                                    <div class="w-16 h-16 sm:w-20 sm:h-20 lg:w-24 lg:h-24 bg-white rounded-xl sm:rounded-2xl flex items-center justify-center shadow-2xl transform hover:rotate-6 transition-transform duration-300 flex-shrink-0">
-                                        <span class="text-xl sm:text-2xl lg:text-3xl font-bold text-primary-green"><?php
-                                            $nome = $_SESSION['nome'] ?? '';
-                                            $iniciais = '';
-                                            if (strlen($nome) >= 2) {
-                                                $iniciais = strtoupper(substr($nome, 0, 2));
-                                            } elseif (strlen($nome) == 1) {
-                                                $iniciais = strtoupper($nome);
-                                            } else {
-                                                $iniciais = 'US';
-                                            }
-                                            echo $iniciais;
-                                        ?></span>
-                                    </div>
-                                    <div class="flex-1 text-white text-center sm:text-left min-w-0">
-                                        <h2 class="text-xl sm:text-2xl lg:text-3xl font-bold mb-2 truncate"><?php echo $_SESSION['nome']; ?></h2>
-                                        <div class="flex flex-wrap gap-2 sm:gap-3 mb-3 sm:mb-4 justify-center sm:justify-start">
-                                            <span class="bg-white/20 backdrop-blur-sm text-white px-3 sm:px-4 py-1 sm:py-2 rounded-full text-xs sm:text-sm font-semibold border border-white/30">
-                                                Administrador Geral
-                                            </span>
-                                            <span class="bg-blue-500/80 backdrop-blur-sm text-white px-3 sm:px-4 py-1 sm:py-2 rounded-full text-xs sm:text-sm font-semibold border border-blue-400/30">
-                                                Acesso Total
-                                            </span>
+                                <!-- Elementos decorativos - ocultos no mobile -->
+                                <div class="absolute top-0 right-0 w-20 h-20 sm:w-32 sm:h-32 bg-white/10 rounded-full -translate-y-10 sm:-translate-y-16 translate-x-10 sm:translate-x-16 hidden sm:block"></div>
+                                <div class="absolute bottom-0 left-0 w-16 h-16 sm:w-24 sm:h-24 bg-white/5 rounded-full translate-y-8 sm:translate-y-12 -translate-x-8 sm:-translate-x-12 hidden sm:block"></div>
+                                
+                                <!-- Layout Mobile: Empilhado verticalmente -->
+                                <div class="relative z-10 flex flex-col space-y-4 sm:flex-row sm:items-start sm:space-y-0 sm:space-x-4 lg:space-x-6">
+                                    <!-- Avatar e Nome - Mobile Centralizado -->
+                                    <div class="flex flex-col items-center space-y-3 sm:flex-row sm:space-y-0 sm:space-x-4 lg:space-x-6">
+                                        <div class="w-20 h-20 sm:w-20 sm:h-20 lg:w-24 lg:h-24 bg-white rounded-xl sm:rounded-2xl flex items-center justify-center shadow-2xl transform hover:rotate-6 transition-transform duration-300 flex-shrink-0">
+                                            <span class="text-2xl sm:text-2xl lg:text-3xl font-bold text-primary-green"><?php
+                                                $nome = $_SESSION['nome'] ?? '';
+                                                $iniciais = '';
+                                                if (strlen($nome) >= 2) {
+                                                    $iniciais = strtoupper(substr($nome, 0, 2));
+                                                } elseif (strlen($nome) == 1) {
+                                                    $iniciais = strtoupper($nome);
+                                                } else {
+                                                    $iniciais = 'US';
+                                                }
+                                                echo $iniciais;
+                                            ?></span>
                                         </div>
-                                        <div class="space-y-1">
-                                            <p class="text-green-100 text-xs sm:text-sm font-medium">Email</p>
-                                            <p class="text-white text-sm sm:text-base lg:text-lg font-semibold truncate"><?php echo $_SESSION['email']; ?></p>
-                                        </div>
-                                    </div>
-                                    <div class="text-center sm:text-right text-white flex-shrink-0">
-                                        <div class="bg-white/10 backdrop-blur-sm rounded-xl sm:rounded-2xl p-3 sm:p-4 lg:p-6 border border-white/20">
-                                            <div class="flex items-center justify-center sm:justify-start space-x-2 mb-1 sm:mb-2">
-                                                <div class="w-2 h-2 sm:w-3 sm:h-3 bg-green-400 rounded-full animate-pulse"></div>
-                                                <p class="text-green-100 text-xs sm:text-sm font-medium">Online</p>
+                                        <div class="text-white text-center sm:text-left">
+                                            <h2 class="text-2xl sm:text-2xl lg:text-3xl font-bold mb-2"><?php echo $_SESSION['nome']; ?></h2>
+                                            <!-- Badges - Mobile em linha única -->
+                                            <div class="flex flex-wrap gap-2 justify-center sm:justify-start">
+                                                <span class="bg-white/20 backdrop-blur-sm text-white px-3 py-1.5 rounded-full text-xs font-semibold border border-white/30">
+                                                    Administrador Geral
+                                                </span>
+                                                <span class="bg-blue-500/80 backdrop-blur-sm text-white px-3 py-1.5 rounded-full text-xs font-semibold border border-blue-400/30">
+                                                    Acesso Total
+                                                </span>
                                             </div>
-                                            <p class="text-white font-bold text-sm sm:text-base lg:text-lg">Agora</p>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- Email e Status - Mobile em linha -->
+                                    <div class="flex flex-col space-y-3 sm:flex-row sm:items-end sm:space-y-0 sm:space-x-4 lg:space-x-6 sm:flex-1">
+                                        <!-- Email -->
+                                        <div class="flex-1 text-center sm:text-left">
+                                            <div class="space-y-1">
+                                                <p class="text-green-100 text-xs font-medium">Email</p>
+                                                <p class="text-white text-sm font-semibold break-all"><?php echo $_SESSION['email']; ?></p>
+                                            </div>
+                                        </div>
+                                        
+                                        <!-- Status Online -->
+                                        <div class="text-center sm:text-right">
+                                            <div class="bg-white/10 backdrop-blur-sm rounded-xl p-3 sm:p-4 lg:p-6 border border-white/20">
+                                                <div class="flex items-center justify-center space-x-2 mb-1">
+                                                    <div class="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
+                                                    <p class="text-green-100 text-xs font-medium">Online</p>
+                                                </div>
+                                                <p class="text-white font-bold text-sm">Agora</p>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
