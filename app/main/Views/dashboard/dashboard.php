@@ -1471,13 +1471,13 @@ if (!defined('BASE_URL')) {
             display: flex;
             align-items: center;
             justify-content: center;
-        }
-        
-        /* Tabelas responsivas */
-        .table-responsive {
-            overflow-x: auto;
-            -webkit-overflow-scrolling: touch;
-        }
+            }
+            
+            /* Tabelas responsivas */
+            .table-responsive {
+                overflow-x: auto;
+                -webkit-overflow-scrolling: touch;
+            }
             
             .table-responsive table {
                 min-width: 600px;
@@ -7644,7 +7644,7 @@ if (!defined('BASE_URL')) {
                                         <h2 class="text-white text-lg sm:text-xl font-bold mb-1 truncate"><?php echo $_SESSION['nome']; ?></h2>
                                         <p class="text-gray-300 text-sm mb-2">Administrador do Sistema</p>
                                         <p class="text-white text-sm font-medium"><?php echo $_SESSION['email']; ?></p>
-                                    </div>
+                                        </div>
                                     
                                     <!-- Status Online -->
                                     <div class="flex-shrink-0">
@@ -7653,9 +7653,9 @@ if (!defined('BASE_URL')) {
                                             <span class="text-green-100 text-sm font-medium">Online</span>
                                         </div>
                                     </div>
-                                </div>
-                            </div>
-                        </div>
+                                            </div>
+                                        </div>
+                                    </div>
 
                         <!-- Stats Cards - Limpas -->
                         <div class="mb-6 sm:mb-8">
@@ -7665,9 +7665,9 @@ if (!defined('BASE_URL')) {
                                     <div class="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
                                     <span class="hidden sm:inline">Atualizado agora</span>
                                     <span class="sm:hidden">Agora</span>
-                                    </div>
                             </div>
-                            
+                        </div>
+
                             <div class="grid grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 lg:gap-6">
                                 <div class="bg-white rounded-xl sm:rounded-2xl p-3 sm:p-4 lg:p-6 shadow-lg border border-gray-100 hover:shadow-xl hover:-translate-y-1 transition-all duration-300 group">
                                     <div class="flex items-center justify-between mb-2 sm:mb-3 lg:mb-4">
@@ -7730,7 +7730,7 @@ if (!defined('BASE_URL')) {
                                         </div>
                                         <p class="text-xs text-green-600 font-medium mt-1 sm:hidden">Excelente</p>
                                     </div>
-                                </div>
+                                    </div>
 
                             </div>
                         </div>
