@@ -3312,12 +3312,18 @@ if ($_SESSION['tipo'] === 'ADM') {
         
         function confirmLogout() {
             const modal = document.getElementById('logoutModal');
-            if (modal) modal.classList.remove('hidden');
+            if (modal) {
+                modal.classList.remove('hidden');
+                modal.style.display = 'flex';
+            }
         }
 
         function closeLogoutModal() {
             const modal = document.getElementById('logoutModal');
-            if (modal) modal.classList.add('hidden');
+            if (modal) {
+                modal.classList.add('hidden');
+                modal.style.display = 'none';
+            }
         }
 
         function logout() {
@@ -4954,7 +4960,7 @@ echo $iniciais;
     </div>
 
     <!-- Logout Confirmation Modal -->
-    <div id="logoutModal" class="fixed inset-0 bg-black bg-opacity-50 z-[60] hidden flex items-center justify-center p-4">
+    <div id="logoutModal" class="fixed inset-0 bg-black bg-opacity-50 z-[60] hidden items-center justify-center p-4" style="display: none;">
         <div class="bg-white rounded-2xl p-6 max-w-md w-full mx-4 shadow-2xl">
             <div class="flex items-center space-x-3 mb-4">
                 <div class="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center">
