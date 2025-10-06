@@ -3606,6 +3606,10 @@ if ($_SESSION['tipo'] === 'ADM') {
             
             // Mostrar seção de lotação
             document.getElementById('secao-lotacao').classList.remove('hidden');
+
+            // Carregar listas imediatamente para garantir exibição mesmo se EscolaController falhar
+            carregarProfessoresLotados();
+            carregarGestoresLotados();
             
             // Carregar dados da escola via AJAX (opcional)
             fetch(`../../Controllers/gestao/EscolaController.php?id=${escolaId}`)
@@ -3635,8 +3639,7 @@ if ($_SESSION['tipo'] === 'ADM') {
                             </div>
                         `;
                         
-                        // Carregar listas de lotação
-                        carregarProfessoresLotados();
+                        // Dados da escola carregados com sucesso
                     }
                 })
                 .catch(error => {
@@ -3944,7 +3947,7 @@ if ($_SESSION['tipo'] === 'ADM') {
             }
 
             const formData = new FormData();
-            formData.append('acao', 'remover');
+            formData.append('acao', 'finalizar');
             formData.append('lotacao_id', lotacaoId);
 
             fetch('../../Controllers/gestao/ProfessorLotacaoController.php', {
@@ -3957,7 +3960,7 @@ if ($_SESSION['tipo'] === 'ADM') {
                     alert('Lotação removida com sucesso!');
                     carregarProfessoresLotados();
                 } else {
-                    alert('Erro ao remover lotação: ' + data.message);
+                    alert('Erro ao remover lotação: ' + (data.message || data.mensagem || 'Erro desconhecido'));
                 }
             })
             .catch(error => {
