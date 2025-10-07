@@ -1029,8 +1029,8 @@ $cestasPendentes = listarCestasPendentes($busca);
         <header class="bg-white shadow-sm border-b border-gray-200 sticky top-0 z-30">
             <div class="px-4 sm:px-6 lg:px-8">
                 <div class="flex justify-between items-center h-16 header-content">
-                    <!-- Mobile Menu Button - SEMPRE VISÍVEL NO MOBILE -->
-                    <button onclick="window.toggleSidebar();" class="mobile-menu-btn p-4 rounded-xl text-gray-600 hover:text-gray-900 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-primary-green transition-all duration-200 flex items-center justify-center" aria-label="Abrir menu">
+                    <!-- Mobile Menu Button - APENAS NO MOBILE -->
+                    <button onclick="window.toggleSidebar();" class="lg:hidden mobile-menu-btn p-4 rounded-xl text-gray-600 hover:text-gray-900 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-primary-green transition-all duration-200 flex items-center justify-center" aria-label="Abrir menu">
                         <svg class="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
                         </svg>
@@ -1041,8 +1041,8 @@ $cestasPendentes = listarCestasPendentes($busca);
                         <div class="flex items-center justify-center lg:justify-start">
                             <!-- Logo apenas no mobile -->
                             <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/1/19/Bras%C3%A3o_de_Maranguape.png/250px-Bras%C3%A3o_de_Maranguape.png" alt="Brasão de Maranguape" class="w-8 h-8 object-contain lg:hidden">
-                            <!-- Título apenas no desktop -->
-                            <h1 class="hidden lg:block text-xl font-semibold text-gray-800 ml-2" id="pageTitle">Gestão de Estoque Central</h1>
+                            <!-- Título sempre visível -->
+                            <h1 class="text-xl font-semibold text-gray-800 ml-2" id="pageTitle">Gestão de Estoque Central</h1>
                         </div>
                     </div>
 
