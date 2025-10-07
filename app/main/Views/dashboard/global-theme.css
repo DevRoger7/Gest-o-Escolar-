@@ -1,0 +1,390 @@
+/* ========================================
+   SISTEMA DE CORES GLOBAL - SIGAE
+   Padrão para todas as páginas
+   ======================================== */
+
+/* ===== VARIÁVEIS CSS ===== */
+:root {
+    /* Cores principais */
+    --primary-green: #059669;
+    --secondary-green: #10b981;
+    --accent-orange: #f59e0b;
+    --accent-red: #ef4444;
+    --light-green: #d1fae5;
+    --warm-orange: #fb923c;
+    
+    /* Cores de fundo - modo claro */
+    --bg-primary: #ffffff;
+    --bg-secondary: #f9fafb;
+    --bg-tertiary: #f3f4f6;
+    --bg-quaternary: #e5e7eb;
+    
+    /* Cores de texto - modo claro */
+    --text-primary: #111827;
+    --text-secondary: #374151;
+    --text-tertiary: #6b7280;
+    --text-quaternary: #9ca3af;
+    
+    /* Cores de borda - modo claro */
+    --border-color: #e5e7eb;
+    --border-secondary: #d1d5db;
+    
+    /* Sombras - modo claro */
+    --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+    --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+}
+
+/* ===== MODO ESCURO ===== */
+[data-theme="dark"] {
+    /* Cores de fundo - modo escuro */
+    --bg-primary: #111827;
+    --bg-secondary: #1f2937;
+    --bg-tertiary: #374151;
+    --bg-quaternary: #4b5563;
+    
+    /* Cores de texto - modo escuro */
+    --text-primary: #f9fafb;
+    --text-secondary: #e5e7eb;
+    --text-tertiary: #d1d5db;
+    --text-quaternary: #9ca3af;
+    
+    /* Cores de borda - modo escuro */
+    --border-color: #374151;
+    --border-secondary: #4b5563;
+    
+    /* Sombras - modo escuro */
+    --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.3);
+    --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.4);
+    --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.5);
+}
+
+/* ===== SIDEBAR ===== */
+#sidebar {
+    background-color: #ffffff;
+    border-right: 1px solid #e2e8f0;
+    transition: all 0.3s ease-in-out;
+    box-shadow: 2px 0 4px rgba(0, 0, 0, 0.05);
+}
+
+/* Menu items */
+.menu-item {
+    transition: all 0.2s ease;
+    border-radius: 0.5rem;
+    color: #4b5563;
+    font-weight: 500;
+}
+
+.menu-item:hover {
+    background-color: #f0fdf4;
+    color: #059669;
+    transform: translateX(2px);
+}
+
+.menu-item.active {
+    background-color: #f0fdf4;
+    color: #059669;
+    border-right: 4px solid #059669;
+    font-weight: 600;
+}
+
+.menu-item.active:hover {
+    background-color: #f0fdf4;
+    color: #059669;
+    transform: translateX(2px);
+}
+
+/* Modo escuro - menu items */
+[data-theme="dark"] .menu-item {
+    color: var(--text-secondary);
+}
+
+[data-theme="dark"] .menu-item:hover {
+    background-color: var(--bg-tertiary);
+    color: #10b981;
+}
+
+[data-theme="dark"] .menu-item.active {
+    background-color: #064e3b;
+    color: #10b981;
+    border-right: 4px solid #10b981;
+    font-weight: 600;
+}
+
+[data-theme="dark"] .menu-item.active:hover {
+    background-color: #064e3b;
+    color: #10b981;
+    transform: translateX(2px);
+}
+
+/* ===== CONTEÚDO PRINCIPAL ===== */
+body {
+    background-color: #ffffff !important;
+}
+
+.bg-gray-50 {
+    background-color: #ffffff;
+}
+
+/* Sobrescrever classe do Tailwind */
+.bg-gray-900 {
+    background-color: #ffffff !important;
+}
+
+.bg-white {
+    background-color: #ffffff;
+    border: 1px solid #e2e8f0;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.text-gray-800 {
+    color: #1f2937;
+    font-weight: 600;
+}
+
+.text-gray-700 {
+    color: #374151;
+    font-weight: 500;
+}
+
+.text-gray-600 {
+    color: #6b7280;
+}
+
+.text-gray-500 {
+    color: #9ca3af;
+}
+
+.border-gray-200 {
+    border-color: #e2e8f0;
+}
+
+/* ===== TABS ===== */
+.tab-button {
+    color: #6b7280;
+    transition: all 0.2s ease;
+    font-weight: 500;
+}
+
+.tab-button:hover {
+    color: #374151;
+    border-color: #d1d5db;
+    background-color: #f9fafb;
+}
+
+.tab-button.tab-active {
+    color: #059669;
+    border-color: #059669;
+    font-weight: 600;
+}
+
+.tab-button.tab-active:hover {
+    color: #059669;
+    border-color: #059669;
+    background-color: transparent;
+}
+
+/* ===== CARDS ===== */
+.card {
+    background-color: #ffffff;
+    border: 1px solid #e2e8f0;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    border-radius: 0.75rem;
+}
+
+/* ===== TABELAS ===== */
+.table-header {
+    background-color: #f8fafc;
+    border-color: #e2e8f0;
+    color: #374151;
+    font-weight: 600;
+}
+
+.table-row:hover {
+    background-color: #f0fdf4;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.table-divider {
+    border-color: #e2e8f0;
+}
+
+/* Modo escuro - tabelas */
+[data-theme="dark"] .table-header {
+    background-color: #374151;
+    border-color: #4b5563;
+    color: #f9fafb;
+}
+
+[data-theme="dark"] .table-row:hover {
+    background-color: #4b5563;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+[data-theme="dark"] .table-divider {
+    border-color: #4b5563;
+}
+
+[data-theme="dark"] .bg-gray-50 {
+    background-color: #374151;
+}
+
+[data-theme="dark"] .divide-gray-200 {
+    border-color: #4b5563;
+}
+
+[data-theme="dark"] .hover\:bg-gray-50:hover {
+    background-color: #4b5563;
+}
+
+/* Modo escuro - cabeçalho da tabela específico */
+[data-theme="dark"] thead {
+    background-color: #374151;
+}
+
+[data-theme="dark"] thead th {
+    background-color: #374151;
+    color: #f9fafb;
+    border-color: #4b5563;
+}
+
+[data-theme="dark"] .bg-gray-50 {
+    background-color: #374151;
+}
+
+[data-theme="dark"] .text-gray-500 {
+    color: #9ca3af;
+}
+
+[data-theme="dark"] .text-gray-900 {
+    color: #f9fafb;
+}
+
+/* Modo escuro - body */
+[data-theme="dark"] body {
+    background-color: #111827 !important;
+}
+
+[data-theme="dark"] .bg-gray-900 {
+    background-color: #111827 !important;
+}
+
+/* Modo escuro - tabs */
+[data-theme="dark"] .tab-button {
+    color: #9ca3af;
+}
+
+[data-theme="dark"] .tab-button:hover {
+    color: #d1d5db;
+    border-color: #6b7280;
+    background-color: #374151;
+}
+
+[data-theme="dark"] .tab-button.tab-active {
+    color: #10b981;
+    border-color: #10b981;
+}
+
+[data-theme="dark"] .tab-button.tab-active:hover {
+    color: #10b981;
+    border-color: #10b981;
+    background-color: transparent;
+}
+
+/* ===== BOTÕES ===== */
+.btn-primary {
+    background-color: #059669;
+    color: white;
+    border: 1px solid #059669;
+    font-weight: 600;
+}
+
+.btn-primary:hover {
+    background-color: #047857;
+    border-color: #047857;
+    transform: translateY(-1px);
+}
+
+.btn-secondary {
+    background-color: #f8fafc;
+    color: #374151;
+    border: 1px solid #e2e8f0;
+    font-weight: 500;
+}
+
+.btn-secondary:hover {
+    background-color: #f1f5f9;
+    color: #1f2937;
+    transform: translateY(-1px);
+}
+
+/* ===== BOTÃO DE LOGOUT ===== */
+.logout-btn {
+    color: #ef4444;
+    transition: all 0.2s ease;
+    font-weight: 500;
+}
+
+.logout-btn:hover {
+    background-color: #fef2f2;
+    color: #dc2626;
+    transform: translateY(-1px);
+}
+
+[data-theme="dark"] .logout-btn:hover {
+    background-color: #7f1d1d;
+    color: #fca5a5;
+}
+
+/* ===== RESPONSIVIDADE ===== */
+@media (max-width: 1024px) {
+    .sidebar-mobile {
+        transform: translateX(-100%);
+    }
+    
+    .sidebar-mobile.open {
+        transform: translateX(0);
+    }
+}
+
+@media (min-width: 1025px) {
+    #sidebar {
+        transform: translateX(0) !important;
+    }
+}
+
+/* ===== TRANSIÇÕES ===== */
+.sidebar-transition {
+    transition: transform 0.3s ease-in-out;
+}
+
+.content-transition {
+    transition: margin-left 0.3s ease-in-out;
+}
+
+.menu-item {
+    transition: all 0.2s ease;
+}
+
+/* ===== UTILITÁRIOS ===== */
+.text-primary-green {
+    color: var(--primary-green);
+}
+
+.bg-primary-green {
+    background-color: var(--primary-green);
+}
+
+.border-primary-green {
+    border-color: var(--primary-green);
+}
+
+.text-accent-red {
+    color: var(--accent-red);
+}
+
+.bg-accent-red {
+    background-color: var(--accent-red);
+}

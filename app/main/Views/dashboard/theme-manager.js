@@ -57,15 +57,9 @@ class ThemeManager {
         
         // Aplicar classes do Tailwind para tema escuro
         if (theme === 'dark') {
-            document.documentElement.classList.add('dark');
-            if (document.body) {
-                document.body.classList.add('bg-gray-900', 'text-white');
-            }
+            document.documentElement.setAttribute('data-theme', 'dark');
         } else {
-            document.documentElement.classList.remove('dark');
-            if (document.body) {
-                document.body.classList.remove('bg-gray-900', 'text-white');
-            }
+            document.documentElement.setAttribute('data-theme', 'light');
         }
 
         // Atualizar estado dos botões de tema
