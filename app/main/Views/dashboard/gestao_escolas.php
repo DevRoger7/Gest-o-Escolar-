@@ -474,6 +474,7 @@ $escolas = listarEscolas($busca);
         // Função toggleSidebar já definida globalmente
     </script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="global-theme.css" rel="stylesheet">
     
     <!-- Theme Manager -->
     <script src="theme-manager.js"></script>
