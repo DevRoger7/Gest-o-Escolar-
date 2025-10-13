@@ -458,7 +458,7 @@ try {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Gestão de Estoque de Alimentos - SIGAE</title>
+    <title>Gestão de Estoque de Alimentos - SIGEA</title>
     
     <!-- Favicon -->
     <link rel="icon" href="https://upload.wikimedia.org/wikipedia/commons/thumb/1/19/Bras%C3%A3o_de_Maranguape.png/250px-Bras%C3%A3o_de_Maranguape.png" type="image/png">
@@ -967,7 +967,7 @@ try {
             <div class="flex items-center space-x-3">
                 <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/1/19/Bras%C3%A3o_de_Maranguape.png/250px-Bras%C3%A3o_de_Maranguape.png" alt="Brasão de Maranguape" class="w-10 h-10 object-contain">
                 <div>
-                    <h1 class="text-lg font-bold text-gray-800">SIGAE</h1>
+                    <h1 class="text-lg font-bold text-gray-800">SIGEA</h1>
                     <p class="text-xs text-gray-500">Maranguape</p>
                 </div>
             </div>

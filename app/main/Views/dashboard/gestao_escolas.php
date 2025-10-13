@@ -29,8 +29,6 @@ if (isset($_POST['btn-adicionar-gestor'])) {
     $escolaid = null;
 }
 
-
-
 //funções para lotar gestor no banco de dados
 function lotarGestor($gestorid, $escolaid,$tipo_gestor) {
     $db = Database::getInstance();
@@ -93,7 +91,53 @@ function listarEscolas($busca = '')
     }
 
     $stmt->execute();
-    return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    $escolas = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    
+    // Filtrar gestores para mostrar apenas diretores
+    foreach ($escolas as &$escola) {
+        if (!empty($escola['obs'])) {
+            // Extrair dados do gestor do campo obs
+            $obs = $escola['obs'];
+            
+            // Verificar se há dados de gestor e se é diretor
+            if (strpos($obs, 'Gestor:') !== false) {
+                $gestorNomeMatch = preg_match('/Gestor:\s*([^|]+)/', $obs, $matches);
+                $cargoMatch = preg_match('/Cargo:\s*([^|]+)/', $obs, $cargoMatches);
+                
+                if ($gestorNomeMatch && $cargoMatch) {
+                    $cargo = trim($cargoMatches[1]);
+                    // Só mostrar se for diretor
+                    if (strtoupper($cargo) === 'DIRETOR') {
+                        $escola['gestor_nome'] = trim($matches[1]);
+                        
+                        // Extrair email do gestor se disponível
+                        $emailMatch = preg_match('/Email:\s*([^|]+)/', $obs, $emailMatches);
+                        if ($emailMatch) {
+                            $escola['gestor_email'] = trim($emailMatches[1]);
+                        }
+                    } else {
+                        // Não é diretor, não mostrar
+                        $escola['gestor_nome'] = null;
+                        $escola['gestor_email'] = null;
+                    }
+                } else {
+                    // Dados incompletos do gestor
+                    $escola['gestor_nome'] = null;
+                    $escola['gestor_email'] = null;
+                }
+            } else {
+                // Não há gestor
+                $escola['gestor_nome'] = null;
+                $escola['gestor_email'] = null;
+            }
+        } else {
+            // Não há obs, não há gestor
+            $escola['gestor_nome'] = null;
+            $escola['gestor_email'] = null;
+        }
+    }
+    
+    return $escolas;
 }
 
 function buscarGestores($busca = '')
@@ -148,6 +192,58 @@ function buscarGestoresNovo(): array
 
     $stmt->execute();
     return $stmt->fetchAll(PDO::FETCH_ASSOC);
+}
+
+function buscarProfessoresEscola($escolaId)
+{
+    $db = Database::getInstance();
+    $conn = $db->getConnection();
+
+    $sql = "SELECT p.id, p.nome, p.email, p.telefone, p.cpf, p.cargo, p.disciplina, p.criado_em
+            FROM pessoa p
+            JOIN professor_lotacao pl ON p.id = pl.pessoa_id
+            WHERE pl.escola_id = :escola_id
+            ORDER BY p.nome ASC";
+
+    $stmt = $conn->prepare($sql);
+    $stmt->bindParam(':escola_id', $escolaId);
+    $stmt->execute();
+    return $stmt->fetchAll(PDO::FETCH_ASSOC);
+}
+
+function removerProfessorEscola($escolaId, $professorId)
+{
+    $db = Database::getInstance();
+    $conn = $db->getConnection();
+
+    try {
+        $conn->beginTransaction();
+
+        // Remover lotação do professor na escola
+        $stmt = $conn->prepare("DELETE FROM professor_lotacao WHERE escola_id = :escola_id AND pessoa_id = :professor_id");
+        $stmt->bindParam(':escola_id', $escolaId);
+        $stmt->bindParam(':professor_id', $professorId);
+        $stmt->execute();
+
+        $conn->commit();
+        return ['status' => true, 'mensagem' => 'Professor removido da escola com sucesso!'];
+    } catch (PDOException $e) {
+        $conn->rollBack();
+        return ['status' => false, 'mensagem' => 'Erro ao remover professor: ' . $e->getMessage()];
+    }
+}
+
+function buscarEscolaPorId($id)
+{
+    $db = Database::getInstance();
+    $conn = $db->getConnection();
+
+    $sql = "SELECT * FROM escola WHERE id = :id";
+    $stmt = $conn->prepare($sql);
+    $stmt->bindParam(':id', $id);
+    $stmt->execute();
+    
+    return $stmt->fetch(PDO::FETCH_ASSOC);
 }
 
 
@@ -356,6 +452,27 @@ function atualizarEscola($id, $dados)
 $mensagem = '';
 $tipoMensagem = '';
 
+// Processamento AJAX para buscar professores e escola
+if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['acao'])) {
+    if ($_GET['acao'] === 'buscar_professores' && isset($_GET['escola_id'])) {
+        $professores = buscarProfessoresEscola($_GET['escola_id']);
+        header('Content-Type: application/json');
+        echo json_encode(['success' => true, 'professores' => $professores]);
+        exit;
+    }
+    
+    if ($_GET['acao'] === 'buscar_escola' && isset($_GET['id'])) {
+        $escola = buscarEscolaPorId($_GET['id']);
+        header('Content-Type: application/json');
+        if ($escola) {
+            echo json_encode(['success' => true, 'escola' => $escola]);
+        } else {
+            echo json_encode(['success' => false, 'message' => 'Escola não encontrada']);
+        }
+        exit;
+    }
+}
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (isset($_POST['acao'])) {
         // Cadastrar nova escola
@@ -380,15 +497,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         // Editar escola
         if ($_POST['acao'] === 'editar' && isset($_POST['id'])) {
+            // Montar endereço completo
+            $endereco = trim(($_POST['logradouro'] ?? '') . ', ' . ($_POST['numero'] ?? ''));
+            if (!empty($_POST['complemento'])) {
+                $endereco .= ', ' . $_POST['complemento'];
+            }
+            if (!empty($_POST['bairro'])) {
+                $endereco .= ', ' . $_POST['bairro'];
+            }
+            
+            // Montar observações com dados do gestor (preservar dados existentes)
+            $obs = $_POST['obs'] ?? '';
+            
             $dados = [
                 'nome' => $_POST['nome'] ?? '',
-                'endereco' => $_POST['endereco'] ?? '',
-                'telefone' => $_POST['telefone'] ?? '',
+                'endereco' => $endereco,
+                'telefone' => $_POST['telefone_fixo'] ?? $_POST['telefone_movel'] ?? '',
                 'email' => $_POST['email'] ?? '',
-                'municipio' => $_POST['municipio'] ?? '',
+                'municipio' => $_POST['municipio'] ?? 'MARANGUAPE',
                 'cep' => $_POST['cep'] ?? '',
                 'qtd_salas' => $_POST['qtd_salas'] ?? null,
-                'obs' => $_POST['obs'] ?? '',
+                'obs' => $obs,
                 'codigo' => $_POST['codigo'] ?? '',
                 'gestor_id' => $_POST['gestor_id'] ?? null
             ];
@@ -404,6 +533,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $mensagem = $resultado['mensagem'];
             $tipoMensagem = $resultado['status'] ? 'success' : 'error';
         }
+
+        // Remover professor da escola
+        if ($_POST['acao'] === 'remover_professor' && isset($_POST['escola_id']) && isset($_POST['professor_id'])) {
+            $resultado = removerProfessorEscola($_POST['escola_id'], $_POST['professor_id']);
+            $mensagem = $resultado['mensagem'];
+            $tipoMensagem = $resultado['status'] ? 'success' : 'error';
+        }
     }
 }
 
@@ -416,7 +552,7 @@ $escolas = listarEscolas($busca);
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Gestão de Escolas - SIGAE</title>
+    <title>Gestão de Escolas - SIGEA</title>
     
     <!-- Favicon -->
     <link rel="icon" href="https://upload.wikimedia.org/wikipedia/commons/thumb/1/19/Bras%C3%A3o_de_Maranguape.png/250px-Bras%C3%A3o_de_Maranguape.png" type="image/png">
@@ -1244,7 +1380,7 @@ $escolas = listarEscolas($busca);
             <div class="flex items-center space-x-3">
                 <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/1/19/Bras%C3%A3o_de_Maranguape.png/250px-Bras%C3%A3o_de_Maranguape.png" alt="Brasão de Maranguape" class="w-10 h-10 object-contain">
                 <div>
-                    <h1 class="text-lg font-bold text-gray-800">SIGAE</h1>
+                    <h1 class="text-lg font-bold text-gray-800">SIGEA</h1>
                     <p class="text-xs text-gray-500">Maranguape</p>
                 </div>
             </div>
@@ -1579,98 +1715,141 @@ if ($_SESSION['tipo'] === 'ADM') {
             <div id="tab-cadastrar" class="tab-content hidden">
                 <div class="p-6">
                     <h2 class="text-xl font-semibold text-gray-900 mb-6">Cadastrar Nova Escola</h2>
-                    
-                    <form method="POST" class="space-y-6">
+                    <form method="POST" class="space-y-8">
                         <input type="hidden" name="acao" value="cadastrar">
-                        
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            <!-- Coluna Esquerda -->
-                            <div class="space-y-6">
+                        <!-- Seção: Identificação da Escola -->
+                        <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                            <h3 class="text-lg font-semibold text-gray-900 mb-4">Identificação da Escola</h3>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                                 <div>
                                     <label for="nome" class="block text-sm font-medium text-gray-700 mb-2">Nome da Escola *</label>
-                                    <input type="text" id="nome" name="nome" required
-                                           class="block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-primary-green focus:border-primary-green">
+                                    <input type="text" id="nome" name="nome" required class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-green focus:border-transparent transition-colors" placeholder="Ex: Escola Municipal João Silva">
                                 </div>
-                                
                                 <div>
-                                    <label for="telefone" class="block text-sm font-medium text-gray-700 mb-2">Telefone</label>
-                                    <input type="text" id="telefone" name="telefone" placeholder="(00) 0000-0000"
-                                           class="block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-primary-green focus:border-primary-green">
+                                    <label for="inep" class="block text-sm font-medium text-gray-700 mb-2">Código INEP</label>
+                                    <input type="text" id="inep" name="inep" maxlength="8" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-green focus:border-transparent transition-colors" placeholder="Ex: 15663883">
                                 </div>
-                                
                                 <div>
-                                    <label for="cep" class="block text-sm font-medium text-gray-700 mb-2">CEP <span class="text-red-500">*</span></label>
-                                    <div class="flex space-x-2">
-                                        <input type="text" id="cep" name="cep" required placeholder="00000-000" maxlength="9" onkeyup="formatarCEPCadastro(this)" onblur="buscarCEPCadastro(this.value)"
-                                               class="flex-1 px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-primary-green focus:border-primary-green">
-                                        <button type="button" onclick="buscarCEPCadastro(document.getElementById('cep').value)" class="px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors duration-200">
-                                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
-                                            </svg>
-                                        </button>
-                                    </div>
-                                    <div id="resultadoCEPCadastro" class="mt-2 text-sm text-gray-600 hidden"></div>
+                                    <label for="nome_curto" class="block text-sm font-medium text-gray-700 mb-2">Nome Curto</label>
+                                    <input type="text" id="nome_curto" name="nome_curto" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-green focus:border-transparent transition-colors" placeholder="Ex: EM João Silva">
                                 </div>
-                                
                                 <div>
-                                    <label for="endereco" class="block text-sm font-medium text-gray-700 mb-2">Endereço *</label>
-                                    <input type="text" id="endereco" name="endereco" required
-                                           class="block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-primary-green focus:border-primary-green">
-                                </div>
-                                
-                                <div>
-                                    <label for="qtd_salas" class="block text-sm font-medium text-gray-700 mb-2">Quantidade de Salas <span class="text-red-500">*</span></label>
-                                    <input type="number" id="qtd_salas" name="qtd_salas" required min="1" placeholder="Ex: 12"
-                                           class="block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-primary-green focus:border-primary-green">
-                                </div>
-                            </div>
-                            
-                            <!-- Coluna Direita -->
-                            <div class="space-y-6">
-                                <div>
-                                    <label for="codigo" class="block text-sm font-medium text-gray-700 mb-2">Código INEP</label>
-                                    <input type="text" id="codigo" name="codigo" placeholder="Ex: 12345678"
-                                           class="block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-primary-green focus:border-primary-green">
-                                </div>
-                                
-                                <div>
-                                    <label for="email" class="block text-sm font-medium text-gray-700 mb-2">Email</label>
-                                    <input type="email" id="email" name="email"
-                                           class="block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-primary-green focus:border-primary-green">
-                                </div>
-                                
-                                <div>
-                                    <label for="municipio" class="block text-sm font-medium text-gray-700 mb-2">Município *</label>
-                                    <input type="text" id="municipio" name="municipio" required
-                                           class="block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-primary-green focus:border-primary-green">
-                                </div>
-                                
-                                <div>
-                                    <label for="gestor_search" class="block text-sm font-medium text-gray-700 mb-2">Selecionar Gestor <span class="text-red-500">*</span></label>
-                                    <div class="relative">
-                                        <input type="text" id="gestor_search" placeholder="Digite o nome do gestor..." 
-                                               class="block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-primary-green focus:border-primary-green"
-                                               autocomplete="off">
-                                        <input type="hidden" id="gestor_id" name="gestor_id" required>
-                                        <div id="gestor_results" class="absolute z-10 w-full bg-white border border-gray-300 rounded-lg shadow-lg hidden max-h-60 overflow-y-auto"></div>
-                                    </div>
-                                    <div id="gestor_selected" class="mt-2 hidden">
-                                        <div class="flex items-center justify-between bg-green-50 border border-green-200 rounded-lg p-3">
-                                            <div>
-                                                <span class="text-sm font-medium text-green-800" id="gestor_nome_selecionado"></span>
-                                                <span class="text-xs text-green-600 block" id="gestor_email_selecionado"></span>
-                                            </div>
-                                            <button type="button" onclick="removerGestor()" class="text-green-600 hover:text-green-800">
-                                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-                                                </svg>
-                                            </button>
-                                        </div>
-                                    </div>
+                                    <label for="codigo" class="block text-sm font-medium text-gray-700 mb-2">Código da Escola</label>
+                                    <input type="text" id="codigo" name="codigo" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-green focus:border-transparent transition-colors" placeholder="Deixe vazio para gerar automaticamente">
                                 </div>
                             </div>
                         </div>
-                        
+                        <!-- Seção: Classificação -->
+                        <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                            <h3 class="text-lg font-semibold text-gray-900 mb-4">Classificação</h3>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div>
+                                    <label for="tipo_escola" class="block text-sm font-medium text-gray-700 mb-2">Tipo de Escola *</label>
+                                    <select id="tipo_escola" name="tipo_escola" required class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-green focus:border-transparent transition-colors">
+                                        <option value="NORMAL">NORMAL</option>
+                                        <option value="ESPECIAL">ESPECIAL</option>
+                                        <option value="INDIGENA">INDÍGENA</option>
+                                        <option value="QUILOMBOLA">QUILOMBOLA</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label for="qtd_salas" class="block text-sm font-medium text-gray-700 mb-2">Quantidade de Salas</label>
+                                    <input type="number" id="qtd_salas" name="qtd_salas" min="1" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-green focus:border-transparent transition-colors" placeholder="Ex: 12">
+                                </div>
+                            </div>
+                        </div>
+                        <!-- Seção: Endereço -->
+                        <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                            <h3 class="text-lg font-semibold text-gray-900 mb-4">Endereço</h3>
+                            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                                <div>
+                                    <label for="cep" class="block text-sm font-medium text-gray-700 mb-2">CEP</label>
+                                    <input type="text" id="cep" name="cep" maxlength="9" onkeyup="formatarCEPCadastro(this)" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-green focus:border-transparent transition-colors" placeholder="67.030-180">
+                                </div>
+                                <div class="md:col-span-2">
+                                    <label for="logradouro" class="block text-sm font-medium text-gray-700 mb-2">Logradouro</label>
+                                    <input type="text" id="logradouro" name="logradouro" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-green focus:border-transparent transition-colors" placeholder="Ex: AVENIDA ZACARIAS DE ASSUNÇÃO">
+                                </div>
+                                <div>
+                                    <label for="numero" class="block text-sm font-medium text-gray-700 mb-2">Número</label>
+                                    <input type="text" id="numero" name="numero" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-green focus:border-transparent transition-colors" placeholder="Ex: 30">
+                                </div>
+                                <div>
+                                    <label for="complemento" class="block text-sm font-medium text-gray-700 mb-2">Complemento</label>
+                                    <input type="text" id="complemento" name="complemento" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-green focus:border-transparent transition-colors" placeholder="Ex: Próximo ao centro">
+                                </div>
+                                <div>
+                                    <label for="bairro" class="block text-sm font-medium text-gray-700 mb-2">Bairro</label>
+                                    <input type="text" id="bairro" name="bairro" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-green focus:border-transparent transition-colors" placeholder="Ex: CENTRO">
+                                </div>
+                            </div>
+                        </div>
+                        <!-- Seção: Contatos -->
+                        <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                            <h3 class="text-lg font-semibold text-gray-900 mb-4">Contatos</h3>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div>
+                                    <label for="telefone_fixo" class="block text-sm font-medium text-gray-700 mb-2">Telefone Fixo</label>
+                                    <input type="tel" id="telefone_fixo" name="telefone_fixo" onkeyup="formatarTelefone(this)" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-green focus:border-transparent transition-colors" placeholder="(85) 3333-4444">
+                                </div>
+                                <div>
+                                    <label for="telefone_movel" class="block text-sm font-medium text-gray-700 mb-2">Telefone Móvel</label>
+                                    <input type="tel" id="telefone_movel" name="telefone_movel" onkeyup="formatarTelefone(this)" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-green focus:border-transparent transition-colors" placeholder="(85) 99999-9999">
+                                </div>
+                                <div>
+                                    <label for="email" class="block text-sm font-medium text-gray-700 mb-2">E-mail</label>
+                                    <input type="email" id="email" name="email" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-green focus:border-transparent transition-colors" placeholder="escola@maranguape.ce.gov.br">
+                                </div>
+                                <div>
+                                    <label for="site" class="block text-sm font-medium text-gray-700 mb-2">Site</label>
+                                    <input type="url" id="site" name="site" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-green focus:border-transparent transition-colors" placeholder="https://www.escola.com.br">
+                                </div>
+                            </div>
+                        </div>
+                        <!-- Seção: Dados do Gestor -->
+                        <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                            <h3 class="text-lg font-semibold text-gray-900 mb-4">Dados do Gestor</h3>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div>
+                                    <label for="gestor_cpf" class="block text-sm font-medium text-gray-700 mb-2">CPF do Gestor</label>
+                                    <input type="text" id="gestor_cpf" name="gestor_cpf" maxlength="14" onkeyup="formatarCPF(this)" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-green focus:border-transparent transition-colors" placeholder="845.558.662-15">
+                                </div>
+                                <div>
+                                    <label for="gestor_nome" class="block text-sm font-medium text-gray-700 mb-2">Nome do Gestor</label>
+                                    <input type="text" id="gestor_nome" name="gestor_nome" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-green focus:border-transparent transition-colors" placeholder="JOSE LUIZ SOUZA">
+                                </div>
+                                <div>
+                                    <label for="gestor_email" class="block text-sm font-medium text-gray-700 mb-2">E-mail do Gestor</label>
+                                    <input type="email" id="gestor_email" name="gestor_email" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-green focus:border-transparent transition-colors" placeholder="gestor@escola.com.br">
+                                </div>
+                                <div>
+                                    <label for="gestor_inep" class="block text-sm font-medium text-gray-700 mb-2">INEP do Gestor</label>
+                                    <input type="text" id="gestor_inep" name="gestor_inep" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-green focus:border-transparent transition-colors" placeholder="Código INEP do gestor">
+                                </div>
+                                <div>
+                                    <label for="gestor_cargo" class="block text-sm font-medium text-gray-700 mb-2">Cargo</label>
+                                    <select id="gestor_cargo" name="gestor_cargo" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-green focus:border-transparent transition-colors">
+                                        <option value="OUTRO_CARGO">OUTRO CARGO</option>
+                                        <option value="DIRETOR">DIRETOR</option>
+                                        <option value="VICE_DIRETOR">VICE-DIRETOR</option>
+                                        <option value="COORDENADOR">COORDENADOR</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label for="gestor_tipo_acesso" class="block text-sm font-medium text-gray-700 mb-2">Tipo de Acesso</label>
+                                    <select id="gestor_tipo_acesso" name="gestor_tipo_acesso" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-green focus:border-transparent transition-colors">
+                                        <option value="OUTROS">OUTROS</option>
+                                        <option value="CONCURSO">CONCURSO</option>
+                                        <option value="PROVIMENTO">PROVIMENTO</option>
+                                        <option value="NOMEACAO">NOMEAÇÃO</option>
+                                    </select>
+                                </div>
+                                <div class="md:col-span-2">
+                                    <label for="gestor_criterio_acesso" class="block text-sm font-medium text-gray-700 mb-2">Critério de Acesso</label>
+                                    <input type="text" id="gestor_criterio_acesso" name="gestor_criterio_acesso" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-green focus:border-transparent transition-colors" placeholder="Descreva o critério de acesso ao cargo">
+                                </div>
+                            </div>
+                        </div>
                         <div class="flex justify-end space-x-3 pt-4">
                             <button type="reset" class="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-green">
                                 Limpar
@@ -2127,68 +2306,172 @@ if ($_SESSION['tipo'] === 'ADM') {
                     
                     <!-- Aba Dados Básicos -->
                     <div id="aba-dados-basicos" class="aba-edicao flex-1 flex flex-col">
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            <!-- Coluna Esquerda -->
-                            <div class="space-y-6">
-                                <div>
-                                    <label for="edit_nome" class="block text-sm font-medium text-gray-700 mb-2">Nome da Escola *</label>
-                                    <input type="text" id="edit_nome" name="nome" required
-                                           class="block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-primary-green focus:border-primary-green">
-                                </div>
+                        <div class="space-y-8">
+                            <!-- Seção: Identificação da Escola -->
+                            <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                                <h3 class="text-lg font-semibold text-gray-900 mb-4">Identificação da Escola</h3>
                                 
-                                <div>
-                                    <label for="edit_telefone" class="block text-sm font-medium text-gray-700 mb-2">Telefone</label>
-                                    <input type="text" id="edit_telefone" name="telefone" placeholder="(00) 0000-0000"
-                                           class="block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-primary-green focus:border-primary-green">
-                                </div>
-                                
-                                <div>
-                                    <label for="edit_cep" class="block text-sm font-medium text-gray-700 mb-2">CEP <span class="text-red-500">*</span></label>
-                                    <div class="flex space-x-2">
-                                        <input type="text" id="edit_cep" name="cep" required placeholder="00000-000" maxlength="9" onkeyup="formatarCEP(this)" onblur="buscarCEP(this.value)"
-                                               class="flex-1 px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-primary-green focus:border-primary-green">
-                                        <button type="button" onclick="buscarCEP(document.getElementById('edit_cep').value)" class="px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors duration-200">
-                                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
-                                            </svg>
-                                        </button>
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    <div>
+                                        <label for="edit_nome" class="block text-sm font-medium text-gray-700 mb-2">
+                                            Nome da Escola *
+                                        </label>
+                                        <input type="text" id="edit_nome" name="nome"
+                                               class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-green focus:border-transparent transition-colors"
+                                               placeholder="Ex: Escola Municipal João Silva">
                                     </div>
-                                    <div id="resultadoCEP" class="mt-2 text-sm text-gray-600 hidden"></div>
-                                </div>
-                                
-                                <div>
-                                    <label for="edit_endereco" class="block text-sm font-medium text-gray-700 mb-2">Endereço *</label>
-                                    <input type="text" id="edit_endereco" name="endereco" required
-                                           class="block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-primary-green focus:border-primary-green">
-                                </div>
-                                
-                                <div>
-                                    <label for="edit_qtd_salas" class="block text-sm font-medium text-gray-700 mb-2">Quantidade de Salas <span class="text-red-500">*</span></label>
-                                    <input type="number" id="edit_qtd_salas" name="qtd_salas" required min="1" placeholder="Ex: 12"
-                                           class="block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-primary-green focus:border-primary-green">
+                                    
+                                    <div>
+                                        <label for="edit_inep" class="block text-sm font-medium text-gray-700 mb-2">
+                                            Código INEP
+                                        </label>
+                                        <input type="text" id="edit_inep" name="inep" maxlength="8"
+                                               class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-green focus:border-transparent transition-colors"
+                                               placeholder="Ex: 15663883">
+                                    </div>
+                                    
+                                    <div>
+                                        <label for="edit_nome_curto" class="block text-sm font-medium text-gray-700 mb-2">
+                                            Nome Curto
+                                        </label>
+                                        <input type="text" id="edit_nome_curto" name="nome_curto"
+                                               class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-green focus:border-transparent transition-colors"
+                                               placeholder="Ex: EM João Silva">
+                                    </div>
+                                    
+                                    <div>
+                                        <label for="edit_codigo" class="block text-sm font-medium text-gray-700 mb-2">
+                                            Código da Escola
+                                        </label>
+                                        <input type="text" id="edit_codigo" name="codigo"
+                                               class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-green focus:border-transparent transition-colors"
+                                               placeholder="Código da escola">
+                                    </div>
                                 </div>
                             </div>
-                            
-                            <!-- Coluna Direita -->
-                            <div class="space-y-6">
-                                <div>
-                                    <label for="edit_codigo" class="block text-sm font-medium text-gray-700 mb-2">Código INEP</label>
-                                    <input type="text" id="edit_codigo" name="codigo" placeholder="Ex: 12345678"
-                                           class="block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-primary-green focus:border-primary-green">
-                                </div>
+
+                            <!-- Seção: Classificação -->
+                            <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                                <h3 class="text-lg font-semibold text-gray-900 mb-4">Classificação</h3>
                                 
-                                <div>
-                                    <label for="edit_email" class="block text-sm font-medium text-gray-700 mb-2">Email</label>
-                                    <input type="email" id="edit_email" name="email"
-                                           class="block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-primary-green focus:border-primary-green">
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    <div>
+                                        <label for="edit_tipo_escola" class="block text-sm font-medium text-gray-700 mb-2">
+                                            Tipo de Escola *
+                                        </label>
+                                        <select id="edit_tipo_escola" name="tipo_escola"
+                                                class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-green focus:border-transparent transition-colors">
+                                            <option value="NORMAL">NORMAL</option>
+                                            <option value="ESPECIAL">ESPECIAL</option>
+                                            <option value="INDIGENA">INDÍGENA</option>
+                                            <option value="QUILOMBOLA">QUILOMBOLA</option>
+                                        </select>
+                                    </div>
+                                    
+                                    <div>
+                                        <label for="edit_qtd_salas" class="block text-sm font-medium text-gray-700 mb-2">
+                                            Quantidade de Salas
+                                        </label>
+                                        <input type="number" id="edit_qtd_salas" name="qtd_salas" min="1"
+                                               class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-green focus:border-transparent transition-colors"
+                                               placeholder="Ex: 12">
+                                    </div>
                                 </div>
+                            </div>
+
+                            <!-- Seção: Endereço -->
+                            <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                                <h3 class="text-lg font-semibold text-gray-900 mb-4">Endereço</h3>
                                 
-                                <div>
-                                    <label for="edit_municipio" class="block text-sm font-medium text-gray-700 mb-2">Município *</label>
-                                    <input type="text" id="edit_municipio" name="municipio" required
-                                           class="block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-primary-green focus:border-primary-green">
+                                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                                    <div>
+                                        <label for="edit_cep" class="block text-sm font-medium text-gray-700 mb-2">
+                                            CEP
+                                        </label>
+                                        <input type="text" id="edit_cep" name="cep" maxlength="9" onkeyup="formatarCEP(this)"
+                                               class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-green focus:border-transparent transition-colors"
+                                               placeholder="67.030-180">
+                                    </div>
+                                    
+                                    <div class="md:col-span-2">
+                                        <label for="edit_logradouro" class="block text-sm font-medium text-gray-700 mb-2">
+                                            Logradouro
+                                        </label>
+                                        <input type="text" id="edit_logradouro" name="logradouro"
+                                               class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-green focus:border-transparent transition-colors"
+                                               placeholder="Ex: AVENIDA ZACARIAS DE ASSUNÇÃO">
+                                    </div>
+                                    
+                                    <div>
+                                        <label for="edit_numero" class="block text-sm font-medium text-gray-700 mb-2">
+                                            Número
+                                        </label>
+                                        <input type="text" id="edit_numero" name="numero"
+                                               class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-green focus:border-transparent transition-colors"
+                                               placeholder="Ex: 30">
+                                    </div>
+                                    
+                                    <div>
+                                        <label for="edit_complemento" class="block text-sm font-medium text-gray-700 mb-2">
+                                            Complemento
+                                        </label>
+                                        <input type="text" id="edit_complemento" name="complemento"
+                                               class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-green focus:border-transparent transition-colors"
+                                               placeholder="Ex: Próximo ao centro">
+                                    </div>
+                                    
+                                    <div>
+                                        <label for="edit_bairro" class="block text-sm font-medium text-gray-700 mb-2">
+                                            Bairro
+                                        </label>
+                                        <input type="text" id="edit_bairro" name="bairro"
+                                               class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-green focus:border-transparent transition-colors"
+                                               placeholder="Ex: CENTRO">
+                                    </div>
                                 </div>
+                            </div>
+
+                            <!-- Seção: Contatos -->
+                            <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                                <h3 class="text-lg font-semibold text-gray-900 mb-4">Contatos</h3>
                                 
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    <div>
+                                        <label for="edit_telefone_fixo" class="block text-sm font-medium text-gray-700 mb-2">
+                                            Telefone Fixo
+                                        </label>
+                                        <input type="tel" id="edit_telefone_fixo" name="telefone_fixo" onkeyup="formatarTelefone(this)"
+                                               class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-green focus:border-transparent transition-colors"
+                                               placeholder="(85) 3333-4444">
+                                    </div>
+                                    
+                                    <div>
+                                        <label for="edit_telefone_movel" class="block text-sm font-medium text-gray-700 mb-2">
+                                            Telefone Móvel
+                                        </label>
+                                        <input type="tel" id="edit_telefone_movel" name="telefone_movel" onkeyup="formatarTelefone(this)"
+                                               class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-green focus:border-transparent transition-colors"
+                                               placeholder="(85) 99999-9999">
+                                    </div>
+                                    
+                                    <div>
+                                        <label for="edit_email" class="block text-sm font-medium text-gray-700 mb-2">
+                                            E-mail
+                                        </label>
+                                        <input type="email" id="edit_email" name="email"
+                                               class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-green focus:border-transparent transition-colors"
+                                               placeholder="escola@maranguape.ce.gov.br">
+                                    </div>
+                                    
+                                    <div>
+                                        <label for="edit_site" class="block text-sm font-medium text-gray-700 mb-2">
+                                            Site
+                                        </label>
+                                        <input type="url" id="edit_site" name="site"
+                                               class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-green focus:border-transparent transition-colors"
+                                               placeholder="https://www.escola.com.br">
+                                    </div>
+                                </div>
                             </div>
                         </div>
                         
@@ -2207,18 +2490,19 @@ if ($_SESSION['tipo'] === 'ADM') {
                     <div id="aba-gestor" class="aba-edicao hidden flex-1 flex flex-col">
                         <div class="space-y-6">
                             <!-- Gestor Atual -->
-                            <div id="gestor-atual-section">
+                            <div id="gestor-atual-section" class="hidden">
                                 <h4 class="text-lg font-semibold text-gray-900 mb-4">Gestor Atual</h4>
                                 <div id="gestor-atual-info" class="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-xl p-6 shadow-sm hover:shadow-md transition-shadow duration-200">
                                     <div class="flex items-center justify-between">
                                         <div class="flex items-center space-x-4">
                                             <div class="w-14 h-14 bg-gradient-to-br from-primary-green to-green-600 rounded-full flex items-center justify-center shadow-lg">
-                                                <span class="text-white font-bold text-lg" id="gestor-atual-iniciais">JD</span>
+                                                <span class="text-white font-bold text-lg" id="gestor-atual-iniciais">-</span>
                                             </div>
                                             <div class="flex-1">
-                                                <h5 class="font-semibold text-gray-900 text-lg" id="gestor-atual-nome">João da Silva</h5>
-                                                <p class="text-sm text-gray-600 mb-1" id="gestor-atual-email">joao.silva@escola.edu.br</p>
-                                                <p class="text-xs text-gray-500" id="gestor-atual-cpf">CPF: 123.456.789-00</p>
+                                                <h5 class="font-semibold text-gray-900 text-lg" id="gestor-atual-nome">-</h5>
+                                                <p class="text-sm text-gray-600 mb-1" id="gestor-atual-email">-</p>
+                                                <p class="text-xs text-gray-500" id="gestor-atual-cpf">CPF: -</p>
+                                                <p class="text-xs text-gray-500" id="gestor-atual-cargo">Cargo: -</p>
                                             </div>
                                         </div>
                                         <button type="button" onclick="removerGestorAtual()" class="px-4 py-2 text-sm font-medium text-red-600 bg-red-50 border border-red-200 hover:bg-red-100 hover:border-red-300 rounded-lg transition-all duration-200 flex items-center space-x-2">
@@ -2232,12 +2516,12 @@ if ($_SESSION['tipo'] === 'ADM') {
                             </div>
 
                             <!-- Mensagem quando não há gestor -->
-                            <div id="nenhum-gestor-section" class="hidden">
+                            <div id="nenhum-gestor-section">
                                 <div class="text-center py-8">
                                     <svg class="w-16 h-16 mx-auto mb-4 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
                                     </svg>
-                                    <h4 class="text-lg font-semibold text-gray-900 mb-2">Nenhum gestor definido</h4>
+                                    <h4 class="text-lg font-semibold text-gray-900 mb-2">Esta escola não possui gestor</h4>
                                     <p class="text-gray-600 mb-4">Esta escola ainda não possui um gestor (diretor) definido.</p>
                                     <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
                                         <div class="flex items-center space-x-2">
@@ -2245,7 +2529,7 @@ if ($_SESSION['tipo'] === 'ADM') {
                                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
                                             </svg>
                                             <p class="text-sm text-blue-800">
-                                                <strong>Nota:</strong> Para adicionar um gestor, use a aba "Adicionar Professor" na página principal.
+                                                <strong>Nota:</strong> Para adicionar um gestor, use a aba "Adicionar Gestor" na página principal.
                                             </p>
                                         </div>
                                     </div>
@@ -2475,6 +2759,126 @@ if ($_SESSION['tipo'] === 'ADM') {
             // Voltar para a primeira aba
             mostrarAbaEdicao('dados-basicos');
         }
+
+        function carregarProfessoresEscola(escolaId) {
+            fetch(`../../Controllers/gestao/EscolaController.php?acao=buscar_professores&escola_id=${escolaId}`)
+                .then(response => response.json())
+                .then(data => {
+                    const listaProfessores = document.getElementById('lista-professores');
+                    
+                    if (data.success && data.professores && data.professores.length > 0) {
+                        let html = '';
+                        data.professores.forEach(professor => {
+                            // Gerar iniciais do nome
+                            const iniciais = professor.nome.split(' ').map(n => n.charAt(0)).join('').toUpperCase().substring(0, 2);
+                            
+                            html += `
+                                <div class="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-xl p-6 shadow-sm hover:shadow-md transition-shadow duration-200 mb-4">
+                                    <div class="flex items-center justify-between">
+                                        <div class="flex items-center space-x-4">
+                                            <div class="w-14 h-14 bg-gradient-to-br from-primary-green to-green-600 rounded-full flex items-center justify-center shadow-lg">
+                                                <span class="text-white font-bold text-lg">${iniciais}</span>
+                                            </div>
+                                            <div class="flex-1">
+                                                <h5 class="font-semibold text-gray-900 text-lg">${professor.nome}</h5>
+                                                <p class="text-sm text-gray-600 mb-1">${professor.email || 'Sem e-mail'}</p>
+                                                <div class="flex items-center space-x-4 text-xs text-gray-500">
+                                                    <span>📞 ${professor.telefone || 'Sem telefone'}</span>
+                                                    <span>📚 ${professor.disciplina || 'Sem disciplina'}</span>
+                                                    <span>💼 ${professor.cargo || 'Professor'}</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="flex items-center space-x-2">
+                                            <button type="button" onclick="editarProfessor(${professor.id})" 
+                                                    class="px-4 py-2 text-sm font-medium text-blue-600 bg-blue-50 border border-blue-200 hover:bg-blue-100 hover:border-blue-300 rounded-lg transition-all duration-200 flex items-center space-x-2">
+                                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
+                                                </svg>
+                                                <span>Editar</span>
+                                            </button>
+                                            <button type="button" onclick="removerProfessorEscola(${professor.id}, '${professor.nome}')" 
+                                                    class="px-4 py-2 text-sm font-medium text-red-600 bg-red-50 border border-red-200 hover:bg-red-100 hover:border-red-300 rounded-lg transition-all duration-200 flex items-center space-x-2">
+                                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                                                </svg>
+                                                <span>Remover</span>
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            `;
+                        });
+                        listaProfessores.innerHTML = html;
+                    } else {
+                        listaProfessores.innerHTML = `
+                            <div class="text-center py-8">
+                                <svg class="w-16 h-16 mx-auto mb-4 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z"></path>
+                                </svg>
+                                <h4 class="text-lg font-semibold text-gray-900 mb-2">Esta escola não possui professores</h4>
+                                <p class="text-gray-600 mb-4">Nenhum professor foi cadastrado nesta escola ainda.</p>
+                                <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                                    <div class="flex items-center space-x-2">
+                                        <svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                        </svg>
+                                        <p class="text-sm text-blue-800">
+                                            <strong>Nota:</strong> Para adicionar professores, use o botão "Adicionar Professor" acima.
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+                    }
+                })
+                .catch(error => {
+                    console.error('Erro ao carregar professores:', error);
+                    document.getElementById('lista-professores').innerHTML = `
+                        <div class="text-center py-8">
+                            <svg class="w-16 h-16 mx-auto mb-4 text-red-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z"></path>
+                            </svg>
+                            <h4 class="text-lg font-semibold text-red-900 mb-2">Erro ao carregar professores</h4>
+                            <p class="text-red-600">Não foi possível carregar a lista de professores.</p>
+                        </div>
+                    `;
+                });
+        }
+
+        function editarProfessor(professorId) {
+            // Implementar modal de edição de professor
+            alert(`Editar professor ID: ${professorId}\n\nFuncionalidade será implementada em breve.`);
+        }
+
+        function removerProfessorEscola(professorId, nomeProfessor) {
+            if (confirm(`Tem certeza que deseja remover o professor "${nomeProfessor}" desta escola?`)) {
+                fetch('../../Controllers/gestao/EscolaController.php', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                    },
+                    body: `acao=remover_professor&professor_id=${professorId}&escola_id=${document.getElementById('edit_escola_id').value}`
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        // Recarregar lista de professores
+                        const escolaId = document.getElementById('edit_escola_id').value;
+                        carregarProfessoresEscola(escolaId);
+                        
+                        // Mostrar mensagem de sucesso
+                        alert('Professor removido com sucesso!');
+                    } else {
+                        alert('Erro ao remover professor: ' + data.message);
+                    }
+                })
+                .catch(error => {
+                    console.error('Erro:', error);
+                    alert('Erro ao remover professor.');
+                });
+            }
+        }
         
         // Funções para Modal de Sucesso
         function mostrarModalSucesso() {
@@ -2498,24 +2902,116 @@ if ($_SESSION['tipo'] === 'ADM') {
         let dadosOriginaisEscola = {};
 
         function carregarDadosEscola(id) {
-            const endpoint = `../../Controllers/gestao/EscolaController.php?id=${encodeURIComponent(id)}`;
-            fetch(endpoint)
+            // Buscar dados da escola diretamente via PHP
+            fetch(`../../Controllers/gestao/EscolaController.php?acao=buscar_escola&id=${encodeURIComponent(id)}`)
                 .then(response => response.json())
                 .then(data => {
-                    if (!data || !data.status || !data.escola) {
+                    if (!data || !data.success || !data.escola) {
                         console.error('Não foi possível carregar a escola.');
+                        alert('Erro ao carregar dados da escola. Tente novamente.');
                         return;
                     }
                     const escola = data.escola;
+                    
                     // Preencher campos básicos
                     document.getElementById('edit_nome').value = escola.nome || '';
-                    document.getElementById('edit_endereco').value = escola.endereco || '';
-                    document.getElementById('edit_telefone').value = escola.telefone || '';
                     document.getElementById('edit_email').value = escola.email || '';
-                    document.getElementById('edit_municipio').value = escola.municipio || '';
                     document.getElementById('edit_cep').value = escola.cep || '';
                     document.getElementById('edit_qtd_salas').value = escola.qtd_salas || '';
                     document.getElementById('edit_codigo').value = escola.codigo || '';
+                    
+                    // Preencher campos padrão
+                    document.getElementById('edit_nome_curto').value = '';
+                    document.getElementById('edit_site').value = '';
+                    document.getElementById('edit_telefone_fixo').value = '';
+                    document.getElementById('edit_telefone_movel').value = '';
+                    document.getElementById('edit_logradouro').value = '';
+                    document.getElementById('edit_numero').value = '';
+                    document.getElementById('edit_complemento').value = '';
+                    document.getElementById('edit_bairro').value = '';
+                    document.getElementById('edit_inep').value = '';
+                    document.getElementById('edit_tipo_escola').value = 'NORMAL';
+                    
+                    // Extrair dados do campo obs para preencher os novos campos
+                    if (escola.obs) {
+                        const obs = escola.obs;
+                        
+                        // Extrair INEP da escola
+                        const inepMatch = obs.match(/INEP Escola:\s*([^|]+)/);
+                        if (inepMatch) {
+                            document.getElementById('edit_inep').value = inepMatch[1].trim();
+                        }
+                        
+                        // Extrair nome curto (assumindo que está no início do nome)
+                        const nomeCurto = escola.nome ? escola.nome.split(' ').slice(0, 3).join(' ') : '';
+                        document.getElementById('edit_nome_curto').value = nomeCurto;
+                        
+                        // Extrair tipo de escola
+                        const tipoMatch = obs.match(/Tipo:\s*([^|]+)/);
+                        if (tipoMatch) {
+                            document.getElementById('edit_tipo_escola').value = tipoMatch[1].trim();
+                        }
+                        
+                        // Extrair dados do endereço (assumindo formato: logradouro, numero, complemento, bairro)
+                        if (escola.endereco) {
+                            const enderecoParts = escola.endereco.split(', ');
+                            document.getElementById('edit_logradouro').value = enderecoParts[0] || '';
+                            document.getElementById('edit_numero').value = enderecoParts[1] || '';
+                            document.getElementById('edit_complemento').value = enderecoParts[2] || '';
+                            document.getElementById('edit_bairro').value = enderecoParts[3] || '';
+                        }
+                        
+                        // Extrair telefones (assumindo que telefone é o fixo)
+                        if (escola.telefone) {
+                            if (escola.telefone.includes('9')) {
+                                document.getElementById('edit_telefone_movel').value = escola.telefone;
+                            } else {
+                                document.getElementById('edit_telefone_fixo').value = escola.telefone;
+                            }
+                        }
+                        
+                        // Extrair dados do gestor
+                        const gestorNomeMatch = obs.match(/Gestor:\s*([^|]+)/);
+                        const gestorCpfMatch = obs.match(/CPF:\s*([^|]+)/);
+                        const gestorEmailMatch = obs.match(/Email:\s*([^|]+)/);
+                        const gestorCargoMatch = obs.match(/Cargo:\s*([^|]+)/);
+                        
+                        if (gestorNomeMatch || gestorCpfMatch || gestorEmailMatch) {
+                            // Mostrar seção do gestor
+                            document.getElementById('gestor-atual-section').classList.remove('hidden');
+                            document.getElementById('nenhum-gestor-section').classList.add('hidden');
+                            
+                            // Preencher dados do gestor
+                            if (gestorNomeMatch) {
+                                const nome = gestorNomeMatch[1].trim();
+                                document.getElementById('gestor-atual-nome').textContent = nome;
+                                
+                                // Gerar iniciais
+                                const iniciais = nome.split(' ').map(n => n.charAt(0)).join('').toUpperCase().substring(0, 2);
+                                document.getElementById('gestor-atual-iniciais').textContent = iniciais;
+                            }
+                            
+                            if (gestorCpfMatch) {
+                                document.getElementById('gestor-atual-cpf').textContent = 'CPF: ' + gestorCpfMatch[1].trim();
+                            }
+                            
+                            if (gestorEmailMatch) {
+                                document.getElementById('gestor-atual-email').textContent = gestorEmailMatch[1].trim();
+                            }
+                            
+                            if (gestorCargoMatch) {
+                                document.getElementById('gestor-atual-cargo').textContent = 'Cargo: ' + gestorCargoMatch[1].trim();
+                            }
+                        } else {
+                            // Não há gestor
+                            document.getElementById('gestor-atual-section').classList.add('hidden');
+                            document.getElementById('nenhum-gestor-section').classList.remove('hidden');
+                        }
+                    } else {
+                        // Não há obs, não há gestor
+                        document.getElementById('gestor-atual-section').classList.add('hidden');
+                        document.getElementById('nenhum-gestor-section').classList.remove('hidden');
+                    }
                     
                     // Armazenar dados originais para comparação
                     dadosOriginaisEscola = {
@@ -2529,6 +3025,9 @@ if ($_SESSION['tipo'] === 'ADM') {
                         codigo: escola.codigo || ''
                     };
                     
+                    // Carregar professores da escola
+                    carregarProfessoresEscola(id);
+                    
                     // Configurar monitoramento de mudanças
                     configurarMonitoramentoMudancas();
                     
@@ -2537,6 +3036,7 @@ if ($_SESSION['tipo'] === 'ADM') {
                 })
                 .catch(err => {
                     console.error('Erro ao carregar dados da escola:', err);
+                    alert('Erro ao carregar dados da escola. Verifique se a escola existe.');
                 });
         }
         
@@ -3047,15 +3547,49 @@ if ($_SESSION['tipo'] === 'ADM') {
                 formEdicao.addEventListener('submit', function(e) {
                     e.preventDefault();
                     
+                    // Garantir que a aba de dados básicos esteja visível para validação
+                    mostrarAbaEdicao('dados-basicos');
+                    
+                    // Aguardar um momento para garantir que os campos estejam visíveis
+                    setTimeout(() => {
+                        // Validar campos obrigatórios antes de enviar
+                        const nome = document.getElementById('edit_nome').value.trim();
+                        if (!nome) {
+                            alert('O nome da escola é obrigatório.');
+                            document.getElementById('edit_nome').focus();
+                            return;
+                        }
+                        
+                        const tipoEscola = document.getElementById('edit_tipo_escola').value;
+                        if (!tipoEscola) {
+                            alert('O tipo de escola é obrigatório.');
+                            document.getElementById('edit_tipo_escola').focus();
+                            return;
+                        }
+                        
+                        // Se chegou até aqui, enviar o formulário
+                        enviarFormularioEdicao();
+                    }, 100);
+                });
+                
+                function enviarFormularioEdicao() {
                     // Coletar dados do formulário
                     const formData = new FormData();
                     formData.append('acao', 'editar');
                     formData.append('id', document.getElementById('edit_escola_id').value);
                     formData.append('nome', document.getElementById('edit_nome').value);
-                    formData.append('endereco', document.getElementById('edit_endereco').value);
-                    formData.append('telefone', document.getElementById('edit_telefone').value);
+                    formData.append('inep', document.getElementById('edit_inep').value);
+                    formData.append('nome_curto', document.getElementById('edit_nome_curto').value);
+                    formData.append('tipo_escola', document.getElementById('edit_tipo_escola').value);
+                    formData.append('logradouro', document.getElementById('edit_logradouro').value);
+                    formData.append('numero', document.getElementById('edit_numero').value);
+                    formData.append('complemento', document.getElementById('edit_complemento').value);
+                    formData.append('bairro', document.getElementById('edit_bairro').value);
+                    formData.append('telefone_fixo', document.getElementById('edit_telefone_fixo').value);
+                    formData.append('telefone_movel', document.getElementById('edit_telefone_movel').value);
                     formData.append('email', document.getElementById('edit_email').value);
-                    formData.append('municipio', document.getElementById('edit_municipio').value);
+                    formData.append('site', document.getElementById('edit_site').value);
+                    formData.append('municipio', 'MARANGUAPE');
                     formData.append('cep', document.getElementById('edit_cep').value);
                     formData.append('qtd_salas', document.getElementById('edit_qtd_salas').value);
                     formData.append('obs', '');
@@ -3081,7 +3615,7 @@ if ($_SESSION['tipo'] === 'ADM') {
                         console.error('Erro ao salvar alterações:', error);
                         alert('Erro ao salvar alterações. Tente novamente.');
                     });
-                });
+                }
             }
         });
         

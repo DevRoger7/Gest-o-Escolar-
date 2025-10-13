@@ -8,7 +8,7 @@ if (!defined('BASE_URL')) {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Login - SIGAE | Sistema Integrado de Gestão Escolar e Alimentação Escolar</title>
+    <title>Login - SIGEA | Sistema Integrado de Gestão Escolar e Alimentação Escolar</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="config.js"></script>
     <script src="assets/js/modal-system.js"></script>
@@ -68,7 +68,7 @@ if (!defined('BASE_URL')) {
         <!-- Logo e Branding -->
         <div class="text-center mb-8">
             <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/1/19/Bras%C3%A3o_de_Maranguape.png/250px-Bras%C3%A3o_de_Maranguape.png" alt="Brasão de Maranguape" class="w-16 h-16 mx-auto mb-4 object-contain">
-            <h1 class="text-2xl font-bold text-gray-800 mb-1">SIGAE</h1>
+            <h1 class="text-2xl font-bold text-gray-800 mb-1">SIGEA</h1>
             <p class="text-gray-600 text-sm font-medium mb-1">Sistema Integrado de Gestão Escolar e Alimentação Escolar</p>
             <p class="text-gray-500 text-xs">Prefeitura Municipal de Maranguape</p>
         </div>
@@ -191,7 +191,7 @@ if (!defined('BASE_URL')) {
                     <div class="w-20 h-20 rounded-2xl flex items-center justify-center mx-auto mb-2">
                         <img src="https://i.postimg.cc/j5RDSqbd/brasao2-marangupe.png" alt="Logo" class="w-30 h-30 object-contain" />
                     </div>
-                    <h1 class="text-4xl font-bold mb-4">SIGAE</h1>
+                    <h1 class="text-4xl font-bold mb-4">SIGEA</h1>
                     <p class="text-xl text-white/90"> Sistema Integrado de Gestão Escolar e Alimentação Escolar</p>
                 </div>
             </div>
