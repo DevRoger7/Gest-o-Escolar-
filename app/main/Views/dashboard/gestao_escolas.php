@@ -158,19 +158,61 @@ function cadastrarEscola($dados)
     try {
         $conn->beginTransaction();
 
+        // Montar endereço completo
+        $endereco = trim($dados['logradouro'] . ', ' . $dados['numero']);
+        if (!empty($dados['complemento'])) {
+            $endereco .= ', ' . $dados['complemento'];
+        }
+        if (!empty($dados['bairro'])) {
+            $endereco .= ', ' . $dados['bairro'];
+        }
+
+        // Montar observações com dados do gestor
+        $obs = '';
+        if (!empty($dados['gestor_nome'])) {
+            $obs .= "Gestor: " . $dados['gestor_nome'];
+        }
+        if (!empty($dados['gestor_cpf'])) {
+            $obs .= " | CPF: " . $dados['gestor_cpf'];
+        }
+        if (!empty($dados['gestor_cargo'])) {
+            $obs .= " | Cargo: " . $dados['gestor_cargo'];
+        }
+        if (!empty($dados['gestor_email'])) {
+            $obs .= " | Email: " . $dados['gestor_email'];
+        }
+        if (!empty($dados['gestor_inep'])) {
+            $obs .= " | INEP Gestor: " . $dados['gestor_inep'];
+        }
+        if (!empty($dados['gestor_tipo_acesso'])) {
+            $obs .= " | Tipo Acesso: " . $dados['gestor_tipo_acesso'];
+        }
+        if (!empty($dados['gestor_criterio_acesso'])) {
+            $obs .= " | Critério: " . $dados['gestor_criterio_acesso'];
+        }
+        if (!empty($dados['inep'])) {
+            $obs .= " | INEP Escola: " . $dados['inep'];
+        }
+        if (!empty($dados['tipo_escola'])) {
+            $obs .= " | Tipo: " . $dados['tipo_escola'];
+        }
+
+        // Gerar código único se não fornecido
+        $codigo = !empty($dados['codigo']) ? $dados['codigo'] : 'ESC' . date('YmdHis');
+
         // Inserir escola
         $stmt = $conn->prepare("INSERT INTO escola (nome, endereco, telefone, email, municipio, cep, qtd_salas, obs, codigo) 
                                 VALUES (:nome, :endereco, :telefone, :email, :municipio, :cep, :qtd_salas, :obs, :codigo)");
 
         $stmt->bindParam(':nome', $dados['nome']);
-        $stmt->bindParam(':endereco', $dados['endereco']);
-        $stmt->bindParam(':telefone', $dados['telefone']);
+        $stmt->bindParam(':endereco', $endereco);
+        $stmt->bindParam(':telefone', $dados['telefone_fixo'] ?? $dados['telefone_movel']);
         $stmt->bindParam(':email', $dados['email']);
-        $stmt->bindParam(':municipio', $dados['municipio']);
+        $stmt->bindParam(':municipio', $dados['municipio'] ?? 'MARANGUAPE');
         $stmt->bindParam(':cep', $dados['cep']);
-        $stmt->bindParam(':qtd_salas', $dados['qtd_salas']);
-        $stmt->bindParam(':obs', $dados['obs']);
-        $stmt->bindParam(':codigo', $dados['codigo']);
+        $stmt->bindParam(':qtd_salas', $dados['qtd_salas'] ?? 0);
+        $stmt->bindParam(':obs', $obs);
+        $stmt->bindParam(':codigo', $codigo);
 
         $stmt->execute();
         $escolaId = $conn->lastInsertId();
@@ -1578,93 +1620,250 @@ if ($_SESSION['tipo'] === 'ADM') {
                 <div class="p-6">
                     <h2 class="text-xl font-semibold text-gray-900 mb-6">Cadastrar Nova Escola</h2>
                     
-                    <form method="POST" class="space-y-6">
+                    <form method="POST" class="space-y-8">
                         <input type="hidden" name="acao" value="cadastrar">
                         
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            <!-- Coluna Esquerda -->
-                            <div class="space-y-6">
+                        <!-- Seção: Identificação da Escola -->
+                        <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                            <h3 class="text-lg font-semibold text-gray-900 mb-4">Identificação da Escola</h3>
+                            
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                                 <div>
-                                    <label for="nome" class="block text-sm font-medium text-gray-700 mb-2">Nome da Escola *</label>
+                                    <label for="nome" class="block text-sm font-medium text-gray-700 mb-2">
+                                        Nome da Escola *
+                                    </label>
                                     <input type="text" id="nome" name="nome" required
-                                           class="block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-primary-green focus:border-primary-green">
+                                           class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-green focus:border-transparent transition-colors"
+                                           placeholder="Ex: Escola Municipal João Silva">
                                 </div>
                                 
                                 <div>
-                                    <label for="telefone" class="block text-sm font-medium text-gray-700 mb-2">Telefone</label>
-                                    <input type="text" id="telefone" name="telefone" placeholder="(00) 0000-0000"
-                                           class="block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-primary-green focus:border-primary-green">
+                                    <label for="inep" class="block text-sm font-medium text-gray-700 mb-2">
+                                        Código INEP
+                                    </label>
+                                    <input type="text" id="inep" name="inep" maxlength="8"
+                                           class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-green focus:border-transparent transition-colors"
+                                           placeholder="Ex: 15663883">
                                 </div>
                                 
                                 <div>
-                                    <label for="cep" class="block text-sm font-medium text-gray-700 mb-2">CEP <span class="text-red-500">*</span></label>
-                                    <div class="flex space-x-2">
-                                        <input type="text" id="cep" name="cep" required placeholder="00000-000" maxlength="9" onkeyup="formatarCEPCadastro(this)" onblur="buscarCEPCadastro(this.value)"
-                                               class="flex-1 px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-primary-green focus:border-primary-green">
-                                        <button type="button" onclick="buscarCEPCadastro(document.getElementById('cep').value)" class="px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors duration-200">
-                                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
-                                            </svg>
-                                        </button>
-                                    </div>
-                                    <div id="resultadoCEPCadastro" class="mt-2 text-sm text-gray-600 hidden"></div>
+                                    <label for="nome_curto" class="block text-sm font-medium text-gray-700 mb-2">
+                                        Nome Curto
+                                    </label>
+                                    <input type="text" id="nome_curto" name="nome_curto"
+                                           class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-green focus:border-transparent transition-colors"
+                                           placeholder="Ex: EM João Silva">
                                 </div>
                                 
                                 <div>
-                                    <label for="endereco" class="block text-sm font-medium text-gray-700 mb-2">Endereço *</label>
-                                    <input type="text" id="endereco" name="endereco" required
-                                           class="block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-primary-green focus:border-primary-green">
-                                </div>
-                                
-                                <div>
-                                    <label for="qtd_salas" class="block text-sm font-medium text-gray-700 mb-2">Quantidade de Salas <span class="text-red-500">*</span></label>
-                                    <input type="number" id="qtd_salas" name="qtd_salas" required min="1" placeholder="Ex: 12"
-                                           class="block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-primary-green focus:border-primary-green">
+                                    <label for="codigo" class="block text-sm font-medium text-gray-700 mb-2">
+                                        Código da Escola
+                                    </label>
+                                    <input type="text" id="codigo" name="codigo"
+                                           class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-green focus:border-transparent transition-colors"
+                                           placeholder="Deixe vazio para gerar automaticamente">
                                 </div>
                             </div>
+                        </div>
+
+                        <!-- Seção: Classificação -->
+                        <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                            <h3 class="text-lg font-semibold text-gray-900 mb-4">Classificação</h3>
                             
-                            <!-- Coluna Direita -->
-                            <div class="space-y-6">
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                                 <div>
-                                    <label for="codigo" class="block text-sm font-medium text-gray-700 mb-2">Código INEP</label>
-                                    <input type="text" id="codigo" name="codigo" placeholder="Ex: 12345678"
-                                           class="block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-primary-green focus:border-primary-green">
+                                    <label for="tipo_escola" class="block text-sm font-medium text-gray-700 mb-2">
+                                        Tipo de Escola *
+                                    </label>
+                                    <select id="tipo_escola" name="tipo_escola" required
+                                            class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-green focus:border-transparent transition-colors">
+                                        <option value="NORMAL">NORMAL</option>
+                                        <option value="ESPECIAL">ESPECIAL</option>
+                                        <option value="INDIGENA">INDÍGENA</option>
+                                        <option value="QUILOMBOLA">QUILOMBOLA</option>
+                                    </select>
                                 </div>
                                 
                                 <div>
-                                    <label for="email" class="block text-sm font-medium text-gray-700 mb-2">Email</label>
+                                    <label for="qtd_salas" class="block text-sm font-medium text-gray-700 mb-2">
+                                        Quantidade de Salas
+                                    </label>
+                                    <input type="number" id="qtd_salas" name="qtd_salas" min="1"
+                                           class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-green focus:border-transparent transition-colors"
+                                           placeholder="Ex: 12">
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Seção: Endereço -->
+                        <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                            <h3 class="text-lg font-semibold text-gray-900 mb-4">Endereço</h3>
+                            
+                            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                                <div>
+                                    <label for="cep" class="block text-sm font-medium text-gray-700 mb-2">
+                                        CEP
+                                    </label>
+                                    <input type="text" id="cep" name="cep" maxlength="9" onkeyup="formatarCEPCadastro(this)"
+                                           class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-green focus:border-transparent transition-colors"
+                                           placeholder="67.030-180">
+                                </div>
+                                
+                                <div class="md:col-span-2">
+                                    <label for="logradouro" class="block text-sm font-medium text-gray-700 mb-2">
+                                        Logradouro
+                                    </label>
+                                    <input type="text" id="logradouro" name="logradouro"
+                                           class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-green focus:border-transparent transition-colors"
+                                           placeholder="Ex: AVENIDA ZACARIAS DE ASSUNÇÃO">
+                                </div>
+                                
+                                <div>
+                                    <label for="numero" class="block text-sm font-medium text-gray-700 mb-2">
+                                        Número
+                                    </label>
+                                    <input type="text" id="numero" name="numero"
+                                           class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-green focus:border-transparent transition-colors"
+                                           placeholder="Ex: 30">
+                                </div>
+                                
+                                <div>
+                                    <label for="complemento" class="block text-sm font-medium text-gray-700 mb-2">
+                                        Complemento
+                                    </label>
+                                    <input type="text" id="complemento" name="complemento"
+                                           class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-green focus:border-transparent transition-colors"
+                                           placeholder="Ex: Próximo ao centro">
+                                </div>
+                                
+                                <div>
+                                    <label for="bairro" class="block text-sm font-medium text-gray-700 mb-2">
+                                        Bairro
+                                    </label>
+                                    <input type="text" id="bairro" name="bairro"
+                                           class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-green focus:border-transparent transition-colors"
+                                           placeholder="Ex: CENTRO">
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Seção: Contatos -->
+                        <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                            <h3 class="text-lg font-semibold text-gray-900 mb-4">Contatos</h3>
+                            
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div>
+                                    <label for="telefone_fixo" class="block text-sm font-medium text-gray-700 mb-2">
+                                        Telefone Fixo
+                                    </label>
+                                    <input type="tel" id="telefone_fixo" name="telefone_fixo" onkeyup="formatarTelefone(this)"
+                                           class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-green focus:border-transparent transition-colors"
+                                           placeholder="(85) 3333-4444">
+                                </div>
+                                
+                                <div>
+                                    <label for="telefone_movel" class="block text-sm font-medium text-gray-700 mb-2">
+                                        Telefone Móvel
+                                    </label>
+                                    <input type="tel" id="telefone_movel" name="telefone_movel" onkeyup="formatarTelefone(this)"
+                                           class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-green focus:border-transparent transition-colors"
+                                           placeholder="(85) 99999-9999">
+                                </div>
+                                
+                                <div>
+                                    <label for="email" class="block text-sm font-medium text-gray-700 mb-2">
+                                        E-mail
+                                    </label>
                                     <input type="email" id="email" name="email"
-                                           class="block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-primary-green focus:border-primary-green">
+                                           class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-green focus:border-transparent transition-colors"
+                                           placeholder="escola@maranguape.ce.gov.br">
                                 </div>
                                 
                                 <div>
-                                    <label for="municipio" class="block text-sm font-medium text-gray-700 mb-2">Município *</label>
-                                    <input type="text" id="municipio" name="municipio" required
-                                           class="block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-primary-green focus:border-primary-green">
+                                    <label for="site" class="block text-sm font-medium text-gray-700 mb-2">
+                                        Site
+                                    </label>
+                                    <input type="url" id="site" name="site"
+                                           class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-green focus:border-transparent transition-colors"
+                                           placeholder="https://www.escola.com.br">
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Seção: Dados do Gestor -->
+                        <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                            <h3 class="text-lg font-semibold text-gray-900 mb-4">Dados do Gestor</h3>
+                            
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div>
+                                    <label for="gestor_cpf" class="block text-sm font-medium text-gray-700 mb-2">
+                                        CPF do Gestor
+                                    </label>
+                                    <input type="text" id="gestor_cpf" name="gestor_cpf" maxlength="14" onkeyup="formatarCPF(this)"
+                                           class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-green focus:border-transparent transition-colors"
+                                           placeholder="845.558.662-15">
                                 </div>
                                 
                                 <div>
-                                    <label for="gestor_search" class="block text-sm font-medium text-gray-700 mb-2">Selecionar Gestor <span class="text-red-500">*</span></label>
-                                    <div class="relative">
-                                        <input type="text" id="gestor_search" placeholder="Digite o nome do gestor..." 
-                                               class="block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-primary-green focus:border-primary-green"
-                                               autocomplete="off">
-                                        <input type="hidden" id="gestor_id" name="gestor_id" required>
-                                        <div id="gestor_results" class="absolute z-10 w-full bg-white border border-gray-300 rounded-lg shadow-lg hidden max-h-60 overflow-y-auto"></div>
-                                    </div>
-                                    <div id="gestor_selected" class="mt-2 hidden">
-                                        <div class="flex items-center justify-between bg-green-50 border border-green-200 rounded-lg p-3">
-                                            <div>
-                                                <span class="text-sm font-medium text-green-800" id="gestor_nome_selecionado"></span>
-                                                <span class="text-xs text-green-600 block" id="gestor_email_selecionado"></span>
-                                            </div>
-                                            <button type="button" onclick="removerGestor()" class="text-green-600 hover:text-green-800">
-                                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-                                                </svg>
-                                            </button>
-                                        </div>
-                                    </div>
+                                    <label for="gestor_nome" class="block text-sm font-medium text-gray-700 mb-2">
+                                        Nome do Gestor
+                                    </label>
+                                    <input type="text" id="gestor_nome" name="gestor_nome"
+                                           class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-green focus:border-transparent transition-colors"
+                                           placeholder="JOSE LUIZ SOUZA">
+                                </div>
+                                
+                                <div>
+                                    <label for="gestor_email" class="block text-sm font-medium text-gray-700 mb-2">
+                                        E-mail do Gestor
+                                    </label>
+                                    <input type="email" id="gestor_email" name="gestor_email"
+                                           class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-green focus:border-transparent transition-colors"
+                                           placeholder="gestor@escola.com.br">
+                                </div>
+                                
+                                <div>
+                                    <label for="gestor_inep" class="block text-sm font-medium text-gray-700 mb-2">
+                                        INEP do Gestor
+                                    </label>
+                                    <input type="text" id="gestor_inep" name="gestor_inep"
+                                           class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-green focus:border-transparent transition-colors"
+                                           placeholder="Código INEP do gestor">
+                                </div>
+                                
+                                <div>
+                                    <label for="gestor_cargo" class="block text-sm font-medium text-gray-700 mb-2">
+                                        Cargo
+                                    </label>
+                                    <select id="gestor_cargo" name="gestor_cargo"
+                                            class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-green focus:border-transparent transition-colors">
+                                        <option value="OUTRO_CARGO">OUTRO CARGO</option>
+                                        <option value="DIRETOR">DIRETOR</option>
+                                        <option value="VICE_DIRETOR">VICE-DIRETOR</option>
+                                        <option value="COORDENADOR">COORDENADOR</option>
+                                    </select>
+                                </div>
+                                
+                                <div>
+                                    <label for="gestor_tipo_acesso" class="block text-sm font-medium text-gray-700 mb-2">
+                                        Tipo de Acesso
+                                    </label>
+                                    <select id="gestor_tipo_acesso" name="gestor_tipo_acesso"
+                                            class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-green focus:border-transparent transition-colors">
+                                        <option value="OUTROS">OUTROS</option>
+                                        <option value="CONCURSO">CONCURSO</option>
+                                        <option value="PROVIMENTO">PROVIMENTO</option>
+                                        <option value="NOMEACAO">NOMEAÇÃO</option>
+                                    </select>
+                                </div>
+                                
+                                <div class="md:col-span-2">
+                                    <label for="gestor_criterio_acesso" class="block text-sm font-medium text-gray-700 mb-2">
+                                        Critério de Acesso
+                                    </label>
+                                    <input type="text" id="gestor_criterio_acesso" name="gestor_criterio_acesso"
+                                           class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-green focus:border-transparent transition-colors"
+                                           placeholder="Descreva o critério de acesso ao cargo">
                                 </div>
                             </div>
                         </div>
@@ -2970,6 +3169,27 @@ if ($_SESSION['tipo'] === 'ADM') {
             input.value = valor;
         }
 
+        // Máscaras para os campos do gestor
+        function formatarCPF(input) {
+            let valor = input.value.replace(/\D/g, '');
+            valor = valor.replace(/(\d{3})(\d)/, '$1.$2');
+            valor = valor.replace(/(\d{3})(\d)/, '$1.$2');
+            valor = valor.replace(/(\d{3})(\d{1,2})$/, '$1-$2');
+            input.value = valor;
+        }
+
+        function formatarTelefone(input) {
+            let valor = input.value.replace(/\D/g, '');
+            if (valor.length <= 10) {
+                valor = valor.replace(/(\d{2})(\d)/, '($1) $2');
+                valor = valor.replace(/(\d{4})(\d)/, '$1-$2');
+            } else {
+                valor = valor.replace(/(\d{2})(\d)/, '($1) $2');
+                valor = valor.replace(/(\d{5})(\d)/, '$1-$2');
+            }
+            input.value = valor;
+        }
+
         async function buscarCEPCadastro(cep) {
             const cepInput = document.getElementById('cep');
             const resultadoCEP = document.getElementById('resultadoCEPCadastro');
@@ -2999,8 +3219,8 @@ if ($_SESSION['tipo'] === 'ADM') {
                     resultadoCEP.innerHTML = '<span class="text-red-600">CEP não encontrado</span>';
                 } else {
                     // Preencher campos automaticamente
-                    document.getElementById('endereco').value = data.logradouro || '';
-                    document.getElementById('municipio').value = data.localidade || '';
+                    document.getElementById('logradouro').value = data.logradouro || '';
+                    document.getElementById('bairro').value = data.bairro || '';
                     
                     resultadoCEP.innerHTML = `
                         <span class="text-green-600">

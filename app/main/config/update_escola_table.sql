@@ -1,0 +1,39 @@
+-- Script para atualizar a tabela escola com os campos do TrendEducar
+-- Execute este script para adicionar os novos campos necessários
+
+USE escola_merenda;
+
+-- Adicionar novos campos à tabela escola
+ALTER TABLE escola ADD COLUMN IF NOT EXISTS inep VARCHAR(20) UNIQUE;
+ALTER TABLE escola ADD COLUMN IF NOT EXISTS nome_curto VARCHAR(100);
+ALTER TABLE escola ADD COLUMN IF NOT EXISTS tipo_escola ENUM('NORMAL', 'ESPECIAL', 'INDIGENA', 'QUILOMBOLA') DEFAULT 'NORMAL';
+ALTER TABLE escola ADD COLUMN IF NOT EXISTS escola_administradora VARCHAR(150);
+ALTER TABLE escola ADD COLUMN IF NOT EXISTS cep VARCHAR(10);
+ALTER TABLE escola ADD COLUMN IF NOT EXISTS logradouro VARCHAR(200);
+ALTER TABLE escola ADD COLUMN IF NOT EXISTS numero VARCHAR(10);
+ALTER TABLE escola ADD COLUMN IF NOT EXISTS complemento VARCHAR(100);
+ALTER TABLE escola ADD COLUMN IF NOT EXISTS bairro VARCHAR(100);
+ALTER TABLE escola ADD COLUMN IF NOT EXISTS uf VARCHAR(2) DEFAULT 'PA';
+ALTER TABLE escola ADD COLUMN IF NOT EXISTS municipio VARCHAR(100) DEFAULT 'MARANGUAPE';
+ALTER TABLE escola ADD COLUMN IF NOT EXISTS zona ENUM('URBANA', 'RURAL') DEFAULT 'URBANA';
+ALTER TABLE escola ADD COLUMN IF NOT EXISTS distrito VARCHAR(100);
+ALTER TABLE escola ADD COLUMN IF NOT EXISTS orgao_ensino VARCHAR(100);
+ALTER TABLE escola ADD COLUMN IF NOT EXISTS telefone_fixo VARCHAR(20);
+ALTER TABLE escola ADD COLUMN IF NOT EXISTS telefone_movel VARCHAR(20);
+ALTER TABLE escola ADD COLUMN IF NOT EXISTS site VARCHAR(200);
+ALTER TABLE escola ADD COLUMN IF NOT EXISTS gestor_cpf VARCHAR(14);
+ALTER TABLE escola ADD COLUMN IF NOT EXISTS gestor_nome VARCHAR(100);
+ALTER TABLE escola ADD COLUMN IF NOT EXISTS gestor_email VARCHAR(100);
+ALTER TABLE escola ADD COLUMN IF NOT EXISTS gestor_inep VARCHAR(20);
+ALTER TABLE escola ADD COLUMN IF NOT EXISTS gestor_cargo ENUM('DIRETOR', 'VICE_DIRETOR', 'COORDENADOR', 'OUTRO_CARGO') DEFAULT 'OUTRO_CARGO';
+ALTER TABLE escola ADD COLUMN IF NOT EXISTS gestor_tipo_acesso ENUM('CONCURSO', 'PROVIMENTO', 'NOMEACAO', 'OUTROS') DEFAULT 'OUTROS';
+ALTER TABLE escola ADD COLUMN IF NOT EXISTS gestor_criterio_acesso VARCHAR(100);
+
+-- Atualizar campos existentes se necessário
+ALTER TABLE escola MODIFY COLUMN endereco VARCHAR(300);
+ALTER TABLE escola MODIFY COLUMN telefone VARCHAR(20);
+
+-- Adicionar índices para melhor performance
+CREATE INDEX IF NOT EXISTS idx_escola_inep ON escola(inep);
+CREATE INDEX IF NOT EXISTS idx_escola_municipio ON escola(municipio);
+CREATE INDEX IF NOT EXISTS idx_escola_tipo ON escola(tipo_escola);
