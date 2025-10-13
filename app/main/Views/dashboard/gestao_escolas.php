@@ -19,9 +19,10 @@ if (isset($_POST['btngestor'])) {
 //Lotar gestor no banco de dados
 
 if (isset($_POST['btn-adicionar-gestor'])) {
+    $tipo_gestor = $_POST['tipo_gestor'];
     $gestorid = $_POST['gestor_id'];
     $escolaid = $_POST['escola_id'];
-    lotarGestor($gestorid, $escolaid);
+    lotarGestor($gestorid, $escolaid,$tipo_gestor);
     
 } else {
     $gestorid = null;
@@ -31,14 +32,15 @@ if (isset($_POST['btn-adicionar-gestor'])) {
 
 
 //funções para lotar gestor no banco de dados
-function lotarGestor($gestorid, $escolaid) {
+function lotarGestor($gestorid, $escolaid,$tipo_gestor) {
     $db = Database::getInstance();
     $conn = $db->getConnection();
     
-    $sql = "INSERT INTO gestor_lotacao (`id`, `gestor_id`, `escola_id`, `inicio`, `fim`, `responsavel`) VALUES (NULL,:gestorid, :escolaid, CURRENT_TIMESTAMP, NULL, 1)";
+    $sql = "INSERT INTO gestor_lotacao (`id`, `gestor_id`, `escola_id`, `inicio`, `fim`, `responsavel`, `tipo`) VALUES (NULL,:gestorid, :escolaid, CURRENT_TIMESTAMP, NULL, 1,:tipo)";
     $stmt = $conn->prepare($sql);
     $stmt->bindParam(':gestorid', $gestorid);
     $stmt->bindParam(':escolaid', $escolaid);
+    $stmt->bindParam(':tipo', $tipo_gestor);
     $stmt->execute();
 }
 
@@ -1831,7 +1833,7 @@ if ($_SESSION['tipo'] === 'ADM') {
                                                 class="block w-full pl-4 pr-10 py-3 border border-gray-300 rounded-lg bg-white focus:ring-2 focus:ring-primary-green focus:border-primary-green transition-all duration-200 appearance-none cursor-pointer hover:border-gray-400"
                                                 onchange="validarSelecaoGestor()">
                                             <option value="">Selecione o tipo de gestor</option>
-                                            <option value="diretor" class="py-2">
+                                            <option value="Diretor" class="py-2">
                                                 <span class="flex items-center space-x-2">
                                                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z"></path>
@@ -1839,9 +1841,9 @@ if ($_SESSION['tipo'] === 'ADM') {
                                                     Diretor
                                                 </span>
                                             </option>
-                                            <option value="vice_diretor">Vice-Diretor</option>
-                                            <option value="coordenador">Coordenador Pedagógico</option>
-                                            <option value="secretario">Secretário Escolar</option>
+                                            <option value="Vice-diretor">Vice-Diretor</option>
+                                            <option value="Coordenador Pedagógico">Coordenador Pedagógico</option>
+                                            <option value="Secretário Escolar">Secretário Escolar</option>
                                         </select>
                                         <div class="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
                                             <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
