@@ -17,8 +17,8 @@ class sessions {
     }
     
     public function tempo_session() {
-        // Define tempo limite da sessão (30 minutos)
-        $tempo_limite = 30 * 60; // 30 minutos em segundos
+        // Define tempo limite da sessão (1 hora)
+        $tempo_limite = 60 * 60; // 1 hora em segundos
         
         if (isset($_SESSION['ultimo_acesso'])) {
             $tempo_inativo = time() - $_SESSION['ultimo_acesso'];
