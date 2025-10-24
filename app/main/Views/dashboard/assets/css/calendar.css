@@ -1,0 +1,463 @@
+/* Calendário customizado igual à imagem */
+
+/* Fonte Inter */
+.font-inter {
+    font-family: 'Inter', sans-serif;
+}
+
+/* Variáveis CSS para cores do sistema */
+:root {
+    --primary-green: #2D5A27;
+    --secondary-green: #4A7C59;
+    --accent-orange: #FF6B35;
+    --accent-red: #D62828;
+    --light-green: #A8D5BA;
+    --text-primary: #1f2937;
+    --text-secondary: #6b7280;
+    --bg-primary: #ffffff;
+    --bg-secondary: #f9fafb;
+    --border-color: #e5e7eb;
+}
+
+/* Tema escuro */
+[data-theme="dark"] {
+    --primary-green: #4A7C59;
+    --secondary-green: #6B8B6B;
+    --accent-orange: #FF8C5A;
+    --accent-red: #FF4444;
+    --light-green: #7FB87F;
+    --text-primary: #ffffff;
+    --text-secondary: #a0a0a0;
+    --bg-primary: #000000;
+    --bg-secondary: #111111;
+    --border-color: #333333;
+}
+
+/* FullCalendar customizações */
+.fc {
+    font-family: 'Inter', sans-serif;
+}
+
+/* Header do calendário */
+.fc-header-toolbar {
+    margin-bottom: 0;
+    padding: 1rem 0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: var(--bg-primary);
+    border-radius: 0.75rem 0.75rem 0 0;
+    padding: 1.5rem;
+}
+
+.fc-toolbar-title {
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+/* Botões de navegação */
+.fc-button {
+    background-color: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    color: var(--text-primary);
+    border-radius: 0.5rem;
+    padding: 0.5rem 1rem;
+    font-weight: 500;
+    font-size: 0.875rem;
+    transition: all 0.2s ease-in-out;
+}
+
+.fc-button:hover {
+    background-color: var(--light-green);
+    border-color: var(--secondary-green);
+    color: var(--text-primary);
+}
+
+.fc-button:focus {
+    outline: none;
+    box-shadow: 0 0 0 2px var(--primary-green);
+}
+
+.fc-button-primary:not(:disabled):active {
+    background-color: var(--secondary-green);
+    border-color: var(--primary-green);
+    color: white;
+}
+
+/* Botão "Today" */
+.fc-today-button {
+    background-color: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    color: var(--text-primary);
+    border-radius: 0.5rem;
+    padding: 0.5rem 1rem;
+    font-weight: 500;
+    font-size: 0.875rem;
+}
+
+.fc-today-button:hover {
+    background-color: var(--light-green);
+    border-color: var(--secondary-green);
+    color: var(--text-primary);
+}
+
+/* Botão "Visualização mensal" customizado */
+.fc-monthViewButton-button {
+    position: relative;
+    background-color: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    color: var(--text-primary);
+    border-radius: 0.5rem;
+    padding: 0.5rem 1.5rem 0.5rem 1rem;
+    font-weight: 500;
+    font-size: 0.875rem;
+    transition: all 0.2s ease-in-out;
+    margin-right: 0.5rem;
+}
+
+.fc-monthViewButton-button::after {
+    content: '';
+    position: absolute;
+    right: 0.75rem;
+    top: 50%;
+    transform: translateY(-50%) rotate(45deg);
+    width: 0.4rem;
+    height: 0.4rem;
+    border-bottom: 2px solid var(--text-secondary);
+    border-right: 2px solid var(--text-secondary);
+    pointer-events: none;
+}
+
+.fc-monthViewButton-button:hover {
+    background-color: var(--light-green);
+    border-color: var(--secondary-green);
+    color: var(--text-primary);
+}
+
+/* Botão "Adicionar evento" customizado */
+.fc-addEventButton-button {
+    background-color: var(--primary-green);
+    border: none;
+    color: white;
+    font-weight: 600;
+    border-radius: 0.5rem;
+    padding: 0.5rem 1rem;
+    font-size: 0.875rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    transition: all 0.2s ease-in-out;
+    box-shadow: 0 2px 4px rgba(45, 90, 39, 0.2);
+}
+
+.fc-addEventButton-button::before {
+    content: '+';
+    font-size: 1.25rem;
+    line-height: 1;
+}
+
+.fc-addEventButton-button:hover {
+    background-color: var(--secondary-green);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(45, 90, 39, 0.3);
+}
+
+/* Cabeçalho dos dias da semana */
+.fc-col-header-cell {
+    background-color: var(--bg-secondary);
+    border-color: var(--border-color);
+    padding: 0.75rem 0.5rem;
+    font-weight: 500;
+    font-size: 0.875rem;
+    color: var(--text-primary);
+}
+
+/* Células dos dias */
+.fc-daygrid-day {
+    border-color: var(--border-color);
+    background-color: var(--bg-primary);
+    transition: all 0.2s ease-in-out;
+}
+
+.fc-daygrid-day:hover {
+    background-color: var(--light-green);
+}
+
+/* Dia atual */
+.fc-daygrid-day.fc-day-today {
+    background-color: var(--light-green);
+}
+
+.fc-daygrid-day.fc-day-today .fc-daygrid-day-number {
+    background-color: var(--primary-green);
+    color: white;
+    border-radius: 50%;
+    width: 2rem;
+    height: 2rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 600;
+    box-shadow: 0 2px 4px rgba(45, 90, 39, 0.3);
+}
+
+/* Números dos dias */
+.fc-daygrid-day-number {
+    color: var(--text-primary);
+    font-weight: 500;
+    padding: 0.5rem;
+    transition: all 0.2s ease-in-out;
+}
+
+.fc-daygrid-day-number:hover {
+    color: var(--primary-green);
+}
+
+/* Eventos */
+.fc-daygrid-event {
+    border-radius: 0.5rem;
+    padding: 0.25rem 0.5rem;
+    font-size: 0.75rem;
+    font-weight: 500;
+    margin: 0.125rem 0;
+    border: none;
+    cursor: pointer;
+    transition: all 0.2s ease-in-out;
+}
+
+.fc-daygrid-event:hover {
+    opacity: 0.8;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.fc-event-title {
+    font-weight: 500;
+    font-size: 0.75rem;
+}
+
+.fc-event-time {
+    font-size: 0.75rem;
+    opacity: 0.8;
+}
+
+/* Células do calendário com bordas arredondadas */
+.fc-daygrid-day {
+    border-radius: 0.5rem;
+    overflow: hidden;
+    transition: background-color 0.2s ease-in-out;
+}
+
+.fc-daygrid-day:hover {
+    background-color: #f9fafb;
+}
+
+/* Container principal do calendário */
+.fc-view-harness {
+    border-radius: 0.75rem;
+    overflow: hidden;
+    border: 1px solid var(--border-color);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    background-color: var(--bg-primary);
+}
+
+/* Ajustes para o layout geral */
+.fc-daygrid-body {
+    border-bottom-left-radius: 0.75rem;
+    border-bottom-right-radius: 0.75rem;
+}
+
+.fc-scrollgrid-sync-table {
+    border-collapse: separate;
+    border-spacing: 0;
+}
+
+.fc-scrollgrid-sync-table th,
+.fc-scrollgrid-sync-table td {
+    border-right: 1px solid var(--border-color);
+    border-bottom: 1px solid var(--border-color);
+}
+
+.fc-scrollgrid-sync-table th:last-child,
+.fc-scrollgrid-sync-table td:last-child {
+    border-right: none;
+}
+
+.fc-scrollgrid-sync-table tr:last-child td {
+    border-bottom: none;
+}
+
+/* Cores dos eventos por tipo */
+/* Remover regras de cor específicas para permitir cores dinâmicas */
+.fc-event-meeting {
+    /* background-color: var(--primary-green); */
+    /* color: white; */
+}
+
+.fc-event-exam {
+    /* background-color: var(--accent-red); */
+    /* color: white; */
+}
+
+.fc-event-holiday {
+    /* background-color: var(--secondary-green); */
+    /* color: white; */
+}
+
+.fc-event-event {
+    /* background-color: var(--accent-orange); */
+    /* color: white; */
+}
+
+.fc-event-deadline {
+    /* background-color: var(--primary-green); */
+    /* color: white; */
+}
+
+.fc-event-personal {
+    /* background-color: var(--light-green); */
+    /* color: var(--text-primary); */
+}
+
+/* Link "more" */
+.fc-daygrid-more-link {
+    color: var(--text-secondary);
+    font-size: 0.75rem;
+    font-weight: 500;
+    transition: color 0.2s ease-in-out;
+}
+
+.fc-daygrid-more-link:hover {
+    color: var(--primary-green);
+}
+
+/* Popover de eventos */
+.fc-popover {
+    border: 1px solid #e5e7eb;
+    border-radius: 0.5rem;
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+}
+
+.fc-popover-header {
+    background-color: #f9fafb;
+    border-bottom: 1px solid #e5e7eb;
+    padding: 0.75rem 1rem;
+    font-weight: 600;
+    font-size: 0.875rem;
+    color: #374151;
+}
+
+.fc-popover-body {
+    padding: 0.75rem 1rem;
+}
+
+/* Responsividade */
+@media (max-width: 768px) {
+    .fc-header-toolbar {
+        flex-direction: column;
+        gap: 1rem;
+    }
+    
+    .fc-toolbar-chunk {
+        display: flex;
+        justify-content: center;
+    }
+    
+    .fc-button {
+        padding: 0.375rem 0.75rem;
+        font-size: 0.75rem;
+    }
+    
+    .fc-daygrid-event {
+        font-size: 0.625rem;
+        padding: 0.125rem 0.25rem;
+    }
+}
+
+/* Animações */
+.fc-daygrid-event {
+    transition: all 0.2s ease-in-out;
+}
+
+.fc-daygrid-day {
+    transition: background-color 0.2s ease-in-out;
+}
+
+/* Scrollbar customizada */
+.fc-scroller::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+
+.fc-scroller::-webkit-scrollbar-track {
+    background: #f1f5f9;
+    border-radius: 3px;
+}
+
+.fc-scroller::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 3px;
+}
+
+.fc-scroller::-webkit-scrollbar-thumb:hover {
+    background: #94a3b8;
+}
+
+/* Modal customizações */
+#event-modal {
+    backdrop-filter: blur(4px);
+}
+
+#event-modal .bg-white {
+    border-radius: 0.75rem;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+}
+
+/* Formulário do evento */
+#event-form input,
+#event-form textarea,
+#event-form select {
+    border: 1px solid #d1d5db;
+    border-radius: 0.5rem;
+    padding: 0.5rem 0.75rem;
+    font-size: 0.875rem;
+    transition: border-color 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+}
+
+#event-form input:focus,
+#event-form textarea:focus,
+#event-form select:focus {
+    outline: none;
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+/* Botões do formulário */
+#event-form button[type="submit"] {
+    background-color: #3b82f6;
+    color: white;
+    border: none;
+    border-radius: 0.5rem;
+    padding: 0.5rem 1rem;
+    font-weight: 500;
+    transition: background-color 0.2s ease-in-out;
+}
+
+#event-form button[type="submit"]:hover {
+    background-color: #2563eb;
+}
+
+#event-form button[type="button"] {
+    background-color: white;
+    color: #374151;
+    border: 1px solid #d1d5db;
+    border-radius: 0.5rem;
+    padding: 0.5rem 1rem;
+    font-weight: 500;
+    transition: background-color 0.2s ease-in-out;
+}
+
+#event-form button[type="button"]:hover {
+    background-color: #f9fafb;
+}

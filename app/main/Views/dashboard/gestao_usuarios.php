@@ -756,18 +756,6 @@ $usuarios = listarUsuarios($busca);
             background-color: var(--bg-tertiary) !important;
         }
 
-        /* Estilos específicos para o modal de logout no tema escuro */
-        [data-theme="dark"] #logoutModal .text-gray-900 {
-            color: #ffffff !important;
-        }
-
-        [data-theme="dark"] #logoutModal .text-gray-600 {
-            color: #e0e0e0 !important;
-        }
-
-        [data-theme="dark"] #logoutModal .bg-white {
-            background-color: var(--bg-secondary) !important;
-        }
 
         /* ===== MELHORIAS DE RESPONSIVIDADE ===== */
         
@@ -1143,15 +1131,6 @@ $usuarios = listarUsuarios($busca);
             </ul>
         </nav>
 
-        <!-- Logout -->
-        <div class="absolute bottom-0 left-0 right-0 p-4 border-t border-gray-200">
-            <button onclick="confirmLogout()" class="w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-red-600 hover:bg-red-50 hover:text-red-700 transition-all duration-200">
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path>
-                </svg>
-                <span>Sair</span>
-            </button>
-        </div>
     </aside>
 
     <div class="min-h-screen">
@@ -1843,27 +1822,7 @@ $usuarios = listarUsuarios($busca);
             }
         });
 
-        // ===== FUNÇÕES DE LOGOUT =====
-        
-        function confirmLogout() {
-            document.getElementById('logoutModal').classList.remove('hidden');
-        }
 
-        function closeLogoutModal() {
-            document.getElementById('logoutModal').classList.add('hidden');
-        }
-
-        function logout() {
-            // Redirecionar para logout
-            window.location.href = '../../Models/sessao/sessions.php?sair';
-        }
-
-        // Close logout modal when clicking outside
-        document.getElementById('logoutModal').addEventListener('click', function(e) {
-            if (e.target === this) {
-                closeLogoutModal();
-            }
-        });
 
         // Accessibility Functions
         function setContrast(contrast) {
@@ -2377,29 +2336,5 @@ $usuarios = listarUsuarios($busca);
         </div>
     </div>
 
-    <!-- Logout Confirmation Modal -->
-    <div id="logoutModal" class="fixed inset-0 bg-black bg-opacity-50 z-[60] hidden flex items-center justify-center p-4">
-        <div class="bg-white rounded-2xl p-6 max-w-md w-full mx-4 shadow-2xl">
-            <div class="flex items-center space-x-3 mb-4">
-                <div class="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center">
-                    <svg class="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z"></path>
-                    </svg>
-                </div>
-                <div>
-                    <h3 class="text-lg font-semibold text-gray-900">Confirmar Saída</h3>
-                    <p class="text-sm text-gray-600">Tem certeza que deseja sair do sistema?</p>
-                </div>
-            </div>
-            <div class="flex space-x-3">
-                <button onclick="closeLogoutModal()" class="flex-1 px-4 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg font-medium transition-colors duration-200">
-                    Cancelar
-                </button>
-                <button onclick="logout()" class="flex-1 px-4 py-2 text-white bg-red-600 hover:bg-red-700 rounded-lg font-medium transition-colors duration-200">
-                    Sim, Sair
-                </button>
-            </div>
-        </div>
-    </div>
 </body>
 </html>

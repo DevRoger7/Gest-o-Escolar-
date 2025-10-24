@@ -1961,6 +1961,14 @@ if (!defined('BASE_URL')) {
                         <span>Estoque Central</span>
                     </a>
                 </li>
+                <li id="calendar-menu">
+                    <a href="calendar.php" class="menu-item flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                        </svg>
+                        <span>Calendário</span>
+                    </a>
+                </li>
                 <?php } ?>
             </ul>
         </nav>
@@ -3322,14 +3330,16 @@ if (!defined('BASE_URL')) {
                     ['title' => 'Usuários', 'desc' => 'Gerenciar usuários do sistema', 'icon' => 'users', 'color' => 'blue', 'count' => '156'],
                     ['title' => 'Escolas', 'desc' => 'Administrar dados das escolas', 'icon' => 'building', 'color' => 'green', 'count' => '12'],
                     ['title' => 'Relatórios', 'desc' => 'Relatórios completos do sistema', 'icon' => 'chart', 'color' => 'purple', 'count' => '45'],
-                    ['title' => 'Estoque', 'desc' => 'Controle total do estoque', 'icon' => 'box', 'color' => 'orange', 'count' => '2.5k']
+                    ['title' => 'Estoque', 'desc' => 'Controle total do estoque', 'icon' => 'box', 'color' => 'orange', 'count' => '2.5k'],
+                    ['title' => 'Calendário', 'desc' => 'Eventos e atividades escolares', 'icon' => 'calendar', 'color' => 'indigo', 'count' => '25']
                 ];
                 
                 $icons = [
                     'users' => '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-2.239"></path>',
                     'building' => '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path>',
                     'chart' => '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>',
-                    'box' => '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path>'
+                    'box' => '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path>',
+                    'calendar' => '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>'
                 ];
                 
                 foreach ($adminCards as $card) {
@@ -3345,9 +3355,9 @@ if (!defined('BASE_URL')) {
                         </div>
                         <h3 class="text-lg font-bold text-gray-800 mb-2">'.$card['title'].'</h3>
                         <p class="text-gray-600 text-sm mb-4">'.$card['desc'].'</p>
-                        <button class="w-full bg-gradient-to-r from-'.$card['color'].'-500 to-'.$card['color'].'-600 text-white py-2 px-4 rounded-lg hover:from-'.$card['color'].'-600 hover:to-'.$card['color'].'-700 transition-all duration-200">
+                        <a href="'.($card['title'] === 'Calendário' ? 'calendar.php' : ($card['title'] === 'Usuários' ? 'gestao_usuarios.php' : ($card['title'] === 'Escolas' ? 'gestao_escolas.php' : ($card['title'] === 'Estoque' ? 'gestao_estoque_central.php' : '#')))).'" class="w-full bg-gradient-to-r from-'.$card['color'].'-500 to-'.$card['color'].'-600 text-white py-2 px-4 rounded-lg hover:from-'.$card['color'].'-600 hover:to-'.$card['color'].'-700 transition-all duration-200 text-center block">
                             Gerenciar
-                        </button>
+                        </a>
                     </div>';
                 }
                 
