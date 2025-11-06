@@ -68,62 +68,95 @@ Class ModelLogin {
         // Definir permissões baseadas no setor/tipo do usuário
         $tipo = $resultado['role'] ?? '';
         
+        // Tentar buscar permissões do banco de dados
+        try {
+            require_once("../../config/Database.php");
+            $db = Database::getInstance();
+            $conn = $db->getConnection();
+            
+            // Criar tabela se não existir
+            $sql = "CREATE TABLE IF NOT EXISTS `role_permissao` (
+                `id` bigint(20) NOT NULL AUTO_INCREMENT,
+                `role` enum('ADM','GESTAO','PROFESSOR','ALUNO','NUTRICIONISTA','ADM_MERENDA') NOT NULL,
+                `permissao` varchar(100) NOT NULL,
+                `ativo` tinyint(1) DEFAULT 1,
+                `criado_em` timestamp NOT NULL DEFAULT current_timestamp(),
+                `atualizado_em` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
+                PRIMARY KEY (`id`),
+                UNIQUE KEY `role_permissao_unique` (`role`, `permissao`)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci";
+            
+            $conn->exec($sql);
+            
+            // Buscar permissões do banco
+            $sql = "SELECT permissao FROM role_permissao WHERE role = :role AND ativo = 1";
+            $stmt = $conn->prepare($sql);
+            $stmt->bindParam(':role', $tipo);
+            $stmt->execute();
+            $permissoes = $stmt->fetchAll(PDO::FETCH_COLUMN);
+            
+            // Definir permissões na sessão
+            foreach ($permissoes as $permissao) {
+                $_SESSION[$permissao] = true;
+            }
+            
+            // Se não houver permissões no banco, usar permissões padrão
+            if (empty($permissoes)) {
+                $this->definirPermissoesPadrao($tipo);
+            }
+        } catch (PDOException $e) {
+            // Se houver erro, usar permissões padrão
+            error_log("Erro ao buscar permissões do banco: " . $e->getMessage());
+            $this->definirPermissoesPadrao($tipo);
+        }
+    }
+    
+    private function definirPermissoesPadrao($tipo) {
+        // Permissões padrão caso não existam no banco
         switch(strtolower($tipo)) {
             case 'adm':
-                // === ADMINISTRADOR GERAL ===
-                // Usuário com máximo nível de acesso - controla todo o sistema
-                $_SESSION['cadastrar_pessoas'] = true;              // Criar/editar usuários, alunos, professores
-                $_SESSION['gerenciar_escolas'] = true;              // Administrar dados das escolas
-                $_SESSION['gerenciar_professores'] = true;          // Controla a lotação de professores nas escolas
-                $_SESSION['relatorio_geral'] = true;                // Acesso total a todos os relatórios do sistema
-                $_SESSION['gerenciar_estoque_produtos'] = true;     // Controle total do estoque de produtos
-                $_SESSION['pedidos_nutricionista'] = true;          // Receber, aprovar e rejeitar o pedido dos nutricionistas
+                $_SESSION['cadastrar_pessoas'] = true;
+                $_SESSION['gerenciar_escolas'] = true;
+                $_SESSION['gerenciar_professores'] = true;
+                $_SESSION['relatorio_geral'] = true;
+                $_SESSION['gerenciar_estoque_produtos'] = true;
+                $_SESSION['pedidos_nutricionista'] = true;
+                $_SESSION['definir_permissoes'] = true;
                 break;
                 
             case 'gestao':
-                // === DIRETOR/COORDENADOR ===
-                // Gestão pedagógica e administrativa da escola
-                $_SESSION['criar_turma'] = true;                    // Criar as turmas de acordo com o ano letivo
-                $_SESSION['matricular_alunos'] = true;              // Realizar matrículas de estudantes com possibilidade de transição
-                $_SESSION['gerenciar_professores'] = true;          // Controla a lotação de professores nas escolas
-                $_SESSION['acessar_registros'] = true;              // Acessa todos os registros lançados pelos professores
-                $_SESSION['gerar_relatorios_pedagogicos'] = true;   // Relatórios de desempenho e frequência dos alunos
+                $_SESSION['criar_turma'] = true;
+                $_SESSION['matricular_alunos'] = true;
+                $_SESSION['gerenciar_professores'] = true;
+                $_SESSION['acessar_registros'] = true;
+                $_SESSION['gerar_relatorios_pedagogicos'] = true;
                 break;
                 
             case 'professor':
-                // === PROFESSOR ===
-                // Atividades pedagógicas e acompanhamento de alunos
-                $_SESSION['resgistrar_plano_aula'] = true;          // Criar e registrar planos de aula para as turmas
-                $_SESSION['cadastrar_avaliacao'] = true;            // Criar provas e atividades avaliativas
-                $_SESSION['lancar_frequencia'] = true;              // Registrar presença/ausência dos alunos diariamente
-                $_SESSION['lancar_nota'] = true;                    // Inserir notas e calcular médias
-                $_SESSION['justificar_faltas'] = true;              // Validar justificativas de ausências
+                $_SESSION['resgistrar_plano_aula'] = true;
+                $_SESSION['cadastrar_avaliacao'] = true;
+                $_SESSION['lancar_frequencia'] = true;
+                $_SESSION['lancar_nota'] = true;
+                $_SESSION['justificar_faltas'] = true;
                 break;
             
-            
             case 'nutricionista':
-                // === NUTRICIONISTA ===
-                // Planejamento nutricional e cardápios escolares
-                $_SESSION['adc_cardapio'] = true;                   // Criar e modificar cardápios de cada escola
-                $_SESSION['lista_insulmos'] = true;                 // Gerar lista de insulmos para suprir o mês
-                $_SESSION['env_pedidos'] = true;                    // Solicitar produtos e ingredientes ao adm
+                $_SESSION['adc_cardapio'] = true;
+                $_SESSION['lista_insulmos'] = true;
+                $_SESSION['env_pedidos'] = true;
                 break;
 
             case 'adm_merenda':
-                // === ADMINISTRADOR DE MERENDA ===
-                // Gestão do estoque e distribuição da alimentação escolar
-                $_SESSION['gerenciar_estoque_produtos'] = true;     // Controlar entrada/saída de produtos
-                $_SESSION['criar_pacotes/cestas'] = true;           // Montar kits de alimentação para as escolas
-                $_SESSION['pedidos_nutricionista'] = true;          // Receber solicitações do nutricionista, aprovando ou recusando com obsevação
-                $_SESSION['movimentacoes_estoque'] = true;          // Registrar movimentações de estoque
+                $_SESSION['gerenciar_estoque_produtos'] = true;
+                $_SESSION['criar_pacotes/cestas'] = true;
+                $_SESSION['pedidos_nutricionista'] = true;
+                $_SESSION['movimentacoes_estoque'] = true;
                 break;
                 
             case 'aluno':
-                // === ALUNO ===
-                // Acesso limitado apenas para consulta de informações pessoais
-                $_SESSION['notas'] = true;                          // Visualizar próprias notas e conceitos
-                $_SESSION['frequencia'] = true;                     // Consultar própria frequência
-                $_SESSION['comunicados'] = true;                    // Receber avisos e comunicados da escola
+                $_SESSION['notas'] = true;
+                $_SESSION['frequencia'] = true;
+                $_SESSION['comunicados'] = true;
                 break;
         }
     }
