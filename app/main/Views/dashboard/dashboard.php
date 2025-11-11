@@ -1,8 +1,13 @@
 <?php
 require_once('../../Models/sessao/sessions.php');
+require_once('../../Models/dashboard/DashboardStats.php');
+
 $session = new sessions();
 $session->autenticar_session();
 $session->tempo_session();
+
+// Inicializar classe de estatísticas
+$stats = new DashboardStats();
 
 if (!defined('BASE_URL')) {
     define('BASE_URL', 'http://localhost/GitHub/Gest-o-Escolar-');
@@ -2221,9 +2226,16 @@ if (!defined('BASE_URL')) {
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path>
                                     </svg>
                                 </div>
-                                <span class="text-xs bg-green-100 text-green-800 px-2 py-1 rounded-full">+12%</span>
+                                <?php 
+                                $crescimentoAlunos = $stats->getCrescimentoAlunos();
+                                if ($crescimentoAlunos > 0): ?>
+                                <span class="text-xs bg-green-100 text-green-800 px-2 py-1 rounded-full">+<?= $crescimentoAlunos ?>%</span>
+                                <?php endif; ?>
                             </div>
-                            <h3 class="text-xl md:text-2xl font-bold text-gray-800 mb-1">245</h3>
+                            <?php 
+                            $totalAlunos = $stats->getTotalAlunos();
+                            ?>
+                            <h3 class="text-xl md:text-2xl font-bold text-gray-800 mb-1"><?= $totalAlunos ?></h3>
                             <p class="text-gray-600 text-xs md:text-sm">Total de Alunos</p>
                             <p class="text-xs text-gray-500 mt-1 hidden md:block">vs. mês anterior</p>
                         </div>
@@ -2238,9 +2250,11 @@ if (!defined('BASE_URL')) {
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path>
                                     </svg>
                                 </div>
-                                <span class="text-xs bg-green-100 text-green-800 px-2 py-1 rounded-full">+8%</span>
                             </div>
-                            <h3 class="text-xl md:text-2xl font-bold text-gray-800 mb-1">12</h3>
+                            <?php 
+                            $totalTurmas = $stats->getTotalTurmas();
+                            ?>
+                            <h3 class="text-xl md:text-2xl font-bold text-gray-800 mb-1"><?= $totalTurmas ?></h3>
                             <p class="text-gray-600 text-xs md:text-sm">Turmas Ativas</p>
                             <p class="text-xs text-gray-500 mt-1 hidden md:block">vs. mês anterior</p>
                         </div>
@@ -2255,9 +2269,11 @@ if (!defined('BASE_URL')) {
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"></path>
                                     </svg>
                                 </div>
-                                <span class="text-xs bg-red-100 text-red-800 px-2 py-1 rounded-full">-3%</span>
                             </div>
-                            <h3 class="text-2xl font-bold text-gray-800 mb-1">94.2%</h3>
+                            <?php 
+                            $frequenciaMedia = $stats->getFrequenciaMedia();
+                            ?>
+                            <h3 class="text-2xl font-bold text-gray-800 mb-1"><?= $frequenciaMedia ?>%</h3>
                             <p class="text-gray-600 text-sm">Frequência Média</p>
                             <p class="text-xs text-gray-500 mt-1">vs. mês anterior</p>
                         </div>
@@ -2272,9 +2288,11 @@ if (!defined('BASE_URL')) {
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
                                     </svg>
                                 </div>
-                                <span class="text-xs bg-green-100 text-green-800 px-2 py-1 rounded-full">+15%</span>
                             </div>
-                            <h3 class="text-2xl font-bold text-gray-800 mb-1">7.8</h3>
+                            <?php 
+                            $mediaGeral = $stats->getMediaGeralNotas();
+                            ?>
+                            <h3 class="text-2xl font-bold text-gray-800 mb-1"><?= $mediaGeral ?></h3>
                             <p class="text-gray-600 text-sm">Média Geral</p>
                             <p class="text-xs text-gray-500 mt-1">vs. mês anterior</p>
                         </div>
@@ -2292,87 +2310,106 @@ if (!defined('BASE_URL')) {
                         <?php 
                         $userType = $_SESSION['tipo'] ?? '';
                         if (strtolower($userType) === 'aluno') { 
-                        ?>
-                            <!-- Atividades específicas para alunos -->
-                            <div class="flex items-start space-x-4 p-4 bg-gradient-to-r from-blue-50 to-blue-100 rounded-xl">
-                                <div class="p-2 bg-blue-500 rounded-lg">
-                                    <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
-                                    </svg>
-                                </div>
-                                <div class="flex-1">
-                                    <p class="text-sm font-medium text-gray-800">Nova nota lançada</p>
-                                    <p class="text-xs text-gray-600">Matemática - Nota: 8.5</p>
-                                    <p class="text-xs text-gray-500 mt-1">Há 2 horas</p>
-                                </div>
-                            </div>
-
-                            <div class="flex items-start space-x-4 p-4 bg-gradient-to-r from-green-50 to-green-100 rounded-xl">
-                                <div class="p-2 bg-green-500 rounded-lg">
-                                    <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
-                                    </svg>
-                                </div>
-                                <div class="flex-1">
-                                    <p class="text-sm font-medium text-gray-800">Presença registrada</p>
-                                    <p class="text-xs text-gray-600">Aula de Português - Presente</p>
-                                    <p class="text-xs text-gray-500 mt-1">Há 4 horas</p>
-                                </div>
-                            </div>
-
-                            <div class="flex items-start space-x-4 p-4 bg-gradient-to-r from-orange-50 to-orange-100 rounded-xl">
-                                <div class="p-2 bg-orange-500 rounded-lg">
-                                    <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.746 0 3.332.477 4.5 1.253v13C19.832 18.477 18.246 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path>
-                                    </svg>
-                                </div>
-                                <div class="flex-1">
-                                    <p class="text-sm font-medium text-gray-800">Nova atividade disponível</p>
-                                    <p class="text-xs text-gray-600">História - Trabalho sobre Independência</p>
-                                    <p class="text-xs text-gray-500 mt-1">Ontem</p>
-                                </div>
-                            </div>
-                        <?php } else { ?>
-                            <!-- Atividades para outros tipos de usuário -->
-                            <div class="flex items-start space-x-4 p-4 bg-gradient-to-r from-blue-50 to-blue-100 rounded-xl">
-                                <div class="p-2 bg-blue-500 rounded-lg">
-                                    <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z"></path>
-                                    </svg>
-                                </div>
-                                <div class="flex-1">
-                                    <p class="text-sm font-medium text-gray-800">Novo aluno matriculado</p>
-                                    <p class="text-xs text-gray-600">Maria Silva - 5º Ano A</p>
-                                    <p class="text-xs text-gray-500 mt-1">Há 2 horas</p>
-                                </div>
-                            </div>
-
-                            <div class="flex items-start space-x-4 p-4 bg-gradient-to-r from-green-50 to-green-100 rounded-xl">
-                                <div class="p-2 bg-green-500 rounded-lg">
-                                    <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"></path>
-                                    </svg>
-                                </div>
-                                <div class="flex-1">
-                                    <p class="text-sm font-medium text-gray-800">Frequência registrada</p>
-                                    <p class="text-xs text-gray-600">4º Ano B - 25 alunos presentes</p>
-                                    <p class="text-xs text-gray-500 mt-1">Há 4 horas</p>
-                                </div>
-                            </div>
-
-                            <div class="flex items-start space-x-4 p-4 bg-gradient-to-r from-orange-50 to-orange-100 rounded-xl">
-                                <div class="p-2 bg-orange-500 rounded-lg">
-                                    <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
-                                    </svg>
-                                </div>
-                                <div class="flex-1">
-                                    <p class="text-sm font-medium text-gray-800">Notas lançadas</p>
-                                    <p class="text-xs text-gray-600">Matemática - 3º Ano A</p>
-                                    <p class="text-xs text-gray-500 mt-1">Ontem</p>
-                                </div>
-                            </div>
-                        <?php } ?>
+                            // Buscar atividades do aluno do banco
+                            $alunoId = $_SESSION['aluno_id'] ?? null;
+                            if ($alunoId) {
+                                $atividadesAluno = $stats->getAtividadesAluno($alunoId, 3);
+                                
+                                if (empty($atividadesAluno)) {
+                                    echo '<div class="text-center py-8 text-gray-500">Nenhuma atividade recente</div>';
+                                } else {
+                                    foreach ($atividadesAluno as $atividade) {
+                                        $iconColors = [
+                                            'blue' => 'from-blue-50 to-blue-100',
+                                            'green' => 'from-green-50 to-green-100',
+                                            'orange' => 'from-orange-50 to-orange-100',
+                                            'purple' => 'from-purple-50 to-purple-100'
+                                        ];
+                                        $bgColors = [
+                                            'blue' => 'bg-blue-500',
+                                            'green' => 'bg-green-500',
+                                            'orange' => 'bg-orange-500',
+                                            'purple' => 'bg-purple-500'
+                                        ];
+                                        $color = $atividade['color'] ?? 'blue';
+                                        $gradient = $iconColors[$color] ?? $iconColors['blue'];
+                                        $bgColor = $bgColors[$color] ?? $bgColors['blue'];
+                                        ?>
+                                        <div class="flex items-start space-x-4 p-4 bg-gradient-to-r <?= $gradient ?> rounded-xl">
+                                            <div class="p-2 <?= $bgColor ?> rounded-lg">
+                                                <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                                                </svg>
+                                            </div>
+                                            <div class="flex-1">
+                                                <p class="text-sm font-medium text-gray-800"><?= htmlspecialchars($atividade['titulo']) ?></p>
+                                                <p class="text-xs text-gray-600"><?= htmlspecialchars($atividade['descricao']) ?></p>
+                                                <p class="text-xs text-gray-500 mt-1"><?= $atividade['tempo'] ?></p>
+                                            </div>
+                                        </div>
+                                        <?php
+                                    }
+                                }
+                            } else {
+                                echo '<div class="text-center py-8 text-gray-500">Nenhuma atividade recente</div>';
+                            }
+                        } else { 
+                            // Buscar atividades recentes do banco
+                            $atividadesRecentes = $stats->getAtividadesRecentes(3);
+                            
+                            if (empty($atividadesRecentes)) {
+                                // Se não houver atividades, mostrar mensagem
+                                echo '<div class="text-center py-8 text-gray-500">Nenhuma atividade recente</div>';
+                            } else {
+                                foreach ($atividadesRecentes as $atividade) {
+                                    $iconColors = [
+                                        'blue' => 'from-blue-50 to-blue-100',
+                                        'green' => 'from-green-50 to-green-100',
+                                        'orange' => 'from-orange-50 to-orange-100',
+                                        'purple' => 'from-purple-50 to-purple-100'
+                                    ];
+                                    $bgColors = [
+                                        'blue' => 'bg-blue-500',
+                                        'green' => 'bg-green-500',
+                                        'orange' => 'bg-orange-500',
+                                        'purple' => 'bg-purple-500'
+                                    ];
+                                    $color = $atividade['color'] ?? 'blue';
+                                    $gradient = $iconColors[$color] ?? $iconColors['blue'];
+                                    $bgColor = $bgColors[$color] ?? $bgColors['blue'];
+                                    
+                                    // Calcular tempo relativo
+                                    $dataAtividade = new DateTime($atividade['data']);
+                                    $agora = new DateTime();
+                                    $diff = $agora->diff($dataAtividade);
+                                    
+                                    $tempoRelativo = '';
+                                    if ($diff->days > 0) {
+                                        $tempoRelativo = $diff->days == 1 ? 'Ontem' : 'Há ' . $diff->days . ' dias';
+                                    } elseif ($diff->h > 0) {
+                                        $tempoRelativo = 'Há ' . $diff->h . ' hora' . ($diff->h > 1 ? 's' : '');
+                                    } elseif ($diff->i > 0) {
+                                        $tempoRelativo = 'Há ' . $diff->i . ' minuto' . ($diff->i > 1 ? 's' : '');
+                                    } else {
+                                        $tempoRelativo = 'Agora mesmo';
+                                    }
+                                    ?>
+                                    <div class="flex items-start space-x-4 p-4 bg-gradient-to-r <?= $gradient ?> rounded-xl">
+                                        <div class="p-2 <?= $bgColor ?> rounded-lg">
+                                            <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z"></path>
+                                            </svg>
+                                        </div>
+                                        <div class="flex-1">
+                                            <p class="text-sm font-medium text-gray-800"><?= htmlspecialchars($atividade['titulo']) ?></p>
+                                            <p class="text-xs text-gray-600"><?= htmlspecialchars($atividade['descricao']) ?></p>
+                                            <p class="text-xs text-gray-500 mt-1"><?= $tempoRelativo ?></p>
+                                        </div>
+                                    </div>
+                                    <?php
+                                }
+                            }
+                        } ?>
                         </div>
                 </div>
 
@@ -2402,7 +2439,17 @@ if (!defined('BASE_URL')) {
                                     </div>
                                     <div class="text-right">
                                         <div class="text-xs opacity-80">Média</div>
-                                        <div class="text-sm font-bold">8.2</div>
+                                        <div class="text-sm font-bold">
+                                            <?php 
+                                            $alunoId = $_SESSION['aluno_id'] ?? null;
+                                            if ($alunoId) {
+                                                $mediaAluno = $stats->getMediaAluno($alunoId);
+                                                echo $mediaAluno > 0 ? $mediaAluno : '-';
+                                            } else {
+                                                echo '-';
+                                            }
+                                            ?>
+                                        </div>
                                     </div>
                                 </div>
                                 <svg class="w-4 h-4 ml-2 opacity-70 group-hover:opacity-100 transition-opacity" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -2423,7 +2470,17 @@ if (!defined('BASE_URL')) {
                                     </div>
                                     <div class="text-right">
                                         <div class="text-xs opacity-80">Frequência</div>
-                                        <div class="text-sm font-bold">95%</div>
+                                        <div class="text-sm font-bold">
+                                            <?php 
+                                            $alunoId = $_SESSION['aluno_id'] ?? null;
+                                            if ($alunoId) {
+                                                $freqAluno = $stats->getFrequenciaAluno($alunoId);
+                                                echo $freqAluno > 0 ? $freqAluno . '%' : '-';
+                                            } else {
+                                                echo '-';
+                                            }
+                                            ?>
+                                        </div>
                                     </div>
                                 </div>
                                 <svg class="w-4 h-4 ml-2 opacity-70 group-hover:opacity-100 transition-opacity" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -2446,7 +2503,7 @@ if (!defined('BASE_URL')) {
                                     </div>
                                     <div class="text-right">
                                         <div class="text-xs opacity-80">Total</div>
-                                        <div class="text-sm font-bold">245</div>
+                                        <div class="text-sm font-bold"><?= $stats->getTotalAlunos() ?></div>
                                     </div>
                                 </div>
                                 <svg class="w-4 h-4 ml-2 opacity-70 group-hover:opacity-100 transition-opacity" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -2469,7 +2526,7 @@ if (!defined('BASE_URL')) {
                                     </div>
                                     <div class="text-right">
                                         <div class="text-xs opacity-80">Hoje</div>
-                                        <div class="text-sm font-bold">12</div>
+                                        <div class="text-sm font-bold"><?= $stats->getFrequenciasHoje() ?></div>
                                     </div>
                                 </div>
                                 <svg class="w-4 h-4 ml-2 opacity-70 group-hover:opacity-100 transition-opacity" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -2492,7 +2549,7 @@ if (!defined('BASE_URL')) {
                                     </div>
                                     <div class="text-right">
                                         <div class="text-xs opacity-80">Pendentes</div>
-                                        <div class="text-sm font-bold">8</div>
+                                        <div class="text-sm font-bold"><?= $stats->getNotasPendentes() ?></div>
                                     </div>
                                 </div>
                                 <svg class="w-4 h-4 ml-2 opacity-70 group-hover:opacity-100 transition-opacity" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -2515,7 +2572,7 @@ if (!defined('BASE_URL')) {
                                     </div>
                                     <div class="text-right">
                                         <div class="text-xs opacity-80">Disponíveis</div>
-                                        <div class="text-sm font-bold">15</div>
+                                        <div class="text-sm font-bold"><?= $stats->getTotalRelatoriosDisponiveis() ?></div>
                                     </div>
                                 </div>
                                 <svg class="w-4 h-4 ml-2 opacity-70 group-hover:opacity-100 transition-opacity" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -2703,18 +2760,18 @@ if (!defined('BASE_URL')) {
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path>
                                     </svg>
                                 </div>
-                                <span class="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded-full">156 itens</span>
+                                <span class="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded-full">' . $stats->getTotalItensInsumos() . ' itens</span>
                             </div>
                             <h3 class="text-xl font-bold text-gray-800 mb-2">Insumos</h3>
                             <p class="text-gray-600 text-sm mb-4">Consultar insumos disponíveis</p>
                             <div class="space-y-2 mb-4">
                                 <div class="flex justify-between items-center">
                                     <span class="text-sm text-gray-600">Arroz</span>
-                                    <span class="text-sm font-semibold text-green-600">50kg</span>
+                                    <span class="text-sm font-semibold text-green-600">' . $stats->getQuantidadeProduto("Arroz") . 'kg</span>
                                 </div>
                                 <div class="flex justify-between items-center">
                                     <span class="text-sm text-gray-600">Feijão</span>
-                                    <span class="text-sm font-semibold text-orange-600">15kg</span>
+                                    <span class="text-sm font-semibold text-orange-600">' . $stats->getQuantidadeProduto("Feijão") . 'kg</span>
                                 </div>
                             </div>
                             <button class="w-full bg-gradient-to-r from-blue-500 to-blue-600 text-white py-2 px-4 rounded-lg hover:from-blue-600 hover:to-blue-700 transition-all duration-200">
@@ -2793,14 +2850,14 @@ if (!defined('BASE_URL')) {
                                 <div class="w-2 h-2 bg-green-500 rounded-full"></div>
                                 <span class="text-sm text-gray-700">Esta semana</span>
                             </div>
-                            <span class="text-sm font-semibold text-gray-900">5 cardápios</span>
+                            <span class="text-sm font-semibold text-gray-900"><?= $stats->getCardapiosEstaSemana() ?> cardápios</span>
                         </div>
                         <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                             <div class="flex items-center space-x-2">
                                 <div class="w-2 h-2 bg-orange-500 rounded-full"></div>
                                 <span class="text-sm text-gray-700">Pendentes</span>
                             </div>
-                            <span class="text-sm font-semibold text-gray-900">2 revisões</span>
+                            <span class="text-sm font-semibold text-gray-900"><?= $stats->getRevisoesCardapioPendentes() ?> revisões</span>
                         </div>
                     </div>
                     
@@ -2825,7 +2882,7 @@ if (!defined('BASE_URL')) {
                             </div>
                         </div>
                         <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-indigo-100 text-indigo-800">
-                            245 itens
+                            <?= $stats->getTotalItensEstoque() ?> itens
                         </span>
                     </div>
                     
@@ -2835,14 +2892,14 @@ if (!defined('BASE_URL')) {
                                 <div class="w-2 h-2 bg-green-500 rounded-full"></div>
                                 <span class="text-sm text-gray-700">Entradas hoje</span>
                             </div>
-                            <span class="text-sm font-semibold text-gray-900">12 produtos</span>
+                            <span class="text-sm font-semibold text-gray-900"><?= $stats->getProdutosEntradaHoje() ?> produtos</span>
                         </div>
                         <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                             <div class="flex items-center space-x-2">
                                 <div class="w-2 h-2 bg-red-500 rounded-full"></div>
                                 <span class="text-sm text-gray-700">Baixo estoque</span>
                             </div>
-                            <span class="text-sm font-semibold text-gray-900">8 itens</span>
+                            <span class="text-sm font-semibold text-gray-900"><?= $stats->getItensEstoqueBaixo() ?> itens</span>
                         </div>
                     </div>
                     
@@ -2867,7 +2924,7 @@ if (!defined('BASE_URL')) {
                             </div>
                         </div>
                         <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                            485 alunos
+                            <?= $stats->getTotalAlunosBeneficiados() ?> alunos
                         </span>
                     </div>
                     
@@ -2919,14 +2976,14 @@ if (!defined('BASE_URL')) {
                                 <div class="w-2 h-2 bg-red-500 rounded-full"></div>
                                 <span class="text-sm text-gray-700">Hoje</span>
                             </div>
-                            <span class="text-sm font-semibold text-gray-900">15.5kg</span>
+                            <span class="text-sm font-semibold text-gray-900"><?= $stats->getPesoDistribuidoHoje() ?>kg</span>
                         </div>
                         <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                             <div class="flex items-center space-x-2">
                                 <div class="w-2 h-2 bg-orange-500 rounded-full"></div>
                                 <span class="text-sm text-gray-700">Esta semana</span>
                             </div>
-                            <span class="text-sm font-semibold text-gray-900">89.2kg</span>
+                            <span class="text-sm font-semibold text-gray-900"><?= $stats->getPesoDistribuidoEstaSemana() ?>kg</span>
                         </div>
                     </div>
                     
@@ -2951,7 +3008,7 @@ if (!defined('BASE_URL')) {
                             </div>
                         </div>
                         <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
-                            12 ativos
+                            <?= $stats->getFornecedoresAtivos() ?> ativos
                         </span>
                     </div>
                     
@@ -2961,14 +3018,14 @@ if (!defined('BASE_URL')) {
                                 <div class="w-2 h-2 bg-blue-500 rounded-full"></div>
                                 <span class="text-sm text-gray-700">Pedidos pendentes</span>
                             </div>
-                            <span class="text-sm font-semibold text-gray-900">5 pedidos</span>
+                            <span class="text-sm font-semibold text-gray-900"><?= $stats->getPedidosPendentes() ?> pedidos</span>
                         </div>
                         <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                             <div class="flex items-center space-x-2">
                                 <div class="w-2 h-2 bg-green-500 rounded-full"></div>
                                 <span class="text-sm text-gray-700">Entregas hoje</span>
                             </div>
-                            <span class="text-sm font-semibold text-gray-900">2 entregas</span>
+                            <span class="text-sm font-semibold text-gray-900"><?= $stats->getEntregasHoje() ?> entregas</span>
                         </div>
                     </div>
                     
@@ -3003,14 +3060,14 @@ if (!defined('BASE_URL')) {
                                 <div class="w-2 h-2 bg-blue-500 rounded-full"></div>
                                 <span class="text-sm text-gray-700">Matutino</span>
                             </div>
-                            <span class="text-sm font-semibold text-gray-900">245 alunos</span>
+                            <span class="text-sm font-semibold text-gray-900">' . $stats->getAlunosPorTurno("Matutino") . ' alunos</span>
                         </div>
                         <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                             <div class="flex items-center space-x-2">
                                 <div class="w-2 h-2 bg-orange-500 rounded-full"></div>
                                 <span class="text-sm text-gray-700">Vespertino</span>
                             </div>
-                            <span class="text-sm font-semibold text-gray-900">240 alunos</span>
+                            <span class="text-sm font-semibold text-gray-900">' . $stats->getAlunosPorTurno("Vespertino") . ' alunos</span>
                         </div>
                     </div>
                     
@@ -3087,14 +3144,14 @@ if (!defined('BASE_URL')) {
                                 <div class="w-2 h-2 bg-blue-500 rounded-full"></div>
                                 <span class="text-sm text-gray-700">Mensais</span>
                             </div>
-                            <span class="text-sm font-semibold text-gray-900">12 relatórios</span>
+                            <span class="text-sm font-semibold text-gray-900">' . $stats->getRelatoriosPorTipo("mensal") . ' relatórios</span>
                         </div>
                         <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                             <div class="flex items-center space-x-2">
                                 <div class="w-2 h-2 bg-green-500 rounded-full"></div>
                                 <span class="text-sm text-gray-700">Trimestrais</span>
                             </div>
-                            <span class="text-sm font-semibold text-gray-900">4 relatórios</span>
+                            <span class="text-sm font-semibold text-gray-900">' . $stats->getRelatoriosPorTipo("trimestral") . ' relatórios</span>
                         </div>
                     </div>
                     
@@ -3143,14 +3200,14 @@ if (!defined('BASE_URL')) {
                                         <div class="w-2 h-2 bg-green-500 rounded-full"></div>
                                         <span class="text-sm text-gray-700">1º Ano A</span>
                             </div>
-                                    <span class="text-sm font-semibold text-gray-900">25 alunos</span>
+                                    <span class="text-sm font-semibold text-gray-900">' . $stats->getAlunosPorTurma("1º Ano A") . ' alunos</span>
                                 </div>
                                 <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                                     <div class="flex items-center space-x-2">
                                         <div class="w-2 h-2 bg-blue-500 rounded-full"></div>
                                         <span class="text-sm text-gray-700">2º Ano B</span>
                                     </div>
-                                    <span class="text-sm font-semibold text-gray-900">28 alunos</span>
+                                    <span class="text-sm font-semibold text-gray-900">' . $stats->getAlunosPorTurma("2º Ano B") . ' alunos</span>
                                 </div>
                             </div>
                             
@@ -3177,7 +3234,7 @@ if (!defined('BASE_URL')) {
                             </div>
                                 </div>
                                 <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-orange-100 text-orange-800">
-                                    15 pendentes
+                                    ' . $stats->getMatriculasPendentes() . ' pendentes
                                 </span>
                                 </div>
                             
@@ -3187,14 +3244,14 @@ if (!defined('BASE_URL')) {
                                         <div class="w-2 h-2 bg-blue-500 rounded-full"></div>
                                         <span class="text-sm text-gray-700">Novos cadastros</span>
                             </div>
-                                    <span class="text-sm font-semibold text-gray-900">5 hoje</span>
+                                    <span class="text-sm font-semibold text-gray-900">' . $stats->getNovosCadastrosHoje() . ' hoje</span>
                                 </div>
                                 <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                                     <div class="flex items-center space-x-2">
                                         <div class="w-2 h-2 bg-orange-500 rounded-full"></div>
                                         <span class="text-sm text-gray-700">Aguardando</span>
                                     </div>
-                                    <span class="text-sm font-semibold text-gray-900">15 aprovações</span>
+                                    <span class="text-sm font-semibold text-gray-900">' . $stats->getAprovacoesPendentes() . ' aprovações</span>
                                 </div>
                             </div>
                             
@@ -3273,14 +3330,14 @@ if (!defined('BASE_URL')) {
                                     <div class="w-2 h-2 bg-green-500 rounded-full"></div>
                                     <span class="text-sm text-gray-700">Presentes hoje</span>
                                 </div>
-                                <span class="text-sm font-semibold text-gray-900">485 alunos</span>
+                                <span class="text-sm font-semibold text-gray-900">' . $stats->getAlunosPresentesHoje() . ' alunos</span>
                             </div>
                             <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                                 <div class="flex items-center space-x-2">
                                     <div class="w-2 h-2 bg-red-500 rounded-full"></div>
                                     <span class="text-sm text-gray-700">Faltosos</span>
                                 </div>
-                                <span class="text-sm font-semibold text-gray-900">29 alunos</span>
+                                <span class="text-sm font-semibold text-gray-900">' . $stats->getAlunosFaltososHoje() . ' alunos</span>
                             </div>
                         </div>
                         
@@ -3290,6 +3347,8 @@ if (!defined('BASE_URL')) {
                     </div>';
                     
                     // Card de Notas e Boletins
+                    $notasHoje = $stats->getNotasHoje();
+                    $totalNotas = $stats->getTotalNotas();
                     echo '
                     <div class="group bg-white rounded-xl border border-gray-200 p-5 hover:shadow-lg transition-all duration-300 cursor-pointer">
                         <div class="flex items-start justify-between mb-4">
@@ -3315,14 +3374,14 @@ if (!defined('BASE_URL')) {
                                     <div class="w-2 h-2 bg-blue-500 rounded-full"></div>
                                     <span class="text-sm text-gray-700">Registros hoje</span>
                                 </div>
-                                <span class="text-sm font-semibold text-gray-900">47</span>
+                                <span class="text-sm font-semibold text-gray-900">' . $notasHoje . '</span>
                             </div>
                             <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                                 <div class="flex items-center space-x-2">
                                     <div class="w-2 h-2 bg-green-500 rounded-full"></div>
-                                    <span class="text-sm text-gray-700">Boletins</span>
+                                    <span class="text-sm text-gray-700">Total de notas</span>
                                 </div>
-                                <span class="text-sm font-semibold text-gray-900">485</span>
+                                <span class="text-sm font-semibold text-gray-900">' . $totalNotas . '</span>
                             </div>
                         </div>
                         
@@ -3332,6 +3391,9 @@ if (!defined('BASE_URL')) {
                     </div>';
                     
                     // Card de Professores e Funcionários
+                    $totalProfessores = $stats->getTotalProfessores();
+                    $totalFuncionarios = $stats->getTotalFuncionarios();
+                    $totalEquipe = $totalProfessores + $totalFuncionarios;
                     echo '
                     <div class="group bg-white rounded-xl border border-gray-200 p-5 hover:shadow-lg transition-all duration-300 cursor-pointer">
                         <div class="flex items-start justify-between mb-4">
@@ -3347,7 +3409,7 @@ if (!defined('BASE_URL')) {
                                 </div>
                             </div>
                             <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-teal-100 text-teal-800">
-                                28 ativos
+                                ' . $totalEquipe . ' ativos
                             </span>
                         </div>
                         
@@ -3357,14 +3419,14 @@ if (!defined('BASE_URL')) {
                                     <div class="w-2 h-2 bg-blue-500 rounded-full"></div>
                                     <span class="text-sm text-gray-700">Professores</span>
                                 </div>
-                                <span class="text-sm font-semibold text-gray-900">18</span>
+                                <span class="text-sm font-semibold text-gray-900">' . $totalProfessores . '</span>
                             </div>
                             <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                                 <div class="flex items-center space-x-2">
                                     <div class="w-2 h-2 bg-green-500 rounded-full"></div>
                                     <span class="text-sm text-gray-700">Funcionários</span>
                                 </div>
-                                <span class="text-sm font-semibold text-gray-900">10</span>
+                                <span class="text-sm font-semibold text-gray-900">' . $totalFuncionarios . '</span>
                             </div>
                         </div>
                         
@@ -3374,6 +3436,8 @@ if (!defined('BASE_URL')) {
                     </div>';
                     
                     // Card de Comunicação
+                    $totalComunicados = $stats->getTotalComunicados();
+                    $comunicadosHoje = $stats->getComunicadosHoje();
                     echo '
                     <div class="group bg-white rounded-xl border border-gray-200 p-5 hover:shadow-lg transition-all duration-300 cursor-pointer">
                         <div class="flex items-start justify-between mb-4">
@@ -3389,7 +3453,7 @@ if (!defined('BASE_URL')) {
                                 </div>
                             </div>
                             <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-pink-100 text-pink-800">
-                                5 pendentes
+                                ' . $comunicadosHoje . ' hoje
                             </span>
                         </div>
                         
@@ -3399,14 +3463,14 @@ if (!defined('BASE_URL')) {
                                     <div class="w-2 h-2 bg-blue-500 rounded-full"></div>
                                     <span class="text-sm text-gray-700">Mensagens hoje</span>
                                 </div>
-                                <span class="text-sm font-semibold text-gray-900">12</span>
+                                <span class="text-sm font-semibold text-gray-900">' . $comunicadosHoje . '</span>
                             </div>
                             <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                                 <div class="flex items-center space-x-2">
                                     <div class="w-2 h-2 bg-green-500 rounded-full"></div>
-                                    <span class="text-sm text-gray-700">Enviadas</span>
+                                    <span class="text-sm text-gray-700">Total</span>
                                 </div>
-                                <span class="text-sm font-semibold text-gray-900">8</span>
+                                <span class="text-sm font-semibold text-gray-900">' . $totalComunicados . '</span>
                             </div>
                         </div>
                         
@@ -3416,6 +3480,8 @@ if (!defined('BASE_URL')) {
                     </div>';
                     
                     // Card de Validação de Informações
+                    $pedidosPendentes = $stats->getPedidosPendentes();
+                    $totalPedidosCesta = $stats->getTotalPedidosCesta();
                     echo '
                     <div class="group bg-white rounded-xl border border-gray-200 p-5 hover:shadow-lg transition-all duration-300 cursor-pointer">
                         <div class="flex items-start justify-between mb-4">
@@ -3431,7 +3497,7 @@ if (!defined('BASE_URL')) {
                                 </div>
                             </div>
                             <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800">
-                                3 pendentes
+                                ' . $pedidosPendentes . ' pendentes
                             </span>
                         </div>
                         
@@ -3441,14 +3507,14 @@ if (!defined('BASE_URL')) {
                                     <div class="w-2 h-2 bg-orange-500 rounded-full"></div>
                                     <span class="text-sm text-gray-700">Aguardando</span>
                                 </div>
-                                <span class="text-sm font-semibold text-gray-900">3</span>
+                                <span class="text-sm font-semibold text-gray-900">' . $pedidosPendentes . '</span>
                             </div>
                             <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                                 <div class="flex items-center space-x-2">
                                     <div class="w-2 h-2 bg-green-500 rounded-full"></div>
-                                    <span class="text-sm text-gray-700">Aprovadas hoje</span>
+                                    <span class="text-sm text-gray-700">Total de pedidos</span>
                                 </div>
-                                <span class="text-sm font-semibold text-gray-900">7</span>
+                                <span class="text-sm font-semibold text-gray-900">' . $totalPedidosCesta . '</span>
                             </div>
                         </div>
                         
@@ -3463,6 +3529,8 @@ if (!defined('BASE_URL')) {
 
             // === INTERFACE DO ADMINISTRADOR ===
             function renderAdministradorInterface() {
+                global $stats;
+                
                 echo '<section id="user-interface" class="content-section mt-8">';
                 echo '<div class="mb-6">';
                 echo '<h2 class="text-2xl font-bold text-gray-800 mb-2">Painel Administrativo</h2>';
@@ -3470,13 +3538,20 @@ if (!defined('BASE_URL')) {
                 echo '</div>';
                     echo '<div class="card-grid">';
                 
+                // Buscar dados reais do banco
+                $totalUsuarios = $stats->getTotalUsuarios();
+                $totalEscolas = $stats->getTotalEscolas();
+                $totalProdutos = $stats->getTotalProdutosEstoque();
+                $totalEventos = $stats->getTotalEventosCalendario();
+                
                 // Cards principais do administrador
+                $totalRelatorios = $stats->getTotalRelatoriosDisponiveis();
                 $adminCards = [
-                    ['title' => 'Usuários', 'desc' => 'Gerenciar usuários do sistema', 'icon' => 'users', 'color' => 'blue', 'count' => '156'],
-                    ['title' => 'Escolas', 'desc' => 'Administrar dados das escolas', 'icon' => 'building', 'color' => 'green', 'count' => '12'],
-                    ['title' => 'Relatórios', 'desc' => 'Relatórios completos do sistema', 'icon' => 'chart', 'color' => 'purple', 'count' => '45'],
-                    ['title' => 'Estoque', 'desc' => 'Controle total do estoque', 'icon' => 'box', 'color' => 'orange', 'count' => '2.5k'],
-                    ['title' => 'Calendário', 'desc' => 'Eventos e atividades escolares', 'icon' => 'calendar', 'color' => 'indigo', 'count' => '25']
+                    ['title' => 'Usuários', 'desc' => 'Gerenciar usuários do sistema', 'icon' => 'users', 'color' => 'blue', 'count' => $totalUsuarios],
+                    ['title' => 'Escolas', 'desc' => 'Administrar dados das escolas', 'icon' => 'building', 'color' => 'green', 'count' => $totalEscolas],
+                    ['title' => 'Relatórios', 'desc' => 'Relatórios completos do sistema', 'icon' => 'chart', 'color' => 'purple', 'count' => $totalRelatorios],
+                    ['title' => 'Estoque', 'desc' => 'Controle total do estoque', 'icon' => 'box', 'color' => 'orange', 'count' => $totalProdutos > 1000 ? $stats->formatarNumero($totalProdutos) : $totalProdutos],
+                    ['title' => 'Calendário', 'desc' => 'Eventos e atividades escolares', 'icon' => 'calendar', 'color' => 'indigo', 'count' => $totalEventos]
                 ];
                 
                 $icons = [
@@ -5946,7 +6021,7 @@ if (!defined('BASE_URL')) {
                                             <div class="bg-white rounded-lg border border-gray-200 p-4">
                                                 <div class="flex items-center justify-between mb-4">
                                                     <h4 class="text-lg font-semibold text-gray-900">1º Ano A</h4>
-                                                    <span class="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-full">25 alunos</span>
+                                                    <span class="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-full"><?= $stats->getAlunosPorTurma('1º Ano A') ?> alunos</span>
                                                 </div>
                                                 <div class="space-y-4">
                                                     <div class="flex items-center space-x-3">
@@ -5991,7 +6066,7 @@ if (!defined('BASE_URL')) {
                                             <div class="bg-white rounded-lg border border-gray-200 p-4">
                                                 <div class="flex items-center justify-between mb-4">
                                                     <h4 class="text-lg font-semibold text-gray-900">2º Ano A</h4>
-                                                    <span class="bg-green-100 text-green-800 text-xs px-2 py-1 rounded-full">28 alunos</span>
+                                                    <span class="bg-green-100 text-green-800 text-xs px-2 py-1 rounded-full"><?= $stats->getAlunosPorTurma('2º Ano A') ?> alunos</span>
                                                 </div>
                                                 <div class="space-y-4">
                                                     <div class="flex items-center space-x-3">
@@ -6036,7 +6111,7 @@ if (!defined('BASE_URL')) {
                                             <div class="bg-white rounded-lg border border-gray-200 p-4">
                                                 <div class="flex items-center justify-between mb-4">
                                                     <h4 class="text-lg font-semibold text-gray-900">3º Ano A</h4>
-                                                    <span class="bg-purple-100 text-purple-800 text-xs px-2 py-1 rounded-full">26 alunos</span>
+                                                    <span class="bg-purple-100 text-purple-800 text-xs px-2 py-1 rounded-full"><?= $stats->getAlunosPorTurma('3º Ano A') ?> alunos</span>
                                                 </div>
                                                 <div class="space-y-4">
                                                     <div class="flex items-center space-x-3">
@@ -7046,7 +7121,7 @@ if (!defined('BASE_URL')) {
                                                 <span class="bg-green-100 text-green-800 text-xs px-2 py-1 rounded-full">Ativa</span>
                                             </div>
                                             <div class="space-y-2">
-                                                <p class="text-sm text-gray-600">32 alunos</p>
+                                                <p class="text-sm text-gray-600"><?= $stats->getAlunosPorTurma('6º Ano A') ?> alunos</p>
                                                 <p class="text-sm text-gray-600">Professores: 8</p>
                                                 <p class="text-sm text-gray-600">Período: Matutino</p>
                                             </div>
@@ -7825,16 +7900,26 @@ if (!defined('BASE_URL')) {
                                         </svg>
                                     </div>
                                         <div class="text-right hidden sm:block">
-                                            <p class="text-xs text-green-600 font-medium">+2 este mês</p>
+                                            <?php 
+                                            $totalEscolas = $stats->getTotalEscolas();
+                                            $escolasEsteMes = $stats->getEscolasEsteMes();
+                                            if ($escolasEsteMes > 0): ?>
+                                            <p class="text-xs text-green-600 font-medium">+<?= $escolasEsteMes ?> este mês</p>
+                                            <?php endif; ?>
                                 </div>
                             </div>
                                     <div>
-                                        <p class="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900 group-hover:text-blue-600 transition-colors">12</p>
+                                        <?php 
+                                        $percentualEscolas = $totalEscolas > 0 ? min(100, ($totalEscolas / 20) * 100) : 0;
+                                        ?>
+                                        <p class="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900 group-hover:text-blue-600 transition-colors"><?= $totalEscolas ?></p>
                                         <p class="text-xs sm:text-sm font-semibold text-gray-600 mt-1">Escolas</p>
                                         <div class="mt-1 sm:mt-2 bg-gray-200 rounded-full h-1.5 sm:h-2">
-                                            <div class="bg-gradient-to-r from-blue-500 to-blue-600 h-1.5 sm:h-2 rounded-full" style="width: 85%"></div>
+                                            <div class="bg-gradient-to-r from-blue-500 to-blue-600 h-1.5 sm:h-2 rounded-full" style="width: <?= $percentualEscolas ?>%"></div>
                                     </div>
-                                        <p class="text-xs text-green-600 font-medium mt-1 sm:hidden">+2 este mês</p>
+                                        <?php if ($escolasEsteMes > 0): ?>
+                                        <p class="text-xs text-green-600 font-medium mt-1 sm:hidden">+<?= $escolasEsteMes ?> este mês</p>
+                                        <?php endif; ?>
                                     </div>
                                 </div>
 
@@ -7846,16 +7931,26 @@ if (!defined('BASE_URL')) {
                                         </svg>
                                     </div>
                                         <div class="text-right hidden sm:block">
-                                            <p class="text-xs text-green-600 font-medium">+15 esta semana</p>
+                                            <?php 
+                                            $usuariosEstaSemana = $stats->getUsuariosEstaSemana();
+                                            if ($usuariosEstaSemana > 0): ?>
+                                            <p class="text-xs text-green-600 font-medium">+<?= $usuariosEstaSemana ?> esta semana</p>
+                                            <?php endif; ?>
                                 </div>
                             </div>
                                     <div>
-                                        <p class="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900 group-hover:text-green-600 transition-colors">248</p>
+                                        <?php 
+                                        $totalUsuarios = $stats->getTotalUsuarios();
+                                        $percentualUsuarios = $totalUsuarios > 0 ? min(100, ($totalUsuarios / 300) * 100) : 0;
+                                        ?>
+                                        <p class="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900 group-hover:text-green-600 transition-colors"><?= $totalUsuarios ?></p>
                                         <p class="text-xs sm:text-sm font-semibold text-gray-600 mt-1">Usuários</p>
                                         <div class="mt-1 sm:mt-2 bg-gray-200 rounded-full h-1.5 sm:h-2">
-                                            <div class="bg-gradient-to-r from-green-500 to-green-600 h-1.5 sm:h-2 rounded-full" style="width: 92%"></div>
+                                            <div class="bg-gradient-to-r from-green-500 to-green-600 h-1.5 sm:h-2 rounded-full" style="width: <?= $percentualUsuarios ?>%"></div>
                                     </div>
-                                        <p class="text-xs text-green-600 font-medium mt-1 sm:hidden">+15 esta semana</p>
+                                        <?php if ($usuariosEstaSemana > 0): ?>
+                                        <p class="text-xs text-green-600 font-medium mt-1 sm:hidden">+<?= $usuariosEstaSemana ?> esta semana</p>
+                                        <?php endif; ?>
                                     </div>
                                 </div>
 
@@ -7886,163 +7981,211 @@ if (!defined('BASE_URL')) {
 
                     <!-- Tab Content: Personal Information -->
                     <div id="profile-personal" class="profile-tab-content hidden">
-                        <!-- Profile Header Card -->
-                        <div class="bg-gradient-to-br from-white to-gray-50 rounded-3xl shadow-xl border border-gray-100 overflow-hidden mb-8">
-                            <div class="bg-gradient-to-r from-blue-600 via-blue-700 to-indigo-700 p-8 relative overflow-hidden">
-                                <div class="absolute top-0 right-0 w-40 h-40 bg-white/5 rounded-full -translate-y-20 translate-x-20"></div>
-                                <div class="absolute bottom-0 left-0 w-32 h-32 bg-white/5 rounded-full translate-y-16 -translate-x-16"></div>
-                                <div class="relative z-10 flex items-center space-x-6">
-                                    <div class="w-20 h-20 bg-white/20 backdrop-blur-sm rounded-2xl flex items-center justify-center border border-white/30">
-                                        <span class="text-2xl font-bold text-white"><?php
-                                            $nome = $_SESSION['nome'] ?? '';
-                                            $iniciais = '';
-                                            if (strlen($nome) >= 2) {
-                                                $iniciais = strtoupper(substr($nome, 0, 2));
-                                            } elseif (strlen($nome) == 1) {
-                                                $iniciais = strtoupper($nome);
-                                            } else {
-                                                $iniciais = 'US';
-                                            }
-                                            echo $iniciais;
-                                        ?></span>
+                        <?php
+                        // Buscar dados completos do usuário
+                        $usuarioId = $_SESSION['usuario_id'] ?? null;
+                        $dadosUsuario = $usuarioId ? $stats->getDadosUsuario($usuarioId) : null;
+                        $estatisticasUsuario = $usuarioId ? $stats->getEstatisticasUsuario($usuarioId, $_SESSION['tipo'] ?? '') : [];
+                        
+                        // Gerar iniciais
+                        $nome = $_SESSION['nome'] ?? '';
+                        $iniciais = '';
+                        if (strlen($nome) >= 2) {
+                            $iniciais = strtoupper(substr($nome, 0, 2));
+                        } elseif (strlen($nome) == 1) {
+                            $iniciais = strtoupper($nome);
+                        } else {
+                            $iniciais = 'US';
+                        }
+                        
+                        // Mapear tipos de usuário para nomes amigáveis
+                        $tiposUsuario = [
+                            'ADM' => 'Administrador Geral',
+                            'GESTAO' => 'Gestor Escolar',
+                            'PROFESSOR' => 'Professor',
+                            'ALUNO' => 'Aluno',
+                            'NUTRICIONISTA' => 'Nutricionista',
+                            'ADM_MERENDA' => 'Administrador de Merenda'
+                        ];
+                        $tipoUsuarioNome = $tiposUsuario[$_SESSION['tipo'] ?? ''] ?? $_SESSION['tipo'] ?? 'Usuário';
+                        ?>
+                        
+                        <!-- Profile Header - Minimalista -->
+                        <div class="bg-white border border-gray-200 rounded-lg mb-8">
+                            <div class="p-6 sm:p-8">
+                                <div class="flex flex-col sm:flex-row items-start sm:items-center gap-6">
+                                    <!-- Avatar -->
+                                    <div class="relative">
+                                        <div class="w-20 h-20 bg-gray-100 rounded-lg flex items-center justify-center border border-gray-200">
+                                            <span class="text-2xl font-medium text-gray-700"><?= $iniciais ?></span>
+                                        </div>
+                                        <div class="absolute -bottom-1 -right-1 w-5 h-5 bg-green-500 rounded-full border-2 border-white"></div>
                                     </div>
-                                    <div class="flex-1 text-white">
-                                        <h2 class="text-2xl font-bold mb-2"><?php echo $_SESSION['nome']; ?></h2>
-                                        <p class="text-blue-100 text-sm mb-3">Administrador do Sistema</p>
-                                        <div class="flex items-center space-x-4">
-                                            <div class="flex items-center space-x-2">
-                                                <div class="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
-                                                <span class="text-sm text-green-100">Online</span>
-                                            </div>
-                                            <div class="text-sm text-blue-100">
-                                                Último acesso: Agora
-                                            </div>
+                                    
+                                    <!-- User Info -->
+                                    <div class="flex-1 min-w-0">
+                                        <h2 class="text-2xl font-semibold text-gray-900 mb-1"><?= htmlspecialchars($nome) ?></h2>
+                                        <p class="text-gray-600 text-sm mb-3"><?= $tipoUsuarioNome ?></p>
+                                        <div class="flex flex-wrap items-center gap-4 text-sm text-gray-500">
+                                            <?php if ($dadosUsuario && !empty($dadosUsuario['ultimo_login_formatado'])): ?>
+                                            <span>Último acesso: <?= $dadosUsuario['ultimo_login_formatado'] ?></span>
+                                            <?php endif; ?>
+                                            <?php if ($dadosUsuario && !empty($dadosUsuario['data_criacao_formatada'])): ?>
+                                            <span>Membro desde <?= $dadosUsuario['data_criacao_formatada'] ?></span>
+                                            <?php endif; ?>
                                         </div>
                                     </div>
-                                    <div class="text-right">
-                                        <button class="bg-white/20 backdrop-blur-sm hover:bg-white/30 text-white px-4 py-2 rounded-xl text-sm font-medium transition-all duration-200 border border-white/30">
-                                            Editar Perfil
-                                        </button>
-                                    </div>
+                                    
+                                    <!-- Action Button -->
+                                    <button class="px-4 py-2 bg-gray-900 text-white rounded-lg text-sm font-medium hover:bg-gray-800 transition-colors">
+                                        Editar Perfil
+                                    </button>
                                 </div>
                             </div>
                         </div>
 
-                        <!-- Information Cards -->
+                        <!-- Stats Cards - Minimalista -->
+                        <?php if (!empty($estatisticasUsuario)): ?>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+                            <?php foreach ($estatisticasUsuario as $key => $value): ?>
+                            <div class="bg-white border border-gray-200 rounded-lg p-5">
+                                <p class="text-2xl font-semibold text-gray-900 mb-1"><?= $value ?></p>
+                                <p class="text-sm text-gray-600 capitalize"><?= str_replace('_', ' ', $key) ?></p>
+                            </div>
+                            <?php endforeach; ?>
+                        </div>
+                        <?php endif; ?>
+
+                        <!-- Information Cards - Minimalista -->
                         <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
                             <!-- Personal Info Card -->
-                            <div class="bg-white rounded-2xl shadow-lg border border-gray-100 p-6 hover:shadow-xl transition-all duration-300">
-                                <div class="flex items-center space-x-3 mb-6">
-                                    <div class="w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center">
-                                        <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
-                                        </svg>
-                                    </div>
-                                    <h3 class="text-xl font-bold text-gray-900">Informações Pessoais</h3>
-                                </div>
+                            <div class="bg-white border border-gray-200 rounded-lg p-6">
+                                <h3 class="text-lg font-semibold text-gray-900 mb-6 pb-4 border-b border-gray-200">Informações Pessoais</h3>
                                 
-                                <div class="space-y-4">
-                                    <div class="bg-gray-50 rounded-xl p-4">
-                                        <label class="block text-sm font-medium text-gray-600 mb-1">Nome Completo</label>
-                                        <p class="text-lg font-semibold text-gray-900"><?php echo $_SESSION['nome']; ?></p>
+                                <div class="space-y-5">
+                                    <div>
+                                        <label class="block text-xs text-gray-500 mb-1">Nome Completo</label>
+                                        <p class="text-base text-gray-900"><?= htmlspecialchars($nome) ?></p>
                                     </div>
-                                    <div class="bg-gray-50 rounded-xl p-4">
-                                        <label class="block text-sm font-medium text-gray-600 mb-1">Email</label>
-                                        <p class="text-lg text-gray-900"><?php echo $_SESSION['email']; ?></p>
+                                    
+                                    <div>
+                                        <label class="block text-xs text-gray-500 mb-1">Email</label>
+                                        <p class="text-base text-gray-900"><?= htmlspecialchars($_SESSION['email'] ?? 'Não informado') ?></p>
                                     </div>
+                                    
+                                    <?php if ($dadosUsuario && !empty($dadosUsuario['cpf_formatado'])): ?>
+                                    <div>
+                                        <label class="block text-xs text-gray-500 mb-1">CPF</label>
+                                        <p class="text-base text-gray-900"><?= $dadosUsuario['cpf_formatado'] ?></p>
+                                    </div>
+                                    <?php endif; ?>
+                                    
+                                    <?php if ($dadosUsuario && !empty($dadosUsuario['telefone'])): ?>
+                                    <div>
+                                        <label class="block text-xs text-gray-500 mb-1">Telefone</label>
+                                        <p class="text-base text-gray-900"><?= htmlspecialchars($dadosUsuario['telefone']) ?></p>
+                                    </div>
+                                    <?php endif; ?>
+                                    
+                                    <?php if ($dadosUsuario && !empty($dadosUsuario['data_nascimento']) && $dadosUsuario['data_nascimento'] != '0000-00-00'): ?>
+                                    <div>
+                                        <label class="block text-xs text-gray-500 mb-1">Data de Nascimento</label>
+                                        <p class="text-base text-gray-900">
+                                            <?php 
+                                            $dataNasc = new DateTime($dadosUsuario['data_nascimento']);
+                                            echo $dataNasc->format('d/m/Y');
+                                            if (isset($dadosUsuario['idade'])) {
+                                                echo ' (' . $dadosUsuario['idade'] . ' anos)';
+                                            }
+                                            ?>
+                                        </p>
+                                    </div>
+                                    <?php endif; ?>
                                 </div>
                             </div>
 
-                            <!-- Role & Status Card -->
-                            <div class="bg-white rounded-2xl shadow-lg border border-gray-100 p-6 hover:shadow-xl transition-all duration-300">
-                                <div class="flex items-center space-x-3 mb-6">
-                                    <div class="w-10 h-10 bg-gradient-to-br from-green-500 to-green-600 rounded-xl flex items-center justify-center">
-                                        <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path>
-                                        </svg>
-                                    </div>
-                                    <h3 class="text-xl font-bold text-gray-900">Função & Status</h3>
-                                </div>
+                            <!-- Account & Status Card -->
+                            <div class="bg-white border border-gray-200 rounded-lg p-6">
+                                <h3 class="text-lg font-semibold text-gray-900 mb-6 pb-4 border-b border-gray-200">Conta & Status</h3>
                                 
-                                <div class="space-y-4">
-                                    <div class="bg-gray-50 rounded-xl p-4">
-                                        <label class="block text-sm font-medium text-gray-600 mb-2">Tipo de Usuário</label>
-                                        <div class="flex flex-wrap gap-2">
-                                            <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-semibold bg-gradient-to-r from-primary-green to-green-600 text-white">
-                                                Administrador Geral
-                                            </span>
+                                <div class="space-y-5">
+                                    <div>
+                                        <label class="block text-xs text-gray-500 mb-2">Tipo de Usuário</label>
+                                        <span class="inline-block px-3 py-1 bg-gray-100 text-gray-900 rounded text-sm font-medium">
+                                            <?= $tipoUsuarioNome ?>
+                                        </span>
+                                    </div>
+                                    
+                                    <div>
+                                        <label class="block text-xs text-gray-500 mb-2">Status da Conta</label>
+                                        <div class="flex items-center gap-2">
+                                            <div class="w-2 h-2 bg-green-500 rounded-full"></div>
+                                            <span class="text-sm text-gray-900">Ativo</span>
                                         </div>
                                     </div>
-                                    <div class="bg-gray-50 rounded-xl p-4">
-                                        <label class="block text-sm font-medium text-gray-600 mb-2">Status da Conta</label>
-                                        <div class="flex items-center space-x-2">
-                                            <div class="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
-                                            <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-semibold bg-green-100 text-green-800">
-                                                Ativo
-                                            </span>
-                                        </div>
-                                    </div>
-                                    <div class="bg-gray-50 rounded-xl p-4">
-                                        <label class="block text-sm font-medium text-gray-600 mb-1">Nível de Acesso</label>
-                                        <div class="flex items-center space-x-2">
-                                            <div class="flex-1 bg-gray-200 rounded-full h-2">
-                                                <div class="bg-gradient-to-r from-green-500 to-green-600 h-2 rounded-full w-full"></div>
+                                    
+                                    <div>
+                                        <label class="block text-xs text-gray-500 mb-2">Nível de Acesso</label>
+                                        <div class="space-y-2">
+                                            <div class="flex items-center justify-between text-sm">
+                                                <span class="text-gray-700">Permissões</span>
+                                                <span class="text-gray-900 font-medium">100%</span>
                                             </div>
-                                            <span class="text-sm font-medium text-gray-600">100%</span>
+                                            <div class="w-full bg-gray-200 rounded-full h-2">
+                                                <div class="bg-gray-900 h-2 rounded-full" style="width: 100%"></div>
+                                            </div>
                                         </div>
-                                        <p class="text-xs text-gray-500 mt-1">Acesso total ao sistema</p>
                                     </div>
+                                    
+                                    <?php if ($dadosUsuario && !empty($dadosUsuario['username'])): ?>
+                                    <div>
+                                        <label class="block text-xs text-gray-500 mb-1">Username</label>
+                                        <p class="text-base text-gray-900 font-mono">@<?= htmlspecialchars($dadosUsuario['username']) ?></p>
+                                    </div>
+                                    <?php endif; ?>
                                 </div>
                             </div>
                         </div>
 
-                        <!-- Activity Timeline -->
-                        <div class="bg-white rounded-2xl shadow-lg border border-gray-100 p-6">
-                            <div class="flex items-center space-x-3 mb-6">
-                                <div class="w-10 h-10 bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl flex items-center justify-center">
-                                    <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                                    </svg>
-                                </div>
-                                <h3 class="text-xl font-bold text-gray-900">Atividade Recente</h3>
-                            </div>
+                        <!-- Activity Timeline - Minimalista -->
+                        <div class="bg-white border border-gray-200 rounded-lg p-6">
+                            <h3 class="text-lg font-semibold text-gray-900 mb-6 pb-4 border-b border-gray-200">Atividade Recente</h3>
                             
                             <div class="space-y-4">
-                                <div class="flex items-center space-x-4 p-3 bg-green-50 rounded-xl border border-green-100">
-                                    <div class="w-8 h-8 bg-green-500 rounded-full flex items-center justify-center">
-                                        <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
-                                        </svg>
-                                    </div>
-                                    <div class="flex-1">
-                                        <p class="text-sm font-medium text-gray-900">Login realizado com sucesso</p>
-                                        <p class="text-xs text-gray-500">Agora mesmo</p>
-                                    </div>
+                                <?php
+                                $atividadesRecentes = $stats->getAtividadesRecentes(5);
+                                if (empty($atividadesRecentes)):
+                                ?>
+                                <div class="text-center py-8">
+                                    <p class="text-gray-500 text-sm">Nenhuma atividade recente</p>
                                 </div>
-                                
-                                <div class="flex items-center space-x-4 p-3 bg-blue-50 rounded-xl border border-blue-100">
-                                    <div class="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center">
-                                        <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
-                                        </svg>
+                                <?php else: ?>
+                                    <?php foreach ($atividadesRecentes as $atividade): 
+                                        $dataAtividade = new DateTime($atividade['data']);
+                                        $agora = new DateTime();
+                                        $diff = $agora->diff($dataAtividade);
+                                        
+                                        $tempoRelativo = '';
+                                        if ($diff->days > 0) {
+                                            $tempoRelativo = $diff->days == 1 ? 'Ontem' : 'Há ' . $diff->days . ' dias';
+                                        } elseif ($diff->h > 0) {
+                                            $tempoRelativo = 'Há ' . $diff->h . ' hora' . ($diff->h > 1 ? 's' : '');
+                                        } elseif ($diff->i > 0) {
+                                            $tempoRelativo = 'Há ' . $diff->i . ' minuto' . ($diff->i > 1 ? 's' : '');
+                                        } else {
+                                            $tempoRelativo = 'Agora mesmo';
+                                        }
+                                    ?>
+                                    <div class="flex items-start gap-4 pb-4 border-b border-gray-100 last:border-0 last:pb-0">
+                                        <div class="w-2 h-2 bg-gray-400 rounded-full mt-2"></div>
+                                        <div class="flex-1 min-w-0">
+                                            <p class="text-sm font-medium text-gray-900 mb-1"><?= htmlspecialchars($atividade['titulo']) ?></p>
+                                            <p class="text-xs text-gray-600 mb-1"><?= htmlspecialchars($atividade['descricao']) ?></p>
+                                            <p class="text-xs text-gray-500"><?= $tempoRelativo ?></p>
+                                        </div>
                                     </div>
-                                    <div class="flex-1">
-                                        <p class="text-sm font-medium text-gray-900">Acesso ao dashboard principal</p>
-                                        <p class="text-xs text-gray-500">Há 5 minutos</p>
-                                    </div>
-                                </div>
-                                
-                                <div class="flex items-center space-x-4 p-3 bg-purple-50 rounded-xl border border-purple-100">
-                                    <div class="w-8 h-8 bg-purple-500 rounded-full flex items-center justify-center">
-                                        <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 100 4m0-4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 100 4m0-4v2m0-6V4"></path>
-                                        </svg>
-                                    </div>
-                                    <div class="flex-1">
-                                        <p class="text-sm font-medium text-gray-900">Configurações do perfil visualizadas</p>
-                                        <p class="text-xs text-gray-500">Há 10 minutos</p>
-                                    </div>
-                                </div>
+                                    <?php endforeach; ?>
+                                <?php endif; ?>
                             </div>
                         </div>
                     </div>
@@ -8081,13 +8224,21 @@ if (!defined('BASE_URL')) {
                                     </div>
                                     <div class="text-right">
                                         <p class="text-xs text-gray-500">Total</p>
-                                        <p class="text-sm font-medium text-green-600">+2 este mês</p>
+                                        <?php 
+                                        $escolasEsteMes = $stats->getEscolasEsteMes();
+                                        if ($escolasEsteMes > 0): ?>
+                                        <p class="text-sm font-medium text-green-600">+<?= $escolasEsteMes ?> este mês</p>
+                                        <?php endif; ?>
                                     </div>
                                 </div>
-                                <h3 class="text-3xl font-bold text-gray-900 mb-1">12</h3>
+                                <?php 
+                                $totalEscolas = $stats->getTotalEscolas();
+                                $percentualEscolas = $totalEscolas > 0 ? min(100, ($totalEscolas / 20) * 100) : 0;
+                                ?>
+                                <h3 class="text-3xl font-bold text-gray-900 mb-1"><?= $totalEscolas ?></h3>
                                 <p class="text-sm font-medium text-gray-600">Escolas Gerenciadas</p>
                                 <div class="mt-3 bg-gray-200 rounded-full h-2">
-                                    <div class="bg-gradient-to-r from-blue-500 to-blue-600 h-2 rounded-full" style="width: 85%"></div>
+                                    <div class="bg-gradient-to-r from-blue-500 to-blue-600 h-2 rounded-full" style="width: <?= $percentualEscolas ?>%"></div>
                                 </div>
                             </div>
 
@@ -8100,13 +8251,21 @@ if (!defined('BASE_URL')) {
                                     </div>
                                     <div class="text-right">
                                         <p class="text-xs text-gray-500">Ativos</p>
-                                        <p class="text-sm font-medium text-green-600">+15 esta semana</p>
+                                        <?php 
+                                        $usuariosEstaSemana = $stats->getUsuariosEstaSemana();
+                                        if ($usuariosEstaSemana > 0): ?>
+                                        <p class="text-sm font-medium text-green-600">+<?= $usuariosEstaSemana ?> esta semana</p>
+                                        <?php endif; ?>
                                     </div>
                                 </div>
-                                <h3 class="text-3xl font-bold text-gray-900 mb-1">248</h3>
+                                <?php 
+                                $totalUsuarios = $stats->getTotalUsuarios();
+                                $percentualUsuarios = $totalUsuarios > 0 ? min(100, ($totalUsuarios / 300) * 100) : 0;
+                                ?>
+                                <h3 class="text-3xl font-bold text-gray-900 mb-1"><?= $totalUsuarios ?></h3>
                                 <p class="text-sm font-medium text-gray-600">Usuários Ativos</p>
                                 <div class="mt-3 bg-gray-200 rounded-full h-2">
-                                    <div class="bg-gradient-to-r from-green-500 to-green-600 h-2 rounded-full" style="width: 92%"></div>
+                                    <div class="bg-gradient-to-r from-green-500 to-green-600 h-2 rounded-full" style="width: <?= $percentualUsuarios ?>%"></div>
                                 </div>
                             </div>
 
@@ -8141,7 +8300,7 @@ if (!defined('BASE_URL')) {
                                         <p class="text-sm font-medium text-green-600">Hoje</p>
                                     </div>
                                 </div>
-                                <h3 class="text-2xl font-bold text-gray-900 mb-1">14:30</h3>
+                                <h3 class="text-2xl font-bold text-gray-900 mb-1"><?= date('H:i') ?></h3>
                                 <p class="text-sm font-medium text-gray-600">Última Atualização</p>
                                 <div class="mt-3 bg-gray-200 rounded-full h-2">
                                     <div class="bg-gradient-to-r from-orange-500 to-orange-600 h-2 rounded-full" style="width: 75%"></div>
@@ -8208,248 +8367,134 @@ if (!defined('BASE_URL')) {
 
                     <!-- Tab Content: Configurações -->
                     <div id="profile-settings" class="profile-tab-content hidden">
-                        <!-- Settings Header -->
-                        <div class="bg-gradient-to-br from-white to-gray-50 rounded-3xl shadow-xl border border-gray-100 overflow-hidden mb-8">
-                            <div class="bg-gradient-to-r from-purple-600 via-purple-700 to-indigo-700 p-8 relative overflow-hidden">
-                                <div class="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full -translate-y-16 translate-x-16"></div>
-                                <div class="absolute bottom-0 left-0 w-24 h-24 bg-white/5 rounded-full translate-y-12 -translate-x-12"></div>
-                                <div class="relative z-10 text-white text-center">
-                                    <div class="w-16 h-16 bg-white/10 backdrop-blur-sm rounded-2xl flex items-center justify-center mx-auto mb-4">
-                                        <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path>
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
-                                        </svg>
-                                    </div>
-                                    <h2 class="text-2xl font-bold mb-2">Configurações do Sistema</h2>
-                                    <p class="text-purple-100 text-sm">Personalize sua experiência de uso</p>
-                                </div>
+                        <!-- Settings Header - Minimalista -->
+                        <div class="bg-white border border-gray-200 rounded-lg mb-8">
+                            <div class="p-6 sm:p-8">
+                                <h2 class="text-2xl font-semibold text-gray-900 mb-2">Configurações</h2>
+                                <p class="text-gray-600 text-sm">Personalize sua experiência e preferências</p>
                             </div>
                         </div>
 
-                        <!-- Theme Settings - Melhorada -->
-                        <div class="bg-white rounded-2xl shadow-lg border border-gray-100 p-6 mb-8">
-                            <div class="flex items-center justify-between mb-6">
-                                <div class="flex items-center space-x-3">
-                                <div class="w-10 h-10 bg-gradient-to-br from-yellow-500 to-orange-500 rounded-xl flex items-center justify-center">
-                                    <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"></path>
-                                    </svg>
-                                </div>
-                                    <div>
-                                <h3 class="text-xl font-bold text-gray-900">Tema Visual</h3>
-                                        <p class="text-sm text-gray-500">Escolha o tema que mais combina com você</p>
-                                    </div>
-                                </div>
-                                <div class="text-right">
-                                    <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800">
-                                        <div class="w-2 h-2 bg-green-400 rounded-full mr-2 animate-pulse"></div>
-                                        Ativo
-                                    </span>
-                                </div>
-                            </div>
+                        <!-- Theme Settings - Minimalista -->
+                        <div class="bg-white border border-gray-200 rounded-lg p-6 mb-8">
+                            <h3 class="text-lg font-semibold text-gray-900 mb-6 pb-4 border-b border-gray-200">Tema Visual</h3>
                             
-                            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                <button id="theme-light" class="theme-option group p-6 border-2 border-gray-200 rounded-2xl hover:border-blue-500 hover:shadow-lg transition-all duration-300 relative overflow-hidden">
-                                    <div class="absolute top-0 right-0 w-16 h-16 bg-yellow-100 rounded-full -translate-y-8 translate-x-8 opacity-50"></div>
-                                    <div class="relative z-10">
-                                        <div class="flex items-center space-x-4 mb-4">
-                                            <div class="w-12 h-12 bg-gradient-to-br from-yellow-400 to-orange-500 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform duration-300 shadow-lg">
-                                            <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <button id="theme-light" class="theme-option p-6 border-2 border-gray-200 rounded-lg hover:border-gray-400 hover:bg-gray-50 transition-colors text-left">
+                                    <div class="flex items-center gap-4 mb-4">
+                                        <div class="w-12 h-12 bg-gray-100 rounded-lg flex items-center justify-center">
+                                            <svg class="w-6 h-6 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"></path>
                                             </svg>
                                         </div>
-                                        <div class="text-left">
-                                            <h4 class="font-semibold text-gray-900 group-hover:text-blue-600 transition-colors">Tema Claro</h4>
-                                            <p class="text-sm text-gray-500">Interface clara e brilhante</p>
-                                            </div>
-                                        </div>
-                                        <div class="flex items-center justify-between">
-                                            <div class="text-xs text-gray-400">
-                                                Ideal para uso diurno
-                                            </div>
-                                            <div class="w-8 h-4 bg-blue-200 rounded-full relative">
-                                                <div class="w-3 h-3 bg-blue-500 rounded-full absolute top-0.5 left-0.5 transition-transform duration-200"></div>
-                                            </div>
+                                        <div>
+                                            <h4 class="font-semibold text-gray-900">Tema Claro</h4>
+                                            <p class="text-sm text-gray-600">Interface clara</p>
                                         </div>
                                     </div>
                                 </button>
                                 
-                                <button id="theme-dark" class="theme-option group p-6 border-2 border-gray-200 rounded-2xl hover:border-purple-500 hover:shadow-lg transition-all duration-300 relative overflow-hidden">
-                                    <div class="absolute top-0 right-0 w-16 h-16 bg-purple-100 rounded-full -translate-y-8 translate-x-8 opacity-50"></div>
-                                    <div class="relative z-10">
-                                        <div class="flex items-center space-x-4 mb-4">
-                                            <div class="w-12 h-12 bg-gradient-to-br from-purple-600 to-indigo-700 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform duration-300 shadow-lg">
+                                <button id="theme-dark" class="theme-option p-6 border-2 border-gray-200 rounded-lg hover:border-gray-400 hover:bg-gray-50 transition-colors text-left">
+                                    <div class="flex items-center gap-4 mb-4">
+                                        <div class="w-12 h-12 bg-gray-800 rounded-lg flex items-center justify-center">
                                             <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"></path>
                                             </svg>
                                         </div>
-                                        <div class="text-left">
-                                            <h4 class="font-semibold text-gray-900 group-hover:text-purple-600 transition-colors">Tema Escuro</h4>
-                                            <p class="text-sm text-gray-500">Interface escura e elegante</p>
-                                            </div>
-                                        </div>
-                                        <div class="flex items-center justify-between">
-                                            <div class="text-xs text-gray-400">
-                                                Ideal para uso noturno
-                                            </div>
-                                            <div class="w-8 h-4 bg-gray-200 rounded-full relative">
-                                                <div class="w-3 h-3 bg-gray-400 rounded-full absolute top-0.5 right-0.5 transition-transform duration-200"></div>
-                                            </div>
+                                        <div>
+                                            <h4 class="font-semibold text-gray-900">Tema Escuro</h4>
+                                            <p class="text-sm text-gray-600">Interface escura</p>
                                         </div>
                                     </div>
                                 </button>
                             </div>
                         </div>
 
-                        <!-- Notification Settings -->
-                        <div class="bg-white rounded-2xl shadow-lg border border-gray-100 p-6 mb-8">
-                            <div class="flex items-center space-x-3 mb-6">
-                                <div class="w-10 h-10 bg-gradient-to-br from-green-500 to-emerald-600 rounded-xl flex items-center justify-center">
-                                    <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-5 5v-5zM4.828 7l2.586 2.586a2 2 0 002.828 0L12 7H4.828z"></path>
-                                    </svg>
-                                </div>
-                                <h3 class="text-xl font-bold text-gray-900">Notificações</h3>
-                            </div>
+                        <!-- Notification Settings - Minimalista -->
+                        <div class="bg-white border border-gray-200 rounded-lg p-6 mb-8">
+                            <h3 class="text-lg font-semibold text-gray-900 mb-6 pb-4 border-b border-gray-200">Notificações</h3>
                             
                             <div class="space-y-4">
-                                <div class="flex items-center justify-between p-4 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors duration-200">
-                                    <div class="flex items-center space-x-3">
-                                        <div class="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center">
-                                            <svg class="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 4.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path>
-                                            </svg>
-                                        </div>
-                                        <div>
-                                            <h4 class="font-medium text-gray-900">Notificações por Email</h4>
-                                            <p class="text-sm text-gray-500">Receba atualizações importantes por email</p>
-                                        </div>
+                                <div class="flex items-center justify-between py-3 border-b border-gray-100 last:border-0">
+                                    <div>
+                                        <h4 class="font-medium text-gray-900 mb-1">Notificações por Email</h4>
+                                        <p class="text-sm text-gray-600">Receba atualizações importantes por email</p>
                                     </div>
                                     <label class="relative inline-flex items-center cursor-pointer">
                                         <input type="checkbox" class="sr-only peer" checked>
-                                        <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                                        <div class="w-11 h-6 bg-gray-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-gray-900"></div>
                                     </label>
                                 </div>
                                 
-                                <div class="flex items-center justify-between p-4 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors duration-200">
-                                    <div class="flex items-center space-x-3">
-                                        <div class="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center">
-                                            <svg class="w-4 h-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-5 5v-5zM4.828 7l2.586 2.586a2 2 0 002.828 0L12 7H4.828z"></path>
-                                            </svg>
-                                        </div>
-                                        <div>
-                                            <h4 class="font-medium text-gray-900">Notificações do Sistema</h4>
-                                            <p class="text-sm text-gray-500">Alertas sobre status do sistema e manutenções</p>
-                                        </div>
+                                <div class="flex items-center justify-between py-3 border-b border-gray-100 last:border-0">
+                                    <div>
+                                        <h4 class="font-medium text-gray-900 mb-1">Notificações do Sistema</h4>
+                                        <p class="text-sm text-gray-600">Alertas sobre status do sistema</p>
                                     </div>
                                     <label class="relative inline-flex items-center cursor-pointer">
                                         <input type="checkbox" class="sr-only peer" checked>
-                                        <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-green-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-green-600"></div>
+                                        <div class="w-11 h-6 bg-gray-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-gray-900"></div>
                                     </label>
                                 </div>
                                 
-                                <div class="flex items-center justify-between p-4 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors duration-200">
-                                    <div class="flex items-center space-x-3">
-                                        <div class="w-8 h-8 bg-purple-100 rounded-lg flex items-center justify-center">
-                                            <svg class="w-4 h-4 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
-                                            </svg>
-                                        </div>
-                                        <div>
-                                            <h4 class="font-medium text-gray-900">Notificações de Atividade</h4>
-                                            <p class="text-sm text-gray-500">Alertas sobre atividades importantes</p>
-                                        </div>
+                                <div class="flex items-center justify-between py-3">
+                                    <div>
+                                        <h4 class="font-medium text-gray-900 mb-1">Notificações de Atividade</h4>
+                                        <p class="text-sm text-gray-600">Alertas sobre atividades importantes</p>
                                     </div>
                                     <label class="relative inline-flex items-center cursor-pointer">
                                         <input type="checkbox" class="sr-only peer">
-                                        <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-purple-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-purple-600"></div>
+                                        <div class="w-11 h-6 bg-gray-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-gray-900"></div>
                                     </label>
                                 </div>
                             </div>
                         </div>
 
-                        <!-- Accessibility Settings -->
-                        <div class="bg-white rounded-2xl shadow-lg border border-gray-100 p-6 mb-8">
-                            <div class="flex items-center space-x-3 mb-6">
-                                <div class="w-10 h-10 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center">
-                                    <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
-                                    </svg>
-                                </div>
-                                <div>
-                                    <h3 class="text-xl font-bold text-gray-900">Acessibilidade</h3>
-                                    <p class="text-sm text-gray-500">Configure recursos de acessibilidade</p>
-                                </div>
-                            </div>
+                        <!-- Accessibility Settings - Minimalista -->
+                        <div class="bg-white border border-gray-200 rounded-lg p-6 mb-8">
+                            <h3 class="text-lg font-semibold text-gray-900 mb-6 pb-4 border-b border-gray-200">Acessibilidade</h3>
                             
-                            <div class="space-y-6">
+                            <div class="space-y-4">
                                 <!-- VLibras Toggle -->
-                                <div class="flex items-center justify-between p-4 bg-gray-50 rounded-xl">
-                                    <div class="flex items-center space-x-4">
-                                        <div class="w-12 h-12 bg-gradient-to-br from-green-500 to-emerald-600 rounded-xl flex items-center justify-center">
-                                            <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"></path>
-                                            </svg>
-                                        </div>
-                                        <div>
-                                            <h4 class="font-semibold text-gray-900">VLibras (Libras)</h4>
-                                            <p class="text-sm text-gray-500">Tradução automática para Libras</p>
-                                        </div>
+                                <div class="flex items-center justify-between py-3 border-b border-gray-100">
+                                    <div>
+                                        <h4 class="font-medium text-gray-900 mb-1">VLibras (Libras)</h4>
+                                        <p class="text-sm text-gray-600">Tradução automática para Libras</p>
                                     </div>
                                     <label class="relative inline-flex items-center cursor-pointer">
                                         <input type="checkbox" id="vlibras-toggle" class="sr-only peer" checked>
-                                        <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                                        <div class="w-11 h-6 bg-gray-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-gray-900"></div>
                                     </label>
                                 </div>
                                 
                                 <!-- High Contrast Toggle -->
-                                <div class="flex items-center justify-between p-4 bg-gray-50 rounded-xl">
-                                    <div class="flex items-center space-x-4">
-                                        <div class="w-12 h-12 bg-gradient-to-br from-orange-500 to-red-600 rounded-xl flex items-center justify-center">
-                                            <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"></path>
-                                            </svg>
-                                        </div>
-                                        <div>
-                                            <h4 class="font-semibold text-gray-900">Alto Contraste</h4>
-                                            <p class="text-sm text-gray-500">Melhora a visibilidade dos elementos</p>
-                                        </div>
+                                <div class="flex items-center justify-between py-3 border-b border-gray-100">
+                                    <div>
+                                        <h4 class="font-medium text-gray-900 mb-1">Alto Contraste</h4>
+                                        <p class="text-sm text-gray-600">Melhora a visibilidade dos elementos</p>
                                     </div>
                                     <label class="relative inline-flex items-center cursor-pointer">
                                         <input type="checkbox" id="contrast-toggle" class="sr-only peer">
-                                        <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-orange-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-orange-600"></div>
+                                        <div class="w-11 h-6 bg-gray-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-gray-900"></div>
                                     </label>
                                 </div>
                                 
                                 <!-- Font Size Controls -->
-                                <div class="p-4 bg-gray-50 rounded-xl">
-                                    <div class="flex items-center space-x-4 mb-4">
-                                        <div class="w-12 h-12 bg-gradient-to-br from-purple-500 to-indigo-600 rounded-xl flex items-center justify-center">
-                                            <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"></path>
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 9h6m-6 4h6m-2 4H9"></path>
-                                            </svg>
-                                        </div>
-                                        <div>
-                                            <h4 class="font-semibold text-gray-900">Tamanho da Fonte</h4>
-                                            <p class="text-sm text-gray-500">Ajuste o tamanho do texto</p>
-                                        </div>
-                                    </div>
-                                    <div class="flex items-center space-x-4">
-                                        <button id="font-decrease" class="p-2 bg-white rounded-lg border border-gray-200 hover:bg-gray-50 transition-colors">
-                                            <svg class="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <div class="pt-3">
+                                    <h4 class="font-medium text-gray-900 mb-4">Tamanho da Fonte</h4>
+                                    <div class="flex items-center gap-3">
+                                        <button id="font-decrease" class="w-10 h-10 border border-gray-300 rounded-lg hover:bg-gray-50 flex items-center justify-center">
+                                            <svg class="w-5 h-5 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 12H4"></path>
                                             </svg>
                                         </button>
-                                        <span id="font-size-display" class="px-3 py-1 bg-white rounded-lg border border-gray-200 text-sm font-medium">100%</span>
-                                        <button id="font-increase" class="p-2 bg-white rounded-lg border border-gray-200 hover:bg-gray-50 transition-colors">
-                                            <svg class="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <span id="font-size-display" class="px-4 py-2 bg-gray-100 rounded-lg text-sm font-medium min-w-[60px] text-center">100%</span>
+                                        <button id="font-increase" class="w-10 h-10 border border-gray-300 rounded-lg hover:bg-gray-50 flex items-center justify-center">
+                                            <svg class="w-5 h-5 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
                                             </svg>
                                         </button>
-                                        <button id="font-reset" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm">
+                                        <button id="font-reset" class="px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 text-sm font-medium">
                                             Padrão
                                         </button>
                                     </div>
@@ -8457,13 +8502,13 @@ if (!defined('BASE_URL')) {
                             </div>
                         </div>
 
-                        <!-- Action Buttons -->
-                        <div class="bg-white rounded-2xl shadow-lg border border-gray-100 p-6">
-                            <div class="flex flex-col sm:flex-row gap-4 justify-end">
-                                <button class="px-6 py-3 border-2 border-gray-300 text-gray-700 rounded-xl hover:bg-gray-50 hover:border-gray-400 transition-all duration-200 font-medium">
+                        <!-- Action Buttons - Minimalista -->
+                        <div class="bg-white border border-gray-200 rounded-lg p-6">
+                            <div class="flex flex-col sm:flex-row gap-3 justify-end">
+                                <button class="px-5 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 font-medium">
                                     Cancelar
                                 </button>
-                                <button class="px-6 py-3 bg-gradient-to-r from-primary-green to-green-600 text-white rounded-xl hover:from-green-600 hover:to-green-700 transition-all duration-200 font-medium shadow-lg hover:shadow-xl transform hover:-translate-y-0.5">
+                                <button class="px-5 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 font-medium">
                                     Salvar Configurações
                                 </button>
                             </div>
@@ -8921,4 +8966,6 @@ if (!defined('BASE_URL')) {
     </script>
 
 </body>
+</html>
+
 </html>
