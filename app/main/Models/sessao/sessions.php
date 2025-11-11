@@ -3,6 +3,9 @@ class sessions {
     
     public function __construct() {
         if (session_status() == PHP_SESSION_NONE) {
+            // Configura o cookie da sessão para expirar em 24 horas
+            $lifetime = 24 * 60 * 60; // 24 horas em segundos
+            session_set_cookie_params($lifetime);
             session_start();
         }
     }
@@ -17,8 +20,8 @@ class sessions {
     }
     
     public function tempo_session() {
-        // Define tempo limite da sessão (1 hora)
-        $tempo_limite = 60 * 60; // 1 hora em segundos
+        // Define tempo limite da sessão (24 horas)
+        $tempo_limite = 24 * 60 * 60; // 24 horas em segundos
         
         if (isset($_SESSION['ultimo_acesso'])) {
             $tempo_inativo = time() - $_SESSION['ultimo_acesso'];

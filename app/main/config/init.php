@@ -4,10 +4,21 @@
  * Sistema de Gestão Escolar - Merenda
  */
 
-// Iniciar sessão se ainda não foi iniciada
-if (session_status() === PHP_SESSION_NONE) {
-    session_start();
+/**
+ * Função helper para iniciar sessão com configurações de 24 horas
+ */
+function iniciarSessao() {
+    if (session_status() === PHP_SESSION_NONE) {
+        // Configura o tempo de vida da sessão para 24 horas
+        $lifetime = 24 * 60 * 60; // 24 horas em segundos
+        session_set_cookie_params($lifetime);
+        ini_set('session.gc_maxlifetime', $lifetime);
+        session_start();
+    }
 }
+
+// Iniciar sessão se ainda não foi iniciada
+iniciarSessao();
 
 // Incluir configurações
 require_once __DIR__ . '/config.php';

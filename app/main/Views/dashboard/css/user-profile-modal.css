@@ -1,0 +1,152 @@
+/* User Profile Modal Styles */
+#userProfileModal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 9999;
+    background: rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(4px);
+}
+
+#userProfileModal.show #modalContent {
+    transform: scale(1) translateY(0);
+    opacity: 1;
+}
+
+#userProfileModal #modalContent {
+    transform: scale(0.95) translateY(20px);
+    opacity: 0;
+    transition: transform 0.3s ease-out, opacity 0.3s ease-out;
+}
+
+#userProfileModal {
+    display: none;
+}
+
+#userProfileModal.show {
+    display: flex;
+}
+
+@media (max-width: 640px) {
+    #userProfileModal {
+        padding: 0;
+    }
+    
+    #userProfileModal #modalContent {
+        border-radius: 0;
+        width: 100%;
+        height: 100%;
+    }
+    
+    #userProfileModal.show #modalContent {
+        border-radius: 0;
+    }
+}
+
+/* Profile Tab Styles */
+.profile-tab {
+    transition: all 0.3s ease;
+}
+
+.profile-tab.active .w-8.h-8,
+.profile-tab.active .w-7.h-7,
+.profile-tab.active .w-6.h-6 {
+    background-color: white !important;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+.profile-tab:hover:not(.active) .w-8.h-8,
+.profile-tab:hover:not(.active) .w-7.h-7,
+.profile-tab:hover:not(.active) .w-6.h-6 {
+    background-color: rgba(243, 244, 246, 0.8) !important;
+}
+
+/* Scroll to top button */
+#scrollToTop {
+    transition: opacity 0.3s ease, transform 0.3s ease;
+}
+
+#scrollToTop:hover {
+    transform: scale(1.1);
+}
+
+/* High contrast mode */
+.high-contrast {
+    filter: contrast(1.2);
+}
+
+.high-contrast * {
+    border-color: #000 !important;
+}
+
+/* Theme option buttons */
+.theme-option {
+    transition: all 0.2s ease;
+}
+
+.theme-option:hover {
+    transform: translateY(-2px);
+}
+
+.theme-option.active {
+    border-color: #1f2937 !important;
+    background-color: #f9fafb !important;
+}
+
+/* Accessibility toggle switches */
+input[type="checkbox"].sr-only + div {
+    transition: all 0.3s ease;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .profile-tab .w-8.h-8 {
+        width: 1.5rem;
+        height: 1.5rem;
+    }
+    
+    .profile-tab span {
+        font-size: 0.75rem;
+    }
+}
+
+/* Dark mode support */
+[data-theme="dark"] #userProfileModal {
+    background: rgba(0, 0, 0, 0.8);
+}
+
+[data-theme="dark"] #userProfileModal #modalContent {
+    background-color: #1f2937;
+    color: #f9fafb;
+}
+
+[data-theme="dark"] #userProfileModal .bg-white {
+    background-color: #374151 !important;
+}
+
+[data-theme="dark"] #userProfileModal .text-gray-900 {
+    color: #f9fafb !important;
+}
+
+[data-theme="dark"] #userProfileModal .text-gray-700 {
+    color: #d1d5db !important;
+}
+
+[data-theme="dark"] #userProfileModal .text-gray-600 {
+    color: #9ca3af !important;
+}
+
+[data-theme="dark"] #userProfileModal .border-gray-200 {
+    border-color: #4b5563 !important;
+}
+
+[data-theme="dark"] #userProfileModal .bg-gray-100 {
+    background-color: #4b5563 !important;
+}
+
+[data-theme="dark"] #userProfileModal .bg-gray-50 {
+    background-color: #374151 !important;
+}
+

@@ -6,6 +6,10 @@ Class ModelLogin {
     public function login($cpf, $senha) {
         // Inicia a sessão se ainda não foi iniciada
         if (session_status() == PHP_SESSION_NONE) {
+            // Configura o tempo de vida da sessão para 24 horas
+            $lifetime = 24 * 60 * 60; // 24 horas em segundos
+            session_set_cookie_params($lifetime);
+            ini_set('session.gc_maxlifetime', $lifetime);
             session_start();
         }
         

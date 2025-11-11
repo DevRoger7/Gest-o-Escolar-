@@ -1,0 +1,566 @@
+/* Profile Modal Tabs */
+.profile-tab {
+    padding: 12px 20px;
+    font-weight: 600;
+    color: #9ca3af;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    position: relative;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 140px;
+    font-size: 0.9rem;
+}
+
+.profile-tab:hover {
+    color: #ffffff;
+    background: rgba(255, 255, 255, 0.1);
+    transform: translateY(-1px);
+}
+
+.profile-tab.active {
+    color: #ffffff;
+    background: rgba(34, 197, 94, 0.2);
+    border: 1px solid rgba(34, 197, 94, 0.3);
+    transform: translateY(-2px);
+}
+
+.profile-tab.active::before {
+    content: '';
+    position: absolute;
+    bottom: -12px;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: linear-gradient(90deg, #22c55e, #16a34a);
+    border-radius: 2px 2px 0 0;
+}
+
+/* High Contrast Mode */
+.high-contrast {
+    filter: contrast(150%) brightness(110%);
+}
+
+.high-contrast * {
+    border-color: #000000 !important;
+}
+
+.high-contrast .bg-white {
+    background-color: #ffffff !important;
+    border: 2px solid #000000 !important;
+}
+
+.high-contrast .bg-gray-50,
+.high-contrast .bg-gray-100 {
+    background-color: #f0f0f0 !important;
+    border: 1px solid #000000 !important;
+}
+
+.high-contrast .text-gray-600,
+.high-contrast .text-gray-700,
+.high-contrast .text-gray-800,
+.high-contrast .text-gray-900 {
+    color: #000000 !important;
+}
+
+/* Navigation bar styling */
+.navigation-bar {
+    backdrop-filter: blur(10px);
+    background: rgba(255, 255, 255, 0.95);
+    border-bottom: 1px solid rgba(229, 231, 235, 0.8);
+}
+
+.profile-tab-content {
+    display: block;
+    animation: fadeInUp 0.4s ease-out;
+}
+
+.profile-tab-content.hidden {
+    display: none;
+}
+
+/* Estilos melhorados para as abas do perfil */
+.profile-tab {
+    position: relative;
+    overflow: hidden;
+}
+
+.profile-tab.active {
+    background: white !important;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    transform: translateY(-1px);
+    border: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+.profile-tab.active .w-6.h-6,
+.profile-tab.active .w-7.h-7,
+.profile-tab.active .w-8.h-8 {
+    background: linear-gradient(135deg, #22c55e, #16a34a) !important;
+    border: none;
+}
+
+.profile-tab.active .w-4.h-4,
+.profile-tab.active .w-3.h-3,
+.profile-tab.active .w-3\.5.h-3\.5 {
+    color: white !important;
+}
+
+.profile-tab.active span {
+    color: #1f2937 !important;
+    font-weight: 600;
+}
+
+.profile-tab:not(.active) {
+    background: transparent !important;
+    border: 1px solid transparent;
+}
+
+.profile-tab:not(.active) span {
+    color: #6b7280 !important;
+    font-weight: 500;
+}
+
+.profile-tab:hover:not(.active) {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    background: rgba(255, 255, 255, 0.9);
+    border: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+.profile-tab:hover:not(.active) .w-6.h-6,
+.profile-tab:hover:not(.active) .w-7.h-7,
+.profile-tab:hover:not(.active) .w-8.h-8 {
+    background: rgba(34, 197, 94, 0.1) !important;
+    border: 1px solid rgba(34, 197, 94, 0.3);
+}
+
+.profile-tab:hover:not(.active) .w-4.h-4,
+.profile-tab:hover:not(.active) .w-3.h-3,
+.profile-tab:hover:not(.active) .w-3\.5.h-3\.5 {
+    color: #22c55e !important;
+}
+
+.profile-tab:hover:not(.active) span {
+    color: #1f2937 !important;
+    font-weight: 600;
+}
+
+/* Estilos para modo escuro */
+[data-theme="dark"] .profile-tab.active {
+    background: var(--bg-secondary) !important;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    border: 1px solid var(--border-color);
+}
+
+[data-theme="dark"] .profile-tab.active span {
+    color: #ffffff !important;
+}
+
+[data-theme="dark"] .profile-tab:hover:not(.active) {
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+[data-theme="dark"] .profile-tab:hover:not(.active) span {
+    color: #ffffff !important;
+}
+
+[data-theme="dark"] .profile-tab:not(.active) {
+    background: transparent !important;
+    border: 1px solid transparent;
+}
+
+[data-theme="dark"] .profile-tab:not(.active) span {
+    color: #d1d5db !important;
+}
+
+[data-theme="dark"] .profile-tab .w-4.h-4,
+[data-theme="dark"] .profile-tab .w-3.h-3,
+[data-theme="dark"] .profile-tab .w-3\.5.h-3\.5 {
+    color: #9ca3af !important;
+}
+
+[data-theme="dark"] .profile-tab.active .w-4.h-4,
+[data-theme="dark"] .profile-tab.active .w-3.h-3,
+[data-theme="dark"] .profile-tab.active .w-3\.5.h-3\.5 {
+    color: white !important;
+}
+
+/* Custom Scrollbar para o modal */
+.overflow-y-auto::-webkit-scrollbar {
+    width: 8px;
+}
+
+.overflow-y-auto::-webkit-scrollbar-track {
+    background: #f1f5f9;
+    border-radius: 10px;
+}
+
+.overflow-y-auto::-webkit-scrollbar-thumb {
+    background: linear-gradient(135deg, #22c55e, #16a34a);
+    border-radius: 10px;
+    border: 2px solid #f1f5f9;
+}
+
+.overflow-y-auto::-webkit-scrollbar-thumb:hover {
+    background: linear-gradient(135deg, #16a34a, #15803d);
+}
+
+/* Firefox scrollbar */
+.overflow-y-auto {
+    scrollbar-width: thin;
+    scrollbar-color: #22c55e #f1f5f9;
+}
+
+/* Smooth scrolling */
+.overflow-y-auto {
+    scroll-behavior: smooth;
+}
+
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Modal Animation */
+#userProfileModal.show #modalContent {
+    transform: scale(1) translateY(0);
+    opacity: 1;
+}
+
+#userProfileModal #modalContent {
+    transform: scale(0.95) translateY(20px);
+    opacity: 0;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Fullscreen Modal Styles */
+#userProfileModal {
+    background: white;
+}
+
+#userProfileModal #modalContent {
+    border-radius: 0;
+    box-shadow: none;
+}
+
+/* Responsive Design - Melhorada */
+@media (max-width: 768px) {
+    #userProfileModal {
+        padding: 0;
+    }
+    
+    #userProfileModal #modalContent {
+        border-radius: 0;
+        margin: 0;
+    }
+    
+    /* Navegação mobile melhorada */
+    .bg-gray-100.rounded-2xl.p-2 {
+        padding: 0.5rem;
+        gap: 0.25rem;
+        background: rgba(243, 244, 246, 0.8) !important;
+        backdrop-filter: blur(10px);
+    }
+    
+    .profile-tab {
+        padding: 0.75rem 0.5rem !important;
+        min-width: auto;
+        flex-direction: column;
+        text-align: center;
+        border-radius: 0.75rem !important;
+    }
+    
+    /* Aba ativa no mobile - respeitando o tema */
+    .profile-tab.active {
+        background: white !important;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+        border: 1px solid rgba(0, 0, 0, 0.1) !important;
+    }
+    
+    .profile-tab.active span {
+        color: #1f2937 !important;
+        font-weight: 700;
+    }
+    
+    /* Abas inativas no mobile - transparentes */
+    .profile-tab:not(.active) {
+        background: transparent !important;
+        border: 1px solid transparent;
+    }
+    
+    .profile-tab:not(.active) span {
+        color: #6b7280 !important;
+        font-weight: 500;
+    }
+    
+    .profile-tab .w-8.h-8 {
+        width: 2rem !important;
+        height: 2rem !important;
+        margin: 0 auto 0.5rem auto;
+    }
+    
+    .profile-tab .w-4.h-4 {
+        width: 1rem !important;
+        height: 1rem !important;
+    }
+    
+    .profile-tab span {
+        font-size: 0.75rem !important;
+        line-height: 1;
+    }
+    
+    .profile-tab p {
+        display: none !important;
+    }
+    
+    /* Mobile hero card adjustments */
+    .bg-gradient-to-r.from-primary-green {
+        padding: 1.5rem !important;
+    }
+    
+    /* Hero card mobile layout */
+    @media (max-width: 640px) {
+        .bg-gradient-to-r.from-primary-green {
+            padding: 1rem !important;
+        }
+        
+        /* Avatar maior no mobile */
+        .w-20.h-20 {
+            width: 4rem !important;
+            height: 4rem !important;
+        }
+        
+        /* Nome maior no mobile */
+        .text-2xl {
+            font-size: 1.5rem !important;
+        }
+        
+        /* Badges mais compactas */
+        .bg-white\/20,
+        .bg-blue-500\/80 {
+            padding: 0.375rem 0.75rem !important;
+            font-size: 0.75rem !important;
+        }
+        
+        /* Email com quebra de linha */
+        .break-all {
+            word-break: break-all;
+            overflow-wrap: break-word;
+        }
+        
+        /* Status card mais compacto */
+        .bg-white\/10 {
+            padding: 0.75rem !important;
+        }
+    }
+    
+    /* Mobile content padding */
+    .p-8 {
+        padding: 1rem;
+    }
+    
+    .lg\:p-12 {
+        padding: 1rem !important;
+    }
+    
+    .bg-gradient-to-r.from-primary-green .flex.items-center {
+        flex-direction: column;
+        text-align: center;
+        gap: 1rem;
+    }
+    
+    .bg-gradient-to-r.from-primary-green .w-24.h-24 {
+        width: 4rem;
+        height: 4rem;
+    }
+    
+    .bg-gradient-to-r.from-primary-green .text-3xl {
+        font-size: 1.5rem;
+    }
+    
+    /* Mobile stats grid - melhorada */
+    .grid.grid-cols-1.md\:grid-cols-2.lg\:grid-cols-4 {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 1rem;
+    }
+
+    /* Mobile scroll adjustments */
+    .overflow-y-auto {
+        max-height: calc(100vh - 120px) !important;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    /* Mobile scrollbar */
+    .overflow-y-auto::-webkit-scrollbar {
+        width: 4px;
+    }
+
+    /* Melhorias específicas para telas muito pequenas */
+    @media (max-width: 480px) {
+        /* Header ainda mais compacto */
+        .px-4.sm\:px-6.lg\:px-8 {
+            padding-left: 0.75rem !important;
+            padding-right: 0.75rem !important;
+        }
+        
+        .py-4.sm\:py-6 {
+            padding-top: 0.75rem !important;
+            padding-bottom: 0.75rem !important;
+        }
+        
+        /* Abas ainda mais compactas com melhor contraste */
+        .space-x-0\.5.sm\:space-x-1 {
+            gap: 0.125rem !important;
+        }
+        
+        .p-1.sm\:p-2 {
+            padding: 0.25rem !important;
+        }
+        
+        /* Aba ativa em telas pequenas - respeitando o tema */
+        .profile-tab.active {
+            background: white !important;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+            border: 1px solid rgba(0, 0, 0, 0.1) !important;
+        }
+        
+        .profile-tab.active span {
+            color: #1f2937 !important;
+            font-weight: 800;
+        }
+        
+        /* Abas inativas em telas pequenas */
+        .profile-tab:not(.active) {
+            background: transparent !important;
+            border: 1px solid transparent;
+        }
+        
+        .profile-tab:not(.active) span {
+            color: #6b7280 !important;
+            font-weight: 600;
+        }
+        
+        /* Texto das abas menor */
+        .text-xs.sm\:text-sm {
+            font-size: 0.625rem !important;
+        }
+        
+        /* Conteúdo mais compacto */
+        .p-4.sm\:p-6.lg\:p-8.xl\:p-12 {
+            padding: 0.75rem !important;
+        }
+        
+        /* Cards mais compactas */
+        .p-3.sm\:p-4.lg\:p-6 {
+            padding: 0.5rem !important;
+        }
+        
+        /* Botão scroll menor */
+        .bottom-4.right-4 {
+            bottom: 1rem !important;
+            right: 1rem !important;
+        }
+        
+        .w-10.h-10 {
+            width: 2rem !important;
+            height: 2rem !important;
+        }
+    }
+    
+    .bg-white.rounded-2xl.p-6 {
+        padding: 1rem;
+    }
+    
+    .text-4xl.font-bold {
+        font-size: 2rem;
+    }
+    
+    /* Mobile profile cards */
+    .grid.grid-cols-1.lg\:grid-cols-2 {
+        grid-template-columns: 1fr;
+        gap: 1rem;
+    }
+    
+    /* Mobile system performance */
+    .grid.grid-cols-1.md\:grid-cols-3 {
+        grid-template-columns: 1fr;
+        gap: 1rem;
+    }
+    
+    /* Mobile settings */
+    .grid.grid-cols-1.md\:grid-cols-2 {
+        grid-template-columns: 1fr;
+        gap: 1rem;
+    }
+    
+    .flex.flex-col.sm\:flex-row {
+        flex-direction: column;
+        gap: 0.75rem;
+    }
+}
+
+@media (max-width: 480px) {
+    #userProfileModal {
+        padding: 0;
+    }
+    
+    #userProfileModal #modalContent {
+        border-radius: 0;
+    }
+    
+    .profile-tab {
+        padding: 8px 12px;
+        min-width: 80px;
+        font-size: 0.75rem;
+    }
+    
+    .profile-tab svg {
+        width: 3.5rem;
+        height: 3.5rem;
+    }
+}
+
+/* Estilos para modo escuro no modal */
+[data-theme="dark"] #userProfileModal .text-gray-900 {
+    color: var(--text-primary) !important;
+}
+
+[data-theme="dark"] #userProfileModal .text-gray-800 {
+    color: var(--text-secondary) !important;
+}
+
+[data-theme="dark"] #userProfileModal .text-gray-700 {
+    color: var(--text-tertiary) !important;
+}
+
+[data-theme="dark"] #userProfileModal .text-gray-600 {
+    color: var(--text-tertiary) !important;
+}
+
+[data-theme="dark"] #userProfileModal .text-gray-500 {
+    color: var(--text-tertiary) !important;
+}
+
+[data-theme="dark"] #userProfileModal .bg-white {
+    background-color: var(--bg-secondary) !important;
+}
+
+[data-theme="dark"] #userProfileModal .border-gray-200 {
+    border-color: var(--border-color) !important;
+}
+
+[data-theme="dark"] #userProfileModal .bg-gray-50 {
+    background-color: var(--bg-primary) !important;
+}
+
