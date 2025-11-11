@@ -8,13 +8,157 @@ if (!defined('BASE_URL')) {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Login - SIGAE | Sistema Integrado de Gestão Escolar e Alimentação Escolar</title>
+    <title>Login - SIGEA | Sistema Integrado de Gestão Escolar e Alimentação Escolar</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="config.js"></script>
     <script src="assets/js/modal-system.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="icon" href="https://upload.wikimedia.org/wikipedia/commons/thumb/1/19/Bras%C3%A3o_de_Maranguape.png/250px-Bras%C3%A3o_de_Maranguape.png" type="image/x-icon">
     <link rel="stylesheet" href="assets/css/style.css">
+    
+    <!-- Aviso de Desenvolvimento -->
+    <style>
+        .dev-warning {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            z-index: 9999;
+            max-width: 400px;
+            animation: slideInRight 0.5s ease-out;
+        }
+
+        .dev-warning .speech-bubble {
+            background: white;
+            color: #333;
+            padding: 20px 25px;
+            border-radius: 25px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+            border: 2px solid #e5e7eb;
+            position: relative;
+            margin-bottom: 15px;
+            max-width: 320px;
+        }
+
+        .dev-warning .speech-bubble::after {
+            content: '';
+            position: absolute;
+            bottom: -12px;
+            right: 50px;
+            width: 0;
+            height: 0;
+            border-left: 12px solid transparent;
+            border-right: 12px solid transparent;
+            border-top: 12px solid white;
+        }
+
+        .dev-warning .speech-bubble::before {
+            content: '';
+            position: absolute;
+            bottom: -14px;
+            right: 48px;
+            width: 0;
+            height: 0;
+            border-left: 14px solid transparent;
+            border-right: 14px solid transparent;
+            border-top: 14px solid #e5e7eb;
+        }
+
+        .dev-warning .character {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .dev-warning .character img {
+            width: 180px;
+            height: 180px;
+            object-fit: contain;
+        }
+
+        .dev-warning h4 {
+            margin: 0 0 10px 0;
+            font-weight: 700;
+            font-size: 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: #1f2937;
+        }
+
+        .dev-warning p {
+            margin: 0;
+            font-size: 13px;
+            color: #4b5563;
+            line-height: 1.5;
+        }
+
+        .dev-warning .close-btn {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: #f3f4f6;
+            border: none;
+            color: #6b7280;
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s ease;
+        }
+
+        .dev-warning .close-btn:hover {
+            background: #e5e7eb;
+            color: #374151;
+        }
+
+        @keyframes slideInRight {
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        @keyframes slideOutRight {
+            from {
+                transform: translateX(0);
+                opacity: 1;
+            }
+            to {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+        }
+
+        @keyframes bounce {
+            0%, 20%, 50%, 80%, 100% {
+                transform: translateY(0);
+            }
+            40% {
+                transform: translateY(-10px);
+            }
+            60% {
+                transform: translateY(-5px);
+            }
+        }
+
+        /* Responsivo */
+        @media (max-width: 768px) {
+            .dev-warning {
+                top: 10px;
+                right: 10px;
+                left: 10px;
+                max-width: none;
+            }
+        }
+    </style>
     <style>
         .error-message {
             background-color: #fef2f2;
@@ -63,12 +207,24 @@ if (!defined('BASE_URL')) {
     </script>
 </head>
 <body class="min-h-screen bg-white md:gradient-mesh">
+    <!-- Aviso de Desenvolvimento -->
+    <div id="devWarning" class="dev-warning">
+        <div class="speech-bubble">
+            <button class="close-btn" onclick="closeDevWarning()">×</button>
+            <h4>🚧 Sistema em Desenvolvimento 💡</h4>
+            <p>Algumas funcionalidades podem apresentar incompatibilidades ou não funcionar corretamente. Estamos trabalhando para melhorar sua experiência!</p>
+        </div>
+        <div class="character">
+            <img src="../dashboard/assets/img/mpe.png" alt="Desenvolvedor">
+        </div>
+    </div>
+
     <!-- Mobile Layout -->
     <div class="md:hidden w-full max-w-md mx-auto px-4 py-8">
         <!-- Logo e Branding -->
         <div class="text-center mb-8">
             <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/1/19/Bras%C3%A3o_de_Maranguape.png/250px-Bras%C3%A3o_de_Maranguape.png" alt="Brasão de Maranguape" class="w-16 h-16 mx-auto mb-4 object-contain">
-            <h1 class="text-2xl font-bold text-gray-800 mb-1">SIGAE</h1>
+            <h1 class="text-2xl font-bold text-gray-800 mb-1">SIGEA</h1>
             <p class="text-gray-600 text-sm font-medium mb-1">Sistema Integrado de Gestão Escolar e Alimentação Escolar</p>
             <p class="text-gray-500 text-xs">Prefeitura Municipal de Maranguape</p>
         </div>
@@ -191,7 +347,7 @@ if (!defined('BASE_URL')) {
                     <div class="w-20 h-20 rounded-2xl flex items-center justify-center mx-auto mb-2">
                         <img src="https://i.postimg.cc/j5RDSqbd/brasao2-marangupe.png" alt="Logo" class="w-30 h-30 object-contain" />
                     </div>
-                    <h1 class="text-4xl font-bold mb-4">SIGAE</h1>
+                    <h1 class="text-4xl font-bold mb-4">SIGEA</h1>
                     <p class="text-xl text-white/90"> Sistema Integrado de Gestão Escolar e Alimentação Escolar</p>
                 </div>
             </div>
@@ -453,6 +609,30 @@ if (!defined('BASE_URL')) {
                 window.location.href = 'solicitar-alteracao-senha.html';
             }
         }
+
+        // Função para fechar aviso de desenvolvimento
+        function closeDevWarning() {
+            const warning = document.getElementById('devWarning');
+            if (warning) {
+                warning.style.animation = 'slideOutRight 0.3s ease-in forwards';
+                setTimeout(() => {
+                    warning.style.display = 'none';
+                }, 300);
+            }
+        }
+
+        // Auto-hide após 12 segundos
+        document.addEventListener('DOMContentLoaded', function() {
+            setTimeout(() => {
+                const warning = document.getElementById('devWarning');
+                if (warning) {
+                    warning.style.animation = 'slideOutRight 0.5s ease-in forwards';
+                    setTimeout(() => {
+                        warning.style.display = 'none';
+                    }, 500);
+                }
+            }, 12000); // 12 segundos
+        });
 
         // Initialize page
         document.addEventListener('DOMContentLoaded', function() {

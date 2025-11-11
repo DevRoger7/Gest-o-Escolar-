@@ -17,12 +17,145 @@ if (!defined('BASE_URL')) {
     <title><?php 
         $userType = $_SESSION['tipo'] ?? 'Usuário';
         $userTypeFormatted = ucfirst(strtolower($userType));
-        echo "Dashboard $userTypeFormatted - SIGAE";
+        echo "Dashboard $userTypeFormatted - SIGEA";
     ?></title>
 
     <link rel="icon" href="https://upload.wikimedia.org/wikipedia/commons/thumb/1/19/Bras%C3%A3o_de_Maranguape.png/250px-Bras%C3%A3o_de_Maranguape.png" type="image/png">
     <link rel="shortcut icon" href="https://upload.wikimedia.org/wikipedia/commons/thumb/1/19/Bras%C3%A3o_de_Maranguape.png/250px-Bras%C3%A3o_de_Maranguape.png" type="image/png">
     <link rel="apple-touch-icon" href="https://upload.wikimedia.org/wikipedia/commons/thumb/1/19/Bras%C3%A3o_de_Maranguape.png/250px-Bras%C3%A3o_de_Maranguape.png">
+
+    <!-- Aviso de Desenvolvimento -->
+    <style>
+        .dev-warning {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            z-index: 9999;
+            max-width: 400px;
+            animation: slideInRight 0.5s ease-out;
+        }
+
+        .dev-warning .speech-bubble {
+            background: white;
+            color: #333;
+            padding: 20px 25px;
+            border-radius: 25px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+            border: 2px solid #e5e7eb;
+            position: relative;
+            margin-bottom: 15px;
+            max-width: 320px;
+        }
+
+        .dev-warning .speech-bubble::after {
+            content: '';
+            position: absolute;
+            bottom: -12px;
+            right: 50px;
+            width: 0;
+            height: 0;
+            border-left: 12px solid transparent;
+            border-right: 12px solid transparent;
+            border-top: 12px solid white;
+        }
+
+        .dev-warning .speech-bubble::before {
+            content: '';
+            position: absolute;
+            bottom: -14px;
+            right: 48px;
+            width: 0;
+            height: 0;
+            border-left: 14px solid transparent;
+            border-right: 14px solid transparent;
+            border-top: 14px solid #e5e7eb;
+        }
+
+        .dev-warning .character {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .dev-warning .character img {
+            width: 180px;
+            height: 180px;
+            object-fit: contain;
+        }
+
+        .dev-warning h4 {
+            margin: 0 0 10px 0;
+            font-weight: 700;
+            font-size: 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: #1f2937;
+        }
+
+        .dev-warning p {
+            margin: 0;
+            font-size: 13px;
+            color: #4b5563;
+            line-height: 1.5;
+        }
+
+        .dev-warning .close-btn {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: #f3f4f6;
+            border: none;
+            color: #6b7280;
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s ease;
+        }
+
+        .dev-warning .close-btn:hover {
+            background: #e5e7eb;
+            color: #374151;
+        }
+
+        @keyframes slideInRight {
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        @keyframes bounce {
+            0%, 20%, 50%, 80%, 100% {
+                transform: translateY(0);
+            }
+            40% {
+                transform: translateY(-10px);
+            }
+            60% {
+                transform: translateY(-5px);
+            }
+        }
+
+        /* Responsivo */
+        @media (max-width: 768px) {
+            .dev-warning {
+                top: 10px;
+                right: 10px;
+                left: 10px;
+                max-width: none;
+            }
+        }
+    </style>
 
     <script>
         (function() {
@@ -1810,6 +1943,18 @@ if (!defined('BASE_URL')) {
 </head>
 
 <body class="bg-gray-50 font-sans">
+    <!-- Aviso de Desenvolvimento -->
+    <div id="devWarning" class="dev-warning">
+        <div class="speech-bubble">
+            <button class="close-btn" onclick="closeDevWarning()">×</button>
+            <h4>🚧 Sistema em Desenvolvimento 💡</h4>
+            <p>Algumas funcionalidades podem apresentar incompatibilidades ou não funcionar corretamente. Estamos trabalhando para melhorar sua experiência!</p>
+        </div>
+        <div class="character">
+            <img src="assets/img/mpe.png" alt="Desenvolvedor">
+        </div>
+    </div>
+
     <!-- Mobile Menu Overlay -->
     <div id="mobileOverlay" class="fixed inset-0 bg-black bg-opacity-50 z-40 hidden mobile-menu-overlay lg:hidden"></div>
 
@@ -1820,7 +1965,7 @@ if (!defined('BASE_URL')) {
             <div class="flex items-center space-x-3">
                 <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/1/19/Bras%C3%A3o_de_Maranguape.png/250px-Bras%C3%A3o_de_Maranguape.png" alt="Brasão de Maranguape" class="w-10 h-10 object-contain">
                 <div>
-                    <h1 class="text-lg font-bold text-gray-800">SIGAE</h1>
+                    <h1 class="text-lg font-bold text-gray-800">SIGEA</h1>
                     <p class="text-xs text-gray-500">Maranguape</p>
                 </div>
             </div>
@@ -1959,6 +2104,14 @@ if (!defined('BASE_URL')) {
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path>
                         </svg>
                         <span>Estoque Central</span>
+                    </a>
+                </li>
+                <li id="calendar-menu">
+                    <a href="calendar.php" class="menu-item flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                        </svg>
+                        <span>Calendário</span>
                     </a>
                 </li>
                 <?php } ?>
@@ -3322,14 +3475,16 @@ if (!defined('BASE_URL')) {
                     ['title' => 'Usuários', 'desc' => 'Gerenciar usuários do sistema', 'icon' => 'users', 'color' => 'blue', 'count' => '156'],
                     ['title' => 'Escolas', 'desc' => 'Administrar dados das escolas', 'icon' => 'building', 'color' => 'green', 'count' => '12'],
                     ['title' => 'Relatórios', 'desc' => 'Relatórios completos do sistema', 'icon' => 'chart', 'color' => 'purple', 'count' => '45'],
-                    ['title' => 'Estoque', 'desc' => 'Controle total do estoque', 'icon' => 'box', 'color' => 'orange', 'count' => '2.5k']
+                    ['title' => 'Estoque', 'desc' => 'Controle total do estoque', 'icon' => 'box', 'color' => 'orange', 'count' => '2.5k'],
+                    ['title' => 'Calendário', 'desc' => 'Eventos e atividades escolares', 'icon' => 'calendar', 'color' => 'indigo', 'count' => '25']
                 ];
                 
                 $icons = [
                     'users' => '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-2.239"></path>',
                     'building' => '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path>',
                     'chart' => '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>',
-                    'box' => '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path>'
+                    'box' => '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path>',
+                    'calendar' => '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>'
                 ];
                 
                 foreach ($adminCards as $card) {
@@ -3345,9 +3500,9 @@ if (!defined('BASE_URL')) {
                         </div>
                         <h3 class="text-lg font-bold text-gray-800 mb-2">'.$card['title'].'</h3>
                         <p class="text-gray-600 text-sm mb-4">'.$card['desc'].'</p>
-                        <button class="w-full bg-gradient-to-r from-'.$card['color'].'-500 to-'.$card['color'].'-600 text-white py-2 px-4 rounded-lg hover:from-'.$card['color'].'-600 hover:to-'.$card['color'].'-700 transition-all duration-200">
+                        <a href="'.($card['title'] === 'Calendário' ? 'calendar.php' : ($card['title'] === 'Usuários' ? 'gestao_usuarios.php' : ($card['title'] === 'Escolas' ? 'gestao_escolas.php' : ($card['title'] === 'Estoque' ? 'gestao_estoque_central.php' : '#')))).'" class="w-full bg-gradient-to-r from-'.$card['color'].'-500 to-'.$card['color'].'-600 text-white py-2 px-4 rounded-lg hover:from-'.$card['color'].'-600 hover:to-'.$card['color'].'-700 transition-all duration-200 text-center block">
                             Gerenciar
-                        </button>
+                        </a>
                     </div>';
                 }
                 
@@ -8699,6 +8854,68 @@ if (!defined('BASE_URL')) {
                 originalConsoleWarn.apply(console, args);
             };
         })();
+
+        // Função para fechar aviso de desenvolvimento
+        function closeDevWarning() {
+            const warning = document.getElementById('devWarning');
+            if (warning) {
+                warning.style.animation = 'slideOutRight 0.3s ease-in forwards';
+                setTimeout(() => {
+                    warning.style.display = 'none';
+                }, 300);
+            }
+        }
+
+        // Auto-hide após 12 segundos
+        document.addEventListener('DOMContentLoaded', function() {
+            setTimeout(() => {
+                const warning = document.getElementById('devWarning');
+                if (warning) {
+                    warning.style.animation = 'slideOutRight 0.5s ease-in forwards';
+                    setTimeout(() => {
+                        warning.style.display = 'none';
+                    }, 500);
+                }
+            }, 12000); // 12 segundos
+        });
+
+        // Funções do modal de logout
+        function confirmLogout() {
+            const modal = document.getElementById('logoutModal');
+            if (modal) {
+                modal.classList.remove('hidden');
+                modal.classList.add('flex');
+            }
+        }
+
+        function closeLogoutModal() {
+            const modal = document.getElementById('logoutModal');
+            if (modal) {
+                modal.classList.add('hidden');
+                modal.classList.remove('flex');
+            }
+        }
+
+        function logout() {
+            // Redirecionar para a página de logout
+            window.location.href = '../auth/logout.php';
+        }
+
+        // Adicionar animação de saída
+        const style = document.createElement('style');
+        style.textContent = `
+            @keyframes slideOutRight {
+                from {
+                    transform: translateX(0);
+                    opacity: 1;
+                }
+                to {
+                    transform: translateX(100%);
+                    opacity: 0;
+                }
+            }
+        `;
+        document.head.appendChild(style);
 
         // Sidebar configurado
     </script>

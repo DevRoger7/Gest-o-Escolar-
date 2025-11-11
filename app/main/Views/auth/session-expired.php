@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sessão Expirada - SIGAE</title>
+    <title>Sessão Expirada - SIGEA</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <style>
@@ -80,7 +80,7 @@
                     Sistema Integrado de Gestão Acadêmica Escolar
                 </p>
                 <p class="text-xs text-gray-400 mt-1">
-                    © 2024 SIGAE - Todos os direitos reservados
+                    © 2024 SIGEA - Todos os direitos reservados
                 </p>
             </div>
         </div>
