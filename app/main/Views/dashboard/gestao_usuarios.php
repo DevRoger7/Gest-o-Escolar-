@@ -125,64 +125,6 @@ function cadastrarUsuario($dados) {
         $stmt->bindParam(':role', $dados['tipo']);
         
         $stmt->execute();
-        $usuarioId = $conn->lastInsertId();
-        
-        // Criar registro na tabela específica conforme o tipo de usuário
-        $tipoUsuario = strtoupper($dados['tipo']);
-        
-        if ($tipoUsuario === 'ALUNO') {
-            // Inserir na tabela aluno
-            $matricula = $dados['matricula'] ?? null;
-            $nis = $dados['nis'] ?? null;
-            $responsavelId = !empty($dados['responsavel_id']) ? $dados['responsavel_id'] : null;
-            $dataMatricula = !empty($dados['data_matricula']) ? $dados['data_matricula'] : date('Y-m-d');
-            
-            $stmt = $conn->prepare("INSERT INTO aluno (pessoa_id, matricula, nis, responsavel_id, data_matricula, ativo) 
-                                    VALUES (:pessoa_id, :matricula, :nis, :responsavel_id, :data_matricula, 1)");
-            $stmt->bindParam(':pessoa_id', $pessoaId);
-            $stmt->bindParam(':matricula', $matricula);
-            $stmt->bindParam(':nis', $nis);
-            $stmt->bindParam(':responsavel_id', $responsavelId);
-            $stmt->bindParam(':data_matricula', $dataMatricula);
-            $stmt->execute();
-        } elseif ($tipoUsuario === 'PROFESSOR') {
-            // Inserir na tabela professor
-            $matricula = $dados['matricula'] ?? null;
-            $formacao = $dados['formacao'] ?? null;
-            $dataAdmissao = !empty($dados['data_admissao']) ? $dados['data_admissao'] : date('Y-m-d');
-            
-            $stmt = $conn->prepare("INSERT INTO professor (pessoa_id, matricula, formacao, data_admissao, ativo) 
-                                    VALUES (:pessoa_id, :matricula, :formacao, :data_admissao, 1)");
-            $stmt->bindParam(':pessoa_id', $pessoaId);
-            $stmt->bindParam(':matricula', $matricula);
-            $stmt->bindParam(':formacao', $formacao);
-            $stmt->bindParam(':data_admissao', $dataAdmissao);
-            $stmt->execute();
-        } elseif ($tipoUsuario === 'GESTAO') {
-            // Inserir na tabela gestor
-            $cargo = $dados['cargo'] ?? 'gestor';
-            
-            $stmt = $conn->prepare("INSERT INTO gestor (pessoa_id, cargo, ativo) 
-                                    VALUES (:pessoa_id, :cargo, 1)");
-            $stmt->bindParam(':pessoa_id', $pessoaId);
-            $stmt->bindParam(':cargo', $cargo);
-            $stmt->execute();
-        }
-        
-        // Atualizar tipo na tabela pessoa conforme o role
-        $tipoPessoa = 'FUNCIONARIO';
-        if ($tipoUsuario === 'ALUNO') {
-            $tipoPessoa = 'ALUNO';
-        } elseif ($tipoUsuario === 'PROFESSOR') {
-            $tipoPessoa = 'PROFESSOR';
-        } elseif ($tipoUsuario === 'GESTAO') {
-            $tipoPessoa = 'GESTOR';
-        }
-        
-        $stmt = $conn->prepare("UPDATE pessoa SET tipo = :tipo WHERE id = :id");
-        $stmt->bindParam(':tipo', $tipoPessoa);
-        $stmt->bindParam(':id', $pessoaId);
-        $stmt->execute();
         
         // Confirmar transação
         $conn->commit();
@@ -200,8 +142,8 @@ function excluirUsuario($id) {
     $conn = $db->getConnection();
     
     try {
-        // Buscar pessoa_id e role antes de excluir
-        $stmt = $conn->prepare("SELECT pessoa_id, role FROM usuario WHERE id = :id");
+        // Buscar pessoa_id antes de excluir
+        $stmt = $conn->prepare("SELECT pessoa_id FROM usuario WHERE id = :id");
         $stmt->bindParam(':id', $id);
         $stmt->execute();
         $usuario = $stmt->fetch(PDO::FETCH_ASSOC);
@@ -211,28 +153,9 @@ function excluirUsuario($id) {
         }
         
         $pessoaId = $usuario['pessoa_id'];
-        $role = strtoupper($usuario['role']);
         
         // Iniciar transação
         $conn->beginTransaction();
-        
-        // Excluir da tabela específica conforme o tipo
-        if ($role === 'ALUNO') {
-            // Excluir da tabela aluno
-            $stmt = $conn->prepare("DELETE FROM aluno WHERE pessoa_id = :pessoa_id");
-            $stmt->bindParam(':pessoa_id', $pessoaId);
-            $stmt->execute();
-        } elseif ($role === 'PROFESSOR') {
-            // Excluir da tabela professor
-            $stmt = $conn->prepare("DELETE FROM professor WHERE pessoa_id = :pessoa_id");
-            $stmt->bindParam(':pessoa_id', $pessoaId);
-            $stmt->execute();
-        } elseif ($role === 'GESTAO') {
-            // Excluir da tabela gestor
-            $stmt = $conn->prepare("DELETE FROM gestor WHERE pessoa_id = :pessoa_id");
-            $stmt->bindParam(':pessoa_id', $pessoaId);
-            $stmt->execute();
-        }
         
         // Excluir usuário
         $stmt = $conn->prepare("DELETE FROM usuario WHERE id = :id");
@@ -350,147 +273,6 @@ function atualizarUsuario($dados) {
         
         $stmt->execute();
         
-        // Atualizar registro na tabela específica conforme o tipo de usuário
-        $tipoUsuario = strtoupper($dados['tipo']);
-        $roleAnterior = null;
-        
-        // Buscar role anterior
-        $stmt = $conn->prepare("SELECT role FROM usuario WHERE id = :id");
-        $stmt->bindParam(':id', $dados['id']);
-        $stmt->execute();
-        $usuarioAnterior = $stmt->fetch(PDO::FETCH_ASSOC);
-        if ($usuarioAnterior) {
-            $roleAnterior = strtoupper($usuarioAnterior['role']);
-        }
-        
-        // Se o tipo mudou, remover da tabela antiga e criar na nova
-        if ($roleAnterior && $roleAnterior !== $tipoUsuario) {
-            // Remover da tabela antiga
-            if ($roleAnterior === 'ALUNO') {
-                $stmt = $conn->prepare("DELETE FROM aluno WHERE pessoa_id = :pessoa_id");
-                $stmt->bindParam(':pessoa_id', $dados['pessoa_id']);
-                $stmt->execute();
-            } elseif ($roleAnterior === 'PROFESSOR') {
-                $stmt = $conn->prepare("DELETE FROM professor WHERE pessoa_id = :pessoa_id");
-                $stmt->bindParam(':pessoa_id', $dados['pessoa_id']);
-                $stmt->execute();
-            } elseif ($roleAnterior === 'GESTAO') {
-                $stmt = $conn->prepare("DELETE FROM gestor WHERE pessoa_id = :pessoa_id");
-                $stmt->bindParam(':pessoa_id', $dados['pessoa_id']);
-                $stmt->execute();
-            }
-        }
-        
-        // Verificar se já existe na tabela específica
-        $existeNaTabela = false;
-        if ($tipoUsuario === 'ALUNO') {
-            $stmt = $conn->prepare("SELECT id FROM aluno WHERE pessoa_id = :pessoa_id");
-            $stmt->bindParam(':pessoa_id', $dados['pessoa_id']);
-            $stmt->execute();
-            $existeNaTabela = $stmt->fetch() !== false;
-            
-            if (!$existeNaTabela) {
-                // Criar na tabela aluno
-                $matricula = $dados['matricula'] ?? null;
-                $nis = $dados['nis'] ?? null;
-                $responsavelId = !empty($dados['responsavel_id']) ? $dados['responsavel_id'] : null;
-                $dataMatricula = !empty($dados['data_matricula']) ? $dados['data_matricula'] : date('Y-m-d');
-                
-                $stmt = $conn->prepare("INSERT INTO aluno (pessoa_id, matricula, nis, responsavel_id, data_matricula, ativo) 
-                                        VALUES (:pessoa_id, :matricula, :nis, :responsavel_id, :data_matricula, 1)");
-                $stmt->bindParam(':pessoa_id', $dados['pessoa_id']);
-                $stmt->bindParam(':matricula', $matricula);
-                $stmt->bindParam(':nis', $nis);
-                $stmt->bindParam(':responsavel_id', $responsavelId);
-                $stmt->bindParam(':data_matricula', $dataMatricula);
-                $stmt->execute();
-            } else {
-                // Atualizar na tabela aluno
-                $matricula = $dados['matricula'] ?? null;
-                $nis = $dados['nis'] ?? null;
-                $responsavelId = !empty($dados['responsavel_id']) ? $dados['responsavel_id'] : null;
-                
-                $stmt = $conn->prepare("UPDATE aluno SET matricula = :matricula, nis = :nis, responsavel_id = :responsavel_id, ativo = :ativo WHERE pessoa_id = :pessoa_id");
-                $stmt->bindParam(':matricula', $matricula);
-                $stmt->bindParam(':nis', $nis);
-                $stmt->bindParam(':responsavel_id', $responsavelId);
-                $stmt->bindParam(':ativo', $dados['ativo']);
-                $stmt->bindParam(':pessoa_id', $dados['pessoa_id']);
-                $stmt->execute();
-            }
-        } elseif ($tipoUsuario === 'PROFESSOR') {
-            $stmt = $conn->prepare("SELECT id FROM professor WHERE pessoa_id = :pessoa_id");
-            $stmt->bindParam(':pessoa_id', $dados['pessoa_id']);
-            $stmt->execute();
-            $existeNaTabela = $stmt->fetch() !== false;
-            
-            if (!$existeNaTabela) {
-                // Criar na tabela professor
-                $matricula = $dados['matricula'] ?? null;
-                $formacao = $dados['formacao'] ?? null;
-                $dataAdmissao = !empty($dados['data_admissao']) ? $dados['data_admissao'] : date('Y-m-d');
-                
-                $stmt = $conn->prepare("INSERT INTO professor (pessoa_id, matricula, formacao, data_admissao, ativo) 
-                                        VALUES (:pessoa_id, :matricula, :formacao, :data_admissao, 1)");
-                $stmt->bindParam(':pessoa_id', $dados['pessoa_id']);
-                $stmt->bindParam(':matricula', $matricula);
-                $stmt->bindParam(':formacao', $formacao);
-                $stmt->bindParam(':data_admissao', $dataAdmissao);
-                $stmt->execute();
-            } else {
-                // Atualizar na tabela professor
-                $matricula = $dados['matricula'] ?? null;
-                $formacao = $dados['formacao'] ?? null;
-                
-                $stmt = $conn->prepare("UPDATE professor SET matricula = :matricula, formacao = :formacao, ativo = :ativo WHERE pessoa_id = :pessoa_id");
-                $stmt->bindParam(':matricula', $matricula);
-                $stmt->bindParam(':formacao', $formacao);
-                $stmt->bindParam(':ativo', $dados['ativo']);
-                $stmt->bindParam(':pessoa_id', $dados['pessoa_id']);
-                $stmt->execute();
-            }
-        } elseif ($tipoUsuario === 'GESTAO') {
-            $stmt = $conn->prepare("SELECT id FROM gestor WHERE pessoa_id = :pessoa_id");
-            $stmt->bindParam(':pessoa_id', $dados['pessoa_id']);
-            $stmt->execute();
-            $existeNaTabela = $stmt->fetch() !== false;
-            
-            if (!$existeNaTabela) {
-                // Criar na tabela gestor
-                $cargo = $dados['cargo'] ?? 'gestor';
-                
-                $stmt = $conn->prepare("INSERT INTO gestor (pessoa_id, cargo, ativo) 
-                                        VALUES (:pessoa_id, :cargo, 1)");
-                $stmt->bindParam(':pessoa_id', $dados['pessoa_id']);
-                $stmt->bindParam(':cargo', $cargo);
-                $stmt->execute();
-            } else {
-                // Atualizar na tabela gestor
-                $cargo = $dados['cargo'] ?? 'gestor';
-                
-                $stmt = $conn->prepare("UPDATE gestor SET cargo = :cargo, ativo = :ativo WHERE pessoa_id = :pessoa_id");
-                $stmt->bindParam(':cargo', $cargo);
-                $stmt->bindParam(':ativo', $dados['ativo']);
-                $stmt->bindParam(':pessoa_id', $dados['pessoa_id']);
-                $stmt->execute();
-            }
-        }
-        
-        // Atualizar tipo na tabela pessoa conforme o role
-        $tipoPessoa = 'FUNCIONARIO';
-        if ($tipoUsuario === 'ALUNO') {
-            $tipoPessoa = 'ALUNO';
-        } elseif ($tipoUsuario === 'PROFESSOR') {
-            $tipoPessoa = 'PROFESSOR';
-        } elseif ($tipoUsuario === 'GESTAO') {
-            $tipoPessoa = 'GESTOR';
-        }
-        
-        $stmt = $conn->prepare("UPDATE pessoa SET tipo = :tipo WHERE id = :id");
-        $stmt->bindParam(':tipo', $tipoPessoa);
-        $stmt->bindParam(':id', $dados['pessoa_id']);
-        $stmt->execute();
-        
         // Confirmar transação
         $conn->commit();
         
@@ -523,14 +305,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 'tipo' => $_POST['tipo'] ?? 'funcionario',
                 'telefone' => $_POST['telefone'] ?? '',
                 'endereco' => $_POST['endereco'] ?? '',
-                'data_nascimento' => $_POST['data_nascimento'] ?? null,
-                'matricula' => $_POST['matricula'] ?? null,
-                'nis' => $_POST['nis'] ?? null,
-                'responsavel_id' => $_POST['responsavel_id'] ?? null,
-                'data_matricula' => $_POST['data_matricula'] ?? null,
-                'formacao' => $_POST['formacao'] ?? null,
-                'data_admissao' => $_POST['data_admissao'] ?? null,
-                'cargo' => $_POST['cargo'] ?? null
+                'data_nascimento' => $_POST['data_nascimento'] ?? null
             ];
             
             $resultado = cadastrarUsuario($dados);
@@ -554,14 +329,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 'telefone' => $_POST['telefone'] ?? '',
                 'username' => $_POST['username'] ?? '',
                 'ativo' => $_POST['ativo'] ?? '1',
-                'data_nascimento' => $_POST['data_nascimento'] ?? null,
-                'matricula' => $_POST['matricula'] ?? null,
-                'nis' => $_POST['nis'] ?? null,
-                'responsavel_id' => $_POST['responsavel_id'] ?? null,
-                'data_matricula' => $_POST['data_matricula'] ?? null,
-                'formacao' => $_POST['formacao'] ?? null,
-                'data_admissao' => $_POST['data_admissao'] ?? null,
-                'cargo' => $_POST['cargo'] ?? null
+                'data_nascimento' => $_POST['data_nascimento'] ?? null
             ];
             
             // Log dos dados recebidos
@@ -1351,63 +1119,6 @@ $usuarios = listarUsuarios($busca);
                         <span>Usuários</span>
                     </a>
                 </li>
-                <li id="turmas-disciplinas-menu">
-                    <a href="gestao_turmas_disciplinas.php" class="menu-item flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.746 0 3.332.477 4.5 1.253v13C19.832 18.477 18.246 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path>
-                        </svg>
-                        <span>Turmas e Disciplinas</span>
-                    </a>
-                </li>
-                <li id="permissoes-menu">
-                    <a href="gestao_permissoes.php" class="menu-item flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path>
-                        </svg>
-                        <span>Permissões</span>
-                    </a>
-                </li>
-                <li id="supervisao-menu">
-                    <a href="supervisao_modulos.php" class="menu-item flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
-                        </svg>
-                        <span>Supervisão</span>
-                    </a>
-                </li>
-                <li id="validar-menu">
-                    <a href="validar_informacoes.php" class="menu-item flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                        </svg>
-                        <span>Validar Informações</span>
-                    </a>
-                </li>
-                <li id="gerenciar-dados-menu">
-                    <a href="gerenciar_dados.php" class="menu-item flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4"></path>
-                        </svg>
-                        <span>Gerenciar Dados</span>
-                    </a>
-                </li>
-                <li id="configuracoes-menu">
-                    <a href="configuracoes_seguranca.php" class="menu-item flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path>
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
-                        </svg>
-                        <span>Configurações</span>
-                    </a>
-                </li>
-                <li id="relatorios-menu">
-                    <a href="relatorios.php" class="menu-item flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
-                        </svg>
-                        <span>Relatórios</span>
-                    </a>
-                </li>
                 <li id="estoque-central-menu">
                     <a href="gestao_estoque_central.php" class="menu-item flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700">
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1656,7 +1367,7 @@ $usuarios = listarUsuarios($busca);
                             
                             <div>
                                 <label for="tipo" class="block text-sm font-medium text-gray-700 mb-2">Tipo de Usuário *</label>
-                                <select id="tipo" name="tipo" required onchange="mostrarCamposEspecificos(this.value)"
+                                <select id="tipo" name="tipo" required
                                         class="block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-primary-green focus:border-primary-green">
                                     <option value="GESTAO">Gestão</option>
                                     <option value="PROFESSOR">Professor</option>
@@ -1665,74 +1376,6 @@ $usuarios = listarUsuarios($busca);
                                     <option value="ADM_MERENDA">Administrador de Merenda</option>
                                     <option value="ADM">Administrador</option>
                                 </select>
-                            </div>
-                        </div>
-                        
-                        <!-- Campos específicos para ALUNO -->
-                        <div id="campos-aluno" class="hidden">
-                            <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
-                                <h4 class="text-sm font-semibold text-blue-900 mb-3">Informações do Aluno</h4>
-                                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                    <div>
-                                        <label for="matricula_aluno" class="block text-sm font-medium text-gray-700 mb-2">Matrícula</label>
-                                        <input type="text" id="matricula_aluno" name="matricula" placeholder="Número da matrícula"
-                                               class="block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-primary-green focus:border-primary-green">
-                                    </div>
-                                    <div>
-                                        <label for="nis" class="block text-sm font-medium text-gray-700 mb-2">NIS</label>
-                                        <input type="text" id="nis" name="nis" placeholder="Número de Identificação Social"
-                                               class="block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-primary-green focus:border-primary-green">
-                                    </div>
-                                    <div>
-                                        <label for="data_matricula" class="block text-sm font-medium text-gray-700 mb-2">Data de Matrícula</label>
-                                        <input type="date" id="data_matricula" name="data_matricula"
-                                               class="block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-primary-green focus:border-primary-green">
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <!-- Campos específicos para PROFESSOR -->
-                        <div id="campos-professor" class="hidden">
-                            <div class="bg-green-50 border border-green-200 rounded-lg p-4 mb-4">
-                                <h4 class="text-sm font-semibold text-green-900 mb-3">Informações do Professor</h4>
-                                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                    <div>
-                                        <label for="matricula_professor" class="block text-sm font-medium text-gray-700 mb-2">Matrícula</label>
-                                        <input type="text" id="matricula_professor" name="matricula" placeholder="Número da matrícula"
-                                               class="block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-primary-green focus:border-primary-green">
-                                    </div>
-                                    <div>
-                                        <label for="formacao" class="block text-sm font-medium text-gray-700 mb-2">Formação</label>
-                                        <input type="text" id="formacao" name="formacao" placeholder="Ex: Matemática, História, etc."
-                                               class="block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-primary-green focus:border-primary-green">
-                                    </div>
-                                    <div>
-                                        <label for="data_admissao" class="block text-sm font-medium text-gray-700 mb-2">Data de Admissão</label>
-                                        <input type="date" id="data_admissao" name="data_admissao"
-                                               class="block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-primary-green focus:border-primary-green">
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <!-- Campos específicos para GESTAO -->
-                        <div id="campos-gestao" class="hidden">
-                            <div class="bg-purple-50 border border-purple-200 rounded-lg p-4 mb-4">
-                                <h4 class="text-sm font-semibold text-purple-900 mb-3">Informações do Gestor</h4>
-                                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                    <div>
-                                        <label for="cargo" class="block text-sm font-medium text-gray-700 mb-2">Cargo</label>
-                                        <select id="cargo" name="cargo"
-                                                class="block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-primary-green focus:border-primary-green">
-                                            <option value="gestor">Gestor</option>
-                                            <option value="Diretor">Diretor</option>
-                                            <option value="Vice-Diretor">Vice-Diretor</option>
-                                            <option value="Coordenador Pedagógico">Coordenador Pedagógico</option>
-                                            <option value="Secretário Escolar">Secretário Escolar</option>
-                                        </select>
-                                    </div>
-                                </div>
                             </div>
                         </div>
                         
@@ -1847,7 +1490,7 @@ $usuarios = listarUsuarios($busca);
                                 
                                 <div>
                                     <label for="edit_tipo" class="block text-sm font-medium text-gray-700 mb-2">Tipo de Usuário *</label>
-                                    <select id="edit_tipo" name="tipo" required onchange="mostrarCamposEspecificosEdit(this.value)"
+                                    <select id="edit_tipo" name="tipo" required
                                             class="block w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-primary-green focus:border-primary-green transition-colors duration-200">
                                         <option value="GESTAO">Gestão</option>
                                         <option value="PROFESSOR">Professor</option>
@@ -1865,74 +1508,6 @@ $usuarios = listarUsuarios($busca);
                                         <option value="1">Ativo</option>
                                         <option value="0">Bloqueado</option>
                                     </select>
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <!-- Campos específicos para ALUNO (Edição) -->
-                        <div id="edit-campos-aluno" class="hidden">
-                            <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
-                                <h4 class="text-sm font-semibold text-blue-900 mb-3">Informações do Aluno</h4>
-                                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                                    <div>
-                                        <label for="edit_matricula_aluno" class="block text-sm font-medium text-gray-700 mb-2">Matrícula</label>
-                                        <input type="text" id="edit_matricula_aluno" name="matricula" placeholder="Número da matrícula"
-                                               class="block w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-primary-green focus:border-primary-green transition-colors duration-200">
-                                    </div>
-                                    <div>
-                                        <label for="edit_nis" class="block text-sm font-medium text-gray-700 mb-2">NIS</label>
-                                        <input type="text" id="edit_nis" name="nis" placeholder="Número de Identificação Social"
-                                               class="block w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-primary-green focus:border-primary-green transition-colors duration-200">
-                                    </div>
-                                    <div>
-                                        <label for="edit_data_matricula" class="block text-sm font-medium text-gray-700 mb-2">Data de Matrícula</label>
-                                        <input type="date" id="edit_data_matricula" name="data_matricula"
-                                               class="block w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-primary-green focus:border-primary-green transition-colors duration-200">
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <!-- Campos específicos para PROFESSOR (Edição) -->
-                        <div id="edit-campos-professor" class="hidden">
-                            <div class="bg-green-50 border border-green-200 rounded-lg p-4 mb-4">
-                                <h4 class="text-sm font-semibold text-green-900 mb-3">Informações do Professor</h4>
-                                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                                    <div>
-                                        <label for="edit_matricula_professor" class="block text-sm font-medium text-gray-700 mb-2">Matrícula</label>
-                                        <input type="text" id="edit_matricula_professor" name="matricula" placeholder="Número da matrícula"
-                                               class="block w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-primary-green focus:border-primary-green transition-colors duration-200">
-                                    </div>
-                                    <div>
-                                        <label for="edit_formacao" class="block text-sm font-medium text-gray-700 mb-2">Formação</label>
-                                        <input type="text" id="edit_formacao" name="formacao" placeholder="Ex: Matemática, História, etc."
-                                               class="block w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-primary-green focus:border-primary-green transition-colors duration-200">
-                                    </div>
-                                    <div>
-                                        <label for="edit_data_admissao" class="block text-sm font-medium text-gray-700 mb-2">Data de Admissão</label>
-                                        <input type="date" id="edit_data_admissao" name="data_admissao"
-                                               class="block w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-primary-green focus:border-primary-green transition-colors duration-200">
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <!-- Campos específicos para GESTAO (Edição) -->
-                        <div id="edit-campos-gestao" class="hidden">
-                            <div class="bg-purple-50 border border-purple-200 rounded-lg p-4 mb-4">
-                                <h4 class="text-sm font-semibold text-purple-900 mb-3">Informações do Gestor</h4>
-                                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                                    <div>
-                                        <label for="edit_cargo" class="block text-sm font-medium text-gray-700 mb-2">Cargo</label>
-                                        <select id="edit_cargo" name="cargo"
-                                                class="block w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-primary-green focus:border-primary-green transition-colors duration-200">
-                                            <option value="gestor">Gestor</option>
-                                            <option value="Diretor">Diretor</option>
-                                            <option value="Vice-Diretor">Vice-Diretor</option>
-                                            <option value="Coordenador Pedagógico">Coordenador Pedagógico</option>
-                                            <option value="Secretário Escolar">Secretário Escolar</option>
-                                        </select>
-                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -2006,40 +1581,6 @@ $usuarios = listarUsuarios($busca);
             event.currentTarget.classList.add('tab-active');
         }
         
-        // Função para mostrar/ocultar campos específicos no cadastro
-        function mostrarCamposEspecificos(tipo) {
-            // Ocultar todos os campos específicos
-            document.getElementById('campos-aluno').classList.add('hidden');
-            document.getElementById('campos-professor').classList.add('hidden');
-            document.getElementById('campos-gestao').classList.add('hidden');
-            
-            // Mostrar campos específicos conforme o tipo
-            if (tipo === 'ALUNO') {
-                document.getElementById('campos-aluno').classList.remove('hidden');
-            } else if (tipo === 'PROFESSOR') {
-                document.getElementById('campos-professor').classList.remove('hidden');
-            } else if (tipo === 'GESTAO') {
-                document.getElementById('campos-gestao').classList.remove('hidden');
-            }
-        }
-        
-        // Função para mostrar/ocultar campos específicos na edição
-        function mostrarCamposEspecificosEdit(tipo) {
-            // Ocultar todos os campos específicos
-            document.getElementById('edit-campos-aluno').classList.add('hidden');
-            document.getElementById('edit-campos-professor').classList.add('hidden');
-            document.getElementById('edit-campos-gestao').classList.add('hidden');
-            
-            // Mostrar campos específicos conforme o tipo
-            if (tipo === 'ALUNO') {
-                document.getElementById('edit-campos-aluno').classList.remove('hidden');
-            } else if (tipo === 'PROFESSOR') {
-                document.getElementById('edit-campos-professor').classList.remove('hidden');
-            } else if (tipo === 'GESTAO') {
-                document.getElementById('edit-campos-gestao').classList.remove('hidden');
-            }
-        }
-        
         // Função para abrir o modal de edição e carregar os dados do usuário
         function editarUsuario(id) {
             // Fazer uma requisição AJAX para obter os dados do usuário
@@ -2075,35 +1616,6 @@ $usuarios = listarUsuarios($busca);
                         } else {
                             document.getElementById('edit_data_nascimento').value = '';
                         }
-                        
-                        // Preencher campos específicos conforme o tipo
-                        const tipo = data.usuario.role.toUpperCase();
-                        if (tipo === 'ALUNO') {
-                            document.getElementById('edit_matricula_aluno').value = data.usuario.matricula || '';
-                            document.getElementById('edit_nis').value = data.usuario.nis || '';
-                            if (data.usuario.data_matricula) {
-                                const dataMat = new Date(data.usuario.data_matricula);
-                                const ano = dataMat.getFullYear();
-                                const mes = String(dataMat.getMonth() + 1).padStart(2, '0');
-                                const dia = String(dataMat.getDate()).padStart(2, '0');
-                                document.getElementById('edit_data_matricula').value = `${ano}-${mes}-${dia}`;
-                            }
-                        } else if (tipo === 'PROFESSOR') {
-                            document.getElementById('edit_matricula_professor').value = data.usuario.matricula || '';
-                            document.getElementById('edit_formacao').value = data.usuario.formacao || '';
-                            if (data.usuario.data_admissao) {
-                                const dataAdm = new Date(data.usuario.data_admissao);
-                                const ano = dataAdm.getFullYear();
-                                const mes = String(dataAdm.getMonth() + 1).padStart(2, '0');
-                                const dia = String(dataAdm.getDate()).padStart(2, '0');
-                                document.getElementById('edit_data_admissao').value = `${ano}-${mes}-${dia}`;
-                            }
-                        } else if (tipo === 'GESTAO') {
-                            document.getElementById('edit_cargo').value = data.usuario.cargo || 'gestor';
-                        }
-                        
-                        // Mostrar campos específicos
-                        mostrarCamposEspecificosEdit(tipo);
                         
                         // Limpar o campo de senha, pois não queremos mostrar a senha atual
                         document.getElementById('edit_senha').value = '';

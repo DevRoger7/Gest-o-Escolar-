@@ -1,6 +1,5 @@
 <?php
 require_once('../../Models/sessao/sessions.php');
-require_once('../../config/Database.php');
 $session = new sessions();
 $session->autenticar_session();
 $session->tempo_session();
@@ -8,295 +7,6 @@ $session->tempo_session();
 if (!defined('BASE_URL')) {
     define('BASE_URL', 'http://localhost/GitHub/Gest-o-Escolar-');
 }
-
-// Funções para buscar dados reais do banco de dados
-
-/**
- * Busca atividades recentes para o dashboard
- */
-function buscarAtividadesRecentes($userType, $userId = null, $limit = 5) {
-    $db = Database::getInstance();
-    $conn = $db->getConnection();
-    $atividades = [];
-    
-    if (strtolower($userType) === 'aluno') {
-        // Buscar notas recentes do aluno
-        $sql = "SELECT n.id, n.nota, n.lancado_em, a.titulo as avaliacao_titulo, d.nome as disciplina_nome,
-                       p.nome as professor_nome
-                FROM nota n
-                INNER JOIN avaliacao a ON n.avaliacao_id = a.id
-                INNER JOIN turma t ON a.turma_id = t.id
-                INNER JOIN turma_professor tp ON t.id = tp.turma_id
-                INNER JOIN disciplina d ON tp.disciplina_id = d.id
-                LEFT JOIN usuario u ON n.lancado_por = u.id
-                LEFT JOIN pessoa p ON u.pessoa_id = p.id
-                WHERE n.aluno_id = (SELECT id FROM aluno WHERE pessoa_id = ?)
-                ORDER BY n.lancado_em DESC
-                LIMIT " . intval($limit);
-        
-        $stmt = $conn->prepare($sql);
-        $stmt->execute([$userId]);
-        $notas = $stmt->fetchAll(PDO::FETCH_ASSOC);
-        
-        foreach ($notas as $nota) {
-            $timestamp = strtotime($nota['lancado_em']);
-            $atividades[] = [
-                'tipo' => 'nota',
-                'titulo' => 'Nova nota lançada',
-                'descricao' => ($nota['disciplina_nome'] ?? 'Disciplina') . ' - Nota: ' . number_format($nota['nota'], 1),
-                'tempo' => calcularTempoRelativo($nota['lancado_em']),
-                'timestamp' => $timestamp,
-                'cor' => 'blue'
-            ];
-        }
-        
-        // Buscar frequências recentes do aluno
-        $sql = "SELECT f.id, f.data, f.presenca, f.registrado_em, 
-                       CONCAT(COALESCE(t.serie, ''), ' ', COALESCE(t.letra, '')) as turma_nome, 
-                       d.nome as disciplina_nome
-                FROM frequencia f
-                INNER JOIN turma t ON f.turma_id = t.id
-                INNER JOIN turma_professor tp ON t.id = tp.turma_id
-                INNER JOIN disciplina d ON tp.disciplina_id = d.id
-                WHERE f.aluno_id = (SELECT id FROM aluno WHERE pessoa_id = ?)
-                ORDER BY f.registrado_em DESC
-                LIMIT " . intval($limit);
-        
-        $stmt = $conn->prepare($sql);
-        $stmt->execute([$userId]);
-        $frequencias = $stmt->fetchAll(PDO::FETCH_ASSOC);
-        
-        foreach ($frequencias as $freq) {
-            $timestamp = strtotime($freq['registrado_em']);
-            $atividades[] = [
-                'tipo' => 'frequencia',
-                'titulo' => 'Presença registrada',
-                'descricao' => ($freq['disciplina_nome'] ?? 'Disciplina') . ' - ' . ($freq['presenca'] ? 'Presente' : 'Falta'),
-                'tempo' => calcularTempoRelativo($freq['registrado_em']),
-                'timestamp' => $timestamp,
-                'cor' => 'green'
-            ];
-        }
-        
-        // Buscar avaliações recentes
-        $sql = "SELECT a.id, a.titulo, a.data, a.tipo, d.nome as disciplina_nome, 
-                       CONCAT(COALESCE(t.serie, ''), ' ', COALESCE(t.letra, '')) as turma_nome
-                FROM avaliacao a
-                INNER JOIN turma t ON a.turma_id = t.id
-                INNER JOIN turma_professor tp ON t.id = tp.turma_id
-                INNER JOIN disciplina d ON tp.disciplina_id = d.id
-                INNER JOIN aluno_turma at ON t.id = at.turma_id
-                INNER JOIN aluno al ON at.aluno_id = al.id
-                WHERE al.pessoa_id = ? AND a.data >= CURDATE()
-                ORDER BY a.data ASC
-                LIMIT " . intval($limit);
-        
-        $stmt = $conn->prepare($sql);
-        $stmt->execute([$userId]);
-        $avaliacoes = $stmt->fetchAll(PDO::FETCH_ASSOC);
-        
-        foreach ($avaliacoes as $avaliacao) {
-            $timestamp = strtotime($avaliacao['data']);
-            $atividades[] = [
-                'tipo' => 'avaliacao',
-                'titulo' => 'Nova atividade disponível',
-                'descricao' => ($avaliacao['disciplina_nome'] ?? 'Disciplina') . ' - ' . $avaliacao['titulo'],
-                'tempo' => calcularTempoRelativo($avaliacao['data']),
-                'timestamp' => $timestamp,
-                'cor' => 'orange'
-            ];
-        }
-    } else {
-        // Buscar matrículas recentes
-        $sql = "SELECT al.id, al.data_matricula, p.nome as aluno_nome, 
-                       CONCAT(COALESCE(t.serie, ''), ' ', COALESCE(t.letra, '')) as turma_nome
-                FROM aluno al
-                INNER JOIN pessoa p ON al.pessoa_id = p.id
-                INNER JOIN aluno_turma at ON al.id = at.aluno_id
-                INNER JOIN turma t ON at.turma_id = t.id
-                WHERE al.data_matricula IS NOT NULL
-                ORDER BY al.data_matricula DESC, at.criado_em DESC
-                LIMIT " . intval($limit);
-        
-        $stmt = $conn->prepare($sql);
-        $stmt->execute();
-        $matriculas = $stmt->fetchAll(PDO::FETCH_ASSOC);
-        
-        foreach ($matriculas as $matricula) {
-            $timestamp = strtotime($matricula['data_matricula']);
-            $atividades[] = [
-                'tipo' => 'matricula',
-                'titulo' => 'Novo aluno matriculado',
-                'descricao' => $matricula['aluno_nome'] . ' - ' . $matricula['turma_nome'],
-                'tempo' => calcularTempoRelativo($matricula['data_matricula']),
-                'timestamp' => $timestamp,
-                'cor' => 'blue'
-            ];
-        }
-        
-        // Buscar frequências registradas recentemente
-        $sql = "SELECT f.turma_id, f.data, MAX(f.registrado_em) as registrado_em, 
-                       CONCAT(COALESCE(t.serie, ''), ' ', COALESCE(t.letra, '')) as turma_nome,
-                       COUNT(CASE WHEN f.presenca = 1 THEN 1 END) as presentes
-                FROM frequencia f
-                INNER JOIN turma t ON f.turma_id = t.id
-                WHERE f.data = CURDATE()
-                GROUP BY f.turma_id, f.data, t.serie, t.letra
-                ORDER BY registrado_em DESC
-                LIMIT " . intval($limit);
-        
-        $stmt = $conn->prepare($sql);
-        $stmt->execute();
-        $frequencias = $stmt->fetchAll(PDO::FETCH_ASSOC);
-        
-        foreach ($frequencias as $freq) {
-            $timestamp = strtotime($freq['registrado_em']);
-            $atividades[] = [
-                'tipo' => 'frequencia',
-                'titulo' => 'Frequência registrada',
-                'descricao' => $freq['turma_nome'] . ' - ' . $freq['presentes'] . ' alunos presentes',
-                'tempo' => calcularTempoRelativo($freq['registrado_em']),
-                'timestamp' => $timestamp,
-                'cor' => 'green'
-            ];
-        }
-        
-        // Buscar notas lançadas recentemente
-        $sql = "SELECT MAX(n.lancado_em) as lancado_em, 
-                       CONCAT(COALESCE(t.serie, ''), ' ', COALESCE(t.letra, '')) as turma_nome, 
-                       d.nome as disciplina_nome
-                FROM nota n
-                INNER JOIN avaliacao a ON n.avaliacao_id = a.id
-                INNER JOIN turma t ON a.turma_id = t.id
-                INNER JOIN turma_professor tp ON t.id = tp.turma_id
-                INNER JOIN disciplina d ON tp.disciplina_id = d.id
-                GROUP BY DATE(n.lancado_em), t.id, t.serie, t.letra, d.id, d.nome
-                ORDER BY lancado_em DESC
-                LIMIT " . intval($limit);
-        
-        $stmt = $conn->prepare($sql);
-        $stmt->execute();
-        $notas = $stmt->fetchAll(PDO::FETCH_ASSOC);
-        
-        foreach ($notas as $nota) {
-            $timestamp = strtotime($nota['lancado_em']);
-            $atividades[] = [
-                'tipo' => 'nota',
-                'titulo' => 'Notas lançadas',
-                'descricao' => ($nota['disciplina_nome'] ?? 'Disciplina') . ' - ' . $nota['turma_nome'],
-                'tempo' => calcularTempoRelativo($nota['lancado_em']),
-                'timestamp' => $timestamp,
-                'cor' => 'orange'
-            ];
-        }
-    }
-    
-    // Ordenar por timestamp (mais recente primeiro) - usando timestamp original antes de converter para relativo
-    // Vamos ordenar antes de converter para tempo relativo
-    usort($atividades, function($a, $b) {
-        $timestampA = isset($a['timestamp']) ? $a['timestamp'] : 0;
-        $timestampB = isset($b['timestamp']) ? $b['timestamp'] : 0;
-        return $timestampB - $timestampA;
-    });
-    
-    return array_slice($atividades, 0, $limit);
-}
-
-/**
- * Calcula o tempo relativo (ex: "Há 2 horas", "Ontem")
- */
-function calcularTempoRelativo($data) {
-    if (empty($data)) return 'Agora';
-    
-    $timestamp = is_numeric($data) ? $data : strtotime($data);
-    $agora = time();
-    $diferenca = $agora - $timestamp;
-    
-    if ($diferenca < 60) {
-        return 'Agora';
-    } elseif ($diferenca < 3600) {
-        $minutos = floor($diferenca / 60);
-        return "Há $minutos " . ($minutos == 1 ? 'minuto' : 'minutos');
-    } elseif ($diferenca < 86400) {
-        $horas = floor($diferenca / 3600);
-        return "Há $horas " . ($horas == 1 ? 'hora' : 'horas');
-    } elseif ($diferenca < 172800) {
-        return 'Ontem';
-    } else {
-        $dias = floor($diferenca / 86400);
-        return "Há $dias " . ($dias == 1 ? 'dia' : 'dias');
-    }
-}
-
-/**
- * Busca dados para o Acesso Rápido
- */
-function buscarDadosAcessoRapido($userType, $userId = null) {
-    $db = Database::getInstance();
-    $conn = $db->getConnection();
-    $dados = [];
-    
-    if (strtolower($userType) === 'aluno') {
-        // Média das notas do aluno
-        $sql = "SELECT AVG(n.nota) as media
-                FROM nota n
-                INNER JOIN aluno a ON n.aluno_id = a.id
-                WHERE a.pessoa_id = ?";
-        
-        $stmt = $conn->prepare($sql);
-        $stmt->execute([$userId]);
-        $result = $stmt->fetch(PDO::FETCH_ASSOC);
-        $dados['media_notas'] = $result['media'] ? number_format($result['media'], 1) : '0.0';
-        
-        // Frequência do aluno
-        $sql = "SELECT 
-                    COUNT(*) as total,
-                    SUM(CASE WHEN presenca = 1 THEN 1 ELSE 0 END) as presentes
-                FROM frequencia f
-                INNER JOIN aluno a ON f.aluno_id = a.id
-                WHERE a.pessoa_id = ?";
-        
-        $stmt = $conn->prepare($sql);
-        $stmt->execute([$userId]);
-        $result = $stmt->fetch(PDO::FETCH_ASSOC);
-        $frequencia = $result['total'] > 0 ? round(($result['presentes'] / $result['total']) * 100) : 0;
-        $dados['frequencia'] = $frequencia . '%';
-    } else {
-        // Total de alunos
-        $sql = "SELECT COUNT(*) as total FROM aluno WHERE ativo = 1";
-        $stmt = $conn->query($sql);
-        $result = $stmt->fetch(PDO::FETCH_ASSOC);
-        $dados['total_alunos'] = $result['total'] ?? 0;
-        
-        // Frequências registradas hoje
-        $sql = "SELECT COUNT(DISTINCT turma_id) as total
-                FROM frequencia
-                WHERE data = CURDATE()";
-        $stmt = $conn->query($sql);
-        $result = $stmt->fetch(PDO::FETCH_ASSOC);
-        $dados['frequencias_hoje'] = $result['total'] ?? 0;
-        
-        // Avaliações pendentes (sem notas lançadas)
-        $sql = "SELECT COUNT(DISTINCT a.id) as total
-                FROM avaliacao a
-                LEFT JOIN nota n ON a.id = n.avaliacao_id
-                WHERE n.id IS NULL AND a.data <= CURDATE()";
-        $stmt = $conn->query($sql);
-        $result = $stmt->fetch(PDO::FETCH_ASSOC);
-        $dados['notas_pendentes'] = $result['total'] ?? 0;
-        
-        // Relatórios disponíveis (pode ser expandido)
-        $dados['relatorios_disponiveis'] = 15; // Valor padrão, pode ser calculado depois
-    }
-    
-    return $dados;
-}
-
-// Buscar dados reais
-$userId = $_SESSION['pessoa_id'] ?? null;
-$userType = $_SESSION['tipo'] ?? '';
-$atividadesRecentes = buscarAtividadesRecentes($userType, $userId, 5);
-$dadosAcessoRapido = buscarDadosAcessoRapido($userType, $userId);
 ?>
 <!DOCTYPE html>
 <html lang="pt-BR">
@@ -2580,53 +2290,89 @@ $dadosAcessoRapido = buscarDadosAcessoRapido($userType, $userId);
                     </div>
                         <div class="space-y-4">
                         <?php 
-                        if (empty($atividadesRecentes)) {
-                            // Se não houver atividades, mostrar mensagem
-                            echo '<div class="text-center py-8 text-gray-500">';
-                            echo '<p class="text-sm">Nenhuma atividade recente encontrada.</p>';
-                            echo '</div>';
-                        } else {
-                            // Renderizar atividades reais
-                            foreach ($atividadesRecentes as $atividade) {
-                                $corClasses = [
-                                    'blue' => 'from-blue-50 to-blue-100',
-                                    'green' => 'from-green-50 to-green-100',
-                                    'orange' => 'from-orange-50 to-orange-100',
-                                    'purple' => 'from-purple-50 to-purple-100'
-                                ];
-                                $corBg = [
-                                    'blue' => 'bg-blue-500',
-                                    'green' => 'bg-green-500',
-                                    'orange' => 'bg-orange-500',
-                                    'purple' => 'bg-purple-500'
-                                ];
-                                $icones = [
-                                    'nota' => '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>',
-                                    'frequencia' => '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>',
-                                    'avaliacao' => '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.746 0 3.332.477 4.5 1.253v13C19.832 18.477 18.246 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path>',
-                                    'matricula' => '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z"></path>'
-                                ];
-                                
-                                $cor = $atividade['cor'] ?? 'blue';
-                                $gradiente = $corClasses[$cor] ?? $corClasses['blue'];
-                                $bg = $corBg[$cor] ?? $corBg['blue'];
-                                $icone = $icones[$atividade['tipo']] ?? $icones['nota'];
-                                
-                                echo '<div class="flex items-start space-x-4 p-4 bg-gradient-to-r ' . $gradiente . ' rounded-xl">';
-                                echo '<div class="p-2 ' . $bg . ' rounded-lg">';
-                                echo '<svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">';
-                                echo $icone;
-                                echo '</svg>';
-                                echo '</div>';
-                                echo '<div class="flex-1">';
-                                echo '<p class="text-sm font-medium text-gray-800">' . htmlspecialchars($atividade['titulo']) . '</p>';
-                                echo '<p class="text-xs text-gray-600">' . htmlspecialchars($atividade['descricao']) . '</p>';
-                                echo '<p class="text-xs text-gray-500 mt-1">' . htmlspecialchars($atividade['tempo']) . '</p>';
-                                echo '</div>';
-                                echo '</div>';
-                            }
-                        }
+                        $userType = $_SESSION['tipo'] ?? '';
+                        if (strtolower($userType) === 'aluno') { 
                         ?>
+                            <!-- Atividades específicas para alunos -->
+                            <div class="flex items-start space-x-4 p-4 bg-gradient-to-r from-blue-50 to-blue-100 rounded-xl">
+                                <div class="p-2 bg-blue-500 rounded-lg">
+                                    <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                                    </svg>
+                                </div>
+                                <div class="flex-1">
+                                    <p class="text-sm font-medium text-gray-800">Nova nota lançada</p>
+                                    <p class="text-xs text-gray-600">Matemática - Nota: 8.5</p>
+                                    <p class="text-xs text-gray-500 mt-1">Há 2 horas</p>
+                                </div>
+                            </div>
+
+                            <div class="flex items-start space-x-4 p-4 bg-gradient-to-r from-green-50 to-green-100 rounded-xl">
+                                <div class="p-2 bg-green-500 rounded-lg">
+                                    <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                                    </svg>
+                                </div>
+                                <div class="flex-1">
+                                    <p class="text-sm font-medium text-gray-800">Presença registrada</p>
+                                    <p class="text-xs text-gray-600">Aula de Português - Presente</p>
+                                    <p class="text-xs text-gray-500 mt-1">Há 4 horas</p>
+                                </div>
+                            </div>
+
+                            <div class="flex items-start space-x-4 p-4 bg-gradient-to-r from-orange-50 to-orange-100 rounded-xl">
+                                <div class="p-2 bg-orange-500 rounded-lg">
+                                    <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.746 0 3.332.477 4.5 1.253v13C19.832 18.477 18.246 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path>
+                                    </svg>
+                                </div>
+                                <div class="flex-1">
+                                    <p class="text-sm font-medium text-gray-800">Nova atividade disponível</p>
+                                    <p class="text-xs text-gray-600">História - Trabalho sobre Independência</p>
+                                    <p class="text-xs text-gray-500 mt-1">Ontem</p>
+                                </div>
+                            </div>
+                        <?php } else { ?>
+                            <!-- Atividades para outros tipos de usuário -->
+                            <div class="flex items-start space-x-4 p-4 bg-gradient-to-r from-blue-50 to-blue-100 rounded-xl">
+                                <div class="p-2 bg-blue-500 rounded-lg">
+                                    <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z"></path>
+                                    </svg>
+                                </div>
+                                <div class="flex-1">
+                                    <p class="text-sm font-medium text-gray-800">Novo aluno matriculado</p>
+                                    <p class="text-xs text-gray-600">Maria Silva - 5º Ano A</p>
+                                    <p class="text-xs text-gray-500 mt-1">Há 2 horas</p>
+                                </div>
+                            </div>
+
+                            <div class="flex items-start space-x-4 p-4 bg-gradient-to-r from-green-50 to-green-100 rounded-xl">
+                                <div class="p-2 bg-green-500 rounded-lg">
+                                    <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"></path>
+                                    </svg>
+                                </div>
+                                <div class="flex-1">
+                                    <p class="text-sm font-medium text-gray-800">Frequência registrada</p>
+                                    <p class="text-xs text-gray-600">4º Ano B - 25 alunos presentes</p>
+                                    <p class="text-xs text-gray-500 mt-1">Há 4 horas</p>
+                                </div>
+                            </div>
+
+                            <div class="flex items-start space-x-4 p-4 bg-gradient-to-r from-orange-50 to-orange-100 rounded-xl">
+                                <div class="p-2 bg-orange-500 rounded-lg">
+                                    <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                                    </svg>
+                                </div>
+                                <div class="flex-1">
+                                    <p class="text-sm font-medium text-gray-800">Notas lançadas</p>
+                                    <p class="text-xs text-gray-600">Matemática - 3º Ano A</p>
+                                    <p class="text-xs text-gray-500 mt-1">Ontem</p>
+                                </div>
+                            </div>
+                        <?php } ?>
                         </div>
                 </div>
 
@@ -2656,7 +2402,7 @@ $dadosAcessoRapido = buscarDadosAcessoRapido($userType, $userId);
                                     </div>
                                     <div class="text-right">
                                         <div class="text-xs opacity-80">Média</div>
-                                        <div class="text-sm font-bold"><?= $dadosAcessoRapido['media_notas'] ?? '0.0' ?></div>
+                                        <div class="text-sm font-bold">8.2</div>
                                     </div>
                                 </div>
                                 <svg class="w-4 h-4 ml-2 opacity-70 group-hover:opacity-100 transition-opacity" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -2677,7 +2423,7 @@ $dadosAcessoRapido = buscarDadosAcessoRapido($userType, $userId);
                                     </div>
                                     <div class="text-right">
                                         <div class="text-xs opacity-80">Frequência</div>
-                                        <div class="text-sm font-bold"><?= $dadosAcessoRapido['frequencia'] ?? '0%' ?></div>
+                                        <div class="text-sm font-bold">95%</div>
                                     </div>
                                 </div>
                                 <svg class="w-4 h-4 ml-2 opacity-70 group-hover:opacity-100 transition-opacity" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -2700,7 +2446,7 @@ $dadosAcessoRapido = buscarDadosAcessoRapido($userType, $userId);
                                     </div>
                                     <div class="text-right">
                                         <div class="text-xs opacity-80">Total</div>
-                                        <div class="text-sm font-bold"><?= $dadosAcessoRapido['total_alunos'] ?? 0 ?></div>
+                                        <div class="text-sm font-bold">245</div>
                                     </div>
                                 </div>
                                 <svg class="w-4 h-4 ml-2 opacity-70 group-hover:opacity-100 transition-opacity" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -2723,7 +2469,7 @@ $dadosAcessoRapido = buscarDadosAcessoRapido($userType, $userId);
                                     </div>
                                     <div class="text-right">
                                         <div class="text-xs opacity-80">Hoje</div>
-                                        <div class="text-sm font-bold"><?= $dadosAcessoRapido['frequencias_hoje'] ?? 0 ?></div>
+                                        <div class="text-sm font-bold">12</div>
                                     </div>
                                 </div>
                                 <svg class="w-4 h-4 ml-2 opacity-70 group-hover:opacity-100 transition-opacity" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -2746,7 +2492,7 @@ $dadosAcessoRapido = buscarDadosAcessoRapido($userType, $userId);
                                     </div>
                                     <div class="text-right">
                                         <div class="text-xs opacity-80">Pendentes</div>
-                                        <div class="text-sm font-bold"><?= $dadosAcessoRapido['notas_pendentes'] ?? 0 ?></div>
+                                        <div class="text-sm font-bold">8</div>
                                     </div>
                                 </div>
                                 <svg class="w-4 h-4 ml-2 opacity-70 group-hover:opacity-100 transition-opacity" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -2769,7 +2515,7 @@ $dadosAcessoRapido = buscarDadosAcessoRapido($userType, $userId);
                                     </div>
                                     <div class="text-right">
                                         <div class="text-xs opacity-80">Disponíveis</div>
-                                        <div class="text-sm font-bold"><?= $dadosAcessoRapido['relatorios_disponiveis'] ?? 15 ?></div>
+                                        <div class="text-sm font-bold">15</div>
                                     </div>
                                 </div>
                                 <svg class="w-4 h-4 ml-2 opacity-70 group-hover:opacity-100 transition-opacity" fill="none" stroke="currentColor" viewBox="0 0 24 24">
