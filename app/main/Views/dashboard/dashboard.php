@@ -1,6 +1,7 @@
 <?php
 require_once('../../Models/sessao/sessions.php');
 require_once('../../Models/dashboard/DashboardStats.php');
+require_once('../../config/permissions_helper.php');
 
 $session = new sessions();
 $session->autenticar_session();
@@ -234,6 +235,7 @@ if (!defined('BASE_URL')) {
     </script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link href="global-theme.css" rel="stylesheet">
+    <!-- User Profile Modal CSS -->
 
     <script src="theme-manager.js"></script>
 
@@ -415,49 +417,6 @@ if (!defined('BASE_URL')) {
         }
 
         /* Profile Modal Tabs */
-        .profile-tab {
-            padding: 12px 20px;
-            font-weight: 600;
-            color: #9ca3af;
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-            background: transparent;
-            border: none;
-            cursor: pointer;
-            position: relative;
-            border-radius: 8px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            min-width: 140px;
-            font-size: 0.9rem;
-        }
-
-        .profile-tab:hover {
-            color: #ffffff;
-            background: rgba(255, 255, 255, 0.1);
-            transform: translateY(-1px);
-        }
-
-        .profile-tab.active {
-            color: #ffffff;
-            background: rgba(34, 197, 94, 0.2);
-            border: 1px solid rgba(34, 197, 94, 0.3);
-            transform: translateY(-2px);
-        }
-
-        .profile-tab.active::before {
-            content: '';
-            position: absolute;
-            bottom: -12px;
-            left: 0;
-            right: 0;
-            height: 3px;
-            background: linear-gradient(90deg, #22c55e, #16a34a);
-            border-radius: 2px 2px 0 0;
-        }
-
-        /* Indicador por cor do ícone - sem bolinha */
-
         /* High Contrast Mode */
         .high-contrast {
             filter: contrast(150%) brightness(110%);
@@ -492,121 +451,6 @@ if (!defined('BASE_URL')) {
             border-bottom: 1px solid rgba(229, 231, 235, 0.8);
         }
 
-        .profile-tab-content {
-            display: block;
-            animation: fadeInUp 0.4s ease-out;
-        }
-
-        .profile-tab-content.hidden {
-            display: none;
-        }
-
-        /* Estilos melhorados para as abas do perfil */
-        .profile-tab {
-            position: relative;
-            overflow: hidden;
-        }
-
-        .profile-tab.active {
-            background: white !important;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-            transform: translateY(-1px);
-            border: 1px solid rgba(0, 0, 0, 0.1);
-        }
-
-        .profile-tab.active .w-6.h-6,
-        .profile-tab.active .w-7.h-7,
-        .profile-tab.active .w-8.h-8 {
-            background: linear-gradient(135deg, #22c55e, #16a34a) !important;
-            border: none;
-        }
-
-        .profile-tab.active .w-4.h-4,
-        .profile-tab.active .w-3.h-3,
-        .profile-tab.active .w-3\\.5.h-3\\.5 {
-            color: white !important;
-        }
-
-        .profile-tab.active span {
-            color: #1f2937 !important;
-            font-weight: 600;
-        }
-
-        .profile-tab:not(.active) {
-            background: transparent !important;
-            border: 1px solid transparent;
-        }
-
-        .profile-tab:not(.active) span {
-            color: #6b7280 !important;
-            font-weight: 500;
-        }
-
-        .profile-tab:hover:not(.active) {
-            transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-            background: rgba(255, 255, 255, 0.9);
-            border: 1px solid rgba(0, 0, 0, 0.1);
-        }
-
-        .profile-tab:hover:not(.active) .w-6.h-6,
-        .profile-tab:hover:not(.active) .w-7.h-7,
-        .profile-tab:hover:not(.active) .w-8.h-8 {
-            background: rgba(34, 197, 94, 0.1) !important;
-            border: 1px solid rgba(34, 197, 94, 0.3);
-        }
-
-        .profile-tab:hover:not(.active) .w-4.h-4,
-        .profile-tab:hover:not(.active) .w-3.h-3,
-        .profile-tab:hover:not(.active) .w-3\\.5.h-3\\.5 {
-            color: #22c55e !important;
-        }
-
-        .profile-tab:hover:not(.active) span {
-            color: #1f2937 !important;
-            font-weight: 600;
-        }
-
-        /* Estilos para modo escuro */
-        [data-theme="dark"] .profile-tab.active {
-            background: var(--bg-secondary) !important;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-            border: 1px solid var(--border-color);
-        }
-
-        [data-theme="dark"] .profile-tab.active span {
-            color: #ffffff !important;
-        }
-
-        [data-theme="dark"] .profile-tab:hover:not(.active) {
-            background: rgba(255, 255, 255, 0.1);
-            border: 1px solid rgba(255, 255, 255, 0.2);
-        }
-
-        [data-theme="dark"] .profile-tab:hover:not(.active) span {
-            color: #ffffff !important;
-        }
-
-        [data-theme="dark"] .profile-tab:not(.active) {
-            background: transparent !important;
-            border: 1px solid transparent;
-        }
-
-        [data-theme="dark"] .profile-tab:not(.active) span {
-            color: #d1d5db !important;
-        }
-
-        [data-theme="dark"] .profile-tab .w-4.h-4,
-        [data-theme="dark"] .profile-tab .w-3.h-3,
-        [data-theme="dark"] .profile-tab .w-3\\.5.h-3\\.5 {
-            color: #9ca3af !important;
-        }
-
-        [data-theme="dark"] .profile-tab.active .w-4.h-4,
-        [data-theme="dark"] .profile-tab.active .w-3.h-3,
-        [data-theme="dark"] .profile-tab.active .w-3\\.5.h-3\\.5 {
-            color: white !important;
-        }
 
         /* Custom Scrollbar para o modal */
         .overflow-y-auto::-webkit-scrollbar {
@@ -652,97 +496,9 @@ if (!defined('BASE_URL')) {
             }
         }
 
-        /* Modal Animation */
-        #userProfileModal.show #modalContent {
-            transform: scale(1) translateY(0);
-            opacity: 1;
-        }
-
-        #userProfileModal #modalContent {
-            transform: scale(0.95) translateY(20px);
-            opacity: 0;
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-        }
-
-        /* Fullscreen Modal Styles */
-        #userProfileModal {
-            background: white;
-        }
-        
-        #userProfileModal #modalContent {
-            border-radius: 0;
-            box-shadow: none;
-        }
 
         /* Responsive Design - Melhorada */
         @media (max-width: 768px) {
-            #userProfileModal {
-                padding: 0;
-            }
-            
-            #userProfileModal #modalContent {
-                border-radius: 0;
-                margin: 0;
-            }
-            
-            /* Navegação mobile melhorada */
-            .bg-gray-100.rounded-2xl.p-2 {
-                padding: 0.5rem;
-                gap: 0.25rem;
-                background: rgba(243, 244, 246, 0.8) !important;
-                backdrop-filter: blur(10px);
-            }
-            
-            .profile-tab {
-                padding: 0.75rem 0.5rem !important;
-                min-width: auto;
-                flex-direction: column;
-                text-align: center;
-                border-radius: 0.75rem !important;
-            }
-            
-            /* Aba ativa no mobile - respeitando o tema */
-            .profile-tab.active {
-                background: white !important;
-                box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
-                border: 1px solid rgba(0, 0, 0, 0.1) !important;
-            }
-            
-            .profile-tab.active span {
-                color: #1f2937 !important;
-                font-weight: 700;
-            }
-            
-            /* Abas inativas no mobile - transparentes */
-            .profile-tab:not(.active) {
-                background: transparent !important;
-                border: 1px solid transparent;
-            }
-            
-            .profile-tab:not(.active) span {
-                color: #6b7280 !important;
-                font-weight: 500;
-            }
-            
-            .profile-tab .w-8.h-8 {
-                width: 2rem !important;
-                height: 2rem !important;
-                margin: 0 auto 0.5rem auto;
-            }
-            
-            .profile-tab .w-4.h-4 {
-                width: 1rem !important;
-                height: 1rem !important;
-            }
-            
-            .profile-tab span {
-                font-size: 0.75rem !important;
-                line-height: 1;
-            }
-            
-            .profile-tab p {
-                display: none !important;
-            }
             
             /* Mobile hero card adjustments */
             .bg-gradient-to-r.from-primary-green {
@@ -848,28 +604,6 @@ if (!defined('BASE_URL')) {
                     padding: 0.25rem !important;
                 }
                 
-                /* Aba ativa em telas pequenas - respeitando o tema */
-                .profile-tab.active {
-                    background: white !important;
-                    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
-                    border: 1px solid rgba(0, 0, 0, 0.1) !important;
-                }
-                
-                .profile-tab.active span {
-                    color: #1f2937 !important;
-                    font-weight: 800;
-                }
-                
-                /* Abas inativas em telas pequenas */
-                .profile-tab:not(.active) {
-                    background: transparent !important;
-                    border: 1px solid transparent;
-                }
-                
-                .profile-tab:not(.active) span {
-                    color: #6b7280 !important;
-                    font-weight: 600;
-                }
                 
                 /* Texto das abas menor */
                 .text-xs.sm\\:text-sm {
@@ -931,23 +665,6 @@ if (!defined('BASE_URL')) {
         }
 
         @media (max-width: 480px) {
-            #userProfileModal {
-                padding: 0;
-            }
-            
-            #userProfileModal #modalContent {
-                border-radius: 0;
-            }
-            
-            .profile-tab {
-                padding: 8px 12px;
-                min-width: 80px;
-                font-size: 0.75rem;
-            }
-            
-            .profile-tab svg {
-                width: 3.5rem;
-                height: 3.5rem;
                 margin-right: 0.5rem;
             }
             
@@ -1497,38 +1214,6 @@ if (!defined('BASE_URL')) {
             color: var(--text-muted) !important;
         }
 
-        /* Estilos específicos para o modal de perfil no tema escuro */
-        [data-theme="dark"] #userProfileModal .text-gray-900 {
-            color: #ffffff !important;
-        }
-
-        [data-theme="dark"] #userProfileModal .text-gray-800 {
-            color: #ffffff !important;
-        }
-
-        [data-theme="dark"] #userProfileModal .text-gray-700 {
-            color: #e0e0e0 !important;
-        }
-
-        [data-theme="dark"] #userProfileModal .text-gray-600 {
-            color: #c0c0c0 !important;
-        }
-
-        [data-theme="dark"] #userProfileModal .text-gray-500 {
-            color: #a0a0a0 !important;
-        }
-
-        [data-theme="dark"] #userProfileModal .bg-white {
-            background-color: var(--bg-secondary) !important;
-        }
-
-        [data-theme="dark"] #userProfileModal .border-gray-200 {
-            border-color: var(--border-color) !important;
-        }
-
-        [data-theme="dark"] #userProfileModal .bg-gray-50 {
-            background-color: var(--bg-tertiary) !important;
-        }
 
         /* Estilos específicos para o modal de logout no tema escuro */
         [data-theme="dark"] #logoutModal .text-gray-900 {
@@ -2012,6 +1697,35 @@ if (!defined('BASE_URL')) {
                         <span>Dashboard</span>
                     </a>
                 </li>
+                <?php 
+                $tipoUsuario = strtoupper(trim($_SESSION['tipo'] ?? ''));
+                if (eAluno() || $tipoUsuario === 'ALUNO') { 
+                ?>
+                <li>
+                    <a href="aluno_notas.php" class="menu-item flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                        </svg>
+                        <span>Minhas Notas</span>
+                    </a>
+                </li>
+                <li>
+                    <a href="aluno_frequencia.php" class="menu-item flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                        </svg>
+                        <span>Minha Frequência</span>
+                    </a>
+                </li>
+                <li>
+                    <a href="aluno_boletins.php" class="menu-item flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                        </svg>
+                        <span>Meus Boletins</span>
+                    </a>
+                </li>
+                <?php } ?>
                 <?php if (isset($_SESSION['cadastrar_pessoas']) || isset($_SESSION['matricular_alunos']) || isset($_SESSION['acessar_registros']) || $_SESSION['tipo'] === 'ADM') { ?>
                 <?php } ?>
                 <?php if ($_SESSION['tipo'] === 'GESTAO') { ?>
@@ -2192,11 +1906,11 @@ if (!defined('BASE_URL')) {
                         </div>
 
                         <!-- User Profile Button -->
-                        <button onclick="openUserProfile()" class="p-2 text-gray-600 bg-gray-100 hover:text-gray-900 hover:bg-gray-200 rounded-full focus:outline-none focus:ring-2 focus:ring-primary-green transition-colors duration-200" aria-label="Abrir perfil do usuário e configurações de acessibilidade" title="Perfil e Acessibilidade (Alt+A)">
+                        <div class="p-2 text-gray-600 bg-gray-100 rounded-full" title="Perfil do Usuário">
                             <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
                             </svg>
-                        </button>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -2426,7 +2140,7 @@ if (!defined('BASE_URL')) {
                         if (strtolower($userType) === 'aluno') { 
                         ?>
                             <!-- Botões específicos para alunos -->
-                            <button onclick="showSection('notas')" class="group w-full flex items-center p-4 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-xl hover:from-blue-600 hover:to-blue-700 transition-all duration-300 shadow-md hover:shadow-lg hover:scale-[1.02]">
+                            <a href="aluno_notas.php" class="group w-full flex items-center p-4 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-xl hover:from-blue-600 hover:to-blue-700 transition-all duration-300 shadow-md hover:shadow-lg hover:scale-[1.02]">
                                 <div class="flex items-center space-x-4 flex-1">
                                     <div class="p-2 bg-white/20 rounded-lg group-hover:bg-white/30 transition-all duration-300">
                                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -2455,9 +2169,9 @@ if (!defined('BASE_URL')) {
                                 <svg class="w-4 h-4 ml-2 opacity-70 group-hover:opacity-100 transition-opacity" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
                                 </svg>
-                            </button>
+                            </a>
                             
-                            <button onclick="showSection('frequencia')" class="group w-full flex items-center p-4 bg-gradient-to-r from-green-500 to-green-600 text-white rounded-xl hover:from-green-600 hover:to-green-700 transition-all duration-300 shadow-md hover:shadow-lg hover:scale-[1.02]">
+                            <a href="aluno_frequencia.php" class="group w-full flex items-center p-4 bg-gradient-to-r from-green-500 to-green-600 text-white rounded-xl hover:from-green-600 hover:to-green-700 transition-all duration-300 shadow-md hover:shadow-lg hover:scale-[1.02]">
                                 <div class="flex items-center space-x-4 flex-1">
                                     <div class="p-2 bg-white/20 rounded-lg group-hover:bg-white/30 transition-all duration-300">
                                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -2486,7 +2200,24 @@ if (!defined('BASE_URL')) {
                                 <svg class="w-4 h-4 ml-2 opacity-70 group-hover:opacity-100 transition-opacity" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
                                 </svg>
-                            </button>
+                            </a>
+                            
+                            <a href="aluno_boletins.php" class="group w-full flex items-center p-4 bg-gradient-to-r from-purple-500 to-purple-600 text-white rounded-xl hover:from-purple-600 hover:to-purple-700 transition-all duration-300 shadow-md hover:shadow-lg hover:scale-[1.02] mt-3">
+                                <div class="flex items-center space-x-4 flex-1">
+                                    <div class="p-2 bg-white/20 rounded-lg group-hover:bg-white/30 transition-all duration-300">
+                                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                                        </svg>
+                                    </div>
+                                    <div class="flex-1 text-left">
+                                        <h4 class="font-semibold text-sm">Meus Boletins</h4>
+                                        <p class="text-xs opacity-90">Visualize seus boletins escolares</p>
+                                    </div>
+                                </div>
+                                <svg class="w-4 h-4 ml-2 opacity-70 group-hover:opacity-100 transition-opacity" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+                                </svg>
+                            </a>
                         <?php } else { ?>
                             <!-- Botões para outros tipos de usuário -->
                             <?php if (isset($_SESSION['cadastrar_pessoas']) || isset($_SESSION['matricular_alunos']) || isset($_SESSION['acessar_registros'])) { ?>
@@ -7737,1119 +7468,7 @@ if (!defined('BASE_URL')) {
         </div>
     </div>
 
-    <!-- User Profile Modal -->
-    <div id="userProfileModal" class="fixed inset-0 bg-white z-50 hidden flex flex-col backdrop-blur-sm">
-        <div class="bg-white w-full h-full overflow-hidden transform transition-all duration-300 ease-out scale-95 opacity-0" id="modalContent">
-            <!-- Header - Responsivo -->
-            <div class="bg-gradient-to-br from-slate-800 via-slate-700 to-slate-800 text-white relative overflow-hidden">
-                <div class="absolute inset-0 bg-gradient-to-r from-primary-green/20 to-blue-600/20"></div>
-                <div class="relative z-10 flex items-center justify-between px-4 sm:px-6 lg:px-8 py-4 sm:py-6">
-                    <div class="flex items-center space-x-2 sm:space-x-4 flex-1 min-w-0">
-                        <div class="w-8 h-8 sm:w-10 sm:h-10 lg:w-12 lg:h-12 bg-white/10 backdrop-blur-sm rounded-lg sm:rounded-xl flex items-center justify-center flex-shrink-0">
-                            <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/1/19/Bras%C3%A3o_de_Maranguape.png/250px-Bras%C3%A3o_de_Maranguape.png" alt="Brasão de Maranguape" class="w-5 h-5 sm:w-6 sm:h-6 lg:w-8 lg:h-8 object-contain">
-                        </div>
-                        <div class="min-w-0 flex-1">
-                            <h1 class="text-lg sm:text-xl lg:text-2xl font-bold truncate">Perfil do Usuário</h1>
-                            <p class="text-slate-300 text-xs sm:text-sm hidden sm:block">Gerencie suas informações e configurações</p>
-                        </div>
-                    </div>
-                    <button onclick="closeUserProfile()" class="p-2 sm:p-3 hover:bg-white/10 rounded-lg sm:rounded-xl transition-all duration-200 group flex-shrink-0">
-                        <svg class="w-5 h-5 sm:w-6 sm:h-6 group-hover:rotate-90 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-                        </svg>
-                    </button>
-                </div>
-            </div>
-
-            <!-- Navigation Tabs - Responsiva -->
-            <div class="bg-white sticky top-0 z-20">
-                <div class="px-2 sm:px-4 lg:px-8 py-2 sm:py-4">
-                    <nav class="flex items-center justify-center space-x-0.5 sm:space-x-1 bg-gray-100 rounded-xl sm:rounded-2xl p-1 sm:p-2 shadow-inner relative">
-                        <button class="profile-tab active group flex-1 flex items-center justify-center px-2 sm:px-3 lg:px-6 py-2 sm:py-3 rounded-lg sm:rounded-xl transition-all duration-300" data-tab="overview" onclick="switchProfileTab('overview')">
-                            <div class="flex items-center space-x-1 sm:space-x-2 lg:space-x-3 w-full">
-                                <div class="w-6 h-6 sm:w-7 sm:h-7 lg:w-8 lg:h-8 bg-white rounded-md sm:rounded-lg flex items-center justify-center shadow-sm group-hover:scale-110 transition-transform duration-300 flex-shrink-0">
-                                    <svg class="w-3 h-3 sm:w-3.5 sm:h-3.5 lg:w-4 lg:h-4 text-primary-green" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
-                        </svg>
-                                </div>
-                                <div class="text-left min-w-0 flex-1">
-                                    <span class="font-semibold text-xs sm:text-sm text-gray-900 truncate block">Visão Geral</span>
-                                    <p class="text-xs text-gray-500 hidden lg:block">Dashboard principal</p>
-                                </div>
-                            </div>
-                    </button>
-                    
-                        <button class="profile-tab group flex-1 flex items-center justify-center px-2 sm:px-3 lg:px-6 py-2 sm:py-3 rounded-lg sm:rounded-xl transition-all duration-300 hover:bg-white/50" data-tab="personal" onclick="switchProfileTab('personal')">
-                            <div class="flex items-center space-x-1 sm:space-x-2 lg:space-x-3 w-full">
-                                <div class="w-6 h-6 sm:w-7 sm:h-7 lg:w-8 lg:h-8 bg-gray-200 rounded-md sm:rounded-lg flex items-center justify-center group-hover:bg-blue-100 group-hover:scale-110 transition-all duration-300 flex-shrink-0">
-                                    <svg class="w-3 h-3 sm:w-3.5 sm:h-3.5 lg:w-4 lg:h-4 text-gray-600 group-hover:text-blue-600 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
-                        </svg>
-                                </div>
-                                <div class="text-left min-w-0 flex-1">
-                                    <span class="font-semibold text-xs sm:text-sm text-gray-700 group-hover:text-gray-900 transition-colors truncate block">Perfil</span>
-                                    <p class="text-xs text-gray-500 hidden lg:block">Informações pessoais</p>
-                                </div>
-                            </div>
-                    </button>
-                    
-                        <button class="profile-tab group flex-1 flex items-center justify-center px-2 sm:px-3 lg:px-6 py-2 sm:py-3 rounded-lg sm:rounded-xl transition-all duration-300 hover:bg-white/50" data-tab="system" onclick="switchProfileTab('system')">
-                            <div class="flex items-center space-x-1 sm:space-x-2 lg:space-x-3 w-full">
-                                <div class="w-6 h-6 sm:w-7 sm:h-7 lg:w-8 lg:h-8 bg-gray-200 rounded-md sm:rounded-lg flex items-center justify-center group-hover:bg-purple-100 group-hover:scale-110 transition-all duration-300 flex-shrink-0">
-                                    <svg class="w-3 h-3 sm:w-3.5 sm:h-3.5 lg:w-4 lg:h-4 text-gray-600 group-hover:text-purple-600 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z"></path>
-                        </svg>
-                                </div>
-                                <div class="text-left min-w-0 flex-1">
-                                    <span class="font-semibold text-xs sm:text-sm text-gray-700 group-hover:text-gray-900 transition-colors truncate block">Sistema</span>
-                                    <p class="text-xs text-gray-500 hidden lg:block">Status e métricas</p>
-                                </div>
-                            </div>
-                    </button>
-                    
-                        <button class="profile-tab group flex-1 flex items-center justify-center px-2 sm:px-3 lg:px-6 py-2 sm:py-3 rounded-lg sm:rounded-xl transition-all duration-300 hover:bg-white/50" data-tab="settings" onclick="switchProfileTab('settings')">
-                            <div class="flex items-center space-x-1 sm:space-x-2 lg:space-x-3 w-full">
-                                <div class="w-6 h-6 sm:w-7 sm:h-7 lg:w-8 lg:h-8 bg-gray-200 rounded-md sm:rounded-lg flex items-center justify-center group-hover:bg-green-100 group-hover:scale-110 transition-all duration-300 flex-shrink-0">
-                                    <svg class="w-3 h-3 sm:w-3.5 sm:h-3.5 lg:w-4 lg:h-4 text-gray-600 group-hover:text-green-600 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path>
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
-                        </svg>
-                                </div>
-                                <div class="text-left min-w-0 flex-1">
-                                    <span class="font-semibold text-xs sm:text-sm text-gray-700 group-hover:text-gray-900 transition-colors truncate block">Configurações</span>
-                                    <p class="text-xs text-gray-500 hidden lg:block">Preferências</p>
-                                </div>
-                            </div>
-                    </button>
-                </nav>
-                </div>
-            </div>
-
-            <!-- Content -->
-            <div class="flex-1 overflow-y-auto bg-gray-50 relative" style="max-height: calc(100vh - 200px);">
-                <!-- Scroll to Top Button -->
-                <button id="scrollToTop" onclick="scrollToTop()" class="fixed bottom-4 right-4 sm:bottom-8 sm:right-8 w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-r from-primary-green to-green-600 text-white rounded-full shadow-lg hover:shadow-xl transform hover:scale-110 transition-all duration-300 opacity-0 pointer-events-none z-50 flex items-center justify-center">
-                    <svg class="w-5 h-5 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 10l7-7m0 0l7 7m-7-7v18"></path>
-                    </svg>
-                </button>
-                
-                <div class="p-4 sm:p-6 lg:p-8 xl:p-12 min-h-full">
-                    <!-- Tab Content: Overview -->
-                    <div id="profile-overview" class="profile-tab-content">
-                        <!-- User Profile Hero Card - Estilo Métricas -->
-                        <div class="bg-white rounded-2xl sm:rounded-3xl shadow-xl border border-gray-100 overflow-hidden mb-6 sm:mb-8 transform hover:scale-[1.01] sm:hover:scale-[1.02] transition-all duration-300">
-                            <div class="bg-gradient-to-r from-slate-800 via-gray-800 to-slate-900 p-4 sm:p-6 lg:p-8 relative overflow-hidden">
-                                <!-- Elementos decorativos - ocultos no mobile -->
-                                <div class="absolute top-0 right-0 w-20 h-20 sm:w-32 sm:h-32 bg-blue-500/10 rounded-full -translate-y-10 sm:-translate-y-16 translate-x-10 sm:translate-x-16 hidden sm:block"></div>
-                                <div class="absolute bottom-0 left-0 w-16 h-16 sm:w-24 sm:h-24 bg-green-500/5 rounded-full translate-y-8 sm:translate-y-12 -translate-x-8 sm:-translate-x-12 hidden sm:block"></div>
-                                
-                                <!-- Layout Simples e Organizado -->
-                                <div class="relative z-10 flex items-center space-x-4 sm:space-x-6">
-                                    <!-- Avatar -->
-                                    <div class="w-16 h-16 sm:w-20 sm:h-20 bg-gray-600 rounded-xl flex items-center justify-center shadow-2xl flex-shrink-0">
-                                        <span class="text-xl sm:text-2xl font-bold text-white"><?php
-                                            $nome = $_SESSION['nome'] ?? '';
-                                            $iniciais = '';
-                                            if (strlen($nome) >= 2) {
-                                                $iniciais = strtoupper(substr($nome, 0, 2));
-                                            } elseif (strlen($nome) == 1) {
-                                                $iniciais = strtoupper($nome);
-                                            } else {
-                                                $iniciais = 'US';
-                                            }
-                                            echo $iniciais;
-                                        ?></span>
-                                    </div>
-                                    
-                                    <!-- Informações do Usuário -->
-                                    <div class="flex-1 min-w-0">
-                                        <h2 class="text-white text-lg sm:text-xl font-bold mb-1 truncate"><?php echo $_SESSION['nome']; ?></h2>
-                                        <p class="text-gray-300 text-sm mb-2">Administrador do Sistema</p>
-                                        <p class="text-white text-sm font-medium"><?php echo $_SESSION['email']; ?></p>
-                                        </div>
-                                    
-                                    <!-- Status Online -->
-                                    <div class="flex-shrink-0">
-                                        <div class="flex items-center space-x-2">
-                                            <div class="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
-                                            <span class="text-green-100 text-sm font-medium">Online</span>
-                                        </div>
-                                    </div>
-                                            </div>
-                                        </div>
-                                    </div>
-
-                        <!-- Stats Cards - Limpas -->
-                        <div class="mb-6 sm:mb-8">
-                            <div class="flex flex-col sm:flex-row sm:items-center justify-between mb-4 sm:mb-6 gap-2 sm:gap-0">
-                                <h3 class="text-lg sm:text-xl font-bold text-gray-900">Métricas do Sistema</h3>
-                                <div class="flex items-center space-x-2 text-xs sm:text-sm text-gray-500">
-                                    <div class="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
-                                    <span class="hidden sm:inline">Atualizado agora</span>
-                                    <span class="sm:hidden">Agora</span>
-                            </div>
-                        </div>
-
-                            <div class="grid grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 lg:gap-6">
-                                <div class="bg-white rounded-xl sm:rounded-2xl p-3 sm:p-4 lg:p-6 shadow-lg border border-gray-100 hover:shadow-xl hover:-translate-y-1 transition-all duration-300 group">
-                                    <div class="flex items-center justify-between mb-2 sm:mb-3 lg:mb-4">
-                                        <div class="w-8 h-8 sm:w-10 sm:h-10 lg:w-12 lg:h-12 bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg sm:rounded-xl flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform duration-300">
-                                            <svg class="w-4 h-4 sm:w-5 sm:h-5 lg:w-6 lg:h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path>
-                                        </svg>
-                                    </div>
-                                        <div class="text-right hidden sm:block">
-                                            <?php 
-                                            $totalEscolas = $stats->getTotalEscolas();
-                                            $escolasEsteMes = $stats->getEscolasEsteMes();
-                                            if ($escolasEsteMes > 0): ?>
-                                            <p class="text-xs text-green-600 font-medium">+<?= $escolasEsteMes ?> este mês</p>
-                                            <?php endif; ?>
-                                </div>
-                            </div>
-                                    <div>
-                                        <?php 
-                                        $percentualEscolas = $totalEscolas > 0 ? min(100, ($totalEscolas / 20) * 100) : 0;
-                                        ?>
-                                        <p class="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900 group-hover:text-blue-600 transition-colors"><?= $totalEscolas ?></p>
-                                        <p class="text-xs sm:text-sm font-semibold text-gray-600 mt-1">Escolas</p>
-                                        <div class="mt-1 sm:mt-2 bg-gray-200 rounded-full h-1.5 sm:h-2">
-                                            <div class="bg-gradient-to-r from-blue-500 to-blue-600 h-1.5 sm:h-2 rounded-full" style="width: <?= $percentualEscolas ?>%"></div>
-                                    </div>
-                                        <?php if ($escolasEsteMes > 0): ?>
-                                        <p class="text-xs text-green-600 font-medium mt-1 sm:hidden">+<?= $escolasEsteMes ?> este mês</p>
-                                        <?php endif; ?>
-                                    </div>
-                                </div>
-
-                                <div class="bg-white rounded-xl sm:rounded-2xl p-3 sm:p-4 lg:p-6 shadow-lg border border-gray-100 hover:shadow-xl hover:-translate-y-1 transition-all duration-300 group">
-                                    <div class="flex items-center justify-between mb-2 sm:mb-3 lg:mb-4">
-                                        <div class="w-8 h-8 sm:w-10 sm:h-10 lg:w-12 lg:h-12 bg-gradient-to-br from-green-500 to-green-600 rounded-lg sm:rounded-xl flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform duration-300">
-                                            <svg class="w-4 h-4 sm:w-5 sm:h-5 lg:w-6 lg:h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z"></path>
-                                        </svg>
-                                    </div>
-                                        <div class="text-right hidden sm:block">
-                                            <?php 
-                                            $usuariosEstaSemana = $stats->getUsuariosEstaSemana();
-                                            if ($usuariosEstaSemana > 0): ?>
-                                            <p class="text-xs text-green-600 font-medium">+<?= $usuariosEstaSemana ?> esta semana</p>
-                                            <?php endif; ?>
-                                </div>
-                            </div>
-                                    <div>
-                                        <?php 
-                                        $totalUsuarios = $stats->getTotalUsuarios();
-                                        $percentualUsuarios = $totalUsuarios > 0 ? min(100, ($totalUsuarios / 300) * 100) : 0;
-                                        ?>
-                                        <p class="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900 group-hover:text-green-600 transition-colors"><?= $totalUsuarios ?></p>
-                                        <p class="text-xs sm:text-sm font-semibold text-gray-600 mt-1">Usuários</p>
-                                        <div class="mt-1 sm:mt-2 bg-gray-200 rounded-full h-1.5 sm:h-2">
-                                            <div class="bg-gradient-to-r from-green-500 to-green-600 h-1.5 sm:h-2 rounded-full" style="width: <?= $percentualUsuarios ?>%"></div>
-                                    </div>
-                                        <?php if ($usuariosEstaSemana > 0): ?>
-                                        <p class="text-xs text-green-600 font-medium mt-1 sm:hidden">+<?= $usuariosEstaSemana ?> esta semana</p>
-                                        <?php endif; ?>
-                                    </div>
-                                </div>
-
-                                <div class="bg-white rounded-xl sm:rounded-2xl p-3 sm:p-4 lg:p-6 shadow-lg border border-gray-100 hover:shadow-xl hover:-translate-y-1 transition-all duration-300 group">
-                                    <div class="flex items-center justify-between mb-2 sm:mb-3 lg:mb-4">
-                                        <div class="w-8 h-8 sm:w-10 sm:h-10 lg:w-12 lg:h-12 bg-gradient-to-br from-purple-500 to-purple-600 rounded-lg sm:rounded-xl flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform duration-300">
-                                            <svg class="w-4 h-4 sm:w-5 sm:h-5 lg:w-6 lg:h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                                        </svg>
-                                    </div>
-                                        <div class="text-right hidden sm:block">
-                                            <p class="text-xs text-green-600 font-medium">Excelente</p>
-                                </div>
-                            </div>
-                                    <div>
-                                        <p class="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900 group-hover:text-purple-600 transition-colors">99.9%</p>
-                                        <p class="text-xs sm:text-sm font-semibold text-gray-600 mt-1">Uptime</p>
-                                        <div class="mt-1 sm:mt-2 bg-gray-200 rounded-full h-1.5 sm:h-2">
-                                            <div class="bg-gradient-to-r from-purple-500 to-purple-600 h-1.5 sm:h-2 rounded-full" style="width: 99.9%"></div>
-                                        </div>
-                                        <p class="text-xs text-green-600 font-medium mt-1 sm:hidden">Excelente</p>
-                                    </div>
-                                    </div>
-
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Tab Content: Personal Information -->
-                    <div id="profile-personal" class="profile-tab-content hidden">
-                        <?php
-                        // Buscar dados completos do usuário
-                        $usuarioId = $_SESSION['usuario_id'] ?? null;
-                        $dadosUsuario = $usuarioId ? $stats->getDadosUsuario($usuarioId) : null;
-                        $estatisticasUsuario = $usuarioId ? $stats->getEstatisticasUsuario($usuarioId, $_SESSION['tipo'] ?? '') : [];
-                        
-                        // Gerar iniciais
-                        $nome = $_SESSION['nome'] ?? '';
-                        $iniciais = '';
-                        if (strlen($nome) >= 2) {
-                            $iniciais = strtoupper(substr($nome, 0, 2));
-                        } elseif (strlen($nome) == 1) {
-                            $iniciais = strtoupper($nome);
-                        } else {
-                            $iniciais = 'US';
-                        }
-                        
-                        // Mapear tipos de usuário para nomes amigáveis
-                        $tiposUsuario = [
-                            'ADM' => 'Administrador Geral',
-                            'GESTAO' => 'Gestor Escolar',
-                            'PROFESSOR' => 'Professor',
-                            'ALUNO' => 'Aluno',
-                            'NUTRICIONISTA' => 'Nutricionista',
-                            'ADM_MERENDA' => 'Administrador de Merenda'
-                        ];
-                        $tipoUsuarioNome = $tiposUsuario[$_SESSION['tipo'] ?? ''] ?? $_SESSION['tipo'] ?? 'Usuário';
-                        ?>
-                        
-                        <!-- Profile Header - Minimalista -->
-                        <div class="bg-white border border-gray-200 rounded-lg mb-8">
-                            <div class="p-6 sm:p-8">
-                                <div class="flex flex-col sm:flex-row items-start sm:items-center gap-6">
-                                    <!-- Avatar -->
-                                    <div class="relative">
-                                        <div class="w-20 h-20 bg-gray-100 rounded-lg flex items-center justify-center border border-gray-200">
-                                            <span class="text-2xl font-medium text-gray-700"><?= $iniciais ?></span>
-                                        </div>
-                                        <div class="absolute -bottom-1 -right-1 w-5 h-5 bg-green-500 rounded-full border-2 border-white"></div>
-                                    </div>
-                                    
-                                    <!-- User Info -->
-                                    <div class="flex-1 min-w-0">
-                                        <h2 class="text-2xl font-semibold text-gray-900 mb-1"><?= htmlspecialchars($nome) ?></h2>
-                                        <p class="text-gray-600 text-sm mb-3"><?= $tipoUsuarioNome ?></p>
-                                        <div class="flex flex-wrap items-center gap-4 text-sm text-gray-500">
-                                            <?php if ($dadosUsuario && !empty($dadosUsuario['ultimo_login_formatado'])): ?>
-                                            <span>Último acesso: <?= $dadosUsuario['ultimo_login_formatado'] ?></span>
-                                            <?php endif; ?>
-                                            <?php if ($dadosUsuario && !empty($dadosUsuario['data_criacao_formatada'])): ?>
-                                            <span>Membro desde <?= $dadosUsuario['data_criacao_formatada'] ?></span>
-                                            <?php endif; ?>
-                                        </div>
-                                    </div>
-                                    
-                                    <!-- Action Button -->
-                                    <button class="px-4 py-2 bg-gray-900 text-white rounded-lg text-sm font-medium hover:bg-gray-800 transition-colors">
-                                        Editar Perfil
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Stats Cards - Minimalista -->
-                        <?php if (!empty($estatisticasUsuario)): ?>
-                        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-                            <?php foreach ($estatisticasUsuario as $key => $value): ?>
-                            <div class="bg-white border border-gray-200 rounded-lg p-5">
-                                <p class="text-2xl font-semibold text-gray-900 mb-1"><?= $value ?></p>
-                                <p class="text-sm text-gray-600 capitalize"><?= str_replace('_', ' ', $key) ?></p>
-                            </div>
-                            <?php endforeach; ?>
-                        </div>
-                        <?php endif; ?>
-
-                        <!-- Information Cards - Minimalista -->
-                        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-                            <!-- Personal Info Card -->
-                            <div class="bg-white border border-gray-200 rounded-lg p-6">
-                                <h3 class="text-lg font-semibold text-gray-900 mb-6 pb-4 border-b border-gray-200">Informações Pessoais</h3>
-                                
-                                <div class="space-y-5">
-                                    <div>
-                                        <label class="block text-xs text-gray-500 mb-1">Nome Completo</label>
-                                        <p class="text-base text-gray-900"><?= htmlspecialchars($nome) ?></p>
-                                    </div>
-                                    
-                                    <div>
-                                        <label class="block text-xs text-gray-500 mb-1">Email</label>
-                                        <p class="text-base text-gray-900"><?= htmlspecialchars($_SESSION['email'] ?? 'Não informado') ?></p>
-                                    </div>
-                                    
-                                    <?php if ($dadosUsuario && !empty($dadosUsuario['cpf_formatado'])): ?>
-                                    <div>
-                                        <label class="block text-xs text-gray-500 mb-1">CPF</label>
-                                        <p class="text-base text-gray-900"><?= $dadosUsuario['cpf_formatado'] ?></p>
-                                    </div>
-                                    <?php endif; ?>
-                                    
-                                    <?php if ($dadosUsuario && !empty($dadosUsuario['telefone'])): ?>
-                                    <div>
-                                        <label class="block text-xs text-gray-500 mb-1">Telefone</label>
-                                        <p class="text-base text-gray-900"><?= htmlspecialchars($dadosUsuario['telefone']) ?></p>
-                                    </div>
-                                    <?php endif; ?>
-                                    
-                                    <?php if ($dadosUsuario && !empty($dadosUsuario['data_nascimento']) && $dadosUsuario['data_nascimento'] != '0000-00-00'): ?>
-                                    <div>
-                                        <label class="block text-xs text-gray-500 mb-1">Data de Nascimento</label>
-                                        <p class="text-base text-gray-900">
-                                            <?php 
-                                            $dataNasc = new DateTime($dadosUsuario['data_nascimento']);
-                                            echo $dataNasc->format('d/m/Y');
-                                            if (isset($dadosUsuario['idade'])) {
-                                                echo ' (' . $dadosUsuario['idade'] . ' anos)';
-                                            }
-                                            ?>
-                                        </p>
-                                    </div>
-                                    <?php endif; ?>
-                                </div>
-                            </div>
-
-                            <!-- Account & Status Card -->
-                            <div class="bg-white border border-gray-200 rounded-lg p-6">
-                                <h3 class="text-lg font-semibold text-gray-900 mb-6 pb-4 border-b border-gray-200">Conta & Status</h3>
-                                
-                                <div class="space-y-5">
-                                    <div>
-                                        <label class="block text-xs text-gray-500 mb-2">Tipo de Usuário</label>
-                                        <span class="inline-block px-3 py-1 bg-gray-100 text-gray-900 rounded text-sm font-medium">
-                                            <?= $tipoUsuarioNome ?>
-                                        </span>
-                                    </div>
-                                    
-                                    <div>
-                                        <label class="block text-xs text-gray-500 mb-2">Status da Conta</label>
-                                        <div class="flex items-center gap-2">
-                                            <div class="w-2 h-2 bg-green-500 rounded-full"></div>
-                                            <span class="text-sm text-gray-900">Ativo</span>
-                                        </div>
-                                    </div>
-                                    
-                                    <div>
-                                        <label class="block text-xs text-gray-500 mb-2">Nível de Acesso</label>
-                                        <div class="space-y-2">
-                                            <div class="flex items-center justify-between text-sm">
-                                                <span class="text-gray-700">Permissões</span>
-                                                <span class="text-gray-900 font-medium">100%</span>
-                                            </div>
-                                            <div class="w-full bg-gray-200 rounded-full h-2">
-                                                <div class="bg-gray-900 h-2 rounded-full" style="width: 100%"></div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    
-                                    <?php if ($dadosUsuario && !empty($dadosUsuario['username'])): ?>
-                                    <div>
-                                        <label class="block text-xs text-gray-500 mb-1">Username</label>
-                                        <p class="text-base text-gray-900 font-mono">@<?= htmlspecialchars($dadosUsuario['username']) ?></p>
-                                    </div>
-                                    <?php endif; ?>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Activity Timeline - Minimalista -->
-                        <div class="bg-white border border-gray-200 rounded-lg p-6">
-                            <h3 class="text-lg font-semibold text-gray-900 mb-6 pb-4 border-b border-gray-200">Atividade Recente</h3>
-                            
-                            <div class="space-y-4">
-                                <?php
-                                $atividadesRecentes = $stats->getAtividadesRecentes(5);
-                                if (empty($atividadesRecentes)):
-                                ?>
-                                <div class="text-center py-8">
-                                    <p class="text-gray-500 text-sm">Nenhuma atividade recente</p>
-                                </div>
-                                <?php else: ?>
-                                    <?php foreach ($atividadesRecentes as $atividade): 
-                                        $dataAtividade = new DateTime($atividade['data']);
-                                        $agora = new DateTime();
-                                        $diff = $agora->diff($dataAtividade);
-                                        
-                                        $tempoRelativo = '';
-                                        if ($diff->days > 0) {
-                                            $tempoRelativo = $diff->days == 1 ? 'Ontem' : 'Há ' . $diff->days . ' dias';
-                                        } elseif ($diff->h > 0) {
-                                            $tempoRelativo = 'Há ' . $diff->h . ' hora' . ($diff->h > 1 ? 's' : '');
-                                        } elseif ($diff->i > 0) {
-                                            $tempoRelativo = 'Há ' . $diff->i . ' minuto' . ($diff->i > 1 ? 's' : '');
-                                        } else {
-                                            $tempoRelativo = 'Agora mesmo';
-                                        }
-                                    ?>
-                                    <div class="flex items-start gap-4 pb-4 border-b border-gray-100 last:border-0 last:pb-0">
-                                        <div class="w-2 h-2 bg-gray-400 rounded-full mt-2"></div>
-                                        <div class="flex-1 min-w-0">
-                                            <p class="text-sm font-medium text-gray-900 mb-1"><?= htmlspecialchars($atividade['titulo']) ?></p>
-                                            <p class="text-xs text-gray-600 mb-1"><?= htmlspecialchars($atividade['descricao']) ?></p>
-                                            <p class="text-xs text-gray-500"><?= $tempoRelativo ?></p>
-                                        </div>
-                                    </div>
-                                    <?php endforeach; ?>
-                                <?php endif; ?>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Tab Content: Sistema -->
-                    <div id="profile-system" class="profile-tab-content hidden">
-                        <!-- System Overview Card -->
-                        <div class="bg-gradient-to-br from-white to-gray-50 rounded-3xl shadow-xl border border-gray-100 overflow-hidden mb-8">
-                            <div class="bg-gradient-to-r from-slate-800 via-slate-700 to-slate-800 p-8 relative overflow-hidden">
-                                <div class="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full -translate-y-16 translate-x-16"></div>
-                                <div class="absolute bottom-0 left-0 w-24 h-24 bg-white/5 rounded-full translate-y-12 -translate-x-12"></div>
-                                <div class="relative z-10 text-white text-center">
-                                    <div class="w-16 h-16 bg-white/10 backdrop-blur-sm rounded-2xl flex items-center justify-center mx-auto mb-4">
-                                        <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z"></path>
-                                        </svg>
-                                    </div>
-                                    <h2 class="text-2xl font-bold mb-2">Status do Sistema</h2>
-                                    <p class="text-slate-300 mb-4">Todas as operações funcionando normalmente</p>
-                                    <div class="flex items-center justify-center space-x-2">
-                                        <div class="w-3 h-3 bg-green-400 rounded-full animate-pulse"></div>
-                                        <span class="text-green-100 font-medium">Sistema Online</span>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- System Stats Grid -->
-                        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-                            <div class="bg-white rounded-2xl p-6 shadow-lg border border-gray-100 hover:shadow-xl hover:-translate-y-1 transition-all duration-300 group">
-                                <div class="flex items-center justify-between mb-4">
-                                    <div class="w-12 h-12 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
-                                        <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path>
-                                        </svg>
-                                    </div>
-                                    <div class="text-right">
-                                        <p class="text-xs text-gray-500">Total</p>
-                                        <?php 
-                                        $escolasEsteMes = $stats->getEscolasEsteMes();
-                                        if ($escolasEsteMes > 0): ?>
-                                        <p class="text-sm font-medium text-green-600">+<?= $escolasEsteMes ?> este mês</p>
-                                        <?php endif; ?>
-                                    </div>
-                                </div>
-                                <?php 
-                                $totalEscolas = $stats->getTotalEscolas();
-                                $percentualEscolas = $totalEscolas > 0 ? min(100, ($totalEscolas / 20) * 100) : 0;
-                                ?>
-                                <h3 class="text-3xl font-bold text-gray-900 mb-1"><?= $totalEscolas ?></h3>
-                                <p class="text-sm font-medium text-gray-600">Escolas Gerenciadas</p>
-                                <div class="mt-3 bg-gray-200 rounded-full h-2">
-                                    <div class="bg-gradient-to-r from-blue-500 to-blue-600 h-2 rounded-full" style="width: <?= $percentualEscolas ?>%"></div>
-                                </div>
-                            </div>
-
-                            <div class="bg-white rounded-2xl p-6 shadow-lg border border-gray-100 hover:shadow-xl hover:-translate-y-1 transition-all duration-300 group">
-                                <div class="flex items-center justify-between mb-4">
-                                    <div class="w-12 h-12 bg-gradient-to-br from-green-500 to-green-600 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
-                                        <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z"></path>
-                                        </svg>
-                                    </div>
-                                    <div class="text-right">
-                                        <p class="text-xs text-gray-500">Ativos</p>
-                                        <?php 
-                                        $usuariosEstaSemana = $stats->getUsuariosEstaSemana();
-                                        if ($usuariosEstaSemana > 0): ?>
-                                        <p class="text-sm font-medium text-green-600">+<?= $usuariosEstaSemana ?> esta semana</p>
-                                        <?php endif; ?>
-                                    </div>
-                                </div>
-                                <?php 
-                                $totalUsuarios = $stats->getTotalUsuarios();
-                                $percentualUsuarios = $totalUsuarios > 0 ? min(100, ($totalUsuarios / 300) * 100) : 0;
-                                ?>
-                                <h3 class="text-3xl font-bold text-gray-900 mb-1"><?= $totalUsuarios ?></h3>
-                                <p class="text-sm font-medium text-gray-600">Usuários Ativos</p>
-                                <div class="mt-3 bg-gray-200 rounded-full h-2">
-                                    <div class="bg-gradient-to-r from-green-500 to-green-600 h-2 rounded-full" style="width: <?= $percentualUsuarios ?>%"></div>
-                                </div>
-                            </div>
-
-                            <div class="bg-white rounded-2xl p-6 shadow-lg border border-gray-100 hover:shadow-xl hover:-translate-y-1 transition-all duration-300 group">
-                                <div class="flex items-center justify-between mb-4">
-                                    <div class="w-12 h-12 bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
-                                        <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                                        </svg>
-                                    </div>
-                                    <div class="text-right">
-                                        <p class="text-xs text-gray-500">Uptime</p>
-                                        <p class="text-sm font-medium text-green-600">Excelente</p>
-                                    </div>
-                                </div>
-                                <h3 class="text-3xl font-bold text-gray-900 mb-1">99.9%</h3>
-                                <p class="text-sm font-medium text-gray-600">Sistema Estável</p>
-                                <div class="mt-3 bg-gray-200 rounded-full h-2">
-                                    <div class="bg-gradient-to-r from-purple-500 to-purple-600 h-2 rounded-full" style="width: 99.9%"></div>
-                                </div>
-                            </div>
-
-                            <div class="bg-white rounded-2xl p-6 shadow-lg border border-gray-100 hover:shadow-xl hover:-translate-y-1 transition-all duration-300 group">
-                                <div class="flex items-center justify-between mb-4">
-                                    <div class="w-12 h-12 bg-gradient-to-br from-orange-500 to-orange-600 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
-                                        <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                                        </svg>
-                                    </div>
-                                    <div class="text-right">
-                                        <p class="text-xs text-gray-500">Última</p>
-                                        <p class="text-sm font-medium text-green-600">Hoje</p>
-                                    </div>
-                                </div>
-                                <h3 class="text-2xl font-bold text-gray-900 mb-1"><?= date('H:i') ?></h3>
-                                <p class="text-sm font-medium text-gray-600">Última Atualização</p>
-                                <div class="mt-3 bg-gray-200 rounded-full h-2">
-                                    <div class="bg-gradient-to-r from-orange-500 to-orange-600 h-2 rounded-full" style="width: 75%"></div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- System Performance Chart -->
-                        <div class="bg-white rounded-2xl shadow-lg border border-gray-100 p-6 mb-8">
-                            <div class="flex items-center space-x-3 mb-6">
-                                <div class="w-10 h-10 bg-gradient-to-br from-indigo-500 to-indigo-600 rounded-xl flex items-center justify-center">
-                                    <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
-                                    </svg>
-                                </div>
-                                <h3 class="text-xl font-bold text-gray-900">Performance do Sistema</h3>
-                            </div>
-                            
-                            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-                                <div class="text-center">
-                                    <div class="w-20 h-20 mx-auto mb-4 relative">
-                                        <svg class="w-20 h-20 transform -rotate-90" viewBox="0 0 36 36">
-                                            <path class="text-gray-200" stroke="currentColor" stroke-width="3" fill="none" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"></path>
-                                            <path class="text-green-500" stroke="currentColor" stroke-width="3" fill="none" stroke-dasharray="99.9, 100" stroke-dashoffset="0" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"></path>
-                                        </svg>
-                                        <div class="absolute inset-0 flex items-center justify-center">
-                                            <span class="text-lg font-bold text-green-600">99.9%</span>
-                                        </div>
-                                    </div>
-                                    <h4 class="font-semibold text-gray-900">Uptime</h4>
-                                    <p class="text-sm text-gray-500">Disponibilidade</p>
-                                </div>
-                                
-                                <div class="text-center">
-                                    <div class="w-20 h-20 mx-auto mb-4 relative">
-                                        <svg class="w-20 h-20 transform -rotate-90" viewBox="0 0 36 36">
-                                            <path class="text-gray-200" stroke="currentColor" stroke-width="3" fill="none" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"></path>
-                                            <path class="text-blue-500" stroke="currentColor" stroke-width="3" fill="none" stroke-dasharray="85, 100" stroke-dashoffset="0" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"></path>
-                                        </svg>
-                                        <div class="absolute inset-0 flex items-center justify-center">
-                                            <span class="text-lg font-bold text-blue-600">85%</span>
-                                        </div>
-                                    </div>
-                                    <h4 class="font-semibold text-gray-900">Performance</h4>
-                                    <p class="text-sm text-gray-500">Velocidade</p>
-                                </div>
-                                
-                                <div class="text-center">
-                                    <div class="w-20 h-20 mx-auto mb-4 relative">
-                                        <svg class="w-20 h-20 transform -rotate-90" viewBox="0 0 36 36">
-                                            <path class="text-gray-200" stroke="currentColor" stroke-width="3" fill="none" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"></path>
-                                            <path class="text-purple-500" stroke="currentColor" stroke-width="3" fill="none" stroke-dasharray="92, 100" stroke-dashoffset="0" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"></path>
-                                        </svg>
-                                        <div class="absolute inset-0 flex items-center justify-center">
-                                            <span class="text-lg font-bold text-purple-600">92%</span>
-                                        </div>
-                                    </div>
-                                    <h4 class="font-semibold text-gray-900">Capacidade</h4>
-                                    <p class="text-sm text-gray-500">Recursos</p>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Tab Content: Configurações -->
-                    <div id="profile-settings" class="profile-tab-content hidden">
-                        <!-- Settings Header - Minimalista -->
-                        <div class="bg-white border border-gray-200 rounded-lg mb-8">
-                            <div class="p-6 sm:p-8">
-                                <h2 class="text-2xl font-semibold text-gray-900 mb-2">Configurações</h2>
-                                <p class="text-gray-600 text-sm">Personalize sua experiência e preferências</p>
-                            </div>
-                        </div>
-
-                        <!-- Theme Settings - Minimalista -->
-                        <div class="bg-white border border-gray-200 rounded-lg p-6 mb-8">
-                            <h3 class="text-lg font-semibold text-gray-900 mb-6 pb-4 border-b border-gray-200">Tema Visual</h3>
-                            
-                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <button id="theme-light" class="theme-option p-6 border-2 border-gray-200 rounded-lg hover:border-gray-400 hover:bg-gray-50 transition-colors text-left">
-                                    <div class="flex items-center gap-4 mb-4">
-                                        <div class="w-12 h-12 bg-gray-100 rounded-lg flex items-center justify-center">
-                                            <svg class="w-6 h-6 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"></path>
-                                            </svg>
-                                        </div>
-                                        <div>
-                                            <h4 class="font-semibold text-gray-900">Tema Claro</h4>
-                                            <p class="text-sm text-gray-600">Interface clara</p>
-                                        </div>
-                                    </div>
-                                </button>
-                                
-                                <button id="theme-dark" class="theme-option p-6 border-2 border-gray-200 rounded-lg hover:border-gray-400 hover:bg-gray-50 transition-colors text-left">
-                                    <div class="flex items-center gap-4 mb-4">
-                                        <div class="w-12 h-12 bg-gray-800 rounded-lg flex items-center justify-center">
-                                            <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"></path>
-                                            </svg>
-                                        </div>
-                                        <div>
-                                            <h4 class="font-semibold text-gray-900">Tema Escuro</h4>
-                                            <p class="text-sm text-gray-600">Interface escura</p>
-                                        </div>
-                                    </div>
-                                </button>
-                            </div>
-                        </div>
-
-                        <!-- Notification Settings - Minimalista -->
-                        <div class="bg-white border border-gray-200 rounded-lg p-6 mb-8">
-                            <h3 class="text-lg font-semibold text-gray-900 mb-6 pb-4 border-b border-gray-200">Notificações</h3>
-                            
-                            <div class="space-y-4">
-                                <div class="flex items-center justify-between py-3 border-b border-gray-100 last:border-0">
-                                    <div>
-                                        <h4 class="font-medium text-gray-900 mb-1">Notificações por Email</h4>
-                                        <p class="text-sm text-gray-600">Receba atualizações importantes por email</p>
-                                    </div>
-                                    <label class="relative inline-flex items-center cursor-pointer">
-                                        <input type="checkbox" class="sr-only peer" checked>
-                                        <div class="w-11 h-6 bg-gray-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-gray-900"></div>
-                                    </label>
-                                </div>
-                                
-                                <div class="flex items-center justify-between py-3 border-b border-gray-100 last:border-0">
-                                    <div>
-                                        <h4 class="font-medium text-gray-900 mb-1">Notificações do Sistema</h4>
-                                        <p class="text-sm text-gray-600">Alertas sobre status do sistema</p>
-                                    </div>
-                                    <label class="relative inline-flex items-center cursor-pointer">
-                                        <input type="checkbox" class="sr-only peer" checked>
-                                        <div class="w-11 h-6 bg-gray-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-gray-900"></div>
-                                    </label>
-                                </div>
-                                
-                                <div class="flex items-center justify-between py-3">
-                                    <div>
-                                        <h4 class="font-medium text-gray-900 mb-1">Notificações de Atividade</h4>
-                                        <p class="text-sm text-gray-600">Alertas sobre atividades importantes</p>
-                                    </div>
-                                    <label class="relative inline-flex items-center cursor-pointer">
-                                        <input type="checkbox" class="sr-only peer">
-                                        <div class="w-11 h-6 bg-gray-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-gray-900"></div>
-                                    </label>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Accessibility Settings - Minimalista -->
-                        <div class="bg-white border border-gray-200 rounded-lg p-6 mb-8">
-                            <h3 class="text-lg font-semibold text-gray-900 mb-6 pb-4 border-b border-gray-200">Acessibilidade</h3>
-                            
-                            <div class="space-y-4">
-                                <!-- VLibras Toggle -->
-                                <div class="flex items-center justify-between py-3 border-b border-gray-100">
-                                    <div>
-                                        <h4 class="font-medium text-gray-900 mb-1">VLibras (Libras)</h4>
-                                        <p class="text-sm text-gray-600">Tradução automática para Libras</p>
-                                    </div>
-                                    <label class="relative inline-flex items-center cursor-pointer">
-                                        <input type="checkbox" id="vlibras-toggle" class="sr-only peer" checked>
-                                        <div class="w-11 h-6 bg-gray-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-gray-900"></div>
-                                    </label>
-                                </div>
-                                
-                                <!-- High Contrast Toggle -->
-                                <div class="flex items-center justify-between py-3 border-b border-gray-100">
-                                    <div>
-                                        <h4 class="font-medium text-gray-900 mb-1">Alto Contraste</h4>
-                                        <p class="text-sm text-gray-600">Melhora a visibilidade dos elementos</p>
-                                    </div>
-                                    <label class="relative inline-flex items-center cursor-pointer">
-                                        <input type="checkbox" id="contrast-toggle" class="sr-only peer">
-                                        <div class="w-11 h-6 bg-gray-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-gray-900"></div>
-                                    </label>
-                                </div>
-                                
-                                <!-- Font Size Controls -->
-                                <div class="pt-3">
-                                    <h4 class="font-medium text-gray-900 mb-4">Tamanho da Fonte</h4>
-                                    <div class="flex items-center gap-3">
-                                        <button id="font-decrease" class="w-10 h-10 border border-gray-300 rounded-lg hover:bg-gray-50 flex items-center justify-center">
-                                            <svg class="w-5 h-5 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 12H4"></path>
-                                            </svg>
-                                        </button>
-                                        <span id="font-size-display" class="px-4 py-2 bg-gray-100 rounded-lg text-sm font-medium min-w-[60px] text-center">100%</span>
-                                        <button id="font-increase" class="w-10 h-10 border border-gray-300 rounded-lg hover:bg-gray-50 flex items-center justify-center">
-                                            <svg class="w-5 h-5 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
-                                            </svg>
-                                        </button>
-                                        <button id="font-reset" class="px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 text-sm font-medium">
-                                            Padrão
-                                        </button>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Action Buttons - Minimalista -->
-                        <div class="bg-white border border-gray-200 rounded-lg p-6">
-                            <div class="flex flex-col sm:flex-row gap-3 justify-end">
-                                <button class="px-5 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 font-medium">
-                                    Cancelar
-                                </button>
-                                <button class="px-5 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 font-medium">
-                                    Salvar Configurações
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-            </div>
-        </div>
-    </div>
-
     <script>
-        // Profile Modal Functions
-        function openUserProfile() {
-            const modal = document.getElementById('userProfileModal');
-            const modalContent = document.getElementById('modalContent');
-            
-            modal.classList.remove('hidden');
-            modal.classList.add('show');
-            document.body.style.overflow = 'hidden';
-            
-            // Trigger animation after a small delay
-            setTimeout(() => {
-                modalContent.style.transform = 'scale(1) translateY(0)';
-                modalContent.style.opacity = '1';
-            }, 10);
-            
-            // Initialize theme buttons and accessibility
-            setTimeout(() => {
-                initializeThemeButtons();
-                initializeScrollIndicator();
-                initializeAccessibilityControls();
-            }, 100);
-        }
-
-        function closeUserProfile() {
-            const modal = document.getElementById('userProfileModal');
-            const modalContent = document.getElementById('modalContent');
-            
-            // Animate out
-            modalContent.style.transform = 'scale(0.95) translateY(20px)';
-            modalContent.style.opacity = '0';
-            
-            // Hide modal after animation
-            setTimeout(() => {
-                modal.classList.add('hidden');
-                modal.classList.remove('show');
-                document.body.style.overflow = '';
-            }, 300);
-        }
-
-        function switchProfileTab(tabName) {
-            // Remove active class from all tabs and reset styles
-            document.querySelectorAll('.profile-tab').forEach(tab => {
-                tab.classList.remove('active');
-                
-                // Reset tab styles - use correct class selectors
-                const icon = tab.querySelector('.w-6.h-6, .w-7.h-7, .w-8.h-8');
-                const iconSvg = tab.querySelector('svg');
-                const text = tab.querySelector('span');
-                
-                if (icon) {
-                    icon.classList.remove('bg-white');
-                    icon.classList.add('bg-gray-200');
-                }
-                
-                if (iconSvg) {
-                    iconSvg.classList.remove('text-primary-green', 'text-green-600');
-                    iconSvg.classList.add('text-gray-600');
-                }
-                
-                if (text) {
-                    text.classList.remove('text-gray-900', 'font-semibold');
-                    text.classList.add('text-gray-700');
-                }
-            });
-
-            // Hide all tab contents
-            document.querySelectorAll('.profile-tab-content').forEach(content => {
-                content.classList.add('hidden');
-            });
-
-            // Add active class to clicked tab and apply styles
-            const activeTab = document.querySelector(`[data-tab="${tabName}"]`);
-            if (activeTab) {
-                activeTab.classList.add('active');
-                
-                // Apply active styles - use correct class selectors
-                const icon = activeTab.querySelector('.w-6.h-6, .w-7.h-7, .w-8.h-8');
-                const iconSvg = activeTab.querySelector('svg');
-                const text = activeTab.querySelector('span');
-                
-                if (icon) {
-                    icon.classList.remove('bg-gray-200');
-                    icon.classList.add('bg-white');
-                }
-                
-                if (iconSvg) {
-                    iconSvg.classList.remove('text-gray-600');
-                    iconSvg.classList.add('text-primary-green');
-                }
-                
-                if (text) {
-                    text.classList.remove('text-gray-700');
-                    text.classList.add('text-gray-900', 'font-semibold');
-                }
-            }
-
-            // Show corresponding content
-            const selectedContent = document.getElementById(`profile-${tabName}`);
-            if (selectedContent) {
-                selectedContent.classList.remove('hidden');
-                
-                // Initialize theme buttons if settings tab is selected
-                if (tabName === 'settings') {
-                    setTimeout(() => {
-                        initializeThemeButtons();
-                        initializeAccessibilityControls();
-                    }, 100);
-                }
-            }
-        }
-
-        // Initialize accessibility controls
-        function initializeAccessibilityControls() {
-            // VLibras Toggle
-            const vlibrasToggle = document.getElementById('vlibras-toggle');
-            if (vlibrasToggle) {
-                vlibrasToggle.addEventListener('change', function() {
-                    const vlibrasWidget = document.getElementById('vlibras-widget');
-                    if (vlibrasWidget) {
-                        if (this.checked) {
-                            vlibrasWidget.style.display = 'block';
-                            vlibrasWidget.classList.remove('disabled');
-                            vlibrasWidget.classList.add('enabled');
-                            localStorage.setItem('vlibras-enabled', 'true');
-                            // Reinicializar VLibras se necessário
-                            if (window.VLibras) {
-                                new window.VLibras.Widget('https://vlibras.gov.br/app');
-                            }
-                        } else {
-                            vlibrasWidget.style.display = 'none';
-                            vlibrasWidget.classList.remove('enabled');
-                            vlibrasWidget.classList.add('disabled');
-                            localStorage.setItem('vlibras-enabled', 'false');
-                        }
-                    }
-                });
-                
-                // Load saved state
-                const vlibrasEnabled = localStorage.getItem('vlibras-enabled');
-                if (vlibrasEnabled === 'false') {
-                    vlibrasToggle.checked = false;
-                    const vlibrasWidget = document.getElementById('vlibras-widget');
-                    if (vlibrasWidget) {
-                        vlibrasWidget.style.display = 'none';
-                        vlibrasWidget.classList.remove('enabled');
-                        vlibrasWidget.classList.add('disabled');
-                    }
-                } else {
-                    // Garantir que está visível se habilitado
-                    vlibrasToggle.checked = true;
-                    const vlibrasWidget = document.getElementById('vlibras-widget');
-                    if (vlibrasWidget) {
-                        vlibrasWidget.style.display = 'block';
-                        vlibrasWidget.classList.remove('disabled');
-                        vlibrasWidget.classList.add('enabled');
-                    }
-                }
-            }
-            
-            // High Contrast Toggle
-            const contrastToggle = document.getElementById('contrast-toggle');
-            if (contrastToggle) {
-                contrastToggle.addEventListener('change', function() {
-                    if (this.checked) {
-                        document.body.classList.add('high-contrast');
-                        localStorage.setItem('high-contrast', 'true');
-                    } else {
-                        document.body.classList.remove('high-contrast');
-                        localStorage.setItem('high-contrast', 'false');
-                    }
-                });
-                
-                // Load saved state
-                const highContrast = localStorage.getItem('high-contrast');
-                if (highContrast === 'true') {
-                    contrastToggle.checked = true;
-                    document.body.classList.add('high-contrast');
-                }
-            }
-            
-            // Font Size Controls
-            const fontDecrease = document.getElementById('font-decrease');
-            const fontIncrease = document.getElementById('font-increase');
-            const fontReset = document.getElementById('font-reset');
-            const fontSizeDisplay = document.getElementById('font-size-display');
-            
-            if (fontDecrease && fontIncrease && fontReset && fontSizeDisplay) {
-                let currentFontSize = parseInt(localStorage.getItem('font-size') || '100');
-                updateFontSize(currentFontSize);
-                
-                fontDecrease.addEventListener('click', function() {
-                    if (currentFontSize > 80) {
-                        currentFontSize -= 10;
-                        updateFontSize(currentFontSize);
-                        localStorage.setItem('font-size', currentFontSize.toString());
-                    }
-                });
-                
-                fontIncrease.addEventListener('click', function() {
-                    if (currentFontSize < 150) {
-                        currentFontSize += 10;
-                        updateFontSize(currentFontSize);
-                        localStorage.setItem('font-size', currentFontSize.toString());
-                    }
-                });
-                
-                fontReset.addEventListener('click', function() {
-                    currentFontSize = 100;
-                    updateFontSize(currentFontSize);
-                    localStorage.setItem('font-size', currentFontSize.toString());
-                });
-                
-                function updateFontSize(size) {
-                    document.documentElement.style.fontSize = size + '%';
-                    fontSizeDisplay.textContent = size + '%';
-                }
-            }
-        }
-
-        // Initialize theme buttons with better functionality
-        function initializeThemeButtons() {
-            const lightBtn = document.getElementById('theme-light');
-            const darkBtn = document.getElementById('theme-dark');
-            
-            if (lightBtn) {
-                lightBtn.onclick = function(e) {
-                    e.preventDefault();
-                    setTheme('light');
-                    updateThemeButtons('light');
-                };
-            }
-            
-            if (darkBtn) {
-                darkBtn.onclick = function(e) {
-                    e.preventDefault();
-                    setTheme('dark');
-                    updateThemeButtons('dark');
-                };
-            }
-        }
-
-        function updateThemeButtons(theme) {
-            const lightBtn = document.getElementById('theme-light');
-            const darkBtn = document.getElementById('theme-dark');
-            
-            // Reset both buttons
-            [lightBtn, darkBtn].forEach(btn => {
-                if (btn) {
-                    btn.classList.remove('border-blue-500', 'border-purple-500', 'bg-blue-50', 'bg-purple-50');
-                    btn.classList.add('border-gray-200');
-                }
-            });
-            
-            // Activate selected theme button
-            const activeBtn = theme === 'light' ? lightBtn : darkBtn;
-            if (activeBtn) {
-                const isLight = theme === 'light';
-                activeBtn.classList.remove('border-gray-200');
-                activeBtn.classList.add(
-                    isLight ? 'border-blue-500' : 'border-purple-500',
-                    isLight ? 'bg-blue-50' : 'bg-purple-50'
-                );
-            }
-        }
-
-        // Initialize scroll indicator
-        function initializeScrollIndicator() {
-            const scrollContainer = document.querySelector('#userProfileModal .overflow-y-auto');
-            if (scrollContainer) {
-                scrollContainer.addEventListener('scroll', function() {
-                    const { scrollTop, scrollHeight, clientHeight } = this;
-                    const isScrolled = scrollTop > 10;
-                    const isAtBottom = scrollTop + clientHeight >= scrollHeight - 10;
-                    
-                    // Add/remove scrolled class for visual feedback
-                    if (isScrolled) {
-                        this.classList.add('scrolled');
-                    } else {
-                        this.classList.remove('scrolled');
-                    }
-                    
-                    // Add shadow to header when scrolled
-                    const header = document.querySelector('#userProfileModal .bg-white.border-b');
-                    if (header) {
-                        if (isScrolled) {
-                            header.classList.add('shadow-lg');
-                        } else {
-                            header.classList.remove('shadow-lg');
-                        }
-                    }
-                    
-                    // Show/hide scroll to top button
-                    const scrollToTopBtn = document.getElementById('scrollToTop');
-                    if (scrollToTopBtn) {
-                        if (isScrolled) {
-                            scrollToTopBtn.classList.remove('opacity-0', 'pointer-events-none');
-                            scrollToTopBtn.classList.add('opacity-100');
-                        } else {
-                            scrollToTopBtn.classList.add('opacity-0', 'pointer-events-none');
-                            scrollToTopBtn.classList.remove('opacity-100');
-                        }
-                    }
-                });
-                
-                // Initial check
-                scrollContainer.dispatchEvent(new Event('scroll'));
-            }
-        }
-
-        // Scroll to top function
-        function scrollToTop() {
-            const scrollContainer = document.querySelector('#userProfileModal .overflow-y-auto');
-            if (scrollContainer) {
-                scrollContainer.scrollTo({
-                    top: 0,
-                    behavior: 'smooth'
-                });
-            }
-        }
-
-        // Keyboard shortcut for profile modal
-        document.addEventListener('keydown', function(event) {
-            if (event.altKey && event.key === 'a') {
-                event.preventDefault();
-                openUserProfile();
-            }
-            if (event.key === 'Escape') {
-                closeUserProfile();
-            }
-        });
-
         // Event listeners simples
         document.addEventListener('DOMContentLoaded', function() {
             const mobileButton = document.querySelector('.mobile-menu-btn');
@@ -8966,6 +7585,4 @@ if (!defined('BASE_URL')) {
     </script>
 
 </body>
-</html>
-
 </html>

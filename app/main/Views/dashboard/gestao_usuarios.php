@@ -1,10 +1,14 @@
 <?php
-// Iniciar sessão
-session_start();
+require_once('../../Models/sessao/sessions.php');
+require_once('../../config/permissions_helper.php');
 
-// Verificar se o usuário está logado e tem permissão para acessar esta página
-if (!isset($_SESSION['tipo']) || $_SESSION['tipo'] !== 'ADM') {
-    header('Location: ../auth/login.php');
+$session = new sessions();
+$session->autenticar_session();
+$session->tempo_session();
+
+// Verificar permissão usando o sistema de permissões
+if (!temPermissao('cadastrar_pessoas') && !eAdm()) {
+    header('Location: ../auth/login.php?erro=sem_permissao');
     exit;
 }
 
@@ -411,7 +415,6 @@ $usuarios = listarUsuarios($busca);
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link href="global-theme.css" rel="stylesheet">
     <!-- User Profile Modal CSS -->
-    <link rel="stylesheet" href="components/user-profile-modal.css">
     
     <!-- Theme Manager -->
     <script src="theme-manager.js"></script>
@@ -725,38 +728,6 @@ $usuarios = listarUsuarios($busca);
             background-color: #333333 !important;
         }
 
-        /* Estilos específicos para o modal de perfil no tema escuro */
-        [data-theme="dark"] #userProfileModal .text-gray-900 {
-            color: #ffffff !important;
-        }
-
-        [data-theme="dark"] #userProfileModal .text-gray-800 {
-            color: #ffffff !important;
-        }
-
-        [data-theme="dark"] #userProfileModal .text-gray-700 {
-            color: #e0e0e0 !important;
-        }
-
-        [data-theme="dark"] #userProfileModal .text-gray-600 {
-            color: #c0c0c0 !important;
-        }
-
-        [data-theme="dark"] #userProfileModal .text-gray-500 {
-            color: #a0a0a0 !important;
-        }
-
-        [data-theme="dark"] #userProfileModal .bg-white {
-            background-color: var(--bg-secondary) !important;
-        }
-
-        [data-theme="dark"] #userProfileModal .border-gray-200 {
-            border-color: var(--border-color) !important;
-        }
-
-        [data-theme="dark"] #userProfileModal .bg-gray-50 {
-            background-color: var(--bg-tertiary) !important;
-        }
 
 
         /* ===== MELHORIAS DE RESPONSIVIDADE ===== */
@@ -1174,7 +1145,7 @@ $usuarios = listarUsuarios($busca);
                         </div>
                         
                         <!-- User Profile Button -->
-                        <button onclick="openUserProfile()" class="p-2 text-gray-600 bg-gray-100 hover:text-gray-900 hover:bg-gray-200 rounded-full focus:outline-none focus:ring-2 focus:ring-primary-green transition-colors duration-200" aria-label="Abrir perfil do usuário e configurações de acessibilidade" title="Perfil e Acessibilidade (Alt+A)">
+                        <div class="p-2 text-gray-600 bg-gray-100 rounded-full" title="Perfil do Usuário">
                             <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
                             </svg>
@@ -1962,10 +1933,6 @@ $usuarios = listarUsuarios($busca);
     </script>
 
     <!-- User Profile Modal Component -->
-    <?php include 'components/user-profile-modal.php'; ?>
-    
-    <!-- User Profile Modal JavaScript -->
-    <script src="components/user-profile-modal.js"></script>
 
 </body>
 </html>

@@ -902,8 +902,9 @@ class DashboardStats {
             $stmt = $this->conn->prepare("
                 SELECT COUNT(DISTINCT a.id) as total
                 FROM aluno a
-                JOIN turma t ON a.turma_id = t.id
-                WHERE t.turno = :turno AND a.ativo = 1
+                JOIN aluno_turma at ON a.id = at.aluno_id
+                JOIN turma t ON at.turma_id = t.id
+                WHERE at.fim IS NULL AND t.turno = :turno AND a.ativo = 1
             ");
             $stmt->bindParam(':turno', $turno);
             $stmt->execute();
@@ -1043,8 +1044,10 @@ class DashboardStats {
             $stmt = $this->conn->prepare("
                 SELECT COUNT(DISTINCT a.id) as total
                 FROM aluno a
-                JOIN turma t ON a.turma_id = t.id
-                WHERE t.nome LIKE :nome AND a.ativo = 1
+                JOIN aluno_turma at ON a.id = at.aluno_id
+                JOIN turma t ON at.turma_id = t.id
+                WHERE CONCAT(COALESCE(t.serie, ''), ' ', COALESCE(t.letra, ''), ' - ', COALESCE(t.turno, '')) LIKE :nome 
+                AND a.ativo = 1 AND at.fim IS NULL
             ");
             $nome = '%' . $nomeTurma . '%';
             $stmt->bindParam(':nome', $nome);
