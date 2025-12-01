@@ -1730,7 +1730,7 @@ if (!defined('BASE_URL')) {
                 <?php } ?>
                 <?php if ($_SESSION['tipo'] === 'GESTAO') { ?>
                 <li id="gestao-menu">
-                    <a href="#" onclick="showSection('gestao')" class="menu-item flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700">
+                    <a href="gestao_escolar.php" class="menu-item flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700">
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
                         </svg>
@@ -2942,9 +2942,9 @@ if (!defined('BASE_URL')) {
                                 </div>
                             </div>
                             
-                            <button class="w-full bg-blue-600 text-white py-2.5 px-4 rounded-lg hover:bg-blue-700 transition-colors duration-200 font-medium">
+                            <a href="gestao_escolar.php" class="w-full bg-blue-600 text-white py-2.5 px-4 rounded-lg hover:bg-blue-700 transition-colors duration-200 font-medium text-center block">
                                 Gerenciar Turmas
-                            </button>
+                            </a>
                         </div>';
                     }
                     
@@ -2986,9 +2986,9 @@ if (!defined('BASE_URL')) {
                                 </div>
                             </div>
                             
-                            <button class="w-full bg-green-600 text-white py-2.5 px-4 rounded-lg hover:bg-green-700 transition-colors duration-200 font-medium">
+                            <a href="gestao_escolar.php#matriculas" class="w-full bg-green-600 text-white py-2.5 px-4 rounded-lg hover:bg-green-700 transition-colors duration-200 font-medium text-center block">
                                 Gerenciar Cadastros
-                            </button>
+                            </a>
                         </div>';
                     }
                     
@@ -3072,9 +3072,9 @@ if (!defined('BASE_URL')) {
                             </div>
                         </div>
                         
-                        <button class="w-full bg-orange-600 text-white py-2.5 px-4 rounded-lg hover:bg-orange-700 transition-colors duration-200 font-medium">
+                        <a href="gestao_escolar.php#acompanhamento" class="w-full bg-orange-600 text-white py-2.5 px-4 rounded-lg hover:bg-orange-700 transition-colors duration-200 font-medium text-center block">
                             Registrar Presença
-                        </button>
+                        </a>
                     </div>';
                     
                     // Card de Notas e Boletins
@@ -3116,9 +3116,9 @@ if (!defined('BASE_URL')) {
                             </div>
                         </div>
                         
-                        <button class="w-full bg-yellow-600 text-white py-2.5 px-4 rounded-lg hover:bg-yellow-700 transition-colors duration-200 font-medium">
+                        <a href="gestao_escolar.php#acompanhamento" class="w-full bg-yellow-600 text-white py-2.5 px-4 rounded-lg hover:bg-yellow-700 transition-colors duration-200 font-medium text-center block">
                             Gerenciar Notas
-                        </button>
+                        </a>
                     </div>';
                     
                     // Card de Professores e Funcionários
@@ -3161,9 +3161,9 @@ if (!defined('BASE_URL')) {
                             </div>
                         </div>
                         
-                        <button class="w-full bg-teal-600 text-white py-2.5 px-4 rounded-lg hover:bg-teal-700 transition-colors duration-200 font-medium">
+                        <a href="gestao_escolar.php#professores" class="w-full bg-teal-600 text-white py-2.5 px-4 rounded-lg hover:bg-teal-700 transition-colors duration-200 font-medium text-center block">
                             Gerenciar Equipe
-                        </button>
+                        </a>
                     </div>';
                     
                     // Card de Comunicação
@@ -3249,9 +3249,9 @@ if (!defined('BASE_URL')) {
                             </div>
                         </div>
                         
-                        <button class="w-full bg-red-600 text-white py-2.5 px-4 rounded-lg hover:bg-red-700 transition-colors duration-200 font-medium">
+                        <a href="gestao_escolar.php#validacao" class="w-full bg-red-600 text-white py-2.5 px-4 rounded-lg hover:bg-red-700 transition-colors duration-200 font-medium text-center block">
                             Validar Informações
-                        </button>
+                        </a>
                     </div>';
                     
                     echo '</div>';

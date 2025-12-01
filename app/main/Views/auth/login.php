@@ -337,6 +337,11 @@ if (!defined('BASE_URL')) {
             <p class="text-gray-600 text-sm mb-2">Acesso restrito a funcionários cadastrados</p>
             <p class="text-gray-500 text-xs">Entre em contato com a administração para solicitar acesso</p>
         </div>
+
+        <!-- Desenvolvido por -->
+        <div class="mt-8 text-center">
+            <p class="text-gray-400 text-xs">Desenvolvido por Kron</p>
+        </div>
     </div>
 
     <div class="hidden md:flex min-h-screen">
@@ -432,6 +437,11 @@ if (!defined('BASE_URL')) {
                         <a class='text-forest-600 hover:text-forest-700 font-semibold' href='/primeiroacesso'>Criar conta</a>
                     </p>
                 </div> -->
+
+                <!-- Desenvolvido por -->
+                <div class="mt-8 text-center">
+                    <p class="text-slate-400 text-xs">Desenvolvido por Kron</p>
+                </div>
             </div>
         </div>
     </div>
@@ -586,28 +596,7 @@ if (!defined('BASE_URL')) {
 
         // Forgot password functionality - redirect to recovery request page
         function showForgotPassword() {
-            // Get the email from the login form - tentar múltiplos seletores
-            let emailInput = document.querySelector('input[type="email"]');
-            
-            // Se não encontrar, tentar por name
-            if (!emailInput) {
-                emailInput = document.querySelector('input[name="email"]');
-            }
-            
-            // Se ainda não encontrar, tentar por placeholder
-            if (!emailInput) {
-                emailInput = document.querySelector('input[placeholder*="email"]');
-            }
-            
-            const email = emailInput ? emailInput.value.trim() : '';
-            
-            // Redirect to the password recovery request page with email parameter
-            if (email) {
-                const url = `solicitar-alteracao-senha.html?email=${encodeURIComponent(email)}`;
-                window.location.href = url;
-            } else {
-                window.location.href = 'solicitar-alteracao-senha.html';
-            }
+            window.location.href = 'esqueceu-senha.php';
         }
 
         // Função para fechar aviso de desenvolvimento

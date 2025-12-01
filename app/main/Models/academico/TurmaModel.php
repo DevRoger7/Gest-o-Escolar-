@@ -188,6 +188,47 @@ class TurmaModel {
         
         return $stmt->execute();
     }
+    
+    /**
+     * Busca alunos da turma
+     */
+    public function buscarAlunos($turmaId) {
+        $conn = $this->db->getConnection();
+        
+        $sql = "SELECT a.id, p.nome, p.cpf, a.matricula, at.inicio, at.status
+                FROM aluno_turma at
+                INNER JOIN aluno a ON at.aluno_id = a.id
+                INNER JOIN pessoa p ON a.pessoa_id = p.id
+                WHERE at.turma_id = :turma_id AND at.fim IS NULL
+                ORDER BY p.nome ASC";
+        
+        $stmt = $conn->prepare($sql);
+        $stmt->bindParam(':turma_id', $turmaId);
+        $stmt->execute();
+        
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
+    
+    /**
+     * Busca professores da turma
+     */
+    public function buscarProfessores($turmaId) {
+        $conn = $this->db->getConnection();
+        
+        $sql = "SELECT tp.professor_id, p.nome, d.nome as disciplina_nome, tp.regime, tp.inicio
+                FROM turma_professor tp
+                INNER JOIN professor pr ON tp.professor_id = pr.id
+                INNER JOIN pessoa p ON pr.pessoa_id = p.id
+                LEFT JOIN disciplina d ON tp.disciplina_id = d.id
+                WHERE tp.turma_id = :turma_id AND tp.fim IS NULL
+                ORDER BY d.nome ASC, p.nome ASC";
+        
+        $stmt = $conn->prepare($sql);
+        $stmt->bindParam(':turma_id', $turmaId);
+        $stmt->execute();
+        
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
 }
 
 ?>
