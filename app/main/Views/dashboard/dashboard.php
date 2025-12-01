@@ -2,6 +2,10 @@
 require_once('../../Models/sessao/sessions.php');
 require_once('../../Models/dashboard/DashboardStats.php');
 require_once('../../config/permissions_helper.php');
+require_once('../../config/Database.php');
+$db = Database::getInstance();
+$conn = $db->getConnection();
+// Models do professor removidos - agora estão nas páginas separadas
 
 $session = new sessions();
 $session->autenticar_session();
@@ -13,6 +17,10 @@ $stats = new DashboardStats();
 if (!defined('BASE_URL')) {
     define('BASE_URL', 'http://localhost/GitHub/Gest-o-Escolar-');
 }
+
+// Código de busca de dados do professor removido - agora está nas páginas separadas
+
+// Código de processamento AJAX do professor removido - agora está nas páginas separadas
 ?>
 <!DOCTYPE html>
 <html lang="pt-BR">
@@ -241,6 +249,111 @@ if (!defined('BASE_URL')) {
 
     <script>
         console.log('toggleSidebar já definida:', typeof window.toggleSidebar);
+
+        // Funções do modal de logout - Definidas no início para garantir disponibilidade
+        window.confirmLogout = function() {
+            // Função auxiliar para mostrar o modal
+            function showLogoutModal() {
+                // Tentar várias formas de encontrar o modal
+                let modal = document.getElementById('logoutModal');
+                if (!modal) {
+                    modal = document.querySelector('#logoutModal');
+                }
+                if (!modal) {
+                    modal = document.querySelector('[id="logoutModal"]');
+                }
+                if (!modal && document.body) {
+                    modal = document.body.querySelector('#logoutModal');
+                }
+                
+                if (modal) {
+                    modal.style.display = 'flex';
+                    modal.classList.remove('hidden');
+                    return true;
+                }
+                return false;
+            }
+            
+            // Tentar mostrar o modal imediatamente
+            if (showLogoutModal()) {
+                return;
+            }
+            
+            // Se não encontrou, aguardar um pouco e tentar novamente
+            setTimeout(function() {
+                if (!showLogoutModal()) {
+                    // Se ainda não encontrou, criar dinamicamente
+                    if (window.createLogoutModal) {
+                        window.createLogoutModal();
+                    } else {
+                        console.error('Função createLogoutModal não está disponível');
+                    }
+                }
+            }, 200);
+        };
+        
+        // Função para criar o modal dinamicamente se não existir
+        window.createLogoutModal = function() {
+            // Verificar se já existe
+            let existingModal = document.getElementById('logoutModal');
+            if (existingModal) {
+                existingModal.style.display = 'flex';
+                existingModal.classList.remove('hidden');
+                return;
+            }
+            
+            // Criar o modal
+            const modal = document.createElement('div');
+            modal.id = 'logoutModal';
+            modal.className = 'fixed inset-0 bg-black bg-opacity-50 z-[60] items-center justify-center p-4';
+            modal.style.display = 'flex';
+            modal.innerHTML = `
+                <div class="bg-white rounded-2xl p-6 max-w-md w-full mx-4 shadow-2xl">
+                    <div class="flex items-center space-x-3 mb-4">
+                        <div class="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center">
+                            <svg class="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z"></path>
+                            </svg>
+                        </div>
+                        <div>
+                            <h3 class="text-lg font-semibold text-gray-900">Confirmar Saída</h3>
+                            <p class="text-sm text-gray-600">Tem certeza que deseja sair do sistema?</p>
+                        </div>
+                    </div>
+                    <div class="flex space-x-3">
+                        <button onclick="window.closeLogoutModal()" class="flex-1 px-4 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg font-medium transition-colors duration-200">
+                            Cancelar
+                        </button>
+                        <button onclick="window.logout()" class="flex-1 px-4 py-2 text-white bg-red-600 hover:bg-red-700 rounded-lg font-medium transition-colors duration-200">
+                            Sim, Sair
+                        </button>
+                    </div>
+                </div>
+            `;
+            
+            // Adicionar ao body
+            document.body.appendChild(modal);
+        }
+
+        window.closeLogoutModal = function() {
+            const modal = document.getElementById('logoutModal');
+            if (modal) {
+                modal.style.display = 'none';
+                modal.classList.add('hidden');
+                modal.classList.remove('flex');
+            }
+        };
+
+        window.logout = function() {
+            try {
+                const logoutUrl = '../auth/logout.php';
+                console.log('Redirecionando para:', logoutUrl);
+                window.location.href = logoutUrl;
+            } catch (error) {
+                console.error('Erro ao fazer logout:', error);
+                alert('Erro ao fazer logout. Por favor, tente novamente.');
+            }
+        };
 
         window.addEventListener('error', function(event) {
             if (event.message && (
@@ -1664,8 +1777,8 @@ if (!defined('BASE_URL')) {
         <!-- User Info -->
         <div class="p-4 border-b border-gray-200">
             <div class="flex items-center space-x-3">
-                <div class="w-10 h-10 bg-primary-green rounded-full flex items-center justify-center">
-                    <span class="text-2 font-bold text-white" id="profileInitials"><?php
+                <div class="w-10 h-10 bg-primary-green rounded-full flex items-center justify-center flex-shrink-0" style="aspect-ratio: 1; min-width: 2.5rem; min-height: 2.5rem; overflow: hidden;">
+                    <span class="text-sm font-bold text-white" id="profileInitials"><?php
                                                                                         // Pega as 2 primeiras letras do nome da sessão
                                                                                         $nome = $_SESSION['nome'] ?? '';
                                                                                         $iniciais = '';
@@ -1747,6 +1860,48 @@ if (!defined('BASE_URL')) {
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path>
                         </svg>
                         <span>Merenda</span>
+                    </a>
+                </li>
+                <?php } ?>
+                <?php if (isset($_SESSION['tipo']) && strtolower($_SESSION['tipo']) === 'professor') { ?>
+                <li>
+                    <a href="frequencia_professor.php" class="menu-item flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                        </svg>
+                        <span>Frequência</span>
+                    </a>
+                </li>
+                <li>
+                    <a href="notas_professor.php" class="menu-item flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z"></path>
+                        </svg>
+                        <span>Notas</span>
+                    </a>
+                </li>
+                <li>
+                    <a href="observacoes_professor.php" class="menu-item flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
+                        </svg>
+                        <span>Observações</span>
+                    </a>
+                </li>
+                <li>
+                    <a href="relatorios_professor.php" class="menu-item flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                        </svg>
+                        <span>Relatórios</span>
+                    </a>
+                </li>
+                <li>
+                    <a href="comunicados_professor.php" class="menu-item flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"></path>
+                        </svg>
+                        <span>Comunicados</span>
                     </a>
                 </li>
                 <?php } ?>
@@ -2327,7 +2482,8 @@ if (!defined('BASE_URL')) {
                         renderAlunoInterface();
                         break;
                     case 'professor':
-                        renderProfessorInterface();
+                        // Interface do professor removida - usa páginas separadas
+                        return;
                         break;
                     case 'nutricionista':
                         renderNutricionistaInterface();
@@ -2355,95 +2511,7 @@ if (!defined('BASE_URL')) {
             }
 
             // === INTERFACE DO PROFESSOR ===
-            function renderProfessorInterface() {
-                if (isset($_SESSION['resgistrar_plano_aula']) || isset($_SESSION['cadastrar_avaliacao']) || isset($_SESSION['lancar_frequencia']) || isset($_SESSION['lancar_nota'])) {
-                    echo '<section id="user-interface" class="content-section mt-8">';
-                    echo '<div class="card-grid">';
-                    
-                    // Card de Planos de Aula
-                    if (isset($_SESSION['resgistrar_plano_aula'])) {
-                        echo '
-                        <div class="card-hover bg-white rounded-2xl p-6 shadow-lg border border-gray-100 hover-lift">
-                            <div class="flex items-center justify-between mb-4">
-                                <div class="p-3 bg-purple-100 rounded-xl">
-                                    <svg class="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.746 0 3.332.477 4.5 1.253v13C19.832 18.477 18.246 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path>
-                                    </svg>
-                                </div>
-                                <span class="text-xs bg-purple-100 text-purple-800 px-2 py-1 rounded-full">5 esta semana</span>
-                            </div>
-                            <h3 class="text-lg font-bold text-gray-800 mb-2">Planos de Aula</h3>
-                            <p class="text-gray-600 text-sm mb-4">Criar e gerenciar planos de aula</p>
-                            <button class="w-full bg-gradient-to-r from-purple-500 to-purple-600 text-white py-2 px-4 rounded-lg hover:from-purple-600 hover:to-purple-700 transition-all duration-200">
-                                Gerenciar Planos
-                            </button>
-                        </div>';
-                    }
-                    
-                    // Card de Avaliações
-                    if (isset($_SESSION['cadastrar_avaliacao'])) {
-                        echo '
-                        <div class="card-hover bg-white rounded-2xl p-6 shadow-lg border border-gray-100 hover-lift">
-                            <div class="flex items-center justify-between mb-4">
-                                <div class="p-3 bg-blue-100 rounded-xl">
-                                    <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"></path>
-                                    </svg>
-                                </div>
-                                <span class="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded-full">3 pendentes</span>
-                            </div>
-                            <h3 class="text-lg font-bold text-gray-800 mb-2">Avaliações</h3>
-                            <p class="text-gray-600 text-sm mb-4">Criar provas e atividades</p>
-                            <button class="w-full bg-gradient-to-r from-blue-500 to-blue-600 text-white py-2 px-4 rounded-lg hover:from-blue-600 hover:to-blue-700 transition-all duration-200">
-                                Criar Avaliação
-                            </button>
-                        </div>';
-                    }
-                    
-                    // Card de Frequência
-                    if (isset($_SESSION['lancar_frequencia'])) {
-                        echo '
-                        <div class="card-hover bg-white rounded-2xl p-6 shadow-lg border border-gray-100 hover-lift">
-                            <div class="flex items-center justify-between mb-4">
-                                <div class="p-3 bg-green-100 rounded-xl">
-                                    <svg class="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                                    </svg>
-                                </div>
-                                <span class="text-xs bg-green-100 text-green-800 px-2 py-1 rounded-full">Hoje</span>
-                            </div>
-                            <h3 class="text-lg font-bold text-gray-800 mb-2">Frequência</h3>
-                            <p class="text-gray-600 text-sm mb-4">Registrar presença dos alunos</p>
-                            <button class="w-full bg-gradient-to-r from-green-500 to-green-600 text-white py-2 px-4 rounded-lg hover:from-green-600 hover:to-green-700 transition-all duration-200">
-                                Lançar Frequência
-                            </button>
-                        </div>';
-                    }
-                    
-                    // Card de Notas
-                    if (isset($_SESSION['lancar_nota'])) {
-                        echo '
-                        <div class="card-hover bg-white rounded-2xl p-6 shadow-lg border border-gray-100 hover-lift">
-                            <div class="flex items-center justify-between mb-4">
-                                <div class="p-3 bg-orange-100 rounded-xl">
-                                    <svg class="w-6 h-6 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z"></path>
-                                    </svg>
-                                </div>
-                                <span class="text-xs bg-orange-100 text-orange-800 px-2 py-1 rounded-full">12 pendentes</span>
-                            </div>
-                            <h3 class="text-lg font-bold text-gray-800 mb-2">Notas</h3>
-                            <p class="text-gray-600 text-sm mb-4">Lançar notas e conceitos</p>
-                            <button class="w-full bg-gradient-to-r from-orange-500 to-orange-600 text-white py-2 px-4 rounded-lg hover:from-orange-600 hover:to-orange-700 transition-all duration-200">
-                                Lançar Notas
-                            </button>
-                        </div>';
-                    }
-                    
-                    echo '</div>';
-                    echo '</section>';
-                }
-            }
+            // Removida - agora usa páginas separadas
 
             // === INTERFACE DO NUTRICIONISTA ===
             function renderNutricionistaInterface() {
@@ -7282,7 +7350,7 @@ if (!defined('BASE_URL')) {
     </main>
 
     <!-- Logout Confirmation Modal -->
-    <div id="logoutModal" class="fixed inset-0 bg-black bg-opacity-50 z-[60] hidden flex items-center justify-center p-4">
+    <div id="logoutModal" class="fixed inset-0 bg-black bg-opacity-50 z-[60] hidden items-center justify-center p-4" style="display: none;">
         <div class="bg-white rounded-2xl p-6 max-w-md w-full mx-4 shadow-2xl">
             <div class="flex items-center space-x-3 mb-4">
                 <div class="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center">
@@ -7296,10 +7364,10 @@ if (!defined('BASE_URL')) {
                 </div>
             </div>
             <div class="flex space-x-3">
-                <button onclick="closeLogoutModal()" class="flex-1 px-4 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg font-medium transition-colors duration-200">
+                <button onclick="window.closeLogoutModal()" class="flex-1 px-4 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg font-medium transition-colors duration-200">
                     Cancelar
                 </button>
-                <button onclick="logout()" class="flex-1 px-4 py-2 text-white bg-red-600 hover:bg-red-700 rounded-lg font-medium transition-colors duration-200">
+                <button onclick="window.logout()" class="flex-1 px-4 py-2 text-white bg-red-600 hover:bg-red-700 rounded-lg font-medium transition-colors duration-200">
                     Sim, Sair
                 </button>
             </div>
@@ -7543,27 +7611,7 @@ if (!defined('BASE_URL')) {
             }, 12000); // 12 segundos
         });
 
-        // Funções do modal de logout
-        function confirmLogout() {
-            const modal = document.getElementById('logoutModal');
-            if (modal) {
-                modal.classList.remove('hidden');
-                modal.classList.add('flex');
-            }
-        }
-
-        function closeLogoutModal() {
-            const modal = document.getElementById('logoutModal');
-            if (modal) {
-                modal.classList.add('hidden');
-                modal.classList.remove('flex');
-            }
-        }
-
-        function logout() {
-            // Redirecionar para a página de logout
-            window.location.href = '../auth/logout.php';
-        }
+        // Funções do modal de logout já definidas no início do script
 
         // Adicionar animação de saída
         const style = document.createElement('style');
@@ -7582,7 +7630,32 @@ if (!defined('BASE_URL')) {
         document.head.appendChild(style);
 
         // Sidebar configurado
+        
+        // Garantir que o modal de logout esteja disponível após o DOM carregar
+        document.addEventListener('DOMContentLoaded', function() {
+            const modal = document.getElementById('logoutModal');
+            if (!modal) {
+                console.warn('Modal de logout não encontrado no DOM. Criando dinamicamente...');
+                if (window.createLogoutModal) {
+                    window.createLogoutModal();
+                }
+            } else {
+                console.log('Modal de logout encontrado no DOM');
+            }
+        });
+        
+        // Também verificar quando a página estiver completamente carregada
+        window.addEventListener('load', function() {
+            const modal = document.getElementById('logoutModal');
+            if (!modal && window.createLogoutModal) {
+                console.warn('Modal de logout não encontrado após load. Criando dinamicamente...');
+                window.createLogoutModal();
+            }
+        });
+        
+        // Funções do professor removidas - agora estão nas páginas separadas
     </script>
+    
 
 </body>
 </html>

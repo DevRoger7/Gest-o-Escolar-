@@ -981,8 +981,8 @@ try {
         <!-- User Info -->
         <div class="p-4 border-b border-gray-200">
             <div class="flex items-center space-x-3">
-                <div class="w-10 h-10 bg-primary-green rounded-full flex items-center justify-center">
-                    <span class="text-2 font-bold text-white" id="profileInitials"><?php
+                <div class="w-10 h-10 bg-primary-green rounded-full flex items-center justify-center flex-shrink-0" style="aspect-ratio: 1; min-width: 2.5rem; min-height: 2.5rem; overflow: hidden;">
+                    <span class="text-sm font-bold text-white" id="profileInitials"><?php
                         // Pega as 2 primeiras letras do nome da sessão
                         $nome = $_SESSION['nome'] ?? '';
                         $iniciais = '';

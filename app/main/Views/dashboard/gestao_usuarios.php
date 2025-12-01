@@ -45,6 +45,65 @@ function listarUsuarios($busca = '') {
     return $stmt->fetchAll(PDO::FETCH_ASSOC);
 }
 
+function obterEstatisticasUsuarios() {
+    $db = Database::getInstance();
+    $conn = $db->getConnection();
+    
+    // Estatísticas gerais
+    $sql = "SELECT 
+                COUNT(*) as total,
+                SUM(CASE WHEN u.ativo = 1 THEN 1 ELSE 0 END) as ativos,
+                SUM(CASE WHEN u.ativo = 0 THEN 1 ELSE 0 END) as bloqueados,
+                SUM(CASE WHEN u.role = 'ADM' THEN 1 ELSE 0 END) as adm,
+                SUM(CASE WHEN u.role = 'GESTAO' THEN 1 ELSE 0 END) as gestao,
+                SUM(CASE WHEN u.role = 'PROFESSOR' THEN 1 ELSE 0 END) as professor,
+                SUM(CASE WHEN u.role = 'ALUNO' THEN 1 ELSE 0 END) as aluno,
+                SUM(CASE WHEN u.role = 'NUTRICIONISTA' THEN 1 ELSE 0 END) as nutricionista,
+                SUM(CASE WHEN u.role = 'ADM_MERENDA' THEN 1 ELSE 0 END) as adm_merenda
+            FROM usuario u";
+    
+    $stmt = $conn->prepare($sql);
+    $stmt->execute();
+    return $stmt->fetch(PDO::FETCH_ASSOC);
+}
+
+function obterEstatisticasGestores() {
+    $db = Database::getInstance();
+    $conn = $db->getConnection();
+    
+    // Estatísticas específicas de gestores
+    $sql = "SELECT 
+                COUNT(*) as total_gestores,
+                SUM(CASE WHEN u.ativo = 1 THEN 1 ELSE 0 END) as gestores_ativos,
+                SUM(CASE WHEN u.ativo = 0 THEN 1 ELSE 0 END) as gestores_bloqueados,
+                SUM(CASE WHEN u.ultimo_login IS NOT NULL THEN 1 ELSE 0 END) as gestores_com_login,
+                SUM(CASE WHEN u.ultimo_login IS NULL THEN 1 ELSE 0 END) as gestores_sem_login
+            FROM usuario u
+            WHERE u.role = 'GESTAO'";
+    
+    $stmt = $conn->prepare($sql);
+    $stmt->execute();
+    return $stmt->fetch(PDO::FETCH_ASSOC);
+}
+
+function listarGestores() {
+    $db = Database::getInstance();
+    $conn = $db->getConnection();
+    
+    $sql = "SELECT u.id, u.role as tipo, u.ativo, 
+                   CASE WHEN u.ativo = 0 THEN 1 ELSE 0 END as bloqueado, 
+                   u.ultimo_login, u.created_at as data_criacao, u.username,
+                   p.nome, p.cpf, p.email, p.telefone 
+            FROM usuario u 
+            JOIN pessoa p ON u.pessoa_id = p.id 
+            WHERE u.role = 'GESTAO'
+            ORDER BY p.nome ASC";
+    
+    $stmt = $conn->prepare($sql);
+    $stmt->execute();
+    return $stmt->fetchAll(PDO::FETCH_ASSOC);
+}
+
 function cadastrarUsuario($dados) {
     $db = Database::getInstance();
     $conn = $db->getConnection();
@@ -360,6 +419,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 // Buscar usuários
 $busca = $_GET['busca'] ?? '';
 $usuarios = listarUsuarios($busca);
+$estatisticas = obterEstatisticasUsuarios();
+$estatisticasGestores = obterEstatisticasGestores();
+$gestores = listarGestores();
 ?>
 <!DOCTYPE html>
 <html lang="pt-BR">
@@ -972,8 +1034,8 @@ $usuarios = listarUsuarios($busca);
         <!-- User Info -->
         <div class="p-4 border-b border-gray-200">
             <div class="flex items-center space-x-3">
-                <div class="w-10 h-10 bg-primary-green rounded-full flex items-center justify-center">
-                    <span class="text-2 font-bold text-white" id="profileInitials"><?php
+                <div class="w-10 h-10 bg-primary-green rounded-full flex items-center justify-center flex-shrink-0" style="aspect-ratio: 1; min-width: 2.5rem; min-height: 2.5rem; overflow: hidden;">
+                    <span class="text-sm font-bold text-white" id="profileInitials"><?php
                                                                                         // Pega as 2 primeiras letras do nome da sessão
                                                                                         $nome = $_SESSION['nome'] ?? '';
                                                                                         $iniciais = '';
@@ -1162,6 +1224,260 @@ $usuarios = listarUsuarios($busca);
                     <?php echo $mensagem; ?>
                 </div>
             <?php endif; ?>
+            
+            <!-- Cards de Estatísticas de Status -->
+            <div class="mb-8 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                <!-- Total de Usuários -->
+                <div class="bg-white rounded-xl shadow-md p-6 border-l-4 border-blue-500 hover:shadow-lg transition-shadow duration-300">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-sm font-medium text-gray-600 mb-1">Total de Usuários</p>
+                            <p class="text-3xl font-bold text-gray-900"><?php echo $estatisticas['total'] ?? 0; ?></p>
+                        </div>
+                        <div class="bg-blue-100 rounded-full p-3">
+                            <svg class="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z"></path>
+                            </svg>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Usuários Ativos -->
+                <div class="bg-white rounded-xl shadow-md p-6 border-l-4 border-green-500 hover:shadow-lg transition-shadow duration-300">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-sm font-medium text-gray-600 mb-1">Usuários Ativos</p>
+                            <p class="text-3xl font-bold text-green-600"><?php echo $estatisticas['ativos'] ?? 0; ?></p>
+                            <p class="text-xs text-gray-500 mt-1">
+                                <?php 
+                                $percentualAtivos = $estatisticas['total'] > 0 ? round(($estatisticas['ativos'] / $estatisticas['total']) * 100, 1) : 0;
+                                echo $percentualAtivos . '% do total';
+                                ?>
+                            </p>
+                        </div>
+                        <div class="bg-green-100 rounded-full p-3">
+                            <svg class="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                            </svg>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Usuários Bloqueados -->
+                <div class="bg-white rounded-xl shadow-md p-6 border-l-4 border-red-500 hover:shadow-lg transition-shadow duration-300">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-sm font-medium text-gray-600 mb-1">Usuários Bloqueados</p>
+                            <p class="text-3xl font-bold text-red-600"><?php echo $estatisticas['bloqueados'] ?? 0; ?></p>
+                            <p class="text-xs text-gray-500 mt-1">
+                                <?php 
+                                $percentualBloqueados = $estatisticas['total'] > 0 ? round(($estatisticas['bloqueados'] / $estatisticas['total']) * 100, 1) : 0;
+                                echo $percentualBloqueados . '% do total';
+                                ?>
+                            </p>
+                        </div>
+                        <div class="bg-red-100 rounded-full p-3">
+                            <svg class="w-8 h-8 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"></path>
+                            </svg>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Último Login -->
+                <div class="bg-white rounded-xl shadow-md p-6 border-l-4 border-purple-500 hover:shadow-lg transition-shadow duration-300">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-sm font-medium text-gray-600 mb-1">Taxa de Atividade</p>
+                            <p class="text-3xl font-bold text-purple-600">
+                                <?php 
+                                $taxaAtividade = $estatisticas['total'] > 0 ? round(($estatisticas['ativos'] / $estatisticas['total']) * 100, 0) : 0;
+                                echo $taxaAtividade . '%';
+                                ?>
+                            </p>
+                            <p class="text-xs text-gray-500 mt-1">Usuários ativos</p>
+                        </div>
+                        <div class="bg-purple-100 rounded-full p-3">
+                            <svg class="w-8 h-8 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"></path>
+                            </svg>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Distribuição por Tipo -->
+            <div class="mb-8 bg-white rounded-xl shadow-md p-6">
+                <h3 class="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                    <svg class="w-5 h-5 text-primary-green mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
+                    </svg>
+                    Distribuição por Tipo de Usuário
+                </h3>
+                <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+                    <div class="text-center p-4 bg-gray-50 rounded-lg">
+                        <p class="text-2xl font-bold text-purple-600"><?php echo $estatisticas['adm'] ?? 0; ?></p>
+                        <p class="text-xs text-gray-600 mt-1">Administrador</p>
+                    </div>
+                    <div class="text-center p-4 bg-gray-50 rounded-lg">
+                        <p class="text-2xl font-bold text-blue-600"><?php echo $estatisticas['gestao'] ?? 0; ?></p>
+                        <p class="text-xs text-gray-600 mt-1">Gestão</p>
+                    </div>
+                    <div class="text-center p-4 bg-gray-50 rounded-lg">
+                        <p class="text-2xl font-bold text-green-600"><?php echo $estatisticas['professor'] ?? 0; ?></p>
+                        <p class="text-xs text-gray-600 mt-1">Professor</p>
+                    </div>
+                    <div class="text-center p-4 bg-gray-50 rounded-lg">
+                        <p class="text-2xl font-bold text-yellow-600"><?php echo $estatisticas['aluno'] ?? 0; ?></p>
+                        <p class="text-xs text-gray-600 mt-1">Aluno</p>
+                    </div>
+                    <div class="text-center p-4 bg-gray-50 rounded-lg">
+                        <p class="text-2xl font-bold text-pink-600"><?php echo $estatisticas['nutricionista'] ?? 0; ?></p>
+                        <p class="text-xs text-gray-600 mt-1">Nutricionista</p>
+                    </div>
+                    <div class="text-center p-4 bg-gray-50 rounded-lg">
+                        <p class="text-2xl font-bold text-orange-600"><?php echo $estatisticas['adm_merenda'] ?? 0; ?></p>
+                        <p class="text-xs text-gray-600 mt-1">Adm. Merenda</p>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Status Detalhado dos Gestores -->
+            <div class="mb-8 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl shadow-md p-6 border-l-4 border-blue-500">
+                <div class="flex items-center justify-between mb-6">
+                    <h3 class="text-xl font-semibold text-gray-900 flex items-center">
+                        <svg class="w-6 h-6 text-blue-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path>
+                        </svg>
+                        Status dos Usuários Gestores
+                    </h3>
+                    <span class="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm font-semibold">
+                        <?php echo $estatisticasGestores['total_gestores'] ?? 0; ?> Gestor(es)
+                    </span>
+                </div>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+                    <div class="bg-white rounded-lg p-4 shadow-sm">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <p class="text-sm text-gray-600">Total de Gestores</p>
+                                <p class="text-2xl font-bold text-blue-600"><?php echo $estatisticasGestores['total_gestores'] ?? 0; ?></p>
+                            </div>
+                            <div class="bg-blue-100 rounded-full p-2">
+                                <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z"></path>
+                                </svg>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="bg-white rounded-lg p-4 shadow-sm">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <p class="text-sm text-gray-600">Gestores Ativos</p>
+                                <p class="text-2xl font-bold text-green-600"><?php echo $estatisticasGestores['gestores_ativos'] ?? 0; ?></p>
+                                <p class="text-xs text-gray-500 mt-1">
+                                    <?php 
+                                    $percentualAtivos = $estatisticasGestores['total_gestores'] > 0 ? round(($estatisticasGestores['gestores_ativos'] / $estatisticasGestores['total_gestores']) * 100, 1) : 0;
+                                    echo $percentualAtivos . '%';
+                                    ?>
+                                </p>
+                            </div>
+                            <div class="bg-green-100 rounded-full p-2">
+                                <svg class="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                </svg>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="bg-white rounded-lg p-4 shadow-sm">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <p class="text-sm text-gray-600">Gestores Bloqueados</p>
+                                <p class="text-2xl font-bold text-red-600"><?php echo $estatisticasGestores['gestores_bloqueados'] ?? 0; ?></p>
+                                <p class="text-xs text-gray-500 mt-1">
+                                    <?php 
+                                    $percentualBloqueados = $estatisticasGestores['total_gestores'] > 0 ? round(($estatisticasGestores['gestores_bloqueados'] / $estatisticasGestores['total_gestores']) * 100, 1) : 0;
+                                    echo $percentualBloqueados . '%';
+                                    ?>
+                                </p>
+                            </div>
+                            <div class="bg-red-100 rounded-full p-2">
+                                <svg class="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"></path>
+                                </svg>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="bg-white rounded-lg p-4 shadow-sm">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <p class="text-sm text-gray-600">Com Acesso</p>
+                                <p class="text-2xl font-bold text-purple-600"><?php echo $estatisticasGestores['gestores_com_login'] ?? 0; ?></p>
+                                <p class="text-xs text-gray-500 mt-1">Já fizeram login</p>
+                            </div>
+                            <div class="bg-purple-100 rounded-full p-2">
+                                <svg class="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+                                </svg>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Lista de Gestores -->
+                <?php if (!empty($gestores)): ?>
+                <div class="mt-6">
+                    <h4 class="text-md font-semibold text-gray-800 mb-3">Lista de Gestores</h4>
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full bg-white rounded-lg shadow-sm">
+                            <thead class="bg-blue-50">
+                                <tr>
+                                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-700 uppercase">Nome</th>
+                                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-700 uppercase">Username</th>
+                                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-700 uppercase">Email</th>
+                                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-700 uppercase">Status</th>
+                                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-700 uppercase">Último Login</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-gray-200">
+                                <?php foreach ($gestores as $gestor): ?>
+                                <tr class="hover:bg-gray-50 transition-colors">
+                                    <td class="px-4 py-3 text-sm font-medium text-gray-900"><?php echo htmlspecialchars($gestor['nome']); ?></td>
+                                    <td class="px-4 py-3 text-sm text-gray-600"><?php echo htmlspecialchars($gestor['username']); ?></td>
+                                    <td class="px-4 py-3 text-sm text-gray-600"><?php echo htmlspecialchars($gestor['email']); ?></td>
+                                    <td class="px-4 py-3">
+                                        <span class="px-2 py-1 text-xs font-semibold rounded-full <?php echo $gestor['bloqueado'] ? 'bg-red-100 text-red-800' : 'bg-green-100 text-green-800'; ?>">
+                                            <?php echo $gestor['bloqueado'] ? 'Bloqueado' : 'Ativo'; ?>
+                                        </span>
+                                    </td>
+                                    <td class="px-4 py-3 text-sm text-gray-600">
+                                        <?php 
+                                        if ($gestor['ultimo_login']) {
+                                            $dataLogin = new DateTime($gestor['ultimo_login']);
+                                            echo $dataLogin->format('d/m/Y H:i');
+                                        } else {
+                                            echo '<span class="text-gray-400">Nunca acessou</span>';
+                                        }
+                                        ?>
+                                    </td>
+                                </tr>
+                                <?php endforeach; ?>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <?php else: ?>
+                <div class="text-center py-8">
+                    <svg class="w-16 h-16 text-gray-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z"></path>
+                    </svg>
+                    <p class="text-gray-500">Nenhum gestor cadastrado no sistema</p>
+                </div>
+                <?php endif; ?>
+            </div>
             
             <!-- Tabs -->
             <div class="mb-6 border-b border-gray-200">

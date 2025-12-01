@@ -22,12 +22,12 @@ function listarProfessores($busca = '') {
     $db = Database::getInstance();
     $conn = $db->getConnection();
 
-    // Atenção: a base usa tabelas `usuario` e `pessoa` (singular) no código atual
-    // Professores são usuários com role 'PROFESSOR' (case-insensitive)
-    $sql = "SELECT u.id AS id, p.nome AS nome, p.email AS email, p.telefone AS telefone
-            FROM usuario u
-            INNER JOIN pessoa p ON p.id = u.pessoa_id
-            WHERE LOWER(u.role) = 'professor' AND u.ativo = 1";
+    // Buscar professores através da tabela professor
+    $sql = "SELECT pr.id AS id, p.nome AS nome, p.email AS email, p.telefone AS telefone
+            FROM professor pr
+            INNER JOIN pessoa p ON p.id = pr.pessoa_id
+            INNER JOIN usuario u ON u.pessoa_id = p.id
+            WHERE pr.ativo = 1 AND u.ativo = 1";
 
     if (!empty($busca)) {
         $sql .= " AND (p.nome LIKE :busca OR p.email LIKE :busca)";

@@ -215,7 +215,7 @@ class TurmaModel {
     public function buscarProfessores($turmaId) {
         $conn = $this->db->getConnection();
         
-        $sql = "SELECT tp.professor_id, p.nome, d.nome as disciplina_nome, tp.regime, tp.inicio
+        $sql = "SELECT tp.professor_id, tp.disciplina_id, p.nome, d.nome as disciplina_nome, tp.regime, tp.inicio
                 FROM turma_professor tp
                 INNER JOIN professor pr ON tp.professor_id = pr.id
                 INNER JOIN pessoa p ON pr.pessoa_id = p.id
