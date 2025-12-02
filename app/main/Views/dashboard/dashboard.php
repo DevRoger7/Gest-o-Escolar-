@@ -1762,6 +1762,11 @@ if (!defined('BASE_URL')) {
     <div id="mobileOverlay" class="fixed inset-0 bg-black bg-opacity-50 z-40 hidden mobile-menu-overlay lg:hidden"></div>
 
     <!-- Sidebar -->
+    <?php if (isset($_SESSION['tipo']) && strtolower($_SESSION['tipo']) === 'adm_merenda') { ?>
+        <?php include('components/sidebar_merenda.php'); ?>
+    <?php } elseif (isset($_SESSION['tipo']) && strtoupper($_SESSION['tipo']) === 'ADM') { ?>
+        <?php include('components/sidebar_adm.php'); ?>
+    <?php } else { ?>
     <aside id="sidebar" class="fixed left-0 top-0 h-full w-64 bg-white shadow-lg sidebar-transition z-50 lg:translate-x-0 sidebar-mobile">
         <!-- Logo e Header -->
         <div class="p-6 border-b border-gray-200">
@@ -1854,14 +1859,7 @@ if (!defined('BASE_URL')) {
                 <?php if ($_SESSION['tipo'] === 'ADM' || $_SESSION['tipo'] === 'GESTAO') { ?>
                 <?php } ?>
                 <?php if ($_SESSION['tipo'] === 'ADM_MERENDA') { ?>
-                <li id="merenda-menu">
-                    <a href="#" onclick="showSection('merenda')" class="menu-item flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path>
-                        </svg>
-                        <span>Merenda</span>
-                    </a>
-                </li>
+                <!-- Menu do ADM_MERENDA será renderizado pelo sidebar_merenda.php -->
                 <?php } ?>
                 <?php if (isset($_SESSION['tipo']) && strtolower($_SESSION['tipo']) === 'professor') { ?>
                 <li>
@@ -2003,6 +2001,7 @@ if (!defined('BASE_URL')) {
             </button>
         </div>
     </aside>
+    <?php } ?>
 
     <!-- Main Content -->
     <main class="content-transition ml-0 lg:ml-64 min-h-screen">
@@ -2169,6 +2168,268 @@ if (!defined('BASE_URL')) {
                 </div>
                 <?php } ?>
 
+                <!-- Dashboard específico para ADM_MERENDA -->
+                <?php if (isset($_SESSION['tipo']) && strtolower($_SESSION['tipo']) === 'adm_merenda') { ?>
+                    <?php
+                    // Buscar estatísticas de merenda
+                    require_once('../../Models/merenda/CardapioModel.php');
+                    require_once('../../Models/merenda/ConsumoDiarioModel.php');
+                    require_once('../../Models/merenda/FornecedorModel.php');
+                    
+                    $cardapioModel = new CardapioModel();
+                    $consumoModel = new ConsumoDiarioModel();
+                    $fornecedorModel = new FornecedorModel();
+                    
+                    // Estatísticas
+                    $cardapiosAtivos = count($cardapioModel->listar(['status' => 'APROVADO']));
+                    $consumosHoje = $consumoModel->listar(['data' => date('Y-m-d')]);
+                    $refeicoesHoje = array_sum(array_column($consumosHoje, 'alunos_atendidos'));
+                    $fornecedoresAtivos = count($fornecedorModel->listar(['ativo' => 1]));
+                    
+                    // Buscar cardápios pendentes
+                    $cardapiosPendentes = count($cardapioModel->listar(['status' => 'RASCUNHO']));
+                    ?>
+                    
+                    <!-- Stats Cards para Merenda -->
+                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                        <!-- Card Cardápios -->
+                        <div class="bg-white rounded-2xl p-6 shadow-lg border border-gray-100">
+                            <div class="flex items-center justify-between mb-4">
+                                <div class="p-3 bg-blue-100 rounded-xl">
+                                    <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                                    </svg>
+                                </div>
+                            </div>
+                            <h3 class="text-2xl font-bold text-gray-800 mb-1"><?= $cardapiosAtivos ?></h3>
+                            <p class="text-gray-600 text-sm">Cardápios Ativos</p>
+                            <?php if ($cardapiosPendentes > 0) { ?>
+                                <p class="text-xs text-orange-600 mt-1"><?= $cardapiosPendentes ?> pendentes</p>
+                            <?php } ?>
+                        </div>
+                        
+                        <!-- Card Refeições Hoje -->
+                        <div class="bg-white rounded-2xl p-6 shadow-lg border border-gray-100">
+                            <div class="flex items-center justify-between mb-4">
+                                <div class="p-3 bg-green-100 rounded-xl">
+                                    <svg class="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
+                                    </svg>
+                                </div>
+                            </div>
+                            <h3 class="text-2xl font-bold text-gray-800 mb-1"><?= $refeicoesHoje ?></h3>
+                            <p class="text-gray-600 text-sm">Refeições Hoje</p>
+                        </div>
+                        
+                        <!-- Card Fornecedores -->
+                        <div class="bg-white rounded-2xl p-6 shadow-lg border border-gray-100">
+                            <div class="flex items-center justify-between mb-4">
+                                <div class="p-3 bg-purple-100 rounded-xl">
+                                    <svg class="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path>
+                                    </svg>
+                                </div>
+                            </div>
+                            <h3 class="text-2xl font-bold text-gray-800 mb-1"><?= $fornecedoresAtivos ?></h3>
+                            <p class="text-gray-600 text-sm">Fornecedores Ativos</p>
+                        </div>
+                        
+                        <!-- Card Ações Rápidas -->
+                        <div class="bg-white rounded-2xl p-6 shadow-lg border border-gray-100">
+                            <div class="flex items-center justify-between mb-4">
+                                <div class="p-3 bg-yellow-100 rounded-xl">
+                                    <svg class="w-6 h-6 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                    </svg>
+                                </div>
+                            </div>
+                            <h3 class="text-2xl font-bold text-gray-800 mb-1"><?= $cardapiosPendentes ?></h3>
+                            <p class="text-gray-600 text-sm">Aprovações Pendentes</p>
+                        </div>
+                    </div>
+                    
+                    <!-- Atividades Recentes de Merenda -->
+                    <div class="bg-white rounded-2xl p-6 shadow-lg border border-gray-100 mb-8">
+                        <div class="flex items-center justify-between mb-6">
+                            <h3 class="text-lg font-semibold text-gray-800">Atividades Recentes de Merenda</h3>
+                        </div>
+                        <div class="space-y-4">
+                            <?php
+                            // Buscar atividades recentes de merenda
+                            $consumosRecentes = $consumoModel->listar(['limit' => 5, 'order' => 'data DESC']);
+                            if (empty($consumosRecentes)) {
+                                echo '<div class="text-center py-8 text-gray-500">Nenhuma atividade recente de merenda</div>';
+                            } else {
+                                foreach ($consumosRecentes as $consumo) {
+                                    $dataConsumo = new DateTime($consumo['data']);
+                                    $agora = new DateTime();
+                                    $diff = $agora->diff($dataConsumo);
+                                    $tempoRelativo = '';
+                                    if ($diff->days > 0) {
+                                        $tempoRelativo = 'Há ' . $diff->days . ' dia' . ($diff->days > 1 ? 's' : '');
+                                    } elseif ($diff->h > 0) {
+                                        $tempoRelativo = 'Há ' . $diff->h . ' hora' . ($diff->h > 1 ? 's' : '');
+                                    } else {
+                                        $tempoRelativo = 'Há alguns minutos';
+                                    }
+                                    ?>
+                                    <div class="flex items-start space-x-4 p-4 bg-gradient-to-r from-green-50 to-green-100 rounded-xl">
+                                        <div class="p-2 bg-green-500 rounded-lg">
+                                            <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
+                                            </svg>
+                                        </div>
+                                        <div class="flex-1">
+                                            <p class="text-sm font-medium text-gray-800">Consumo registrado</p>
+                                            <p class="text-xs text-gray-600"><?= $consumo['alunos_atendidos'] ?> alunos atendidos - <?= ucfirst(strtolower($consumo['turno'])) ?></p>
+                                            <p class="text-xs text-gray-500 mt-1"><?= $tempoRelativo ?></p>
+                                        </div>
+                                    </div>
+                                    <?php
+                                }
+                            }
+                            ?>
+                        </div>
+                    </div>
+                <?php } elseif (isset($_SESSION['tipo']) && strtoupper($_SESSION['tipo']) === 'ADM') { ?>
+                    <!-- Dashboard específico para Administrador Geral -->
+                    <?php
+                    // Buscar estatísticas gerais do sistema
+                    $totalUsuarios = $stats->getTotalUsuarios();
+                    $totalEscolas = $stats->getTotalEscolas();
+                    $totalAlunos = $stats->getTotalAlunos();
+                    $totalProfessores = $stats->getTotalProfessores();
+                    $totalTurmas = $stats->getTotalTurmas();
+                    $totalProdutos = $stats->getTotalProdutosEstoque();
+                    
+                    // Buscar validações pendentes
+                    require_once('../../Models/validacao/ValidacaoModel.php');
+                    $validacaoModel = new ValidacaoModel();
+                    $validacoesPendentes = count($validacaoModel->listarPendentes());
+                    ?>
+                    
+                    <!-- Stats Cards para ADM -->
+                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                        <!-- Card Usuários -->
+                        <div class="bg-white rounded-2xl p-6 shadow-lg border border-gray-100">
+                            <div class="flex items-center justify-between mb-4">
+                                <div class="p-3 bg-blue-100 rounded-xl">
+                                    <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path>
+                                    </svg>
+                                </div>
+                            </div>
+                            <h3 class="text-2xl font-bold text-gray-800 mb-1"><?= $totalUsuarios ?></h3>
+                            <p class="text-gray-600 text-sm">Total de Usuários</p>
+                        </div>
+                        
+                        <!-- Card Escolas -->
+                        <div class="bg-white rounded-2xl p-6 shadow-lg border border-gray-100">
+                            <div class="flex items-center justify-between mb-4">
+                                <div class="p-3 bg-green-100 rounded-xl">
+                                    <svg class="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path>
+                                    </svg>
+                                </div>
+                            </div>
+                            <h3 class="text-2xl font-bold text-gray-800 mb-1"><?= $totalEscolas ?></h3>
+                            <p class="text-gray-600 text-sm">Escolas Cadastradas</p>
+                        </div>
+                        
+                        <!-- Card Alunos -->
+                        <div class="bg-white rounded-2xl p-6 shadow-lg border border-gray-100">
+                            <div class="flex items-center justify-between mb-4">
+                                <div class="p-3 bg-purple-100 rounded-xl">
+                                    <svg class="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"></path>
+                                    </svg>
+                                </div>
+                            </div>
+                            <h3 class="text-2xl font-bold text-gray-800 mb-1"><?= $totalAlunos ?></h3>
+                            <p class="text-gray-600 text-sm">Alunos Matriculados</p>
+                        </div>
+                        
+                        <!-- Card Validações Pendentes -->
+                        <div class="bg-white rounded-2xl p-6 shadow-lg border border-gray-100">
+                            <div class="flex items-center justify-between mb-4">
+                                <div class="p-3 bg-red-100 rounded-xl">
+                                    <svg class="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                    </svg>
+                                </div>
+                            </div>
+                            <h3 class="text-2xl font-bold text-gray-800 mb-1"><?= $validacoesPendentes ?></h3>
+                            <p class="text-gray-600 text-sm">Validações Pendentes</p>
+                            <?php if ($validacoesPendentes > 0) { ?>
+                                <a href="validacao_lancamentos_adm.php" class="text-xs text-red-600 hover:text-red-700 mt-1 inline-block">Ver pendências</a>
+                            <?php } ?>
+                        </div>
+                    </div>
+                    
+                    <!-- Cards de Acesso Rápido para ADM -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+                        <a href="gestao_alunos_adm.php" class="bg-gradient-to-br from-blue-500 to-blue-600 text-white rounded-2xl p-6 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105">
+                            <div class="flex items-center justify-between mb-4">
+                                <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"></path>
+                                </svg>
+                            </div>
+                            <h3 class="text-xl font-bold mb-2">Gestão de Alunos</h3>
+                            <p class="text-blue-100 text-sm">Cadastrar, editar e excluir alunos</p>
+                        </a>
+                        
+                        <a href="gestao_professores_adm.php" class="bg-gradient-to-br from-green-500 to-green-600 text-white rounded-2xl p-6 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105">
+                            <div class="flex items-center justify-between mb-4">
+                                <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path>
+                                </svg>
+                            </div>
+                            <h3 class="text-xl font-bold mb-2">Gestão de Professores</h3>
+                            <p class="text-green-100 text-sm">Cadastrar, editar e excluir professores</p>
+                        </a>
+                        
+                        <a href="gestao_turmas_adm.php" class="bg-gradient-to-br from-purple-500 to-purple-600 text-white rounded-2xl p-6 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105">
+                            <div class="flex items-center justify-between mb-4">
+                                <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"></path>
+                                </svg>
+                            </div>
+                            <h3 class="text-xl font-bold mb-2">Gestão de Turmas</h3>
+                            <p class="text-purple-100 text-sm">Criar, editar e excluir turmas</p>
+                        </a>
+                        
+                        <a href="permissoes_adm.php" class="bg-gradient-to-br from-orange-500 to-orange-600 text-white rounded-2xl p-6 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105">
+                            <div class="flex items-center justify-between mb-4">
+                                <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path>
+                                </svg>
+                            </div>
+                            <h3 class="text-xl font-bold mb-2">Permissões</h3>
+                            <p class="text-orange-100 text-sm">Definir permissões de usuários</p>
+                        </a>
+                        
+                        <a href="relatorios_financeiros_adm.php" class="bg-gradient-to-br from-teal-500 to-teal-600 text-white rounded-2xl p-6 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105">
+                            <div class="flex items-center justify-between mb-4">
+                                <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                </svg>
+                            </div>
+                            <h3 class="text-xl font-bold mb-2">Relatórios Financeiros</h3>
+                            <p class="text-teal-100 text-sm">Acompanhar relatórios financeiros</p>
+                        </a>
+                        
+                        <a href="configuracoes_seguranca_adm.php" class="bg-gradient-to-br from-gray-600 to-gray-700 text-white rounded-2xl p-6 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105">
+                            <div class="flex items-center justify-between mb-4">
+                                <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path>
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                                </svg>
+                            </div>
+                            <h3 class="text-xl font-bold mb-2">Configurações</h3>
+                            <p class="text-gray-200 text-sm">Gerenciar configurações e segurança</p>
+                        </a>
+                    </div>
+                <?php } else { ?>
                 <!-- Recent Activities -->
                 <div class="bg-white rounded-2xl p-6 shadow-lg border border-gray-100 mb-8">
                     <div class="flex items-center justify-between mb-6">
@@ -2283,6 +2544,7 @@ if (!defined('BASE_URL')) {
                 </div>
 
                 <!-- Quick Actions -->
+                <?php if (!isset($_SESSION['tipo']) || strtolower($_SESSION['tipo']) !== 'adm_merenda') { ?>
                 <div class="bg-white rounded-2xl p-6 shadow-lg border border-gray-100 mb-8">
                     <div class="mb-6">
                         <h3 class="text-xl font-bold text-gray-800">Acesso Rápido</h3>
@@ -2469,6 +2731,8 @@ if (!defined('BASE_URL')) {
                             <?php } ?>
                         </div>
                 </div>
+                <?php } ?>
+                <?php } ?>
             </section>
 
             <!-- === INTERFACES DINÂMICAS BASEADAS NO TIPO DE USUÁRIO === -->
@@ -2660,9 +2924,9 @@ if (!defined('BASE_URL')) {
                         </div>
                     </div>
                     
-                    <button onclick="openCardapios()" class="w-full bg-blue-600 text-white py-2.5 px-4 rounded-lg hover:bg-blue-700 transition-colors duration-200 font-medium">
+                    <a href="cardapios_merenda.php" class="w-full bg-blue-600 text-white py-2.5 px-4 rounded-lg hover:bg-blue-700 transition-colors duration-200 font-medium text-center block">
                         Gerenciar Cardápios
-                    </button>
+                    </a>
                 </div>';
 
                 // Card de Estoque
@@ -2702,9 +2966,9 @@ if (!defined('BASE_URL')) {
                         </div>
                     </div>
                     
-                    <button onclick="openEstoque()" class="w-full bg-indigo-600 text-white py-2.5 px-4 rounded-lg hover:bg-indigo-700 transition-colors duration-200 font-medium">
+                    <a href="estoque_merenda.php" class="w-full bg-indigo-600 text-white py-2.5 px-4 rounded-lg hover:bg-indigo-700 transition-colors duration-200 font-medium text-center block">
                         Gerenciar Estoque
-                    </button>
+                    </a>
                 </div>';
 
                 // Card de Consumo Diário
@@ -2744,9 +3008,9 @@ if (!defined('BASE_URL')) {
                         </div>
                     </div>
                     
-                    <button onclick="openConsumo()" class="w-full bg-green-600 text-white py-2.5 px-4 rounded-lg hover:bg-green-700 transition-colors duration-200 font-medium">
+                    <a href="consumo_merenda.php" class="w-full bg-green-600 text-white py-2.5 px-4 rounded-lg hover:bg-green-700 transition-colors duration-200 font-medium text-center block">
                         Registrar Consumo
-                    </button>
+                    </a>
                 </div>';
 
                 // Card de Desperdício
@@ -2786,9 +3050,9 @@ if (!defined('BASE_URL')) {
                         </div>
                     </div>
                     
-                    <button onclick="openDesperdicio()" class="w-full bg-red-600 text-white py-2.5 px-4 rounded-lg hover:bg-red-700 transition-colors duration-200 font-medium">
+                    <a href="desperdicio_merenda.php" class="w-full bg-red-600 text-white py-2.5 px-4 rounded-lg hover:bg-red-700 transition-colors duration-200 font-medium text-center block">
                         Ver Relatórios
-                    </button>
+                    </a>
                 </div>';
 
                 // Card de Fornecedores
@@ -2828,9 +3092,9 @@ if (!defined('BASE_URL')) {
                         </div>
                     </div>
                     
-                    <button onclick="openFornecedores()" class="w-full bg-purple-600 text-white py-2.5 px-4 rounded-lg hover:bg-purple-700 transition-colors duration-200 font-medium">
+                    <a href="fornecedores_merenda.php" class="w-full bg-purple-600 text-white py-2.5 px-4 rounded-lg hover:bg-purple-700 transition-colors duration-200 font-medium text-center block">
                         Gerenciar Fornecedores
-                    </button>
+                    </a>
                 </div>';
 
                 // Card de Distribuição
@@ -2912,9 +3176,9 @@ if (!defined('BASE_URL')) {
                         </div>
                     </div>
                     
-                    <button onclick="openCustos()" class="w-full bg-yellow-600 text-white py-2.5 px-4 rounded-lg hover:bg-yellow-700 transition-colors duration-200 font-medium">
+                    <a href="custos_merenda.php" class="w-full bg-yellow-600 text-white py-2.5 px-4 rounded-lg hover:bg-yellow-700 transition-colors duration-200 font-medium text-center block">
                         Ver Custos
-                    </button>
+                    </a>
                 </div>';
 
                 // Card de Relatórios

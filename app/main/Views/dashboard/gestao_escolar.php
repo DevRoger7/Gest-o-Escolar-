@@ -1003,31 +1003,120 @@ if (!defined('BASE_URL')) {
         }
     </script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="global-theme.css">
     <style>
         body { font-family: 'Inter', sans-serif; }
+        .sidebar-transition { transition: all 0.3s ease-in-out; }
+        .content-transition { transition: margin-left 0.3s ease-in-out; }
+        .menu-item.active {
+            background: linear-gradient(90deg, rgba(220, 38, 38, 0.12) 0%, rgba(220, 38, 38, 0.06) 100%);
+            border-right: 3px solid #dc2626;
+        }
+        .menu-item:hover {
+            background: linear-gradient(90deg, rgba(220, 38, 38, 0.08) 0%, rgba(220, 38, 38, 0.04) 100%);
+            transform: translateX(4px);
+        }
+        .mobile-menu-overlay { transition: opacity 0.3s ease-in-out; }
+        @media (max-width: 1023px) {
+            .sidebar-mobile { transform: translateX(-100%); }
+            .sidebar-mobile.open { transform: translateX(0); }
+        }
     </style>
 </head>
 <body class="bg-gray-50">
-    <!-- Header -->
-    <header class="bg-white shadow-sm border-b border-gray-200 sticky top-0 z-30">
-        <div class="px-4 sm:px-6 lg:px-8">
-            <div class="flex justify-between items-center h-16">
-                <div class="flex items-center space-x-4">
-                    <a href="dashboard.php" class="text-gray-600 hover:text-gray-900">
-                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
-                        </svg>
-                    </a>
-                    <h1 class="text-xl font-semibold text-gray-800">Gestão Escolar</h1>
-                </div>
-                <div class="text-sm text-gray-600">
-                    <?= htmlspecialchars($_SESSION['nome'] ?? 'Usuário') ?>
+    <!-- Mobile Menu Overlay -->
+    <div id="mobileOverlay" class="fixed inset-0 bg-black bg-opacity-50 z-40 hidden mobile-menu-overlay lg:hidden"></div>
+    
+    <!-- Sidebar -->
+    <?php if (isset($_SESSION['tipo']) && strtoupper($_SESSION['tipo']) === 'ADM') { ?>
+        <?php include('components/sidebar_adm.php'); ?>
+    <?php } else { ?>
+        <!-- Sidebar padrão para GESTAO -->
+        <aside id="sidebar" class="fixed left-0 top-0 h-full w-64 bg-white shadow-lg sidebar-transition z-50 lg:translate-x-0 sidebar-mobile">
+            <div class="p-6 border-b border-gray-200">
+                <div class="flex items-center space-x-3">
+                    <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/1/19/Bras%C3%A3o_de_Maranguape.png/250px-Bras%C3%A3o_de_Maranguape.png" alt="Brasão de Maranguape" class="w-10 h-10 object-contain">
+                    <div>
+                        <h1 class="text-lg font-bold text-gray-800">SIGEA</h1>
+                        <p class="text-xs text-gray-500">Gestão Escolar</p>
+                    </div>
                 </div>
             </div>
-        </div>
-    </header>
+            <div class="p-4 border-b border-gray-200">
+                <div class="flex items-center space-x-3">
+                    <div class="w-10 h-10 bg-primary-green rounded-full flex items-center justify-center flex-shrink-0" style="aspect-ratio: 1; min-width: 2.5rem; min-height: 2.5rem; overflow: hidden;">
+                        <span class="text-sm font-bold text-white">
+                            <?php
+                            $nome = $_SESSION['nome'] ?? '';
+                            $iniciais = '';
+                            if (strlen($nome) >= 2) {
+                                $iniciais = strtoupper(substr($nome, 0, 2));
+                            } elseif (strlen($nome) == 1) {
+                                $iniciais = strtoupper($nome);
+                            } else {
+                                $iniciais = 'US';
+                            }
+                            echo $iniciais;
+                            ?>
+                        </span>
+                    </div>
+                    <div>
+                        <p class="text-sm font-medium text-gray-800"><?= $_SESSION['nome'] ?? 'Usuário' ?></p>
+                        <p class="text-xs text-gray-500"><?= $_SESSION['tipo'] ?? 'Gestão' ?></p>
+                    </div>
+                </div>
+            </div>
+            <nav class="p-4 overflow-y-auto" style="max-height: calc(100vh - 200px);">
+                <ul class="space-y-2">
+                    <li>
+                        <a href="dashboard.php" class="menu-item flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"></path>
+                            </svg>
+                            <span>Dashboard</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="gestao_escolar.php" class="menu-item active flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"></path>
+                            </svg>
+                            <span>Gestão Escolar</span>
+                        </a>
+                    </li>
+                    <li>
+                        <button onclick="window.confirmLogout()" class="menu-item w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path>
+                            </svg>
+                            <span>Sair</span>
+                        </button>
+                    </li>
+                </ul>
+            </nav>
+        </aside>
+    <?php } ?>
+    
+    <main class="content-transition ml-0 lg:ml-64 min-h-screen">
+        <!-- Header -->
+        <header class="bg-white shadow-sm border-b border-gray-200 sticky top-0 z-30">
+            <div class="px-4 sm:px-6 lg:px-8">
+                <div class="flex justify-between items-center h-16">
+                    <button onclick="window.toggleSidebar()" class="lg:hidden p-2 rounded-md text-gray-600 hover:text-gray-900 hover:bg-gray-100">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
+                        </svg>
+                    </button>
+                    <div class="flex-1 text-center lg:text-left">
+                        <h1 class="text-xl font-semibold text-gray-800">Gestão Escolar</h1>
+                    </div>
+                    <div class="w-10"></div>
+                </div>
+            </div>
+        </header>
 
-    <div class="p-4 sm:p-6 lg:p-8">
+        <div class="p-8">
+            <div class="max-w-7xl mx-auto">
         <!-- Mensagens -->
         <?php if ($mensagem): ?>
             <div class="mb-6 p-4 rounded-lg <?= $tipoMensagem === 'success' ? 'bg-green-50 border border-green-200 text-green-700' : 'bg-red-50 border border-red-200 text-red-700' ?>">
@@ -1400,7 +1489,7 @@ if (!defined('BASE_URL')) {
             
             <!-- Distribuição de Situação -->
             <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
-                <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+            <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
                     <div class="flex items-center justify-between mb-4">
                         <h3 class="text-lg font-semibold text-gray-800">Situação dos Alunos</h3>
                     </div>
@@ -1779,11 +1868,11 @@ if (!defined('BASE_URL')) {
             <div class="flex-1 p-6 overflow-y-auto bg-gray-50">
                 <div class="max-w-4xl mx-auto">
                     <form method="POST" id="form-criar-turma" class="bg-white rounded-lg shadow-sm border border-gray-200 p-8">
-                        <input type="hidden" name="acao" value="criar_turma">
+                <input type="hidden" name="acao" value="criar_turma">
                         
                         <div class="space-y-6">
                             <!-- Informações Básicas -->
-                            <div>
+                <div>
                                 <h4 class="text-lg font-semibold text-gray-900 mb-4 pb-2 border-b border-gray-200">Informações Básicas</h4>
                                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                                     <div>
@@ -1793,14 +1882,14 @@ if (!defined('BASE_URL')) {
                                         <select name="escola_id" required 
                                                 class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-green focus:border-primary-green transition-colors">
                                             <option value="">Selecione uma escola...</option>
-                                            <?php foreach ($escolas as $escola): ?>
-                                                <option value="<?= $escola['id'] ?>"><?= htmlspecialchars($escola['nome']) ?></option>
-                                            <?php endforeach; ?>
-                                        </select>
-                                    </div>
+                        <?php foreach ($escolas as $escola): ?>
+                            <option value="<?= $escola['id'] ?>"><?= htmlspecialchars($escola['nome']) ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
                                     
-                                    <div>
-                                        <label class="block text-sm font-medium text-gray-700 mb-2">Série</label>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Série</label>
                                         <select name="serie_id" 
                                                 class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-green focus:border-primary-green transition-colors">
                                             <option value="">Selecione uma série...</option>
@@ -1808,16 +1897,16 @@ if (!defined('BASE_URL')) {
                                                 <option value="<?= $serie['id'] ?>"><?= htmlspecialchars($serie['nome']) ?></option>
                                             <?php endforeach; ?>
                                         </select>
-                                    </div>
+                </div>
                                     
-                                    <div>
+                <div>
                                         <label class="block text-sm font-medium text-gray-700 mb-2">Série (Texto)</label>
                                         <input type="text" name="serie" placeholder="Ex: 1º Ano" 
                                                class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-green focus:border-primary-green transition-colors">
                                         <p class="text-xs text-gray-500 mt-1">Ou informe manualmente se não houver série cadastrada</p>
-                                    </div>
+                </div>
                                     
-                                    <div>
+                <div>
                                         <label class="block text-sm font-medium text-gray-700 mb-2">
                                             Letra <span class="text-red-500">*</span>
                                         </label>
@@ -1831,17 +1920,17 @@ if (!defined('BASE_URL')) {
                                         </label>
                                         <select name="turno" required 
                                                 class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-green focus:border-primary-green transition-colors">
-                                            <option value="MANHA">Manhã</option>
-                                            <option value="TARDE">Tarde</option>
-                                            <option value="NOITE">Noite</option>
-                                        </select>
-                                    </div>
+                        <option value="MANHA">Manhã</option>
+                        <option value="TARDE">Tarde</option>
+                        <option value="NOITE">Noite</option>
+                    </select>
+                </div>
                                     
-                                    <div>
-                                        <label class="block text-sm font-medium text-gray-700 mb-2">Ano Letivo</label>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Ano Letivo</label>
                                         <input type="number" name="ano_letivo" value="<?= date('Y') ?>" 
                                                class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-green focus:border-primary-green transition-colors">
-                                    </div>
+                </div>
                                 </div>
                             </div>
                             
@@ -1849,19 +1938,19 @@ if (!defined('BASE_URL')) {
                             <div>
                                 <h4 class="text-lg font-semibold text-gray-900 mb-4 pb-2 border-b border-gray-200">Configurações Adicionais</h4>
                                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                    <div>
-                                        <label class="block text-sm font-medium text-gray-700 mb-2">Capacidade</label>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Capacidade</label>
                                         <input type="number" name="capacidade" placeholder="Ex: 30" min="1" 
                                                class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-green focus:border-primary-green transition-colors">
                                         <p class="text-xs text-gray-500 mt-1">Número máximo de alunos na turma</p>
-                                    </div>
+                </div>
                                     
-                                    <div>
-                                        <label class="block text-sm font-medium text-gray-700 mb-2">Sala</label>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Sala</label>
                                         <input type="text" name="sala" placeholder="Ex: 101" 
                                                class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-green focus:border-primary-green transition-colors">
                                         <p class="text-xs text-gray-500 mt-1">Identificação da sala de aula</p>
-                                    </div>
+                </div>
                                 </div>
                             </div>
                             
@@ -1896,8 +1985,8 @@ if (!defined('BASE_URL')) {
                                 </svg>
                                 Criar Turma
                             </button>
-                        </div>
-                    </form>
+                </div>
+            </form>
                 </div>
             </div>
         </div>
@@ -3568,6 +3657,76 @@ if (!defined('BASE_URL')) {
             </div>
         </div>
     </div>
+            </div>
+        </div>
+    </main>
+    
+    <!-- Modal de Logout -->
+    <div id="logoutModal" class="fixed inset-0 bg-black bg-opacity-50 z-[60] hidden items-center justify-center p-4" style="display: none;">
+        <div class="bg-white rounded-2xl p-6 max-w-md w-full mx-4 shadow-2xl">
+            <div class="flex items-center space-x-3 mb-4">
+                <div class="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center">
+                    <svg class="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z"></path>
+                    </svg>
+                </div>
+                <div>
+                    <h3 class="text-lg font-semibold text-gray-900">Confirmar Saída</h3>
+                    <p class="text-sm text-gray-600">Tem certeza que deseja sair do sistema?</p>
+                </div>
+            </div>
+            <div class="flex space-x-3">
+                <button onclick="window.closeLogoutModal()" class="flex-1 px-4 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg font-medium transition-colors duration-200">
+                    Cancelar
+                </button>
+                <button onclick="window.logout()" class="flex-1 px-4 py-2 text-white bg-red-600 hover:bg-red-700 rounded-lg font-medium transition-colors duration-200">
+                    Sim, Sair
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        // Funções para sidebar e logout
+        window.toggleSidebar = function() {
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.getElementById('mobileOverlay');
+            if (sidebar && overlay) {
+                sidebar.classList.toggle('open');
+                overlay.classList.toggle('hidden');
+            }
+        };
+        
+        window.confirmLogout = function() {
+            const modal = document.getElementById('logoutModal');
+            if (modal) {
+                modal.style.display = 'flex';
+                modal.classList.remove('hidden');
+            }
+        };
+        
+        window.closeLogoutModal = function() {
+            const modal = document.getElementById('logoutModal');
+            if (modal) {
+                modal.style.display = 'none';
+                modal.classList.add('hidden');
+            }
+        };
+        
+        window.logout = function() {
+            window.location.href = '../auth/logout.php';
+        };
+        
+        // Fechar sidebar ao clicar no overlay
+        document.addEventListener('DOMContentLoaded', function() {
+            const overlay = document.getElementById('mobileOverlay');
+            if (overlay) {
+                overlay.addEventListener('click', function() {
+                    window.toggleSidebar();
+                });
+            }
+        });
+    </script>
 </body>
 </html>
 

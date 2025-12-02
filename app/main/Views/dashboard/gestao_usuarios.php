@@ -1018,155 +1018,94 @@ $gestores = listarGestores();
     <!-- Mobile Menu Overlay -->
     <div id="mobileOverlay" class="fixed inset-0 bg-black bg-opacity-50 z-40 hidden mobile-menu-overlay lg:hidden"></div>
 
+    <!-- Mobile Menu Overlay -->
+    <div id="mobileOverlay" class="fixed inset-0 bg-black bg-opacity-50 z-40 hidden mobile-menu-overlay lg:hidden"></div>
+    
     <!-- Sidebar -->
-    <aside id="sidebar" class="fixed left-0 top-0 h-full w-64 bg-white shadow-lg sidebar-transition z-50 lg:translate-x-0 sidebar-mobile">
-        <!-- Logo e Header -->
-        <div class="p-6 border-b border-gray-200">
-            <div class="flex items-center space-x-3">
-                <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/1/19/Bras%C3%A3o_de_Maranguape.png/250px-Bras%C3%A3o_de_Maranguape.png" alt="Brasão de Maranguape" class="w-10 h-10 object-contain">
-                <div>
-                    <h1 class="text-lg font-bold text-gray-800">SIGEA</h1>
-                    <p class="text-xs text-gray-500">Maranguape</p>
+    <?php if (isset($_SESSION['tipo']) && strtoupper($_SESSION['tipo']) === 'ADM') { ?>
+        <?php include('components/sidebar_adm.php'); ?>
+    <?php } else { ?>
+        <!-- Sidebar padrão para outros tipos de usuário -->
+        <aside id="sidebar" class="fixed left-0 top-0 h-full w-64 bg-white shadow-lg sidebar-transition z-50 lg:translate-x-0 sidebar-mobile">
+            <!-- Logo e Header -->
+            <div class="p-6 border-b border-gray-200">
+                <div class="flex items-center space-x-3">
+                    <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/1/19/Bras%C3%A3o_de_Maranguape.png/250px-Bras%C3%A3o_de_Maranguape.png" alt="Brasão de Maranguape" class="w-10 h-10 object-contain">
+                    <div>
+                        <h1 class="text-lg font-bold text-gray-800">SIGEA</h1>
+                        <p class="text-xs text-gray-500">Maranguape</p>
+                    </div>
                 </div>
             </div>
-        </div>
 
-        <!-- User Info -->
-        <div class="p-4 border-b border-gray-200">
-            <div class="flex items-center space-x-3">
-                <div class="w-10 h-10 bg-primary-green rounded-full flex items-center justify-center flex-shrink-0" style="aspect-ratio: 1; min-width: 2.5rem; min-height: 2.5rem; overflow: hidden;">
-                    <span class="text-sm font-bold text-white" id="profileInitials"><?php
-                                                                                        // Pega as 2 primeiras letras do nome da sessão
-                                                                                        $nome = $_SESSION['nome'] ?? '';
-                                                                                        $iniciais = '';
-                                                                                        if (strlen($nome) >= 2) {
-                                                                                            $iniciais = strtoupper(substr($nome, 0, 2));
-                                                                                        } elseif (strlen($nome) == 1) {
-                                                                                            $iniciais = strtoupper($nome);
-                                                                                        } else {
-                                                                                            $iniciais = 'US'; // Fallback para "User"
-                                                                                        }
-                                                                                        echo $iniciais;
-                                                                                        ?></span>
-                </div>
-                <div>
-                    <p class="text-sm font-medium text-gray-800" id="userName"><?= $_SESSION['nome'] ?? 'Usuário' ?></p>
-                    <p class="text-xs text-gray-500"><?= $_SESSION['tipo'] ?? 'Funcionário' ?></p>
+            <!-- User Info -->
+            <div class="p-4 border-b border-gray-200">
+                <div class="flex items-center space-x-3">
+                    <div class="w-10 h-10 bg-primary-green rounded-full flex items-center justify-center flex-shrink-0" style="aspect-ratio: 1; min-width: 2.5rem; min-height: 2.5rem; overflow: hidden;">
+                        <span class="text-sm font-bold text-white">
+                            <?php
+                            $nome = $_SESSION['nome'] ?? '';
+                            $iniciais = '';
+                            if (strlen($nome) >= 2) {
+                                $iniciais = strtoupper(substr($nome, 0, 2));
+                            } elseif (strlen($nome) == 1) {
+                                $iniciais = strtoupper($nome);
+                            } else {
+                                $iniciais = 'US';
+                            }
+                            echo $iniciais;
+                            ?>
+                        </span>
+                    </div>
+                    <div>
+                        <p class="text-sm font-medium text-gray-800"><?= $_SESSION['nome'] ?? 'Usuário' ?></p>
+                        <p class="text-xs text-gray-500"><?= $_SESSION['tipo'] ?? 'Funcionário' ?></p>
+                    </div>
                 </div>
             </div>
-        </div>
 
-        <nav class="p-4">
-            <ul class="space-y-2">
-                <li>
-                    <a href="dashboard.php" class="menu-item flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2H5a2 2 0 00-2-2z"></path>
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5a2 2 0 012-2h4a2 2 0 012 2v2H8V5z"></path>
-                        </svg>
-                        <span>Dashboard</span>
-                    </a>
-                </li>
-                <?php if ($_SESSION['tipo'] === 'GESTAO') { ?>
-                <li id="gestao-menu">
-                    <a href="dashboard.php" class="menu-item flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                        </svg>
-                        <span>Gestão Escolar</span>
-                    </a>
-                </li>
-                <?php } ?>
-                <?php if ($_SESSION['tipo'] === 'ADM_MERENDA') { ?>
-                <li id="merenda-menu">
-                    <a href="dashboard.php" class="menu-item flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path>
-                        </svg>
-                        <span>Merenda</span>
-                    </a>
-                </li>
-                <?php } ?>
-                <?php if (isset($_SESSION['Gerenciador de Usuarios'])) { ?>
+            <nav class="p-4 overflow-y-auto sidebar-nav" style="max-height: calc(100vh - 200px); scroll-behavior: smooth;">
+                <ul class="space-y-2">
+                    <li>
+                        <a href="dashboard.php" class="menu-item flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"></path>
+                            </svg>
+                            <span>Dashboard</span>
+                        </a>
+                    </li>
+                    <?php if ($_SESSION['tipo'] === 'GESTAO') { ?>
+                    <li>
+                        <a href="gestao_escolar.php" class="menu-item flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"></path>
+                            </svg>
+                            <span>Gestão Escolar</span>
+                        </a>
+                    </li>
+                    <?php } ?>
+                    <?php if (isset($_SESSION['Gerenciador de Usuarios'])) { ?>
                     <li>
                         <a href="../../subsystems/gerenciador_usuario/index.php" class="menu-item flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700">
                             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z"></path>
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path>
                             </svg>
                             <span>Gerenciador de Usuários</span>
                         </a>
                     </li>
-                <?php } ?>
-                <?php if (isset($_SESSION['Estoque'])) { ?>
+                    <?php } ?>
                     <li>
-                        <a href="../../subsystems/controle_de_estoque/default.php" class="menu-item flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700">
+                        <button onclick="window.confirmLogout()" class="menu-item w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700">
                             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path>
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path>
                             </svg>
-                            <span>Controle de Estoque</span>
-                        </a>
+                            <span>Sair</span>
+                        </button>
                     </li>
-                <?php } ?>
-                <?php if (isset($_SESSION['Biblioteca'])) { ?>
-                    <li>
-                        <a href="../../subsystems/biblioteca/default.php" class="menu-item flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700">
-                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.746 0 3.332.477 4.5 1.253v13C19.832 18.477 18.246 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path>
-                            </svg>
-                            <span>Biblioteca</span>
-                        </a>
-                    </li>
-                <?php } ?>
-                <?php if (isset($_SESSION['Entrada/saída'])) { ?>
-                    <li>
-                        <a href="../../subsystems/entradasaida/app/main/views/inicio.php" class="menu-item flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700">
-                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1"></path>
-                            </svg>
-                            <span>Entrada/Saída</span>
-                        </a>
-                    </li>
-                <?php } ?>
-                <?php if (isset($_SESSION['relatorio_geral']) || isset($_SESSION['gerar_relatorios_pedagogicos']) || $_SESSION['tipo'] === 'ADM') { ?>
-                <li id="relatorios-menu">
-                    <a href="dashboard.php#relatorios" class="menu-item flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
-                        </svg>
-                        <span>Relatórios</span>
-                    </a>
-                </li>
-                <?php } ?>
-                <?php if ($_SESSION['tipo'] === 'ADM') { ?>
-                <li id="escolas-menu">
-                    <a href="gestao_escolas.php" class="menu-item flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path>
-                        </svg>
-                        <span>Escolas</span>
-                    </a>
-                </li>
-                <li id="usuarios-menu">
-                    <a href="gestao_usuarios.php" class="menu-item active flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z"></path>
-                        </svg>
-                        <span>Usuários</span>
-                    </a>
-                </li>
-                <li id="estoque-central-menu">
-                    <a href="gestao_estoque_central.php" class="menu-item flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path>
-                        </svg>
-                        <span>Estoque Central</span>
-                    </a>
-                </li>
-                <?php } ?>
-            </ul>
-        </nav>
-
-    </aside>
+                </ul>
+            </nav>
+        </aside>
+    <?php } ?>
 
     <div class="min-h-screen">
         <!-- Header -->
@@ -1236,7 +1175,7 @@ $gestores = listarGestores();
                         </div>
                         <div class="bg-blue-100 rounded-full p-3">
                             <svg class="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z"></path>
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path>
                             </svg>
                         </div>
                     </div>
@@ -1365,7 +1304,7 @@ $gestores = listarGestores();
                             </div>
                             <div class="bg-blue-100 rounded-full p-2">
                                 <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z"></path>
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path>
                                 </svg>
                             </div>
                         </div>
@@ -2246,7 +2185,101 @@ $gestores = listarGestores();
         document.addEventListener('DOMContentLoaded', function() {
             loadAccessibilitySettings();
         });
+        
+        // Funções para sidebar e logout
+        window.toggleSidebar = function() {
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.getElementById('mobileOverlay');
+            if (sidebar && overlay) {
+                sidebar.classList.toggle('open');
+                overlay.classList.toggle('hidden');
+            }
+        };
+        
+        window.confirmLogout = function() {
+            const modal = document.getElementById('logoutModal');
+            if (modal) {
+                modal.style.display = 'flex';
+                modal.classList.remove('hidden');
+            }
+        };
+        
+        window.closeLogoutModal = function() {
+            const modal = document.getElementById('logoutModal');
+            if (modal) {
+                modal.style.display = 'none';
+                modal.classList.add('hidden');
+            }
+        };
+        
+        window.logout = function() {
+            window.location.href = '../auth/logout.php';
+        };
+        
+        // Fechar sidebar ao clicar no overlay
+        const overlay = document.getElementById('mobileOverlay');
+        if (overlay) {
+            overlay.addEventListener('click', function() {
+                window.toggleSidebar();
+            });
+        }
+        
+        // Manter posição do scroll do sidebar ao navegar
+        (function() {
+            const sidebarNav = document.querySelector('.sidebar-nav') || document.querySelector('nav');
+            if (!sidebarNav) return;
+            
+            // Salvar posição do scroll antes de navegar
+            const sidebarLinks = sidebarNav.querySelectorAll('a[href]');
+            sidebarLinks.forEach(link => {
+                link.addEventListener('click', function(e) {
+                    // Salvar posição do scroll no sessionStorage
+                    sessionStorage.setItem('sidebarScroll', sidebarNav.scrollTop);
+                });
+            });
+            
+            // Restaurar posição do scroll após carregar a página
+            window.addEventListener('load', function() {
+                const savedScroll = sessionStorage.getItem('sidebarScroll');
+                if (savedScroll !== null) {
+                    sidebarNav.scrollTop = parseInt(savedScroll, 10);
+                }
+            });
+            
+            // Também restaurar no DOMContentLoaded para ser mais rápido
+            document.addEventListener('DOMContentLoaded', function() {
+                const savedScroll = sessionStorage.getItem('sidebarScroll');
+                if (savedScroll !== null) {
+                    sidebarNav.scrollTop = parseInt(savedScroll, 10);
+                }
+            });
+        })();
     </script>
+    
+    <!-- Modal de Logout -->
+    <div id="logoutModal" class="fixed inset-0 bg-black bg-opacity-50 z-[60] hidden items-center justify-center p-4" style="display: none;">
+        <div class="bg-white rounded-2xl p-6 max-w-md w-full mx-4 shadow-2xl">
+            <div class="flex items-center space-x-3 mb-4">
+                <div class="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center">
+                    <svg class="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z"></path>
+                    </svg>
+                </div>
+                <div>
+                    <h3 class="text-lg font-semibold text-gray-900">Confirmar Saída</h3>
+                    <p class="text-sm text-gray-600">Tem certeza que deseja sair do sistema?</p>
+                </div>
+            </div>
+            <div class="flex space-x-3">
+                <button onclick="window.closeLogoutModal()" class="flex-1 px-4 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg font-medium transition-colors duration-200">
+                    Cancelar
+                </button>
+                <button onclick="window.logout()" class="flex-1 px-4 py-2 text-white bg-red-600 hover:bg-red-700 rounded-lg font-medium transition-colors duration-200">
+                    Sim, Sair
+                </button>
+            </div>
+        </div>
+    </div>
 
     <!-- User Profile Modal Component -->
 

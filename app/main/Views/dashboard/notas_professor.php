@@ -60,21 +60,84 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao'])) {
         $notas = json_decode($_POST['notas'] ?? '[]', true);
         
         if ($turmaId && $disciplinaId && !empty($notas)) {
-            $notasFormatadas = [];
-            foreach ($notas as $nota) {
-                $notasFormatadas[] = [
-                    'avaliacao_id' => null,
-                    'disciplina_id' => $disciplinaId,
-                    'turma_id' => $turmaId,
-                    'aluno_id' => $nota['aluno_id'],
-                    'nota' => $nota['nota'],
-                    'bimestre' => $nota['bimestre'] ?? 1,
-                    'recuperacao' => 0,
-                    'comentario' => $nota['comentario'] ?? null
-                ];
+            try {
+                $conn->beginTransaction();
+                
+                // Criar cache de avaliações para evitar múltiplas consultas
+                $avaliacoesCache = [];
+                $bimestre = $notas[0]['bimestre'] ?? 1;
+                
+                // Buscar ou criar avaliações para PARCIAL e BIMESTRAL
+                foreach (['PARCIAL', 'BIMESTRAL'] as $tipo) {
+                    $tipoAvaliacao = ($tipo === 'PARCIAL') ? 'ATIVIDADE' : 'PROVA';
+                    $sqlAvaliacao = "SELECT id FROM avaliacao 
+                                    WHERE turma_id = :turma_id 
+                                    AND disciplina_id = :disciplina_id 
+                                    AND tipo = :tipo 
+                                    AND DATE_FORMAT(data, '%Y') = YEAR(CURDATE())
+                                    AND ativo = 1
+                                    LIMIT 1";
+                    $stmtAvaliacao = $conn->prepare($sqlAvaliacao);
+                    $stmtAvaliacao->bindParam(':turma_id', $turmaId);
+                    $stmtAvaliacao->bindParam(':disciplina_id', $disciplinaId);
+                    $stmtAvaliacao->bindValue(':tipo', $tipoAvaliacao);
+                    $stmtAvaliacao->execute();
+                    $avaliacao = $stmtAvaliacao->fetch(PDO::FETCH_ASSOC);
+                    
+                    if (!$avaliacao) {
+                        // Criar nova avaliação
+                        $titulo = ($tipo === 'PARCIAL') ? "Avaliação Parcial - {$bimestre}º Bimestre" : "Avaliação Bimestral - {$bimestre}º Bimestre";
+                        $sqlInsertAvaliacao = "INSERT INTO avaliacao (turma_id, disciplina_id, titulo, tipo, data, criado_por, criado_em)
+                                               VALUES (:turma_id, :disciplina_id, :titulo, :tipo, CURDATE(), :criado_por, NOW())";
+                        $stmtInsertAvaliacao = $conn->prepare($sqlInsertAvaliacao);
+                        $stmtInsertAvaliacao->bindParam(':turma_id', $turmaId);
+                        $stmtInsertAvaliacao->bindParam(':disciplina_id', $disciplinaId);
+                        $stmtInsertAvaliacao->bindParam(':titulo', $titulo);
+                        $stmtInsertAvaliacao->bindValue(':tipo', $tipoAvaliacao);
+                        $stmtInsertAvaliacao->bindParam(':criado_por', $_SESSION['usuario_id']);
+                        $stmtInsertAvaliacao->execute();
+                        $avaliacoesCache[$tipo] = $conn->lastInsertId();
+                    } else {
+                        $avaliacoesCache[$tipo] = $avaliacao['id'];
+                    }
+                }
+                
+                $notasFormatadas = [];
+                foreach ($notas as $nota) {
+                    if (!isset($nota['aluno_id']) || !isset($nota['nota'])) {
+                        continue; // Pular notas inválidas
+                    }
+                    $tipo = $nota['tipo'] ?? 'PARCIAL';
+                    $avaliacaoId = $avaliacoesCache[$tipo] ?? null;
+                    
+                    if (!$avaliacaoId) {
+                        continue; // Pular se não encontrou avaliação
+                    }
+                    
+                    // Preparar nota para inserção
+                    $notasFormatadas[] = [
+                        'avaliacao_id' => $avaliacaoId,
+                        'disciplina_id' => $disciplinaId,
+                        'turma_id' => $turmaId,
+                        'aluno_id' => $nota['aluno_id'],
+                        'nota' => $nota['nota'],
+                        'bimestre' => $bimestre,
+                        'recuperacao' => 0,
+                        'comentario' => $nota['comentario'] ?? null
+                    ];
+                }
+                
+                // Inserir notas
+                foreach ($notasFormatadas as $nota) {
+                    $notaModel->lancar($nota);
+                }
+                
+                $conn->commit();
+                echo json_encode(['success' => true, 'message' => 'Notas registradas com sucesso']);
+            } catch (Exception $e) {
+                $conn->rollBack();
+                echo json_encode(['success' => false, 'message' => 'Erro ao registrar notas: ' . $e->getMessage()]);
             }
-            $resultado = $notaModel->lancarLote($notasFormatadas);
-            echo json_encode($resultado);
         } else {
             echo json_encode(['success' => false, 'message' => 'Dados incompletos']);
         }
@@ -98,6 +161,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['acao'])) {
         $stmt->execute();
         $alunos = $stmt->fetchAll(PDO::FETCH_ASSOC);
         echo json_encode(['success' => true, 'alunos' => $alunos]);
+        exit;
+    }
+    
+    if ($_GET['acao'] === 'buscar_info_turma' && !empty($_GET['turma_id']) && !empty($_GET['disciplina_id'])) {
+        $turmaId = $_GET['turma_id'];
+        $disciplinaId = $_GET['disciplina_id'];
+        $sql = "SELECT CONCAT(t.serie, ' ', t.letra, ' - ', t.turno) as turma_nome, d.nome as disciplina_nome
+                FROM turma t
+                INNER JOIN disciplina d ON d.id = :disciplina_id
+                WHERE t.id = :turma_id";
+        $stmt = $conn->prepare($sql);
+        $stmt->bindParam(':turma_id', $turmaId);
+        $stmt->bindParam(':disciplina_id', $disciplinaId);
+        $stmt->execute();
+        $info = $stmt->fetch(PDO::FETCH_ASSOC);
+        echo json_encode(['success' => true, 'turma_nome' => $info['turma_nome'] ?? '', 'disciplina_nome' => $info['disciplina_nome'] ?? '']);
         exit;
     }
 }
@@ -143,6 +222,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['acao'])) {
             .sidebar-mobile.open {
                 transform: translateX(0);
             }
+        }
+        /* Estilos para o modal fullscreen de notas */
+        .nota-input {
+            transition: border-color 0.15s ease, box-shadow 0.15s ease;
+        }
+        .nota-input:focus {
+            outline: none;
+            border-color: #ea580c;
+            box-shadow: 0 0 0 2px rgba(234, 88, 12, 0.1);
+        }
+        .media-badge {
+            min-width: 48px;
+            text-align: center;
+        }
+        .aluno-row {
+            transition: background-color 0.15s ease;
+        }
+        .aluno-row:hover {
+            background-color: #f9fafb;
         }
     </style>
 </head>
@@ -201,7 +299,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['acao'])) {
                                         <p class="text-sm text-gray-600"><?= htmlspecialchars($turma['disciplina_nome']) ?></p>
                                         <p class="text-xs text-gray-500 mt-1"><?= htmlspecialchars($turma['escola_nome']) ?></p>
                                     </div>
-                                    <button onclick="abrirModalLancarNotas(<?= $turma['turma_id'] ?>, <?= $turma['disciplina_id'] ?>)" class="w-full text-orange-600 hover:text-orange-700 font-medium text-sm py-2 border border-orange-200 rounded-lg hover:bg-orange-50 transition-colors">
+                                    <button onclick="abrirModalLancarNotas(<?= $turma['turma_id'] ?>, <?= $turma['disciplina_id'] ?>, '<?= htmlspecialchars($turma['turma_nome'], ENT_QUOTES) ?>', '<?= htmlspecialchars($turma['disciplina_nome'], ENT_QUOTES) ?>')" class="w-full text-orange-600 hover:text-orange-700 font-medium text-sm py-2 border border-orange-200 rounded-lg hover:bg-orange-50 transition-colors">
                                         Lançar Notas
                                     </button>
                                 </div>
@@ -213,53 +311,88 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['acao'])) {
         </div>
     </main>
     
-    <!-- Modal Lançar Notas -->
-    <div id="modal-lancar-notas" class="fixed inset-0 bg-black bg-opacity-50 z-[60] hidden flex items-center justify-center p-4">
-        <div class="bg-white rounded-2xl p-6 max-w-6xl w-full max-h-[90vh] overflow-y-auto">
-            <div class="flex items-center justify-between mb-6">
-                <h3 class="text-2xl font-bold text-gray-900">Lançar Notas</h3>
-                <button onclick="fecharModalLancarNotas()" class="text-gray-400 hover:text-gray-600">
-                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <!-- Modal Lançar Notas - Fullscreen Minimalista -->
+    <div id="modal-lancar-notas" class="fixed inset-0 bg-gray-50 z-[60] hidden flex flex-col">
+        <!-- Header Compacto -->
+        <div class="bg-white border-b border-gray-200 px-4 py-3 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <button onclick="fecharModalLancarNotas()" class="p-1.5 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
                     </svg>
                 </button>
+                <div>
+                    <h3 class="text-base font-semibold text-gray-900">Lançar Notas</h3>
+                    <p id="notas-info-turma" class="text-xs text-gray-500">Selecione uma turma</p>
+                </div>
             </div>
-            
-            <div class="space-y-4 mb-6">
-                <div class="grid grid-cols-2 gap-4">
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-2">Bimestre</label>
-                        <select id="notas-bimestre" class="w-full px-4 py-2 border border-gray-300 rounded-lg">
-                            <option value="1">1º Bimestre</option>
-                            <option value="2">2º Bimestre</option>
-                            <option value="3">3º Bimestre</option>
-                            <option value="4">4º Bimestre</option>
-                        </select>
+            <button onclick="salvarNotas()" class="px-4 py-1.5 text-sm font-medium text-white bg-orange-600 hover:bg-orange-700 rounded-lg transition-colors">
+                Salvar
+            </button>
+        </div>
+        
+        <!-- Barra de Controles -->
+        <div class="bg-white border-b border-gray-100 px-4 py-2">
+            <div class="max-w-5xl mx-auto flex items-center justify-between gap-4">
+                <div class="flex items-center gap-3">
+                    <label class="text-xs font-medium text-gray-600">Bimestre:</label>
+                    <select id="notas-bimestre" class="text-sm px-3 py-1.5 border border-gray-200 rounded-lg bg-white focus:outline-none focus:border-orange-500">
+                        <option value="1">1º Bimestre</option>
+                        <option value="2">2º Bimestre</option>
+                        <option value="3">3º Bimestre</option>
+                        <option value="4">4º Bimestre</option>
+                    </select>
+                </div>
+                <div class="flex items-center gap-4 text-xs">
+                    <span class="text-gray-500">
+                        <span id="total-alunos" class="font-medium text-gray-700">0</span> alunos
+                    </span>
+                    <span class="text-gray-300">|</span>
+                    <span class="text-gray-500">
+                        <span id="notas-preenchidas" class="font-medium text-orange-600">0</span> notas
+                    </span>
+                </div>
+            </div>
+            <input type="hidden" id="notas-turma-id">
+            <input type="hidden" id="notas-disciplina-id">
+        </div>
+        
+        <!-- Content -->
+        <div class="flex-1 overflow-y-auto">
+            <div class="max-w-5xl mx-auto py-4 px-4">
+                <!-- Header da Tabela -->
+                <div class="grid grid-cols-12 gap-3 text-xs font-medium text-gray-500 uppercase tracking-wide px-3 py-2 border-b border-gray-200 mb-2">
+                    <div class="col-span-4">Aluno</div>
+                    <div class="col-span-2 text-center">Parcial</div>
+                    <div class="col-span-2 text-center">Bimestral</div>
+                    <div class="col-span-1 text-center">Média</div>
+                    <div class="col-span-3">Observação</div>
+                </div>
+                
+                <div id="notas-alunos-container" class="space-y-1">
+                    <!-- Alunos serão carregados aqui -->
+                    <div class="text-center py-16 text-gray-400">
+                        <svg class="w-12 h-12 mx-auto mb-3 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                        </svg>
+                        <p class="text-sm">Selecione uma turma para carregar os alunos</p>
                     </div>
                 </div>
-                <input type="hidden" id="notas-turma-id">
-                <input type="hidden" id="notas-disciplina-id">
             </div>
-            
-            <div class="mb-4">
-                <div class="grid grid-cols-12 gap-4 font-semibold text-gray-700 pb-2 border-b">
-                    <div class="col-span-4">Aluno</div>
-                    <div class="col-span-2">Nota</div>
-                    <div class="col-span-6">Comentário</div>
+        </div>
+        
+        <!-- Footer Compacto -->
+        <div class="bg-white border-t border-gray-200 px-4 py-3">
+            <div class="max-w-5xl mx-auto flex items-center justify-between">
+                <p class="text-xs text-gray-400">Preencha as notas de 0 a 10</p>
+                <div class="flex gap-2">
+                    <button onclick="fecharModalLancarNotas()" class="px-4 py-1.5 text-sm font-medium text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-colors">
+                        Cancelar
+                    </button>
+                    <button onclick="salvarNotas()" class="px-4 py-1.5 text-sm font-medium text-white bg-orange-600 hover:bg-orange-700 rounded-lg transition-colors">
+                        Salvar Notas
+                    </button>
                 </div>
-            </div>
-            
-            <div id="notas-alunos-container" class="space-y-2 mb-6">
-                <!-- Alunos serão carregados aqui -->
-            </div>
-            
-            <div class="flex space-x-3">
-                <button onclick="fecharModalLancarNotas()" class="flex-1 px-4 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg font-medium">
-                    Cancelar
-                </button>
-                <button onclick="salvarNotas()" class="flex-1 px-4 py-2 text-white bg-orange-600 hover:bg-orange-700 rounded-lg font-medium">
-                    Salvar Notas
-                </button>
             </div>
         </div>
     </div>
@@ -319,16 +452,41 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['acao'])) {
             window.location.href = '../auth/logout.php';
         };
         
-        function abrirModalLancarNotas(turmaId = null, disciplinaId = null) {
+        function abrirModalLancarNotas(turmaId = null, disciplinaId = null, turmaNome = '', disciplinaNome = '') {
             const modal = document.getElementById('modal-lancar-notas');
             if (modal) {
                 modal.classList.remove('hidden');
                 if (turmaId && disciplinaId) {
                     document.getElementById('notas-turma-id').value = turmaId;
                     document.getElementById('notas-disciplina-id').value = disciplinaId;
+                    
+                    // Exibir informações da turma
+                    const infoElement = document.getElementById('notas-info-turma');
+                    if (infoElement && turmaNome && disciplinaNome) {
+                        infoElement.textContent = turmaNome + ' - ' + disciplinaNome;
+                    } else if (infoElement) {
+                        buscarInfoTurmaNotas(turmaId, disciplinaId);
+                    }
+                    
                     carregarAlunosParaNotas(turmaId);
                 }
             }
+        }
+        
+        function buscarInfoTurmaNotas(turmaId, disciplinaId) {
+            fetch('?acao=buscar_info_turma&turma_id=' + turmaId + '&disciplina_id=' + disciplinaId)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        const infoElement = document.getElementById('notas-info-turma');
+                        if (infoElement && data.turma_nome && data.disciplina_nome) {
+                            infoElement.textContent = data.turma_nome + ' - ' + data.disciplina_nome;
+                        }
+                    }
+                })
+                .catch(error => {
+                    console.error('Erro ao buscar info da turma:', error);
+                });
         }
         
         function fecharModalLancarNotas() {
@@ -338,6 +496,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['acao'])) {
             }
         }
         
+        function atualizarContadores() {
+            const inputs = document.querySelectorAll('#notas-alunos-container .nota-input');
+            let preenchidas = 0;
+            inputs.forEach(input => {
+                if (input.value && parseFloat(input.value) >= 0) {
+                    preenchidas++;
+                }
+            });
+            document.getElementById('notas-preenchidas').textContent = preenchidas;
+        }
+        
         function carregarAlunosParaNotas(turmaId) {
             fetch('?acao=buscar_alunos_turma&turma_id=' + turmaId)
                 .then(response => response.json())
@@ -345,16 +514,46 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['acao'])) {
                     if (data.success && data.alunos) {
                         const container = document.getElementById('notas-alunos-container');
                         container.innerHTML = '';
-                        data.alunos.forEach(aluno => {
+                        
+                        // Atualizar contador de alunos
+                        document.getElementById('total-alunos').textContent = data.alunos.length;
+                        document.getElementById('notas-preenchidas').textContent = '0';
+                        
+                        data.alunos.forEach((aluno, index) => {
                             const div = document.createElement('div');
-                            div.className = 'grid grid-cols-12 gap-4 items-center p-3 border border-gray-200 rounded-lg';
+                            div.className = 'aluno-row grid grid-cols-12 gap-3 items-center px-3 py-2.5 bg-white rounded-lg border border-gray-100';
                             div.innerHTML = `
-                                <div class="col-span-4 font-medium">${aluno.nome}</div>
-                                <div class="col-span-2">
-                                    <input type="number" step="0.1" min="0" max="10" class="w-full px-3 py-2 border border-gray-300 rounded-lg" data-aluno-id="${aluno.id}" placeholder="0.0">
+                                <div class="col-span-4 flex items-center gap-3">
+                                    <span class="text-xs text-gray-400 w-5">${index + 1}</span>
+                                    <div>
+                                        <div class="text-sm font-medium text-gray-900">${aluno.nome}</div>
+                                        ${aluno.matricula ? `<div class="text-xs text-gray-400">${aluno.matricula}</div>` : ''}
+                                    </div>
                                 </div>
-                                <div class="col-span-6">
-                                    <input type="text" class="w-full px-3 py-2 border border-gray-300 rounded-lg" data-aluno-id="${aluno.id}" placeholder="Comentário (opcional)">
+                                <div class="col-span-2">
+                                    <input type="number" step="0.1" min="0" max="10" 
+                                        class="nota-input nota-parcial w-full px-2 py-1.5 text-sm text-center border border-gray-200 rounded-lg" 
+                                        data-aluno-id="${aluno.id}" 
+                                        placeholder="0.0" 
+                                        oninput="calcularMediaAluno(this); atualizarContadores();">
+                                </div>
+                                <div class="col-span-2">
+                                    <input type="number" step="0.1" min="0" max="10" 
+                                        class="nota-input nota-bimestral w-full px-2 py-1.5 text-sm text-center border border-gray-200 rounded-lg" 
+                                        data-aluno-id="${aluno.id}" 
+                                        placeholder="0.0" 
+                                        oninput="calcularMediaAluno(this); atualizarContadores();">
+                                </div>
+                                <div class="col-span-1">
+                                    <div class="media-badge media-aluno text-sm font-medium text-gray-400 py-1 rounded" data-aluno-id="${aluno.id}">
+                                        -
+                                    </div>
+                                </div>
+                                <div class="col-span-3">
+                                    <input type="text" 
+                                        class="w-full px-2 py-1.5 text-sm border border-gray-200 rounded-lg" 
+                                        data-aluno-id="${aluno.id}" 
+                                        placeholder="Opcional">
                                 </div>
                             `;
                             container.appendChild(div);
@@ -367,6 +566,44 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['acao'])) {
                 });
         }
         
+        function calcularMediaAluno(input) {
+            const alunoId = input.dataset.alunoId;
+            const row = input.closest('.aluno-row');
+            const notaParcialInput = row.querySelector('.nota-parcial[data-aluno-id="' + alunoId + '"]');
+            const notaBimestralInput = row.querySelector('.nota-bimestral[data-aluno-id="' + alunoId + '"]');
+            const mediaDiv = row.querySelector('.media-aluno[data-aluno-id="' + alunoId + '"]');
+            
+            const notaParcial = parseFloat(notaParcialInput.value) || 0;
+            const notaBimestral = parseFloat(notaBimestralInput.value) || 0;
+            
+            let media = 0;
+            if (notaParcial > 0 && notaBimestral > 0) {
+                media = (notaParcial + notaBimestral) / 2;
+            } else if (notaParcial > 0) {
+                media = notaParcial;
+            } else if (notaBimestral > 0) {
+                media = notaBimestral;
+            }
+            
+            // Resetar classes
+            mediaDiv.className = 'media-badge media-aluno text-sm font-medium py-1 rounded';
+            mediaDiv.setAttribute('data-aluno-id', alunoId);
+            
+            if (media > 0) {
+                mediaDiv.textContent = media.toFixed(1);
+                if (media >= 7) {
+                    mediaDiv.classList.add('text-green-600', 'bg-green-50');
+                } else if (media >= 5) {
+                    mediaDiv.classList.add('text-amber-600', 'bg-amber-50');
+                } else {
+                    mediaDiv.classList.add('text-red-600', 'bg-red-50');
+                }
+            } else {
+                mediaDiv.textContent = '-';
+                mediaDiv.classList.add('text-gray-400');
+            }
+        }
+        
         function salvarNotas() {
             const turmaId = document.getElementById('notas-turma-id').value;
             const disciplinaId = document.getElementById('notas-disciplina-id').value;
@@ -374,17 +611,37 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['acao'])) {
             const notas = [];
             
             const alunosProcessados = new Set();
-            document.querySelectorAll('#notas-alunos-container input[type="number"]').forEach(input => {
+            document.querySelectorAll('#notas-alunos-container .nota-parcial').forEach(input => {
                 const alunoId = input.dataset.alunoId;
-                if (!alunosProcessados.has(alunoId) && input.value) {
+                if (!alunosProcessados.has(alunoId)) {
+                    const notaParcialInput = document.querySelector(`.nota-parcial[data-aluno-id="${alunoId}"]`);
+                    const notaBimestralInput = document.querySelector(`.nota-bimestral[data-aluno-id="${alunoId}"]`);
                     const comentarioInput = document.querySelector(`input[type="text"][data-aluno-id="${alunoId}"]`);
                     
-                    notas.push({
-                        aluno_id: alunoId,
-                        nota: parseFloat(input.value),
-                        bimestre: bimestre,
-                        comentario: comentarioInput ? comentarioInput.value : ''
-                    });
+                    const notaParcial = notaParcialInput ? parseFloat(notaParcialInput.value) : null;
+                    const notaBimestral = notaBimestralInput ? parseFloat(notaBimestralInput.value) : null;
+                    const comentario = comentarioInput ? comentarioInput.value : '';
+                    
+                    if (notaParcial !== null && notaParcial > 0) {
+                        notas.push({
+                            aluno_id: alunoId,
+                            nota: notaParcial,
+                            tipo: 'PARCIAL',
+                            bimestre: bimestre,
+                            comentario: comentario
+                        });
+                    }
+                    
+                    if (notaBimestral !== null && notaBimestral > 0) {
+                        notas.push({
+                            aluno_id: alunoId,
+                            nota: notaBimestral,
+                            tipo: 'BIMESTRAL',
+                            bimestre: bimestre,
+                            comentario: comentario
+                        });
+                    }
+                    
                     alunosProcessados.add(alunoId);
                 }
             });
@@ -422,4 +679,3 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['acao'])) {
     </script>
 </body>
 </html>
-

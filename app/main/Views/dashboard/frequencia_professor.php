@@ -135,16 +135,6 @@ if (!defined('BASE_URL')) {
         }
         
         /* Cards minimalistas */
-        .turma-card {
-            background: #fff;
-            border: 1px solid #e5e7eb;
-            transition: border-color 0.2s ease, box-shadow 0.2s ease;
-        }
-        .turma-card:hover {
-            border-color: #2D5A27;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
-        }
-        
         /* Modal fullscreen minimalista */
         .modal-fullscreen {
             animation: fadeIn 0.2s ease;
@@ -312,47 +302,41 @@ if (!defined('BASE_URL')) {
             </div>
         </header>
         
-        <div class="p-4 sm:p-6">
-            <div class="max-w-5xl mx-auto">
-                <!-- Header de página compacto -->
+        <div class="p-8">
+            <div class="max-w-7xl mx-auto">
                 <div class="mb-6">
-                    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
-                        <div>
-                            <h2 class="text-xl font-semibold text-gray-900">Minhas Turmas</h2>
-                            <p class="text-sm text-gray-500 mt-0.5">Selecione uma turma para registrar frequência</p>
-                        </div>
+                    <p class="text-gray-600">Registre a presença dos alunos nas suas turmas</p>
+                </div>
+                
+                <div class="bg-white rounded-2xl p-6 shadow-lg">
+                    <div class="flex items-center justify-between mb-6">
+                        <h2 class="text-xl font-bold text-gray-900">Minhas Turmas</h2>
+                        <button onclick="abrirModalLancarFrequencia()" class="bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded-lg font-medium transition-colors duration-200 flex items-center space-x-2">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+                            </svg>
+                            <span>Registrar Frequência</span>
+                        </button>
                     </div>
                     
                     <?php if (empty($turmasProfessor)): ?>
-                        <!-- Empty state compacto -->
-                        <div class="bg-white rounded-lg border border-gray-200 p-8 text-center">
-                            <div class="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-3">
-                                <svg class="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
-                                </svg>
-                            </div>
-                            <h3 class="text-sm font-medium text-gray-900 mb-1">Nenhuma turma atribuída</h3>
-                            <p class="text-sm text-gray-500">Contate a administração para ser vinculado a uma turma.</p>
+                        <div class="text-center py-12">
+                            <svg class="w-16 h-16 text-gray-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                            </svg>
+                            <p class="text-gray-600">Você não possui turmas atribuídas no momento.</p>
                         </div>
                     <?php else: ?>
-                        <!-- Grid de cards compacto e limpo -->
-                        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                             <?php foreach ($turmasProfessor as $turma): ?>
-                                <div class="turma-card rounded-lg p-4">
+                                <div class="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow duration-200">
                                     <div class="mb-3">
-                                        <div class="flex items-center justify-between mb-2">
-                                            <span class="text-xs font-medium text-primary-green bg-green-50 px-2 py-1 rounded"><?= htmlspecialchars($turma['serie']) ?>ª Série</span>
-                                            <span class="text-xs text-gray-400"><?= htmlspecialchars($turma['turno']) ?></span>
-                                        </div>
-                                        <h3 class="font-semibold text-gray-900 text-sm"><?= htmlspecialchars($turma['turma_nome']) ?></h3>
-                                        <p class="text-xs text-primary-green mt-1"><?= htmlspecialchars($turma['disciplina_nome']) ?></p>
-                                        <p class="text-xs text-gray-400 mt-1"><?= htmlspecialchars($turma['escola_nome']) ?></p>
+                                        <h3 class="font-semibold text-gray-900"><?= htmlspecialchars($turma['turma_nome']) ?></h3>
+                                        <p class="text-sm text-gray-600"><?= htmlspecialchars($turma['disciplina_nome']) ?></p>
+                                        <p class="text-xs text-gray-500 mt-1"><?= htmlspecialchars($turma['escola_nome']) ?></p>
                                     </div>
-                                    <button onclick="abrirModalLancarFrequencia(<?= $turma['turma_id'] ?>, <?= $turma['disciplina_id'] ?>, '<?= htmlspecialchars($turma['turma_nome'], ENT_QUOTES) ?>', '<?= htmlspecialchars($turma['disciplina_nome'], ENT_QUOTES) ?>')" class="w-full bg-primary-green hover:bg-green-700 text-white text-sm font-medium py-2 px-3 rounded transition-colors flex items-center justify-center gap-2">
-                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                                        </svg>
-                                        Registrar
+                                    <button onclick="abrirModalLancarFrequencia(<?= $turma['turma_id'] ?>, <?= $turma['disciplina_id'] ?>, '<?= htmlspecialchars($turma['turma_nome'], ENT_QUOTES) ?>', '<?= htmlspecialchars($turma['disciplina_nome'], ENT_QUOTES) ?>')" class="w-full text-green-600 hover:text-green-700 font-medium text-sm py-2 border border-green-200 rounded-lg hover:bg-green-50 transition-colors">
+                                        Registrar Frequência
                                     </button>
                                 </div>
                             <?php endforeach; ?>
