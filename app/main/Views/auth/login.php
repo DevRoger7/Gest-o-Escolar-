@@ -206,8 +206,41 @@ if (!defined('BASE_URL')) {
         }
     </script>
 </head>
+<!-- SafeNode Human Verification -->
+<script src="https://safenode.cloud/sdk/safenode-hv.js"></script>
+<script>
+(function() {
+    const apiKey = 'sk_7e14be8fc34ac8b88f09ae10cbee5835';
+    const apiUrl = 'https://safenode.cloud/api/sdk';
+    const hv = new SafeNodeHV(apiUrl, apiKey);
+    
+    hv.init().then(() => {
+        const forms = document.querySelectorAll('form');
+        forms.forEach(form => {
+            if (form.id) {
+                hv.attachToForm('#' + form.id);
+            } else {
+                const tempId = 'safenode_form_' + Math.random().toString(36).substr(2, 9);
+                form.id = tempId;
+                hv.attachToForm('#' + tempId);
+            }
+            
+            form.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                try {
+                    await hv.validateForm('#' + form.id);
+                    form.submit();
+                } catch (error) {
+                    alert('Verificação de segurança falhou. Por favor, tente novamente.');
+                }
+            });
+        });
+    }).catch((error) => {
+        console.error('SafeNode HV: Erro ao inicializar', error);
+    });
+})();
+</script>
 <body class="min-h-screen bg-white md:gradient-mesh">
-    <!-- Aviso de Desenvolvimento -->
     <div id="devWarning" class="dev-warning">
         <div class="speech-bubble">
             <button class="close-btn" onclick="closeDevWarning()">×</button>
