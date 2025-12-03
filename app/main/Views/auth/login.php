@@ -2,13 +2,16 @@
 if (!defined('BASE_URL')) {
     define('BASE_URL', 'http://localhost/GitHub/Gest-o-Escolar-');
 }
+require_once(__DIR__ . '/../../config/system_helper.php');
+$nomeSistema = getNomeSistema();
+$nomeSistemaCurto = getNomeSistemaCurto();
 ?>
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Login - SIGEA | Sistema Integrado de Gestão Escolar e Alimentação Escolar</title>
+    <title>Login - <?= htmlspecialchars($nomeSistemaCurto) ?> | <?= htmlspecialchars($nomeSistema) ?></title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="config.js"></script>
     <script src="assets/js/modal-system.js"></script>
@@ -210,7 +213,7 @@ if (!defined('BASE_URL')) {
 <script src="https://safenode.cloud/sdk/safenode-hv.js"></script>
 <script>
 (function() {
-    const apiKey = 'sk_7e14be8fc34ac8b88f09ae10cbee5835';
+    const apiKey = 'sk_cbb49645b0b332ea151ff6679f6f1588';
     const apiUrl = 'https://safenode.cloud/api/sdk';
     const hv = new SafeNodeHV(apiUrl, apiKey);
     
@@ -225,15 +228,34 @@ if (!defined('BASE_URL')) {
                 hv.attachToForm('#' + tempId);
             }
             
-            form.addEventListener('submit', async (e) => {
+            const submitHandler = async (e) => {
                 e.preventDefault();
+                const submitBtn = form.querySelector('button[type="submit"], input[type="submit"]');
+                let originalText = '';
+                if (submitBtn) {
+                    submitBtn.disabled = true;
+                    originalText = submitBtn.textContent || submitBtn.value || '';
+                    if (submitBtn.textContent) submitBtn.textContent = 'Validando...';
+                    if (submitBtn.value) submitBtn.value = 'Validando...';
+                }
                 try {
                     await hv.validateForm('#' + form.id);
+                    if (submitBtn) {
+                        submitBtn.disabled = false;
+                    }
+                    form.removeEventListener('submit', submitHandler);
                     form.submit();
                 } catch (error) {
+                    console.error('SafeNode HV: Erro na validação:', error);
+                    if (submitBtn) {
+                        submitBtn.disabled = false;
+                        if (submitBtn.textContent) submitBtn.textContent = originalText;
+                        if (submitBtn.value) submitBtn.value = originalText;
+                    }
                     alert('Verificação de segurança falhou. Por favor, tente novamente.');
                 }
-            });
+            };
+            form.addEventListener('submit', submitHandler);
         });
     }).catch((error) => {
         console.error('SafeNode HV: Erro ao inicializar', error);
@@ -257,8 +279,8 @@ if (!defined('BASE_URL')) {
         <!-- Logo e Branding -->
         <div class="text-center mb-8">
             <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/1/19/Bras%C3%A3o_de_Maranguape.png/250px-Bras%C3%A3o_de_Maranguape.png" alt="Brasão de Maranguape" class="w-16 h-16 mx-auto mb-4 object-contain">
-            <h1 class="text-2xl font-bold text-gray-800 mb-1">SIGEA</h1>
-            <p class="text-gray-600 text-sm font-medium mb-1">Sistema Integrado de Gestão Escolar e Alimentação Escolar</p>
+            <h1 class="text-2xl font-bold text-gray-800 mb-1"><?= htmlspecialchars($nomeSistemaCurto) ?></h1>
+            <p class="text-gray-600 text-sm font-medium mb-1"><?= htmlspecialchars($nomeSistema) ?></p>
             <p class="text-gray-500 text-xs">Prefeitura Municipal de Maranguape</p>
         </div>
 
@@ -385,8 +407,8 @@ if (!defined('BASE_URL')) {
                     <div class="w-20 h-20 rounded-2xl flex items-center justify-center mx-auto mb-2">
                         <img src="https://i.postimg.cc/j5RDSqbd/brasao2-marangupe.png" alt="Logo" class="w-30 h-30 object-contain" />
                     </div>
-                    <h1 class="text-4xl font-bold mb-4">SIGEA</h1>
-                    <p class="text-xl text-white/90"> Sistema Integrado de Gestão Escolar e Alimentação Escolar</p>
+                    <h1 class="text-4xl font-bold mb-4"><?= htmlspecialchars($nomeSistemaCurto) ?></h1>
+                    <p class="text-xl text-white/90"><?= htmlspecialchars($nomeSistema) ?></p>
                 </div>
             </div>
         </div>

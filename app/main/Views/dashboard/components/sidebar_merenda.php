@@ -1,5 +1,7 @@
 <?php
 // Componente reutilizável de sidebar para Administrador de Merenda
+require_once(__DIR__ . '/../../../config/system_helper.php');
+$nomeSistema = getNomeSistemaCurto();
 ?>
 <!-- Mobile Menu Overlay -->
 <div id="mobileOverlay" class="fixed inset-0 bg-black bg-opacity-50 z-40 hidden mobile-menu-overlay lg:hidden"></div>
@@ -11,7 +13,7 @@
         <div class="flex items-center space-x-3">
             <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/1/19/Bras%C3%A3o_de_Maranguape.png/250px-Bras%C3%A3o_de_Maranguape.png" alt="Brasão de Maranguape" class="w-10 h-10 object-contain">
             <div>
-                <h1 class="text-lg font-bold text-gray-800">SIGEA</h1>
+                <h1 class="text-lg font-bold text-gray-800"><?= htmlspecialchars($nomeSistema) ?></h1>
                 <p class="text-xs text-gray-500">Maranguape</p>
             </div>
         </div>

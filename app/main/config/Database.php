@@ -41,4 +41,9 @@ class Database {
     }
 }
 
+// Auto-incluir system_helper se não foi incluído
+if (!function_exists('getNomeSistema')) {
+    require_once(__DIR__ . '/system_helper.php');
+}
+
 ?>

@@ -3,6 +3,7 @@ require_once('../../Models/sessao/sessions.php');
 require_once('../../Models/dashboard/DashboardStats.php');
 require_once('../../config/permissions_helper.php');
 require_once('../../config/Database.php');
+require_once('../../config/system_helper.php');
 $db = Database::getInstance();
 $conn = $db->getConnection();
 // Models do professor removidos - agora estão nas páginas separadas
@@ -70,7 +71,7 @@ if (!defined('BASE_URL')) {
     <title><?php 
         $userType = $_SESSION['tipo'] ?? 'Usuário';
         $userTypeFormatted = ucfirst(strtolower($userType));
-        echo "Dashboard $userTypeFormatted - SIGEA";
+        echo getPageTitle("Dashboard $userTypeFormatted");
     ?></title>
 
     <link rel="icon" href="https://upload.wikimedia.org/wikipedia/commons/thumb/1/19/Bras%C3%A3o_de_Maranguape.png/250px-Bras%C3%A3o_de_Maranguape.png" type="image/png">
@@ -1837,7 +1838,7 @@ if (!defined('BASE_URL')) {
             <div class="flex items-center space-x-3">
                 <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/1/19/Bras%C3%A3o_de_Maranguape.png/250px-Bras%C3%A3o_de_Maranguape.png" alt="Brasão de Maranguape" class="w-10 h-10 object-contain">
                 <div>
-                    <h1 class="text-lg font-bold text-gray-800">SIGEA</h1>
+                    <h1 class="text-lg font-bold text-gray-800"><?= htmlspecialchars(getNomeSistemaCurto()) ?></h1>
                     <p class="text-xs text-gray-500">Maranguape</p>
                 </div>
             </div>
@@ -2089,10 +2090,10 @@ if (!defined('BASE_URL')) {
                             <h1 class="hidden lg:block text-xl font-semibold text-gray-800 ml-2" id="pageTitle"><?php 
                                 $userType = $_SESSION['tipo'] ?? 'Usuário';
                                 if ($userType === 'ADM') {
-                                    echo "Dashboard ADM";
+                                    echo "Dashboard " . htmlspecialchars(getNomeSistemaCurto());
                                 } else {
                                     $userTypeFormatted = ucfirst(strtolower($userType));
-                                    echo "Dashboard $userTypeFormatted";
+                                    echo "Dashboard $userTypeFormatted - " . htmlspecialchars(getNomeSistemaCurto());
                                 }
                             ?></h1>
                         </div>

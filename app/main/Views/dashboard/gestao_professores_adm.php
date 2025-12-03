@@ -2,6 +2,7 @@
 require_once('../../Models/sessao/sessions.php');
 require_once('../../config/permissions_helper.php');
 require_once('../../config/Database.php');
+require_once('../../config/system_helper.php');
 
 $session = new sessions();
 $session->autenticar_session();
@@ -21,8 +22,354 @@ $stmtEscolas = $conn->prepare($sqlEscolas);
 $stmtEscolas->execute();
 $escolas = $stmtEscolas->fetchAll(PDO::FETCH_ASSOC);
 
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao'])) {
+    header('Content-Type: application/json');
+    
+    if ($_POST['acao'] === 'cadastrar_professor') {
+        try {
+            // Preparar dados
+            $cpf = preg_replace('/[^0-9]/', '', $_POST['cpf'] ?? '');
+            $telefone = preg_replace('/[^0-9]/', '', $_POST['telefone'] ?? '');
+            
+            // Validar CPF
+            if (empty($cpf) || strlen($cpf) !== 11) {
+                throw new Exception('CPF inválido. Deve conter 11 dígitos.');
+            }
+            
+            // Verificar se CPF já existe
+            $sqlVerificarCPF = "SELECT id FROM pessoa WHERE cpf = :cpf";
+            $stmtVerificar = $conn->prepare($sqlVerificarCPF);
+            $stmtVerificar->bindParam(':cpf', $cpf);
+            $stmtVerificar->execute();
+            if ($stmtVerificar->fetch()) {
+                throw new Exception('CPF já cadastrado no sistema.');
+            }
+            
+            // Gerar username único baseado no primeiro nome
+            $nome = trim($_POST['nome'] ?? '');
+            $primeiroNome = explode(' ', $nome)[0];
+            $username = strtolower(preg_replace('/[^a-zA-Z0-9]/', '', $primeiroNome));
+            
+            // Verificar se username já existe e gerar um único
+            $sqlVerificarUsername = "SELECT id FROM usuario WHERE username = :username";
+            $stmtUsername = $conn->prepare($sqlVerificarUsername);
+            $stmtUsername->bindParam(':username', $username);
+            $stmtUsername->execute();
+            
+            if ($stmtUsername->fetch()) {
+                $count = 1;
+                $newUsername = $username . $count;
+                while (true) {
+                    $stmtUsername = $conn->prepare($sqlVerificarUsername);
+                    $stmtUsername->bindParam(':username', $newUsername);
+                    $stmtUsername->execute();
+                    if (!$stmtUsername->fetch()) {
+                        $username = $newUsername;
+                        break;
+                    }
+                    $count++;
+                    $newUsername = $username . $count;
+                }
+            }
+            
+            // Senha padrão
+            $senhaPadrao = $_POST['senha'] ?? '123456';
+            $senhaHash = password_hash($senhaPadrao, PASSWORD_DEFAULT);
+            
+            $conn->beginTransaction();
+            
+            // 1. Criar pessoa
+            $sqlPessoa = "INSERT INTO pessoa (cpf, nome, data_nascimento, sexo, email, telefone, tipo, criado_por)
+                         VALUES (:cpf, :nome, :data_nascimento, :sexo, :email, :telefone, 'PROFESSOR', :criado_por)";
+            $stmtPessoa = $conn->prepare($sqlPessoa);
+            $stmtPessoa->bindParam(':cpf', $cpf);
+            $stmtPessoa->bindParam(':nome', $nome);
+            $stmtPessoa->bindParam(':data_nascimento', $_POST['data_nascimento'] ?? null);
+            $stmtPessoa->bindParam(':sexo', $_POST['sexo'] ?? null);
+            $stmtPessoa->bindParam(':email', !empty($_POST['email']) ? trim($_POST['email']) : null);
+            $stmtPessoa->bindParam(':telefone', !empty($telefone) ? $telefone : null);
+            $stmtPessoa->bindParam(':criado_por', $_SESSION['usuario_id']);
+            $stmtPessoa->execute();
+            $pessoaId = $conn->lastInsertId();
+            
+            // 2. Criar professor
+            $sqlProf = "INSERT INTO professor (pessoa_id, matricula, formacao, especializacao, registro_profissional, data_admissao, ativo, criado_por)
+                       VALUES (:pessoa_id, :matricula, :formacao, :especializacao, :registro_profissional, :data_admissao, 1, :criado_por)";
+            $stmtProf = $conn->prepare($sqlProf);
+            $stmtProf->bindParam(':pessoa_id', $pessoaId);
+            $stmtProf->bindParam(':matricula', !empty($_POST['matricula']) ? trim($_POST['matricula']) : null);
+            $stmtProf->bindParam(':formacao', !empty($_POST['formacao']) ? trim($_POST['formacao']) : null);
+            $stmtProf->bindParam(':especializacao', !empty($_POST['especializacao']) ? trim($_POST['especializacao']) : null);
+            $stmtProf->bindParam(':registro_profissional', !empty($_POST['registro_profissional']) ? trim($_POST['registro_profissional']) : null);
+            $stmtProf->bindParam(':data_admissao', $_POST['data_admissao'] ?? date('Y-m-d'));
+            $stmtProf->bindParam(':criado_por', $_SESSION['usuario_id']);
+            $stmtProf->execute();
+            $professorId = $conn->lastInsertId();
+            
+            // 3. Criar usuário
+            $sqlUsuario = "INSERT INTO usuario (pessoa_id, username, senha_hash, role, ativo)
+                          VALUES (:pessoa_id, :username, :senha_hash, 'PROFESSOR', 1)";
+            $stmtUsuario = $conn->prepare($sqlUsuario);
+            $stmtUsuario->bindParam(':pessoa_id', $pessoaId);
+            $stmtUsuario->bindParam(':username', $username);
+            $stmtUsuario->bindParam(':senha_hash', $senhaHash);
+            $stmtUsuario->execute();
+            
+            // 4. Lotar professor na escola (se informado)
+            if (!empty($_POST['escola_id'])) {
+                $sqlLotacao = "INSERT INTO professor_lotacao (professor_id, escola_id, inicio, carga_horaria, observacao, criado_em)
+                              VALUES (:professor_id, :escola_id, CURDATE(), :carga_horaria, :observacao, NOW())";
+                $stmtLotacao = $conn->prepare($sqlLotacao);
+                $stmtLotacao->bindParam(':professor_id', $professorId);
+                $stmtLotacao->bindParam(':escola_id', $_POST['escola_id']);
+                $stmtLotacao->bindParam(':carga_horaria', !empty($_POST['carga_horaria']) ? $_POST['carga_horaria'] : null);
+                $stmtLotacao->bindParam(':observacao', !empty($_POST['observacao_lotacao']) ? trim($_POST['observacao_lotacao']) : null);
+                $stmtLotacao->execute();
+            }
+            
+            $conn->commit();
+            
+            echo json_encode([
+                'success' => true,
+                'message' => 'Professor cadastrado com sucesso!',
+                'id' => $professorId,
+                'username' => $username
+            ]);
+        } catch (Exception $e) {
+            if ($conn->inTransaction()) {
+                $conn->rollBack();
+            }
+            echo json_encode([
+                'success' => false,
+                'message' => $e->getMessage()
+            ]);
+        }
+        exit;
+    }
+    
+    if ($_POST['acao'] === 'editar_professor') {
+        try {
+            $professorId = $_POST['professor_id'] ?? null;
+            if (empty($professorId)) {
+                throw new Exception('ID do professor não informado.');
+            }
+            
+            // Buscar professor existente
+            $sqlBuscar = "SELECT pr.*, p.id as pessoa_id, p.cpf, u.username
+                         FROM professor pr
+                         INNER JOIN pessoa p ON pr.pessoa_id = p.id
+                         LEFT JOIN usuario u ON u.pessoa_id = p.id
+                         WHERE pr.id = :id";
+            $stmtBuscar = $conn->prepare($sqlBuscar);
+            $stmtBuscar->bindParam(':id', $professorId);
+            $stmtBuscar->execute();
+            $professor = $stmtBuscar->fetch(PDO::FETCH_ASSOC);
+            
+            if (!$professor) {
+                throw new Exception('Professor não encontrado.');
+            }
+            
+            // Preparar dados
+            $telefone = preg_replace('/[^0-9]/', '', $_POST['telefone'] ?? '');
+            
+            // Validar CPF (se foi alterado)
+            $cpfAtual = preg_replace('/[^0-9]/', '', $_POST['cpf'] ?? '');
+            if (!empty($cpfAtual) && strlen($cpfAtual) !== 11) {
+                throw new Exception('CPF inválido. Deve conter 11 dígitos.');
+            }
+            
+            // Verificar se CPF já existe em outro professor
+            if (!empty($cpfAtual) && $cpfAtual !== $professor['cpf']) {
+                $sqlVerificarCPF = "SELECT id FROM pessoa WHERE cpf = :cpf AND id != :pessoa_id";
+                $stmtVerificar = $conn->prepare($sqlVerificarCPF);
+                $stmtVerificar->bindParam(':cpf', $cpfAtual);
+                $stmtVerificar->bindParam(':pessoa_id', $professor['pessoa_id']);
+                $stmtVerificar->execute();
+                if ($stmtVerificar->fetch()) {
+                    throw new Exception('CPF já cadastrado para outro professor.');
+                }
+            }
+            
+            $conn->beginTransaction();
+            
+            // 1. Atualizar CPF se foi alterado
+            if (!empty($cpfAtual) && $cpfAtual !== $professor['cpf']) {
+                $sqlUpdateCPF = "UPDATE pessoa SET cpf = :cpf WHERE id = :pessoa_id";
+                $stmtUpdateCPF = $conn->prepare($sqlUpdateCPF);
+                $stmtUpdateCPF->bindParam(':cpf', $cpfAtual);
+                $stmtUpdateCPF->bindParam(':pessoa_id', $professor['pessoa_id']);
+                $stmtUpdateCPF->execute();
+            }
+            
+            // 2. Atualizar pessoa
+            $sqlPessoa = "UPDATE pessoa SET nome = :nome, data_nascimento = :data_nascimento, 
+                         sexo = :sexo, email = :email, telefone = :telefone
+                         WHERE id = :pessoa_id";
+            $stmtPessoa = $conn->prepare($sqlPessoa);
+            $stmtPessoa->bindParam(':nome', trim($_POST['nome'] ?? ''));
+            $stmtPessoa->bindParam(':data_nascimento', $_POST['data_nascimento'] ?? null);
+            $stmtPessoa->bindParam(':sexo', $_POST['sexo'] ?? null);
+            $stmtPessoa->bindParam(':email', !empty($_POST['email']) ? trim($_POST['email']) : null);
+            $stmtPessoa->bindParam(':telefone', !empty($telefone) ? $telefone : null);
+            $stmtPessoa->bindParam(':pessoa_id', $professor['pessoa_id']);
+            $stmtPessoa->execute();
+            
+            // 3. Atualizar professor
+            $sqlProf = "UPDATE professor SET matricula = :matricula, formacao = :formacao, 
+                       especializacao = :especializacao, registro_profissional = :registro_profissional,
+                       data_admissao = :data_admissao, ativo = :ativo
+                       WHERE id = :id";
+            $stmtProf = $conn->prepare($sqlProf);
+            $stmtProf->bindParam(':matricula', !empty($_POST['matricula']) ? trim($_POST['matricula']) : null);
+            $stmtProf->bindParam(':formacao', !empty($_POST['formacao']) ? trim($_POST['formacao']) : null);
+            $stmtProf->bindParam(':especializacao', !empty($_POST['especializacao']) ? trim($_POST['especializacao']) : null);
+            $stmtProf->bindParam(':registro_profissional', !empty($_POST['registro_profissional']) ? trim($_POST['registro_profissional']) : null);
+            $stmtProf->bindParam(':data_admissao', $_POST['data_admissao'] ?? $professor['data_admissao']);
+            $stmtProf->bindParam(':ativo', isset($_POST['ativo']) ? (int)$_POST['ativo'] : 1);
+            $stmtProf->bindParam(':id', $professorId);
+            $stmtProf->execute();
+            
+            // 4. Atualizar senha se fornecida
+            if (!empty($_POST['senha']) && $_POST['senha'] !== '123456') {
+                $senhaHash = password_hash($_POST['senha'], PASSWORD_DEFAULT);
+                $sqlSenha = "UPDATE usuario SET senha_hash = :senha_hash WHERE pessoa_id = :pessoa_id";
+                $stmtSenha = $conn->prepare($sqlSenha);
+                $stmtSenha->bindParam(':senha_hash', $senhaHash);
+                $stmtSenha->bindParam(':pessoa_id', $professor['pessoa_id']);
+                $stmtSenha->execute();
+            }
+            
+            $conn->commit();
+            
+            echo json_encode([
+                'success' => true,
+                'message' => 'Professor atualizado com sucesso!'
+            ]);
+        } catch (Exception $e) {
+            if ($conn->inTransaction()) {
+                $conn->rollBack();
+            }
+            echo json_encode([
+                'success' => false,
+                'message' => $e->getMessage()
+            ]);
+        }
+        exit;
+    }
+    
+    if ($_POST['acao'] === 'excluir_professor') {
+        try {
+            $professorId = $_POST['professor_id'] ?? null;
+            if (empty($professorId)) {
+                throw new Exception('ID do professor não informado.');
+            }
+            
+            // Verificar se o professor existe
+            $sqlBuscar = "SELECT pr.*, p.nome
+                         FROM professor pr
+                         INNER JOIN pessoa p ON pr.pessoa_id = p.id
+                         WHERE pr.id = :id";
+            $stmtBuscar = $conn->prepare($sqlBuscar);
+            $stmtBuscar->bindParam(':id', $professorId);
+            $stmtBuscar->execute();
+            $professor = $stmtBuscar->fetch(PDO::FETCH_ASSOC);
+            
+            if (!$professor) {
+                throw new Exception('Professor não encontrado.');
+            }
+            
+            // Verificar se o professor está atribuído a alguma turma ativa
+            $sqlTurmaAtiva = "SELECT COUNT(*) as total FROM turma_professor WHERE professor_id = :professor_id AND fim IS NULL";
+            $stmtTurma = $conn->prepare($sqlTurmaAtiva);
+            $stmtTurma->bindParam(':professor_id', $professorId);
+            $stmtTurma->execute();
+            $resultTurma = $stmtTurma->fetch(PDO::FETCH_ASSOC);
+            
+            if ($resultTurma['total'] > 0) {
+                throw new Exception('Não é possível excluir o professor pois ele está atribuído a uma ou mais turmas ativas. Primeiro, remova o professor das turmas.');
+            }
+            
+            // Soft delete
+            $sqlExcluir = "UPDATE professor SET ativo = 0 WHERE id = :id";
+            $stmtExcluir = $conn->prepare($sqlExcluir);
+            $stmtExcluir->bindParam(':id', $professorId);
+            $result = $stmtExcluir->execute();
+            
+            if ($result) {
+                echo json_encode([
+                    'success' => true,
+                    'message' => 'Professor excluído com sucesso!'
+                ]);
+            } else {
+                throw new Exception('Erro ao excluir professor.');
+            }
+        } catch (Exception $e) {
+            echo json_encode([
+                'success' => false,
+                'message' => $e->getMessage()
+            ]);
+        }
+        exit;
+    }
+}
+
 if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['acao'])) {
     header('Content-Type: application/json');
+    
+    if ($_GET['acao'] === 'buscar_professor') {
+        $professorId = $_GET['id'] ?? null;
+        if (empty($professorId)) {
+            echo json_encode(['success' => false, 'message' => 'ID do professor não informado']);
+            exit;
+        }
+        
+        $sql = "SELECT pr.*, p.id as pessoa_id, p.nome, p.cpf, p.email, p.telefone, p.data_nascimento, p.sexo, u.username
+                FROM professor pr
+                INNER JOIN pessoa p ON pr.pessoa_id = p.id
+                LEFT JOIN usuario u ON u.pessoa_id = p.id
+                WHERE pr.id = :id";
+        $stmt = $conn->prepare($sql);
+        $stmt->bindParam(':id', $professorId);
+        $stmt->execute();
+        $professor = $stmt->fetch(PDO::FETCH_ASSOC);
+        
+        if ($professor) {
+            // Formatar CPF e telefone para exibição
+            if (!empty($professor['cpf']) && strlen($professor['cpf']) === 11) {
+                $professor['cpf_formatado'] = substr($professor['cpf'], 0, 3) . '.' . substr($professor['cpf'], 3, 3) . '.' . substr($professor['cpf'], 6, 3) . '-' . substr($professor['cpf'], 9, 2);
+            }
+            if (!empty($professor['telefone'])) {
+                $tel = $professor['telefone'];
+                if (strlen($tel) === 11) {
+                    $professor['telefone_formatado'] = '(' . substr($tel, 0, 2) . ') ' . substr($tel, 2, 5) . '-' . substr($tel, 7);
+                } elseif (strlen($tel) === 10) {
+                    $professor['telefone_formatado'] = '(' . substr($tel, 0, 2) . ') ' . substr($tel, 2, 4) . '-' . substr($tel, 6);
+                }
+            }
+            
+            // Buscar lotação atual
+            $sqlLotacao = "SELECT pl.*, e.nome as escola_nome
+                          FROM professor_lotacao pl
+                          LEFT JOIN escola e ON pl.escola_id = e.id
+                          WHERE pl.professor_id = :professor_id AND pl.fim IS NULL
+                          LIMIT 1";
+            $stmtLotacao = $conn->prepare($sqlLotacao);
+            $stmtLotacao->bindParam(':professor_id', $professorId);
+            $stmtLotacao->execute();
+            $lotacao = $stmtLotacao->fetch(PDO::FETCH_ASSOC);
+            
+            if ($lotacao) {
+                $professor['lotacao_escola_id'] = $lotacao['escola_id'];
+                $professor['lotacao_carga_horaria'] = $lotacao['carga_horaria'];
+                $professor['lotacao_observacao'] = $lotacao['observacao'];
+            }
+            
+            echo json_encode(['success' => true, 'professor' => $professor]);
+        } else {
+            echo json_encode(['success' => false, 'message' => 'Professor não encontrado']);
+        }
+        exit;
+    }
     
     if ($_GET['acao'] === 'listar_professores') {
         $filtros = [];
@@ -34,7 +381,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['acao'])) {
                 INNER JOIN pessoa p ON pr.pessoa_id = p.id
                 LEFT JOIN professor_lotacao pl ON pr.id = pl.professor_id AND pl.fim IS NULL
                 LEFT JOIN escola e ON pl.escola_id = e.id
-                WHERE 1=1";
+                WHERE pr.ativo = 1";
         
         $params = [];
         if (!empty($filtros['escola_id'])) {
@@ -60,12 +407,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['acao'])) {
     }
 }
 
-// Buscar professores iniciais
+// Buscar professores iniciais (apenas ativos)
 $sqlProfessores = "SELECT pr.*, p.nome, p.cpf, p.email, p.telefone, p.data_nascimento, e.nome as escola_nome
                     FROM professor pr
                     INNER JOIN pessoa p ON pr.pessoa_id = p.id
                     LEFT JOIN professor_lotacao pl ON pr.id = pl.professor_id AND pl.fim IS NULL
                     LEFT JOIN escola e ON pl.escola_id = e.id
+                    WHERE pr.ativo = 1
                     GROUP BY pr.id
                     ORDER BY p.nome ASC
                     LIMIT 50";
@@ -78,7 +426,7 @@ $professores = $stmtProfessores->fetchAll(PDO::FETCH_ASSOC);
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Gestão de Professores - SIGEA</title>
+    <title><?= getPageTitle('Gestão de Professores') ?></title>
     <link rel="icon" href="https://upload.wikimedia.org/wikipedia/commons/thumb/1/19/Bras%C3%A3o_de_Maranguape.png/250px-Bras%C3%A3o_de_Maranguape.png" type="image/png">
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="global-theme.css">
@@ -218,6 +566,172 @@ $professores = $stmtProfessores->fetchAll(PDO::FETCH_ASSOC);
         </div>
     </main>
     
+    <!-- Modal de Cadastro de Professor -->
+    <div id="modalNovoProfessor" class="fixed inset-0 bg-black bg-opacity-50 z-[60] hidden items-center justify-center" style="display: none;">
+        <div class="bg-white w-full h-full flex flex-col shadow-2xl">
+            <!-- Header do Modal -->
+            <div class="flex justify-between items-center p-6 border-b border-gray-200 bg-white sticky top-0 z-10">
+                <h2 class="text-2xl font-bold text-gray-900">Cadastrar Novo Professor</h2>
+                <button onclick="fecharModalNovoProfessor()" class="text-gray-400 hover:text-gray-600 transition-colors p-2 hover:bg-gray-100 rounded-lg">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+            </div>
+            
+            <!-- Conteúdo do Modal (Scrollable) -->
+            <div class="flex-1 overflow-y-auto p-6">
+                <form id="formNovoProfessor" class="space-y-6 max-w-6xl mx-auto">
+                    <div id="alertaErro" class="hidden bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-lg"></div>
+                    <div id="alertaSucesso" class="hidden bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded-lg"></div>
+                    
+                    <!-- Informações Pessoais -->
+                    <div>
+                        <h3 class="text-lg font-semibold text-gray-800 mb-4 pb-2 border-b border-gray-200">Informações Pessoais</h3>
+                        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Nome Completo *</label>
+                                <input type="text" name="nome" id="nome" required 
+                                       class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">CPF *</label>
+                                <input type="text" name="cpf" id="cpf" required maxlength="14"
+                                       placeholder="000.000.000-00"
+                                       class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                                       oninput="formatarCPF(this)">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Data de Nascimento *</label>
+                                <input type="date" name="data_nascimento" id="data_nascimento" required
+                                       class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Sexo *</label>
+                                <select name="sexo" id="sexo" required
+                                        class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent">
+                                    <option value="">Selecione...</option>
+                                    <option value="M">Masculino</option>
+                                    <option value="F">Feminino</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Email</label>
+                                <input type="email" name="email" id="email"
+                                       class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Telefone</label>
+                                <input type="text" name="telefone" id="telefone" maxlength="15"
+                                       placeholder="(00) 00000-0000"
+                                       class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                                       oninput="formatarTelefone(this)">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Informações Profissionais -->
+                    <div>
+                        <h3 class="text-lg font-semibold text-gray-800 mb-4 pb-2 border-b border-gray-200">Informações Profissionais</h3>
+                        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Matrícula</label>
+                                <input type="text" name="matricula" id="matricula"
+                                       class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Formação</label>
+                                <input type="text" name="formacao" id="formacao" placeholder="Ex: Licenciatura em Matemática"
+                                       class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Especialização</label>
+                                <input type="text" name="especializacao" id="especializacao" placeholder="Ex: Educação Especial"
+                                       class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Registro Profissional</label>
+                                <input type="text" name="registro_profissional" id="registro_profissional" placeholder="Ex: CREA, CREF, etc."
+                                       class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Data de Admissão</label>
+                                <input type="date" name="data_admissao" id="data_admissao"
+                                       value="<?= date('Y-m-d') ?>"
+                                       class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Lotação (Opcional) -->
+                    <div>
+                        <h3 class="text-lg font-semibold text-gray-800 mb-4 pb-2 border-b border-gray-200">Lotação (Opcional)</h3>
+                        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Escola</label>
+                                <select name="escola_id" id="escola_id"
+                                        class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent">
+                                    <option value="">Selecione uma escola...</option>
+                                    <?php foreach ($escolas as $escola): ?>
+                                        <option value="<?= $escola['id'] ?>"><?= htmlspecialchars($escola['nome']) ?></option>
+                                    <?php endforeach; ?>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Carga Horária (horas/semana)</label>
+                                <input type="number" name="carga_horaria" id="carga_horaria" min="0" max="40"
+                                       placeholder="Ex: 40"
+                                       class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent">
+                            </div>
+                            <div class="md:col-span-2 lg:col-span-1">
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Observação da Lotação</label>
+                                <textarea name="observacao_lotacao" id="observacao_lotacao" rows="2"
+                                          placeholder="Observações sobre a lotação..."
+                                          class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"></textarea>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Informações de Acesso -->
+                    <div>
+                        <h3 class="text-lg font-semibold text-gray-800 mb-4 pb-2 border-b border-gray-200">Informações de Acesso</h3>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Senha Padrão</label>
+                                <input type="password" name="senha" id="senha" value="123456"
+                                       class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent">
+                                <p class="text-xs text-gray-500 mt-1">Senha padrão: 123456 (pode ser alterada pelo professor após o primeiro login)</p>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Username</label>
+                                <input type="text" id="username_preview" readonly
+                                       class="w-full px-4 py-2 border border-gray-300 rounded-lg bg-gray-50"
+                                       placeholder="Será gerado automaticamente">
+                                <p class="text-xs text-gray-500 mt-1">O username será gerado automaticamente baseado no primeiro nome</p>
+                            </div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            
+            <!-- Footer do Modal (Sticky) -->
+            <div class="flex justify-end space-x-3 p-6 border-t border-gray-200 bg-white sticky bottom-0 z-10">
+                <button type="button" onclick="fecharModalNovoProfessor()" 
+                        class="px-6 py-3 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg font-medium transition-colors duration-200">
+                    Cancelar
+                </button>
+                <button type="submit" form="formNovoProfessor" id="btnSalvarProfessor"
+                        class="px-6 py-3 text-white bg-green-600 hover:bg-green-700 rounded-lg font-medium transition-colors duration-200 flex items-center space-x-2">
+                    <span>Salvar Professor</span>
+                    <svg id="spinnerSalvar" class="hidden animate-spin h-5 w-5 text-white" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                </button>
+            </div>
+        </div>
+    </div>
+    
     <div id="logoutModal" class="fixed inset-0 bg-black bg-opacity-50 z-[60] hidden items-center justify-center p-4" style="display: none;">
         <div class="bg-white rounded-2xl p-6 max-w-md w-full mx-4 shadow-2xl">
             <div class="flex items-center space-x-3 mb-4">
@@ -273,8 +787,131 @@ $professores = $stmtProfessores->fetchAll(PDO::FETCH_ASSOC);
         };
 
         function abrirModalNovoProfessor() {
-            alert('Funcionalidade de cadastro de professor em desenvolvimento.');
+            const modal = document.getElementById('modalNovoProfessor');
+            if (modal) {
+                modal.style.display = 'flex';
+                modal.classList.remove('hidden');
+                // Limpar formulário
+                document.getElementById('formNovoProfessor').reset();
+                document.getElementById('data_admissao').value = new Date().toISOString().split('T')[0];
+                document.getElementById('senha').value = '123456';
+                // Limpar alertas
+                document.getElementById('alertaErro').classList.add('hidden');
+                document.getElementById('alertaSucesso').classList.add('hidden');
+                // Atualizar preview do username
+                atualizarPreviewUsername();
+            }
         }
+        
+        function fecharModalNovoProfessor() {
+            const modal = document.getElementById('modalNovoProfessor');
+            if (modal) {
+                modal.style.display = 'none';
+                modal.classList.add('hidden');
+            }
+        }
+        
+        function formatarCPF(input) {
+            let value = input.value.replace(/\D/g, '');
+            if (value.length <= 11) {
+                value = value.replace(/(\d{3})(\d)/, '$1.$2');
+                value = value.replace(/(\d{3})(\d)/, '$1.$2');
+                value = value.replace(/(\d{3})(\d{1,2})$/, '$1-$2');
+            }
+            input.value = value;
+        }
+        
+        function formatarTelefone(input) {
+            let value = input.value.replace(/\D/g, '');
+            if (value.length <= 11) {
+                if (value.length <= 10) {
+                    value = value.replace(/(\d{2})(\d)/, '($1) $2');
+                    value = value.replace(/(\d{4})(\d)/, '$1-$2');
+                } else {
+                    value = value.replace(/(\d{2})(\d)/, '($1) $2');
+                    value = value.replace(/(\d{5})(\d)/, '$1-$2');
+                }
+            }
+            input.value = value;
+        }
+        
+        function atualizarPreviewUsername() {
+            const nome = document.getElementById('nome').value.trim();
+            const preview = document.getElementById('username_preview');
+            if (nome) {
+                const primeiroNome = nome.split(' ')[0];
+                const username = primeiroNome.toLowerCase().replace(/[^a-z0-9]/g, '');
+                preview.value = username || 'Será gerado automaticamente';
+            } else {
+                preview.value = 'Será gerado automaticamente';
+            }
+        }
+        
+        // Atualizar preview do username quando o nome mudar
+        document.getElementById('nome')?.addEventListener('input', atualizarPreviewUsername);
+        
+        // Submissão do formulário
+        document.getElementById('formNovoProfessor').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const btnSalvar = document.getElementById('btnSalvarProfessor');
+            const spinner = document.getElementById('spinnerSalvar');
+            const alertaErro = document.getElementById('alertaErro');
+            const alertaSucesso = document.getElementById('alertaSucesso');
+            
+            // Mostrar loading
+            btnSalvar.disabled = true;
+            spinner.classList.remove('hidden');
+            alertaErro.classList.add('hidden');
+            alertaSucesso.classList.add('hidden');
+            
+            // Coletar dados do formulário
+            const formData = new FormData(this);
+            formData.append('acao', 'cadastrar_professor');
+            
+            try {
+                const response = await fetch('', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    alertaSucesso.textContent = `Professor cadastrado com sucesso! Username: ${data.username || 'gerado automaticamente'}`;
+                    alertaSucesso.classList.remove('hidden');
+                    
+                    // Limpar formulário
+                    this.reset();
+                    document.getElementById('data_admissao').value = new Date().toISOString().split('T')[0];
+                    document.getElementById('senha').value = '123456';
+                    atualizarPreviewUsername();
+                    
+                    // Recarregar lista de professores após 1.5 segundos
+                    setTimeout(() => {
+                        fecharModalNovoProfessor();
+                        filtrarProfessores();
+                    }, 1500);
+                } else {
+                    alertaErro.textContent = data.message || 'Erro ao cadastrar professor. Por favor, tente novamente.';
+                    alertaErro.classList.remove('hidden');
+                }
+            } catch (error) {
+                console.error('Erro:', error);
+                alertaErro.textContent = 'Erro ao processar requisição. Por favor, tente novamente.';
+                alertaErro.classList.remove('hidden');
+            } finally {
+                btnSalvar.disabled = false;
+                spinner.classList.add('hidden');
+            }
+        });
+        
+        // Fechar modal ao clicar fora
+        document.getElementById('modalNovoProfessor')?.addEventListener('click', function(e) {
+            if (e.target === this) {
+                fecharModalNovoProfessor();
+            }
+        });
 
         function editarProfessor(id) {
             alert('Funcionalidade de edição de professor em desenvolvimento. ID: ' + id);

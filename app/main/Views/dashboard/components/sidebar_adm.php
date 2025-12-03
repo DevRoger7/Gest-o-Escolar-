@@ -1,6 +1,8 @@
 <?php
 // Componente reutilizável de sidebar para Administrador Geral
+require_once(__DIR__ . '/../../../config/system_helper.php');
 $currentPage = basename($_SERVER['PHP_SELF']);
+$nomeSistema = getNomeSistemaCurto();
 ?>
 <!-- Mobile Menu Overlay -->
 <div id="mobileOverlay" class="fixed inset-0 bg-black bg-opacity-50 z-40 hidden mobile-menu-overlay lg:hidden"></div>
@@ -12,7 +14,7 @@ $currentPage = basename($_SERVER['PHP_SELF']);
         <div class="flex items-center space-x-3">
             <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/1/19/Bras%C3%A3o_de_Maranguape.png/250px-Bras%C3%A3o_de_Maranguape.png" alt="Brasão de Maranguape" class="w-10 h-10 object-contain">
             <div>
-                <h1 class="text-lg font-bold text-gray-800">SIGEA</h1>
+                <h1 class="text-lg font-bold text-gray-800"><?= htmlspecialchars($nomeSistema) ?></h1>
                 <p class="text-xs text-gray-500">Administrador Geral</p>
             </div>
         </div>
@@ -44,7 +46,7 @@ $currentPage = basename($_SERVER['PHP_SELF']);
         </div>
     </div>
 
-    <nav class="p-4 overflow-y-auto sidebar-nav" style="max-height: calc(100vh - 200px); scroll-behavior: smooth;">
+    <nav class="p-4 overflow-y-auto sidebar-nav" style="max-height: calc(100vh - 200px); scroll-behavior: smooth; padding-bottom: 80px;">
         <ul class="space-y-2">
             <li>
                 <a href="dashboard.php" class="menu-item flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700 <?= $currentPage === 'dashboard.php' ? 'active' : '' ?>">
@@ -218,6 +220,16 @@ $currentPage = basename($_SERVER['PHP_SELF']);
             </li>
         </ul>
     </nav>
+
+    <!-- Logout Button -->
+    <div class="absolute bottom-0 left-0 right-0 p-4 border-t border-gray-200 bg-white">
+        <button onclick="window.confirmLogout()" class="w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-red-600 hover:bg-red-50 transition-colors duration-200">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path>
+            </svg>
+            <span>Sair</span>
+        </button>
+    </div>
 </aside>
 
 <script>
@@ -289,6 +301,36 @@ $currentPage = basename($_SERVER['PHP_SELF']);
     @media (max-width: 1023px) {
         .sidebar-mobile { transform: translateX(-100%); }
         .sidebar-mobile.open { transform: translateX(0); }
+    }
+    
+    /* Estilos para tema escuro */
+    [data-theme="dark"] #sidebar {
+        background-color: #1f2937;
+        border-right: 1px solid #374151;
+    }
+    
+    [data-theme="dark"] #sidebar .border-gray-200 {
+        border-color: #374151;
+    }
+    
+    [data-theme="dark"] #sidebar .text-gray-800 {
+        color: #f3f4f6;
+    }
+    
+    [data-theme="dark"] #sidebar .text-gray-500 {
+        color: #9ca3af;
+    }
+    
+    [data-theme="dark"] #sidebar .bg-white {
+        background-color: #1f2937;
+    }
+    
+    [data-theme="dark"] #sidebar button.text-red-600 {
+        color: #f87171;
+    }
+    
+    [data-theme="dark"] #sidebar button:hover.bg-red-50 {
+        background-color: rgba(239, 68, 68, 0.1);
     }
 </style>
 

@@ -2,6 +2,7 @@
 require_once('../../Models/sessao/sessions.php');
 require_once('../../config/permissions_helper.php');
 require_once('../../config/Database.php');
+require_once('../../config/system_helper.php');
 require_once('../../Models/academico/AlunoModel.php');
 
 $session = new sessions();
@@ -29,26 +30,281 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao'])) {
     header('Content-Type: application/json');
     
     if ($_POST['acao'] === 'cadastrar_aluno') {
-        // Implementar cadastro de aluno
-        echo json_encode(['success' => false, 'message' => 'Funcionalidade em desenvolvimento']);
+        try {
+            // Preparar dados
+            $cpf = preg_replace('/[^0-9]/', '', $_POST['cpf'] ?? '');
+            $telefone = preg_replace('/[^0-9]/', '', $_POST['telefone'] ?? '');
+            
+            // Validar CPF
+            if (empty($cpf) || strlen($cpf) !== 11) {
+                throw new Exception('CPF inválido. Deve conter 11 dígitos.');
+            }
+            
+            // Verificar se CPF já existe
+            $sqlVerificarCPF = "SELECT id FROM pessoa WHERE cpf = :cpf";
+            $stmtVerificar = $conn->prepare($sqlVerificarCPF);
+            $stmtVerificar->bindParam(':cpf', $cpf);
+            $stmtVerificar->execute();
+            if ($stmtVerificar->fetch()) {
+                throw new Exception('CPF já cadastrado no sistema.');
+            }
+            
+            // Gerar matrícula se não fornecida
+            $matricula = $_POST['matricula'] ?? '';
+            if (empty($matricula)) {
+                $ano = date('Y');
+                $sqlMatricula = "SELECT MAX(CAST(SUBSTRING(matricula, 5) AS UNSIGNED)) as ultima_matricula 
+                                FROM aluno 
+                                WHERE matricula LIKE :ano_prefix";
+                $stmtMatricula = $conn->prepare($sqlMatricula);
+                $anoPrefix = $ano . '%';
+                $stmtMatricula->bindParam(':ano_prefix', $anoPrefix);
+                $stmtMatricula->execute();
+                $result = $stmtMatricula->fetch(PDO::FETCH_ASSOC);
+                $proximoNumero = ($result['ultima_matricula'] ?? 0) + 1;
+                $matricula = $ano . str_pad($proximoNumero, 4, '0', STR_PAD_LEFT);
+            }
+            
+            // Verificar se matrícula já existe
+            $sqlVerificarMatricula = "SELECT id FROM aluno WHERE matricula = :matricula";
+            $stmtVerificarMat = $conn->prepare($sqlVerificarMatricula);
+            $stmtVerificarMat->bindParam(':matricula', $matricula);
+            $stmtVerificarMat->execute();
+            if ($stmtVerificarMat->fetch()) {
+                // Se a matrícula já existe, gerar uma nova
+                $ano = date('Y');
+                $sqlMatricula = "SELECT MAX(CAST(SUBSTRING(matricula, 5) AS UNSIGNED)) as ultima_matricula 
+                                FROM aluno 
+                                WHERE matricula LIKE :ano_prefix";
+                $stmtMatricula = $conn->prepare($sqlMatricula);
+                $anoPrefix = $ano . '%';
+                $stmtMatricula->bindParam(':ano_prefix', $anoPrefix);
+                $stmtMatricula->execute();
+                $result = $stmtMatricula->fetch(PDO::FETCH_ASSOC);
+                $proximoNumero = ($result['ultima_matricula'] ?? 0) + 1;
+                $matricula = $ano . str_pad($proximoNumero, 4, '0', STR_PAD_LEFT);
+            }
+            
+            // Preparar dados para o model
+            $dados = [
+                'cpf' => $cpf,
+                'nome' => trim($_POST['nome'] ?? ''),
+                'data_nascimento' => $_POST['data_nascimento'] ?? null,
+                'sexo' => $_POST['sexo'] ?? null,
+                'email' => !empty($_POST['email']) ? trim($_POST['email']) : null,
+                'telefone' => !empty($telefone) ? $telefone : null,
+                'matricula' => $matricula,
+                'nis' => !empty($_POST['nis']) ? trim($_POST['nis']) : null,
+                'responsavel_id' => !empty($_POST['responsavel_id']) ? $_POST['responsavel_id'] : null,
+                'escola_id' => !empty($_POST['escola_id']) ? $_POST['escola_id'] : null,
+                'data_matricula' => $_POST['data_matricula'] ?? date('Y-m-d'),
+                'situacao' => $_POST['situacao'] ?? 'MATRICULADO'
+            ];
+            
+            // Validar campos obrigatórios
+            if (empty($dados['nome'])) {
+                throw new Exception('Nome é obrigatório.');
+            }
+            if (empty($dados['data_nascimento'])) {
+                throw new Exception('Data de nascimento é obrigatória.');
+            }
+            if (empty($dados['sexo'])) {
+                throw new Exception('Sexo é obrigatório.');
+            }
+            
+            // Usar o model para criar o aluno
+            $result = $alunoModel->criar($dados);
+            
+            if ($result['success']) {
+                echo json_encode([
+                    'success' => true,
+                    'message' => 'Aluno cadastrado com sucesso!',
+                    'id' => $result['id'] ?? null,
+                    'matricula' => $matricula
+                ]);
+            } else {
+                echo json_encode([
+                    'success' => false,
+                    'message' => $result['message'] ?? 'Erro ao cadastrar aluno.'
+                ]);
+            }
+        } catch (Exception $e) {
+            echo json_encode([
+                'success' => false,
+                'message' => $e->getMessage()
+            ]);
+        }
         exit;
     }
     
     if ($_POST['acao'] === 'editar_aluno') {
-        // Implementar edição de aluno
-        echo json_encode(['success' => false, 'message' => 'Funcionalidade em desenvolvimento']);
+        try {
+            $alunoId = $_POST['aluno_id'] ?? null;
+            if (empty($alunoId)) {
+                throw new Exception('ID do aluno não informado.');
+            }
+            
+            // Buscar aluno existente
+            $aluno = $alunoModel->buscarPorId($alunoId);
+            if (!$aluno) {
+                throw new Exception('Aluno não encontrado.');
+            }
+            
+            // Preparar dados
+            $telefone = preg_replace('/[^0-9]/', '', $_POST['telefone'] ?? '');
+            
+            // Validar CPF (se foi alterado)
+            $cpfAtual = preg_replace('/[^0-9]/', '', $_POST['cpf'] ?? '');
+            if (!empty($cpfAtual) && strlen($cpfAtual) !== 11) {
+                throw new Exception('CPF inválido. Deve conter 11 dígitos.');
+            }
+            
+            // Verificar se CPF já existe em outro aluno
+            if (!empty($cpfAtual) && $cpfAtual !== $aluno['cpf']) {
+                $sqlVerificarCPF = "SELECT id FROM pessoa WHERE cpf = :cpf AND id != :pessoa_id";
+                $stmtVerificar = $conn->prepare($sqlVerificarCPF);
+                $stmtVerificar->bindParam(':cpf', $cpfAtual);
+                $stmtVerificar->bindParam(':pessoa_id', $aluno['pessoa_id']);
+                $stmtVerificar->execute();
+                if ($stmtVerificar->fetch()) {
+                    throw new Exception('CPF já cadastrado para outro aluno.');
+                }
+            }
+            
+            // Preparar dados para atualização
+            $dados = [
+                'nome' => trim($_POST['nome'] ?? ''),
+                'data_nascimento' => $_POST['data_nascimento'] ?? null,
+                'sexo' => $_POST['sexo'] ?? null,
+                'email' => !empty($_POST['email']) ? trim($_POST['email']) : null,
+                'telefone' => !empty($telefone) ? $telefone : null,
+                'matricula' => $_POST['matricula'] ?? $aluno['matricula'],
+                'nis' => !empty($_POST['nis']) ? trim($_POST['nis']) : null,
+                'responsavel_id' => !empty($_POST['responsavel_id']) ? $_POST['responsavel_id'] : null,
+                'escola_id' => !empty($_POST['escola_id']) ? $_POST['escola_id'] : null,
+                'data_matricula' => $_POST['data_matricula'] ?? $aluno['data_matricula'],
+                'situacao' => $_POST['situacao'] ?? 'MATRICULADO',
+                'ativo' => isset($_POST['ativo']) ? (int)$_POST['ativo'] : 1
+            ];
+            
+            // Validar campos obrigatórios
+            if (empty($dados['nome'])) {
+                throw new Exception('Nome é obrigatório.');
+            }
+            if (empty($dados['data_nascimento'])) {
+                throw new Exception('Data de nascimento é obrigatória.');
+            }
+            if (empty($dados['sexo'])) {
+                throw new Exception('Sexo é obrigatório.');
+            }
+            
+            // Atualizar CPF se foi alterado
+            if (!empty($cpfAtual) && $cpfAtual !== $aluno['cpf']) {
+                $sqlUpdateCPF = "UPDATE pessoa SET cpf = :cpf WHERE id = :pessoa_id";
+                $stmtUpdateCPF = $conn->prepare($sqlUpdateCPF);
+                $stmtUpdateCPF->bindParam(':cpf', $cpfAtual);
+                $stmtUpdateCPF->bindParam(':pessoa_id', $aluno['pessoa_id']);
+                $stmtUpdateCPF->execute();
+            }
+            
+            // Usar o model para atualizar o aluno
+            $result = $alunoModel->atualizar($alunoId, $dados);
+            
+            if ($result['success']) {
+                echo json_encode([
+                    'success' => true,
+                    'message' => 'Aluno atualizado com sucesso!'
+                ]);
+            } else {
+                echo json_encode([
+                    'success' => false,
+                    'message' => $result['message'] ?? 'Erro ao atualizar aluno.'
+                ]);
+            }
+        } catch (Exception $e) {
+            echo json_encode([
+                'success' => false,
+                'message' => $e->getMessage()
+            ]);
+        }
         exit;
     }
     
     if ($_POST['acao'] === 'excluir_aluno') {
-        // Implementar exclusão de aluno
-        echo json_encode(['success' => false, 'message' => 'Funcionalidade em desenvolvimento']);
+        try {
+            $alunoId = $_POST['aluno_id'] ?? null;
+            if (empty($alunoId)) {
+                throw new Exception('ID do aluno não informado.');
+            }
+            
+            // Verificar se o aluno existe
+            $aluno = $alunoModel->buscarPorId($alunoId);
+            if (!$aluno) {
+                throw new Exception('Aluno não encontrado.');
+            }
+            
+            // Verificar se o aluno está matriculado em alguma turma ativa
+            $sqlTurmaAtiva = "SELECT COUNT(*) as total FROM aluno_turma WHERE aluno_id = :aluno_id AND fim IS NULL";
+            $stmtTurma = $conn->prepare($sqlTurmaAtiva);
+            $stmtTurma->bindParam(':aluno_id', $alunoId);
+            $stmtTurma->execute();
+            $resultTurma = $stmtTurma->fetch(PDO::FETCH_ASSOC);
+            
+            if ($resultTurma['total'] > 0) {
+                throw new Exception('Não é possível excluir o aluno pois ele está matriculado em uma ou mais turmas ativas. Primeiro, transfira ou conclua a matrícula do aluno.');
+            }
+            
+            // Usar o model para excluir (soft delete)
+            $result = $alunoModel->excluir($alunoId);
+            
+            if ($result) {
+                echo json_encode([
+                    'success' => true,
+                    'message' => 'Aluno excluído com sucesso!'
+                ]);
+            } else {
+                throw new Exception('Erro ao excluir aluno.');
+            }
+        } catch (Exception $e) {
+            echo json_encode([
+                'success' => false,
+                'message' => $e->getMessage()
+            ]);
+        }
         exit;
     }
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['acao'])) {
     header('Content-Type: application/json');
+    
+    if ($_GET['acao'] === 'buscar_aluno') {
+        $alunoId = $_GET['id'] ?? null;
+        if (empty($alunoId)) {
+            echo json_encode(['success' => false, 'message' => 'ID do aluno não informado']);
+            exit;
+        }
+        
+        $aluno = $alunoModel->buscarPorId($alunoId);
+        if ($aluno) {
+            // Formatar CPF e telefone para exibição
+            if (!empty($aluno['cpf']) && strlen($aluno['cpf']) === 11) {
+                $aluno['cpf_formatado'] = substr($aluno['cpf'], 0, 3) . '.' . substr($aluno['cpf'], 3, 3) . '.' . substr($aluno['cpf'], 6, 3) . '-' . substr($aluno['cpf'], 9, 2);
+            }
+            if (!empty($aluno['telefone'])) {
+                $tel = $aluno['telefone'];
+                if (strlen($tel) === 11) {
+                    $aluno['telefone_formatado'] = '(' . substr($tel, 0, 2) . ') ' . substr($tel, 2, 5) . '-' . substr($tel, 7);
+                } elseif (strlen($tel) === 10) {
+                    $aluno['telefone_formatado'] = '(' . substr($tel, 0, 2) . ') ' . substr($tel, 2, 4) . '-' . substr($tel, 6);
+                }
+            }
+            echo json_encode(['success' => true, 'aluno' => $aluno]);
+        } else {
+            echo json_encode(['success' => false, 'message' => 'Aluno não encontrado']);
+        }
+        exit;
+    }
     
     if ($_GET['acao'] === 'listar_alunos') {
         $filtros = [];
@@ -59,7 +315,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['acao'])) {
                 FROM aluno a
                 INNER JOIN pessoa p ON a.pessoa_id = p.id
                 LEFT JOIN escola e ON a.escola_id = e.id
-                WHERE 1=1";
+                WHERE a.ativo = 1";
         
         $params = [];
         if (!empty($filtros['escola_id'])) {
@@ -85,11 +341,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['acao'])) {
     }
 }
 
-// Buscar alunos iniciais
+// Buscar alunos iniciais (apenas ativos)
 $sqlAlunos = "SELECT a.*, p.nome, p.cpf, p.email, p.telefone, p.data_nascimento, e.nome as escola_nome
               FROM aluno a
               INNER JOIN pessoa p ON a.pessoa_id = p.id
               LEFT JOIN escola e ON a.escola_id = e.id
+              WHERE a.ativo = 1
               ORDER BY p.nome ASC
               LIMIT 50";
 $stmtAlunos = $conn->prepare($sqlAlunos);
@@ -101,7 +358,7 @@ $alunos = $stmtAlunos->fetchAll(PDO::FETCH_ASSOC);
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Gestão de Alunos - SIGEA</title>
+    <title><?= getPageTitle('Gestão de Alunos') ?></title>
     <link rel="icon" href="https://upload.wikimedia.org/wikipedia/commons/thumb/1/19/Bras%C3%A3o_de_Maranguape.png/250px-Bras%C3%A3o_de_Maranguape.png" type="image/png">
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="global-theme.css">
@@ -243,6 +500,275 @@ $alunos = $stmtAlunos->fetchAll(PDO::FETCH_ASSOC);
         </div>
     </main>
     
+    <!-- Modal de Edição de Aluno -->
+    <div id="modalEditarAluno" class="fixed inset-0 bg-black bg-opacity-50 z-[60] hidden items-center justify-center" style="display: none;">
+        <div class="bg-white w-full h-full flex flex-col shadow-2xl">
+            <!-- Header do Modal -->
+            <div class="flex justify-between items-center p-6 border-b border-gray-200 bg-white sticky top-0 z-10">
+                <h2 class="text-2xl font-bold text-gray-900">Editar Aluno</h2>
+                <button onclick="fecharModalEditarAluno()" class="text-gray-400 hover:text-gray-600 transition-colors p-2 hover:bg-gray-100 rounded-lg">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+            </div>
+            
+            <!-- Conteúdo do Modal (Scrollable) -->
+            <div class="flex-1 overflow-y-auto p-6">
+                <form id="formEditarAluno" class="space-y-6 max-w-6xl mx-auto">
+                <div id="alertaErroEditar" class="hidden bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-lg"></div>
+                <div id="alertaSucessoEditar" class="hidden bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded-lg"></div>
+                
+                <input type="hidden" name="aluno_id" id="editar_aluno_id">
+                
+                <!-- Informações Pessoais -->
+                <div>
+                    <h3 class="text-lg font-semibold text-gray-800 mb-4 pb-2 border-b border-gray-200">Informações Pessoais</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Nome Completo *</label>
+                            <input type="text" name="nome" id="editar_nome" required 
+                                   class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">CPF *</label>
+                            <input type="text" name="cpf" id="editar_cpf" required maxlength="14"
+                                   placeholder="000.000.000-00"
+                                   class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                   oninput="formatarCPF(this)">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Data de Nascimento *</label>
+                            <input type="date" name="data_nascimento" id="editar_data_nascimento" required
+                                   class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Sexo *</label>
+                            <select name="sexo" id="editar_sexo" required
+                                    class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                                <option value="">Selecione...</option>
+                                <option value="M">Masculino</option>
+                                <option value="F">Feminino</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Email</label>
+                            <input type="email" name="email" id="editar_email"
+                                   class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Telefone</label>
+                            <input type="text" name="telefone" id="editar_telefone" maxlength="15"
+                                   placeholder="(00) 00000-0000"
+                                   class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                   oninput="formatarTelefone(this)">
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Informações Acadêmicas -->
+                <div>
+                    <h3 class="text-lg font-semibold text-gray-800 mb-4 pb-2 border-b border-gray-200">Informações Acadêmicas</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Matrícula</label>
+                            <input type="text" name="matricula" id="editar_matricula"
+                                   class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">NIS (Número de Identificação Social)</label>
+                            <input type="text" name="nis" id="editar_nis"
+                                   class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Escola</label>
+                            <select name="escola_id" id="editar_escola_id"
+                                    class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                                <option value="">Selecione uma escola...</option>
+                                <?php foreach ($escolas as $escola): ?>
+                                    <option value="<?= $escola['id'] ?>"><?= htmlspecialchars($escola['nome']) ?></option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Data de Matrícula</label>
+                            <input type="date" name="data_matricula" id="editar_data_matricula"
+                                   class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Situação</label>
+                            <select name="situacao" id="editar_situacao"
+                                    class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                                <option value="MATRICULADO">Matriculado</option>
+                                <option value="TRANSFERIDO">Transferido</option>
+                                <option value="EVADIDO">Evadido</option>
+                                <option value="CONCLUIDO">Concluído</option>
+                                <option value="CANCELADO">Cancelado</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Status</label>
+                            <select name="ativo" id="editar_ativo"
+                                    class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                                <option value="1">Ativo</option>
+                                <option value="0">Inativo</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                
+                </form>
+            </div>
+            
+            <!-- Footer do Modal (Sticky) -->
+            <div class="flex justify-end space-x-3 p-6 border-t border-gray-200 bg-white sticky bottom-0 z-10">
+                <button type="button" onclick="fecharModalEditarAluno()" 
+                        class="px-6 py-3 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg font-medium transition-colors duration-200">
+                    Cancelar
+                </button>
+                <button type="submit" form="formEditarAluno" id="btnSalvarEdicao"
+                        class="px-6 py-3 text-white bg-blue-600 hover:bg-blue-700 rounded-lg font-medium transition-colors duration-200 flex items-center space-x-2">
+                    <span>Salvar Alterações</span>
+                    <svg id="spinnerSalvarEdicao" class="hidden animate-spin h-5 w-5 text-white" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Modal de Cadastro de Aluno -->
+    <div id="modalNovoAluno" class="fixed inset-0 bg-black bg-opacity-50 z-[60] hidden items-center justify-center" style="display: none;">
+        <div class="bg-white w-full h-full flex flex-col shadow-2xl">
+            <!-- Header do Modal -->
+            <div class="flex justify-between items-center p-6 border-b border-gray-200 bg-white sticky top-0 z-10">
+                <h2 class="text-2xl font-bold text-gray-900">Cadastrar Novo Aluno</h2>
+                <button onclick="fecharModalNovoAluno()" class="text-gray-400 hover:text-gray-600 transition-colors p-2 hover:bg-gray-100 rounded-lg">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+            </div>
+            
+            <!-- Conteúdo do Modal (Scrollable) -->
+            <div class="flex-1 overflow-y-auto p-6">
+                <form id="formNovoAluno" class="space-y-6 max-w-6xl mx-auto">
+                <div id="alertaErro" class="hidden bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-lg"></div>
+                <div id="alertaSucesso" class="hidden bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded-lg"></div>
+                
+                <!-- Informações Pessoais -->
+                <div>
+                    <h3 class="text-lg font-semibold text-gray-800 mb-4 pb-2 border-b border-gray-200">Informações Pessoais</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Nome Completo *</label>
+                            <input type="text" name="nome" id="nome" required 
+                                   class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">CPF *</label>
+                            <input type="text" name="cpf" id="cpf" required maxlength="14"
+                                   placeholder="000.000.000-00"
+                                   class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                   oninput="formatarCPF(this)">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Data de Nascimento *</label>
+                            <input type="date" name="data_nascimento" id="data_nascimento" required
+                                   class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Sexo *</label>
+                            <select name="sexo" id="sexo" required
+                                    class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                                <option value="">Selecione...</option>
+                                <option value="M">Masculino</option>
+                                <option value="F">Feminino</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Email</label>
+                            <input type="email" name="email" id="email"
+                                   class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Telefone</label>
+                            <input type="text" name="telefone" id="telefone" maxlength="15"
+                                   placeholder="(00) 00000-0000"
+                                   class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                   oninput="formatarTelefone(this)">
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Informações Acadêmicas -->
+                <div>
+                    <h3 class="text-lg font-semibold text-gray-800 mb-4 pb-2 border-b border-gray-200">Informações Acadêmicas</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Matrícula</label>
+                            <input type="text" name="matricula" id="matricula" readonly
+                                   class="w-full px-4 py-2 border border-gray-300 rounded-lg bg-gray-50"
+                                   placeholder="Será gerada automaticamente">
+                            <p class="text-xs text-gray-500 mt-1">A matrícula será gerada automaticamente se deixada em branco</p>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">NIS (Número de Identificação Social)</label>
+                            <input type="text" name="nis" id="nis"
+                                   class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Escola</label>
+                            <select name="escola_id" id="escola_id"
+                                    class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                                <option value="">Selecione uma escola...</option>
+                                <?php foreach ($escolas as $escola): ?>
+                                    <option value="<?= $escola['id'] ?>"><?= htmlspecialchars($escola['nome']) ?></option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Data de Matrícula</label>
+                            <input type="date" name="data_matricula" id="data_matricula"
+                                   value="<?= date('Y-m-d') ?>"
+                                   class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Situação</label>
+                            <select name="situacao" id="situacao"
+                                    class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                                <option value="MATRICULADO" selected>Matriculado</option>
+                                <option value="TRANSFERIDO">Transferido</option>
+                                <option value="EVADIDO">Evadido</option>
+                                <option value="CONCLUIDO">Concluído</option>
+                                <option value="CANCELADO">Cancelado</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                
+                </form>
+            </div>
+            
+            <!-- Footer do Modal (Sticky) -->
+            <div class="flex justify-end space-x-3 p-6 border-t border-gray-200 bg-white sticky bottom-0 z-10">
+                <button type="button" onclick="fecharModalNovoAluno()" 
+                        class="px-6 py-3 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg font-medium transition-colors duration-200">
+                    Cancelar
+                </button>
+                <button type="submit" form="formNovoAluno" id="btnSalvarAluno"
+                        class="px-6 py-3 text-white bg-blue-600 hover:bg-blue-700 rounded-lg font-medium transition-colors duration-200 flex items-center space-x-2">
+                    <span>Salvar Aluno</span>
+                    <svg id="spinnerSalvar" class="hidden animate-spin h-5 w-5 text-white" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                </button>
+            </div>
+        </div>
+    </div>
+    
     <!-- Logout Modal -->
     <div id="logoutModal" class="fixed inset-0 bg-black bg-opacity-50 z-[60] hidden items-center justify-center p-4" style="display: none;">
         <div class="bg-white rounded-2xl p-6 max-w-md w-full mx-4 shadow-2xl">
@@ -299,16 +825,300 @@ $alunos = $stmtAlunos->fetchAll(PDO::FETCH_ASSOC);
         };
 
         function abrirModalNovoAluno() {
-            alert('Funcionalidade de cadastro de aluno em desenvolvimento.');
+            const modal = document.getElementById('modalNovoAluno');
+            if (modal) {
+                modal.style.display = 'flex';
+                modal.classList.remove('hidden');
+                // Gerar matrícula automática
+                gerarMatriculaAutomatica();
+                // Limpar formulário
+                document.getElementById('formNovoAluno').reset();
+                document.getElementById('data_matricula').value = new Date().toISOString().split('T')[0];
+                // Limpar alertas
+                document.getElementById('alertaErro').classList.add('hidden');
+                document.getElementById('alertaSucesso').classList.add('hidden');
+            }
         }
-
-        function editarAluno(id) {
-            alert('Funcionalidade de edição de aluno em desenvolvimento. ID: ' + id);
+        
+        function fecharModalNovoAluno() {
+            const modal = document.getElementById('modalNovoAluno');
+            if (modal) {
+                modal.style.display = 'none';
+                modal.classList.add('hidden');
+            }
         }
+        
+        function gerarMatriculaAutomatica() {
+            const ano = new Date().getFullYear();
+            const campoMatricula = document.getElementById('matricula');
+            if (campoMatricula && !campoMatricula.value) {
+                // A matrícula será gerada no backend, mas podemos mostrar um placeholder
+                campoMatricula.placeholder = 'Será gerada automaticamente';
+            }
+        }
+        
+        function formatarCPF(input) {
+            let value = input.value.replace(/\D/g, '');
+            if (value.length <= 11) {
+                value = value.replace(/(\d{3})(\d)/, '$1.$2');
+                value = value.replace(/(\d{3})(\d)/, '$1.$2');
+                value = value.replace(/(\d{3})(\d{1,2})$/, '$1-$2');
+            }
+            input.value = value;
+        }
+        
+        function formatarTelefone(input) {
+            let value = input.value.replace(/\D/g, '');
+            if (value.length <= 11) {
+                if (value.length <= 10) {
+                    value = value.replace(/(\d{2})(\d)/, '($1) $2');
+                    value = value.replace(/(\d{4})(\d)/, '$1-$2');
+                } else {
+                    value = value.replace(/(\d{2})(\d)/, '($1) $2');
+                    value = value.replace(/(\d{5})(\d)/, '$1-$2');
+                }
+            }
+            input.value = value;
+        }
+        
+        // Submissão do formulário
+        document.getElementById('formNovoAluno').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const btnSalvar = document.getElementById('btnSalvarAluno');
+            const spinner = document.getElementById('spinnerSalvar');
+            const alertaErro = document.getElementById('alertaErro');
+            const alertaSucesso = document.getElementById('alertaSucesso');
+            
+            // Mostrar loading
+            btnSalvar.disabled = true;
+            spinner.classList.remove('hidden');
+            alertaErro.classList.add('hidden');
+            alertaSucesso.classList.add('hidden');
+            
+            // Coletar dados do formulário
+            const formData = new FormData(this);
+            formData.append('acao', 'cadastrar_aluno');
+            
+            try {
+                const response = await fetch('', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    alertaSucesso.textContent = 'Aluno cadastrado com sucesso!';
+                    alertaSucesso.classList.remove('hidden');
+                    
+                    // Limpar formulário
+                    this.reset();
+                    document.getElementById('data_matricula').value = new Date().toISOString().split('T')[0];
+                    gerarMatriculaAutomatica();
+                    
+                    // Recarregar lista de alunos após 1.5 segundos
+                    setTimeout(() => {
+                        fecharModalNovoAluno();
+                        filtrarAlunos();
+                    }, 1500);
+                } else {
+                    alertaErro.textContent = data.message || 'Erro ao cadastrar aluno. Por favor, tente novamente.';
+                    alertaErro.classList.remove('hidden');
+                }
+            } catch (error) {
+                console.error('Erro:', error);
+                alertaErro.textContent = 'Erro ao processar requisição. Por favor, tente novamente.';
+                alertaErro.classList.remove('hidden');
+            } finally {
+                btnSalvar.disabled = false;
+                spinner.classList.add('hidden');
+            }
+        });
+        
+        // Fechar modal ao clicar fora
+        document.getElementById('modalNovoAluno')?.addEventListener('click', function(e) {
+            if (e.target === this) {
+                fecharModalNovoAluno();
+            }
+        });
 
-        function excluirAluno(id) {
-            if (confirm('Tem certeza que deseja excluir este aluno?')) {
-                alert('Funcionalidade de exclusão de aluno em desenvolvimento. ID: ' + id);
+        async function editarAluno(id) {
+            try {
+                // Buscar dados do aluno
+                const response = await fetch('?acao=buscar_aluno&id=' + id);
+                const data = await response.json();
+                
+                if (!data.success || !data.aluno) {
+                    alert('Erro ao carregar dados do aluno: ' + (data.message || 'Aluno não encontrado'));
+                    return;
+                }
+                
+                const aluno = data.aluno;
+                
+                // Preencher formulário
+                document.getElementById('editar_aluno_id').value = aluno.id;
+                document.getElementById('editar_nome').value = aluno.nome || '';
+                document.getElementById('editar_cpf').value = aluno.cpf_formatado || aluno.cpf || '';
+                document.getElementById('editar_data_nascimento').value = aluno.data_nascimento || '';
+                document.getElementById('editar_sexo').value = aluno.sexo || '';
+                document.getElementById('editar_email').value = aluno.email || '';
+                document.getElementById('editar_telefone').value = aluno.telefone_formatado || aluno.telefone || '';
+                document.getElementById('editar_matricula').value = aluno.matricula || '';
+                document.getElementById('editar_nis').value = aluno.nis || '';
+                document.getElementById('editar_escola_id').value = aluno.escola_id || '';
+                document.getElementById('editar_data_matricula').value = aluno.data_matricula || '';
+                document.getElementById('editar_situacao').value = aluno.situacao || 'MATRICULADO';
+                document.getElementById('editar_ativo').value = aluno.ativo !== undefined ? aluno.ativo : 1;
+                
+                // Abrir modal
+                const modal = document.getElementById('modalEditarAluno');
+                if (modal) {
+                    modal.style.display = 'flex';
+                    modal.classList.remove('hidden');
+                    // Limpar alertas
+                    document.getElementById('alertaErroEditar').classList.add('hidden');
+                    document.getElementById('alertaSucessoEditar').classList.add('hidden');
+                }
+            } catch (error) {
+                console.error('Erro ao carregar aluno:', error);
+                alert('Erro ao carregar dados do aluno. Por favor, tente novamente.');
+            }
+        }
+        
+        function fecharModalEditarAluno() {
+            const modal = document.getElementById('modalEditarAluno');
+            if (modal) {
+                modal.style.display = 'none';
+                modal.classList.add('hidden');
+            }
+        }
+        
+        // Submissão do formulário de edição
+        document.getElementById('formEditarAluno').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const btnSalvar = document.getElementById('btnSalvarEdicao');
+            const spinner = document.getElementById('spinnerSalvarEdicao');
+            const alertaErro = document.getElementById('alertaErroEditar');
+            const alertaSucesso = document.getElementById('alertaSucessoEditar');
+            
+            // Mostrar loading
+            btnSalvar.disabled = true;
+            spinner.classList.remove('hidden');
+            alertaErro.classList.add('hidden');
+            alertaSucesso.classList.add('hidden');
+            
+            // Coletar dados do formulário
+            const formData = new FormData(this);
+            formData.append('acao', 'editar_aluno');
+            
+            try {
+                const response = await fetch('', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    alertaSucesso.textContent = 'Aluno atualizado com sucesso!';
+                    alertaSucesso.classList.remove('hidden');
+                    
+                    // Recarregar lista de alunos após 1.5 segundos
+                    setTimeout(() => {
+                        fecharModalEditarAluno();
+                        filtrarAlunos();
+                    }, 1500);
+                } else {
+                    alertaErro.textContent = data.message || 'Erro ao atualizar aluno. Por favor, tente novamente.';
+                    alertaErro.classList.remove('hidden');
+                }
+            } catch (error) {
+                console.error('Erro:', error);
+                alertaErro.textContent = 'Erro ao processar requisição. Por favor, tente novamente.';
+                alertaErro.classList.remove('hidden');
+            } finally {
+                btnSalvar.disabled = false;
+                spinner.classList.add('hidden');
+            }
+        });
+        
+        // Fechar modal de edição ao clicar fora
+        document.getElementById('modalEditarAluno')?.addEventListener('click', function(e) {
+            if (e.target === this) {
+                fecharModalEditarAluno();
+            }
+        });
+
+        async function excluirAluno(id) {
+            // Buscar nome do aluno para exibir na confirmação
+            try {
+                const response = await fetch('?acao=buscar_aluno&id=' + id);
+                const data = await response.json();
+                const nomeAluno = data.success && data.aluno ? data.aluno.nome : 'este aluno';
+                
+                // Modal de confirmação customizado
+                if (confirm(`Tem certeza que deseja excluir o aluno "${nomeAluno}"?\n\nEsta ação não pode ser desfeita. O aluno será marcado como inativo no sistema.`)) {
+                    // Mostrar loading
+                    const btnExcluir = event.target;
+                    const originalText = btnExcluir.textContent;
+                    btnExcluir.disabled = true;
+                    btnExcluir.textContent = 'Excluindo...';
+                    
+                    try {
+                        const formData = new FormData();
+                        formData.append('acao', 'excluir_aluno');
+                        formData.append('aluno_id', id);
+                        
+                        const response = await fetch('', {
+                            method: 'POST',
+                            body: formData
+                        });
+                        
+                        const data = await response.json();
+                        
+                        if (data.success) {
+                            alert('Aluno excluído com sucesso!');
+                            // Recarregar lista
+                            filtrarAlunos();
+                        } else {
+                            alert('Erro ao excluir aluno: ' + (data.message || 'Erro desconhecido'));
+                        }
+                    } catch (error) {
+                        console.error('Erro ao excluir aluno:', error);
+                        alert('Erro ao processar requisição. Por favor, tente novamente.');
+                    } finally {
+                        btnExcluir.disabled = false;
+                        btnExcluir.textContent = originalText;
+                    }
+                }
+            } catch (error) {
+                console.error('Erro ao buscar dados do aluno:', error);
+                // Se não conseguir buscar o nome, usar confirmação simples
+                if (confirm('Tem certeza que deseja excluir este aluno?\n\nEsta ação não pode ser desfeita.')) {
+                    const formData = new FormData();
+                    formData.append('acao', 'excluir_aluno');
+                    formData.append('aluno_id', id);
+                    
+                    fetch('', {
+                        method: 'POST',
+                        body: formData
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            alert('Aluno excluído com sucesso!');
+                            filtrarAlunos();
+                        } else {
+                            alert('Erro ao excluir aluno: ' + (data.message || 'Erro desconhecido'));
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Erro:', error);
+                        alert('Erro ao processar requisição. Por favor, tente novamente.');
+                    });
+                }
             }
         }
 

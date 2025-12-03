@@ -281,6 +281,13 @@ class DashboardStats {
     }
 
     /**
+     * Calcula a média geral das notas (alias para getMediaGeralNotas)
+     */
+    public function getMediaGeral() {
+        return $this->getMediaGeralNotas();
+    }
+
+    /**
      * Conta escolas criadas este mês
      */
     public function getEscolasEsteMes() {

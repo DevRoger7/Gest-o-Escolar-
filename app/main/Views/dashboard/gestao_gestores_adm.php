@@ -15,6 +15,144 @@ if (!eAdm()) {
 $db = Database::getInstance();
 $conn = $db->getConnection();
 
+// Buscar escolas
+$sqlEscolas = "SELECT id, nome FROM escola WHERE ativo = 1 ORDER BY nome ASC";
+$stmtEscolas = $conn->prepare($sqlEscolas);
+$stmtEscolas->execute();
+$escolas = $stmtEscolas->fetchAll(PDO::FETCH_ASSOC);
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao'])) {
+    header('Content-Type: application/json');
+    
+    if ($_POST['acao'] === 'cadastrar_gestor') {
+        try {
+            // Preparar dados
+            $cpf = preg_replace('/[^0-9]/', '', $_POST['cpf'] ?? '');
+            $telefone = preg_replace('/[^0-9]/', '', $_POST['telefone'] ?? '');
+            
+            // Validar CPF
+            if (empty($cpf) || strlen($cpf) !== 11) {
+                throw new Exception('CPF inválido. Deve conter 11 dígitos.');
+            }
+            
+            // Verificar se CPF já existe
+            $sqlVerificarCPF = "SELECT id FROM pessoa WHERE cpf = :cpf";
+            $stmtVerificar = $conn->prepare($sqlVerificarCPF);
+            $stmtVerificar->bindParam(':cpf', $cpf);
+            $stmtVerificar->execute();
+            if ($stmtVerificar->fetch()) {
+                throw new Exception('CPF já cadastrado no sistema.');
+            }
+            
+            // Validar cargo (obrigatório)
+            if (empty(trim($_POST['cargo'] ?? ''))) {
+                throw new Exception('Cargo é obrigatório.');
+            }
+            
+            // Gerar username único baseado no primeiro nome
+            $nome = trim($_POST['nome'] ?? '');
+            $primeiroNome = explode(' ', $nome)[0];
+            $username = strtolower(preg_replace('/[^a-zA-Z0-9]/', '', $primeiroNome));
+            
+            // Verificar se username já existe e gerar um único
+            $sqlVerificarUsername = "SELECT id FROM usuario WHERE username = :username";
+            $stmtUsername = $conn->prepare($sqlVerificarUsername);
+            $stmtUsername->bindParam(':username', $username);
+            $stmtUsername->execute();
+            
+            if ($stmtUsername->fetch()) {
+                $count = 1;
+                $newUsername = $username . $count;
+                while (true) {
+                    $stmtUsername = $conn->prepare($sqlVerificarUsername);
+                    $stmtUsername->bindParam(':username', $newUsername);
+                    $stmtUsername->execute();
+                    if (!$stmtUsername->fetch()) {
+                        $username = $newUsername;
+                        break;
+                    }
+                    $count++;
+                    $newUsername = $username . $count;
+                }
+            }
+            
+            // Senha padrão
+            $senhaPadrao = $_POST['senha'] ?? '123456';
+            $senhaHash = password_hash($senhaPadrao, PASSWORD_DEFAULT);
+            
+            $conn->beginTransaction();
+            
+            // 1. Criar pessoa
+            $sqlPessoa = "INSERT INTO pessoa (cpf, nome, data_nascimento, sexo, email, telefone, tipo, criado_por)
+                         VALUES (:cpf, :nome, :data_nascimento, :sexo, :email, :telefone, 'GESTOR', :criado_por)";
+            $stmtPessoa = $conn->prepare($sqlPessoa);
+            $stmtPessoa->bindParam(':cpf', $cpf);
+            $stmtPessoa->bindParam(':nome', $nome);
+            $stmtPessoa->bindParam(':data_nascimento', $_POST['data_nascimento'] ?? null);
+            $stmtPessoa->bindParam(':sexo', $_POST['sexo'] ?? null);
+            $stmtPessoa->bindParam(':email', !empty($_POST['email']) ? trim($_POST['email']) : null);
+            $stmtPessoa->bindParam(':telefone', !empty($telefone) ? $telefone : null);
+            $stmtPessoa->bindParam(':criado_por', $_SESSION['usuario_id']);
+            $stmtPessoa->execute();
+            $pessoaId = $conn->lastInsertId();
+            
+            // 2. Criar gestor
+            $sqlGestor = "INSERT INTO gestor (pessoa_id, cargo, formacao, registro_profissional, observacoes, ativo, criado_por)
+                         VALUES (:pessoa_id, :cargo, :formacao, :registro_profissional, :observacoes, 1, :criado_por)";
+            $stmtGestor = $conn->prepare($sqlGestor);
+            $stmtGestor->bindParam(':pessoa_id', $pessoaId);
+            $stmtGestor->bindParam(':cargo', trim($_POST['cargo'] ?? ''));
+            $stmtGestor->bindParam(':formacao', !empty($_POST['formacao']) ? trim($_POST['formacao']) : null);
+            $stmtGestor->bindParam(':registro_profissional', !empty($_POST['registro_profissional']) ? trim($_POST['registro_profissional']) : null);
+            $stmtGestor->bindParam(':observacoes', !empty($_POST['observacoes']) ? trim($_POST['observacoes']) : null);
+            $stmtGestor->bindParam(':criado_por', $_SESSION['usuario_id']);
+            $stmtGestor->execute();
+            $gestorId = $conn->lastInsertId();
+            
+            // 3. Criar usuário
+            $sqlUsuario = "INSERT INTO usuario (pessoa_id, username, senha_hash, role, ativo)
+                          VALUES (:pessoa_id, :username, :senha_hash, 'GESTAO', 1)";
+            $stmtUsuario = $conn->prepare($sqlUsuario);
+            $stmtUsuario->bindParam(':pessoa_id', $pessoaId);
+            $stmtUsuario->bindParam(':username', $username);
+            $stmtUsuario->bindParam(':senha_hash', $senhaHash);
+            $stmtUsuario->execute();
+            
+            // 4. Lotar gestor na escola (se informado)
+            if (!empty($_POST['escola_id'])) {
+                $sqlLotacao = "INSERT INTO gestor_lotacao (gestor_id, escola_id, inicio, responsavel, tipo, observacoes, criado_por)
+                              VALUES (:gestor_id, :escola_id, CURDATE(), :responsavel, :tipo, :observacoes, :criado_por)";
+                $stmtLotacao = $conn->prepare($sqlLotacao);
+                $stmtLotacao->bindParam(':gestor_id', $gestorId);
+                $stmtLotacao->bindParam(':escola_id', $_POST['escola_id']);
+                $stmtLotacao->bindParam(':responsavel', $_POST['responsavel'] ?? 1);
+                $stmtLotacao->bindParam(':tipo', !empty($_POST['tipo_lotacao']) ? $_POST['tipo_lotacao'] : null);
+                $stmtLotacao->bindParam(':observacoes', !empty($_POST['observacao_lotacao']) ? trim($_POST['observacao_lotacao']) : null);
+                $stmtLotacao->bindParam(':criado_por', $_SESSION['usuario_id']);
+                $stmtLotacao->execute();
+            }
+            
+            $conn->commit();
+            
+            echo json_encode([
+                'success' => true,
+                'message' => 'Gestor cadastrado com sucesso!',
+                'id' => $gestorId,
+                'username' => $username
+            ]);
+        } catch (Exception $e) {
+            if ($conn->inTransaction()) {
+                $conn->rollBack();
+            }
+            echo json_encode([
+                'success' => false,
+                'message' => $e->getMessage()
+            ]);
+        }
+        exit;
+    }
+}
+
 if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['acao'])) {
     header('Content-Type: application/json');
     
@@ -184,6 +322,180 @@ $gestores = $stmtGestores->fetchAll(PDO::FETCH_ASSOC);
         </div>
     </main>
     
+    <!-- Modal de Cadastro de Gestor -->
+    <div id="modalNovoGestor" class="fixed inset-0 bg-black bg-opacity-50 z-[60] hidden items-center justify-center" style="display: none;">
+        <div class="bg-white w-full h-full flex flex-col shadow-2xl">
+            <!-- Header do Modal -->
+            <div class="flex justify-between items-center p-6 border-b border-gray-200 bg-white sticky top-0 z-10">
+                <h2 class="text-2xl font-bold text-gray-900">Cadastrar Novo Gestor</h2>
+                <button onclick="fecharModalNovoGestor()" class="text-gray-400 hover:text-gray-600 transition-colors p-2 hover:bg-gray-100 rounded-lg">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+            </div>
+            
+            <!-- Conteúdo do Modal (Scrollable) -->
+            <div class="flex-1 overflow-y-auto p-6">
+                <form id="formNovoGestor" class="space-y-6 max-w-6xl mx-auto">
+                    <div id="alertaErro" class="hidden bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-lg"></div>
+                    <div id="alertaSucesso" class="hidden bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded-lg"></div>
+                    
+                    <!-- Informações Pessoais -->
+                    <div>
+                        <h3 class="text-lg font-semibold text-gray-800 mb-4 pb-2 border-b border-gray-200">Informações Pessoais</h3>
+                        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Nome Completo *</label>
+                                <input type="text" name="nome" id="nome" required 
+                                       class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">CPF *</label>
+                                <input type="text" name="cpf" id="cpf" required maxlength="14"
+                                       placeholder="000.000.000-00"
+                                       class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                                       oninput="formatarCPF(this)">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Data de Nascimento *</label>
+                                <input type="date" name="data_nascimento" id="data_nascimento" required
+                                       class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Sexo *</label>
+                                <select name="sexo" id="sexo" required
+                                        class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent">
+                                    <option value="">Selecione...</option>
+                                    <option value="M">Masculino</option>
+                                    <option value="F">Feminino</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Email</label>
+                                <input type="email" name="email" id="email"
+                                       class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Telefone</label>
+                                <input type="text" name="telefone" id="telefone" maxlength="15"
+                                       placeholder="(00) 00000-0000"
+                                       class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                                       oninput="formatarTelefone(this)">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Informações Profissionais -->
+                    <div>
+                        <h3 class="text-lg font-semibold text-gray-800 mb-4 pb-2 border-b border-gray-200">Informações Profissionais</h3>
+                        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Cargo *</label>
+                                <input type="text" name="cargo" id="cargo" required placeholder="Ex: Diretor, Vice-Diretor, Coordenador"
+                                       class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Formação</label>
+                                <input type="text" name="formacao" id="formacao" placeholder="Ex: Licenciatura em Pedagogia"
+                                       class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Registro Profissional</label>
+                                <input type="text" name="registro_profissional" id="registro_profissional" placeholder="Ex: CREA, CREF, etc."
+                                       class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent">
+                            </div>
+                            <div class="md:col-span-2 lg:col-span-3">
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Observações</label>
+                                <textarea name="observacoes" id="observacoes" rows="2"
+                                          placeholder="Observações sobre o gestor..."
+                                          class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"></textarea>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Lotação (Opcional) -->
+                    <div>
+                        <h3 class="text-lg font-semibold text-gray-800 mb-4 pb-2 border-b border-gray-200">Lotação (Opcional)</h3>
+                        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Escola</label>
+                                <select name="escola_id" id="escola_id"
+                                        class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent">
+                                    <option value="">Selecione uma escola...</option>
+                                    <?php foreach ($escolas as $escola): ?>
+                                        <option value="<?= $escola['id'] ?>"><?= htmlspecialchars($escola['nome']) ?></option>
+                                    <?php endforeach; ?>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Tipo de Lotação</label>
+                                <select name="tipo_lotacao" id="tipo_lotacao"
+                                        class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent">
+                                    <option value="">Selecione...</option>
+                                    <option value="Diretor">Diretor</option>
+                                    <option value="Vice-Diretor">Vice-Diretor</option>
+                                    <option value="Coordenador Pedagógico">Coordenador Pedagógico</option>
+                                    <option value="Secretário Escolar">Secretário Escolar</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Responsável</label>
+                                <select name="responsavel" id="responsavel"
+                                        class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent">
+                                    <option value="1" selected>Sim</option>
+                                    <option value="0">Não</option>
+                                </select>
+                            </div>
+                            <div class="md:col-span-2 lg:col-span-3">
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Observação da Lotação</label>
+                                <textarea name="observacao_lotacao" id="observacao_lotacao" rows="2"
+                                          placeholder="Observações sobre a lotação..."
+                                          class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"></textarea>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Informações de Acesso -->
+                    <div>
+                        <h3 class="text-lg font-semibold text-gray-800 mb-4 pb-2 border-b border-gray-200">Informações de Acesso</h3>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Senha Padrão</label>
+                                <input type="password" name="senha" id="senha" value="123456"
+                                       class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent">
+                                <p class="text-xs text-gray-500 mt-1">Senha padrão: 123456 (pode ser alterada pelo gestor após o primeiro login)</p>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Username</label>
+                                <input type="text" id="username_preview" readonly
+                                       class="w-full px-4 py-2 border border-gray-300 rounded-lg bg-gray-50"
+                                       placeholder="Será gerado automaticamente">
+                                <p class="text-xs text-gray-500 mt-1">O username será gerado automaticamente baseado no primeiro nome</p>
+                            </div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            
+            <!-- Footer do Modal (Sticky) -->
+            <div class="flex justify-end space-x-3 p-6 border-t border-gray-200 bg-white sticky bottom-0 z-10">
+                <button type="button" onclick="fecharModalNovoGestor()" 
+                        class="px-6 py-3 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg font-medium transition-colors duration-200">
+                    Cancelar
+                </button>
+                <button type="submit" form="formNovoGestor" id="btnSalvarGestor"
+                        class="px-6 py-3 text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg font-medium transition-colors duration-200 flex items-center space-x-2">
+                    <span>Salvar Gestor</span>
+                    <svg id="spinnerSalvar" class="hidden animate-spin h-5 w-5 text-white" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                </button>
+            </div>
+        </div>
+    </div>
+    
     <div id="logoutModal" class="fixed inset-0 bg-black bg-opacity-50 z-[60] hidden items-center justify-center p-4" style="display: none;">
         <div class="bg-white rounded-2xl p-6 max-w-md w-full mx-4 shadow-2xl">
             <div class="flex items-center space-x-3 mb-4">
@@ -239,8 +551,131 @@ $gestores = $stmtGestores->fetchAll(PDO::FETCH_ASSOC);
         };
 
         function abrirModalNovoGestor() {
-            alert('Funcionalidade de cadastro de gestor em desenvolvimento.');
+            const modal = document.getElementById('modalNovoGestor');
+            if (modal) {
+                modal.style.display = 'flex';
+                modal.classList.remove('hidden');
+                // Limpar formulário
+                document.getElementById('formNovoGestor').reset();
+                document.getElementById('senha').value = '123456';
+                document.getElementById('responsavel').value = '1';
+                // Limpar alertas
+                document.getElementById('alertaErro').classList.add('hidden');
+                document.getElementById('alertaSucesso').classList.add('hidden');
+                // Atualizar preview do username
+                atualizarPreviewUsername();
+            }
         }
+        
+        function fecharModalNovoGestor() {
+            const modal = document.getElementById('modalNovoGestor');
+            if (modal) {
+                modal.style.display = 'none';
+                modal.classList.add('hidden');
+            }
+        }
+        
+        function formatarCPF(input) {
+            let value = input.value.replace(/\D/g, '');
+            if (value.length <= 11) {
+                value = value.replace(/(\d{3})(\d)/, '$1.$2');
+                value = value.replace(/(\d{3})(\d)/, '$1.$2');
+                value = value.replace(/(\d{3})(\d{1,2})$/, '$1-$2');
+            }
+            input.value = value;
+        }
+        
+        function formatarTelefone(input) {
+            let value = input.value.replace(/\D/g, '');
+            if (value.length <= 11) {
+                if (value.length <= 10) {
+                    value = value.replace(/(\d{2})(\d)/, '($1) $2');
+                    value = value.replace(/(\d{4})(\d)/, '$1-$2');
+                } else {
+                    value = value.replace(/(\d{2})(\d)/, '($1) $2');
+                    value = value.replace(/(\d{5})(\d)/, '$1-$2');
+                }
+            }
+            input.value = value;
+        }
+        
+        function atualizarPreviewUsername() {
+            const nome = document.getElementById('nome').value.trim();
+            const preview = document.getElementById('username_preview');
+            if (nome) {
+                const primeiroNome = nome.split(' ')[0];
+                const username = primeiroNome.toLowerCase().replace(/[^a-z0-9]/g, '');
+                preview.value = username || 'Será gerado automaticamente';
+            } else {
+                preview.value = 'Será gerado automaticamente';
+            }
+        }
+        
+        // Atualizar preview do username quando o nome mudar
+        document.getElementById('nome')?.addEventListener('input', atualizarPreviewUsername);
+        
+        // Submissão do formulário
+        document.getElementById('formNovoGestor').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const btnSalvar = document.getElementById('btnSalvarGestor');
+            const spinner = document.getElementById('spinnerSalvar');
+            const alertaErro = document.getElementById('alertaErro');
+            const alertaSucesso = document.getElementById('alertaSucesso');
+            
+            // Mostrar loading
+            btnSalvar.disabled = true;
+            spinner.classList.remove('hidden');
+            alertaErro.classList.add('hidden');
+            alertaSucesso.classList.add('hidden');
+            
+            // Coletar dados do formulário
+            const formData = new FormData(this);
+            formData.append('acao', 'cadastrar_gestor');
+            
+            try {
+                const response = await fetch('', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    alertaSucesso.textContent = `Gestor cadastrado com sucesso! Username: ${data.username || 'gerado automaticamente'}`;
+                    alertaSucesso.classList.remove('hidden');
+                    
+                    // Limpar formulário
+                    this.reset();
+                    document.getElementById('senha').value = '123456';
+                    document.getElementById('responsavel').value = '1';
+                    atualizarPreviewUsername();
+                    
+                    // Recarregar lista de gestores após 1.5 segundos
+                    setTimeout(() => {
+                        fecharModalNovoGestor();
+                        filtrarGestores();
+                    }, 1500);
+                } else {
+                    alertaErro.textContent = data.message || 'Erro ao cadastrar gestor. Por favor, tente novamente.';
+                    alertaErro.classList.remove('hidden');
+                }
+            } catch (error) {
+                console.error('Erro:', error);
+                alertaErro.textContent = 'Erro ao processar requisição. Por favor, tente novamente.';
+                alertaErro.classList.remove('hidden');
+            } finally {
+                btnSalvar.disabled = false;
+                spinner.classList.add('hidden');
+            }
+        });
+        
+        // Fechar modal ao clicar fora
+        document.getElementById('modalNovoGestor')?.addEventListener('click', function(e) {
+            if (e.target === this) {
+                fecharModalNovoGestor();
+            }
+        });
 
         function editarGestor(id) {
             alert('Funcionalidade de edição de gestor em desenvolvimento. ID: ' + id);
