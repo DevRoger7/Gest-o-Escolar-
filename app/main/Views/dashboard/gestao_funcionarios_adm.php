@@ -2,6 +2,7 @@
 require_once('../../Models/sessao/sessions.php');
 require_once('../../config/permissions_helper.php');
 require_once('../../config/Database.php');
+require_once('../../config/system_helper.php');
 require_once('../../Models/pessoas/FuncionarioModel.php');
 
 $session = new sessions();
@@ -147,10 +148,191 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao'])) {
         }
         exit;
     }
+    
+    if ($_POST['acao'] === 'editar_funcionario') {
+        try {
+            $funcionarioId = $_POST['funcionario_id'] ?? null;
+            if (empty($funcionarioId)) {
+                throw new Exception('ID do funcionário não informado.');
+            }
+            
+            // Buscar funcionário existente
+            $funcionario = $funcionarioModel->buscarPorId($funcionarioId);
+            if (!$funcionario) {
+                throw new Exception('Funcionário não encontrado.');
+            }
+            
+            // Preparar dados
+            $telefone = preg_replace('/[^0-9]/', '', $_POST['telefone'] ?? '');
+            
+            // Validar CPF (se foi alterado)
+            $cpfAtual = preg_replace('/[^0-9]/', '', $_POST['cpf'] ?? '');
+            if (!empty($cpfAtual) && strlen($cpfAtual) !== 11) {
+                throw new Exception('CPF inválido. Deve conter 11 dígitos.');
+            }
+            
+            // Verificar se CPF já existe em outro funcionário
+            if (!empty($cpfAtual) && $cpfAtual !== $funcionario['cpf']) {
+                $sqlVerificarCPF = "SELECT id FROM pessoa WHERE cpf = :cpf AND id != :pessoa_id";
+                $stmtVerificar = $conn->prepare($sqlVerificarCPF);
+                $stmtVerificar->bindParam(':cpf', $cpfAtual);
+                $stmtVerificar->bindParam(':pessoa_id', $funcionario['pessoa_id']);
+                $stmtVerificar->execute();
+                if ($stmtVerificar->fetch()) {
+                    throw new Exception('CPF já cadastrado para outro funcionário.');
+                }
+            }
+            
+            // Validar cargo (obrigatório)
+            if (empty(trim($_POST['cargo'] ?? ''))) {
+                throw new Exception('Cargo é obrigatório.');
+            }
+            
+            // Preparar dados para atualização
+            $dados = [
+                'nome' => trim($_POST['nome'] ?? ''),
+                'data_nascimento' => $_POST['data_nascimento'] ?? null,
+                'sexo' => $_POST['sexo'] ?? null,
+                'email' => !empty($_POST['email']) ? trim($_POST['email']) : null,
+                'telefone' => !empty($telefone) ? $telefone : null,
+                'matricula' => !empty($_POST['matricula']) ? trim($_POST['matricula']) : null,
+                'cargo' => trim($_POST['cargo'] ?? ''),
+                'setor' => !empty($_POST['setor']) ? trim($_POST['setor']) : null,
+                'data_admissao' => $_POST['data_admissao'] ?? $funcionario['data_admissao'],
+                'ativo' => isset($_POST['ativo']) ? (int)$_POST['ativo'] : 1
+            ];
+            
+            // Validar campos obrigatórios
+            if (empty($dados['nome'])) {
+                throw new Exception('Nome é obrigatório.');
+            }
+            if (empty($dados['data_nascimento'])) {
+                throw new Exception('Data de nascimento é obrigatória.');
+            }
+            if (empty($dados['sexo'])) {
+                throw new Exception('Sexo é obrigatório.');
+            }
+            
+            // Atualizar CPF se foi alterado
+            if (!empty($cpfAtual) && $cpfAtual !== $funcionario['cpf']) {
+                $sqlUpdateCPF = "UPDATE pessoa SET cpf = :cpf WHERE id = :pessoa_id";
+                $stmtUpdateCPF = $conn->prepare($sqlUpdateCPF);
+                $stmtUpdateCPF->bindParam(':cpf', $cpfAtual);
+                $stmtUpdateCPF->bindParam(':pessoa_id', $funcionario['pessoa_id']);
+                $stmtUpdateCPF->execute();
+            }
+            
+            // Usar o model para atualizar o funcionário
+            $result = $funcionarioModel->atualizar($funcionarioId, $dados);
+            
+            if ($result['success']) {
+                // Atualizar senha se fornecida
+                if (!empty($_POST['senha']) && $_POST['senha'] !== '123456') {
+                    $senhaHash = password_hash($_POST['senha'], PASSWORD_DEFAULT);
+                    $sqlSenha = "UPDATE usuario SET senha_hash = :senha_hash WHERE pessoa_id = :pessoa_id";
+                    $stmtSenha = $conn->prepare($sqlSenha);
+                    $stmtSenha->bindParam(':senha_hash', $senhaHash);
+                    $stmtSenha->bindParam(':pessoa_id', $funcionario['pessoa_id']);
+                    $stmtSenha->execute();
+                }
+                
+                echo json_encode([
+                    'success' => true,
+                    'message' => 'Funcionário atualizado com sucesso!'
+                ]);
+            } else {
+                echo json_encode([
+                    'success' => false,
+                    'message' => $result['message'] ?? 'Erro ao atualizar funcionário.'
+                ]);
+            }
+        } catch (Exception $e) {
+            echo json_encode([
+                'success' => false,
+                'message' => $e->getMessage()
+            ]);
+        }
+        exit;
+    }
+    
+    if ($_POST['acao'] === 'excluir_funcionario') {
+        try {
+            $funcionarioId = $_POST['funcionario_id'] ?? null;
+            if (empty($funcionarioId)) {
+                throw new Exception('ID do funcionário não informado.');
+            }
+            
+            // Verificar se o funcionário existe
+            $funcionario = $funcionarioModel->buscarPorId($funcionarioId);
+            if (!$funcionario) {
+                throw new Exception('Funcionário não encontrado.');
+            }
+            
+            // Soft delete usando o model
+            $sqlExcluir = "UPDATE funcionario SET ativo = 0 WHERE id = :id";
+            $stmtExcluir = $conn->prepare($sqlExcluir);
+            $stmtExcluir->bindParam(':id', $funcionarioId);
+            $result = $stmtExcluir->execute();
+            
+            if ($result) {
+                echo json_encode([
+                    'success' => true,
+                    'message' => 'Funcionário excluído com sucesso!'
+                ]);
+            } else {
+                throw new Exception('Erro ao excluir funcionário.');
+            }
+        } catch (Exception $e) {
+            echo json_encode([
+                'success' => false,
+                'message' => $e->getMessage()
+            ]);
+        }
+        exit;
+    }
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['acao'])) {
     header('Content-Type: application/json');
+    
+    if ($_GET['acao'] === 'buscar_funcionario') {
+        $funcionarioId = $_GET['id'] ?? null;
+        if (empty($funcionarioId)) {
+            echo json_encode(['success' => false, 'message' => 'ID do funcionário não informado']);
+            exit;
+        }
+        
+        $funcionario = $funcionarioModel->buscarPorId($funcionarioId);
+        if ($funcionario) {
+            // Formatar CPF e telefone para exibição
+            if (!empty($funcionario['cpf']) && strlen($funcionario['cpf']) === 11) {
+                $funcionario['cpf_formatado'] = substr($funcionario['cpf'], 0, 3) . '.' . substr($funcionario['cpf'], 3, 3) . '.' . substr($funcionario['cpf'], 6, 3) . '-' . substr($funcionario['cpf'], 9, 2);
+            }
+            if (!empty($funcionario['telefone'])) {
+                $tel = $funcionario['telefone'];
+                if (strlen($tel) === 11) {
+                    $funcionario['telefone_formatado'] = '(' . substr($tel, 0, 2) . ') ' . substr($tel, 2, 5) . '-' . substr($tel, 7);
+                } elseif (strlen($tel) === 10) {
+                    $funcionario['telefone_formatado'] = '(' . substr($tel, 0, 2) . ') ' . substr($tel, 2, 4) . '-' . substr($tel, 6);
+                }
+            }
+            
+            // Buscar username do usuário
+            $sqlUsuario = "SELECT username FROM usuario WHERE pessoa_id = :pessoa_id LIMIT 1";
+            $stmtUsuario = $conn->prepare($sqlUsuario);
+            $stmtUsuario->bindParam(':pessoa_id', $funcionario['pessoa_id']);
+            $stmtUsuario->execute();
+            $usuario = $stmtUsuario->fetch(PDO::FETCH_ASSOC);
+            if ($usuario) {
+                $funcionario['username'] = $usuario['username'];
+            }
+            
+            echo json_encode(['success' => true, 'funcionario' => $funcionario]);
+        } else {
+            echo json_encode(['success' => false, 'message' => 'Funcionário não encontrado']);
+        }
+        exit;
+    }
     
     if ($_GET['acao'] === 'listar_funcionarios') {
         $filtros = [];
@@ -170,7 +352,7 @@ $funcionarios = $funcionarioModel->listar(['ativo' => 1]);
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Gestão de Funcionários - SIGEA</title>
+    <title><?= getPageTitle('Gestão de Funcionários') ?></title>
     <link rel="icon" href="https://upload.wikimedia.org/wikipedia/commons/thumb/1/19/Bras%C3%A3o_de_Maranguape.png/250px-Bras%C3%A3o_de_Maranguape.png" type="image/png">
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="global-theme.css">
@@ -293,6 +475,145 @@ $funcionarios = $funcionarioModel->listar(['ativo' => 1]);
             </div>
         </div>
     </main>
+    
+    <!-- Modal de Edição de Funcionário -->
+    <div id="modalEditarFuncionario" class="fixed inset-0 bg-black bg-opacity-50 z-[60] hidden items-center justify-center" style="display: none;">
+        <div class="bg-white w-full h-full flex flex-col shadow-2xl">
+            <!-- Header do Modal -->
+            <div class="flex justify-between items-center p-6 border-b border-gray-200 bg-white sticky top-0 z-10">
+                <h2 class="text-2xl font-bold text-gray-900">Editar Funcionário</h2>
+                <button onclick="fecharModalEditarFuncionario()" class="text-gray-400 hover:text-gray-600 transition-colors p-2 hover:bg-gray-100 rounded-lg">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+            </div>
+            
+            <!-- Conteúdo do Modal (Scrollable) -->
+            <div class="flex-1 overflow-y-auto p-6">
+                <form id="formEditarFuncionario" class="space-y-6 max-w-6xl mx-auto">
+                    <div id="alertaErroEditar" class="hidden bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-lg"></div>
+                    <div id="alertaSucessoEditar" class="hidden bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded-lg"></div>
+                    
+                    <input type="hidden" name="funcionario_id" id="editar_funcionario_id">
+                    
+                    <!-- Informações Pessoais -->
+                    <div>
+                        <h3 class="text-lg font-semibold text-gray-800 mb-4 pb-2 border-b border-gray-200">Informações Pessoais</h3>
+                        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Nome Completo *</label>
+                                <input type="text" name="nome" id="editar_nome" required 
+                                       class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">CPF *</label>
+                                <input type="text" name="cpf" id="editar_cpf" required maxlength="14"
+                                       placeholder="000.000.000-00"
+                                       class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent"
+                                       oninput="formatarCPF(this)">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Data de Nascimento *</label>
+                                <input type="date" name="data_nascimento" id="editar_data_nascimento" required
+                                       class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Sexo *</label>
+                                <select name="sexo" id="editar_sexo" required
+                                        class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent">
+                                    <option value="">Selecione...</option>
+                                    <option value="M">Masculino</option>
+                                    <option value="F">Feminino</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Email</label>
+                                <input type="email" name="email" id="editar_email"
+                                       class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Telefone</label>
+                                <input type="text" name="telefone" id="editar_telefone" maxlength="15"
+                                       placeholder="(00) 00000-0000"
+                                       class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent"
+                                       oninput="formatarTelefone(this)">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Informações Profissionais -->
+                    <div>
+                        <h3 class="text-lg font-semibold text-gray-800 mb-4 pb-2 border-b border-gray-200">Informações Profissionais</h3>
+                        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Matrícula</label>
+                                <input type="text" name="matricula" id="editar_matricula"
+                                       class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Cargo *</label>
+                                <input type="text" name="cargo" id="editar_cargo" required placeholder="Ex: Secretário, Auxiliar Administrativo"
+                                       class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Setor</label>
+                                <input type="text" name="setor" id="editar_setor" placeholder="Ex: Secretaria, Administração"
+                                       class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Data de Admissão</label>
+                                <input type="date" name="data_admissao" id="editar_data_admissao"
+                                       class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Status</label>
+                                <select name="ativo" id="editar_ativo"
+                                        class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent">
+                                    <option value="1">Ativo</option>
+                                    <option value="0">Inativo</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Informações de Acesso -->
+                    <div>
+                        <h3 class="text-lg font-semibold text-gray-800 mb-4 pb-2 border-b border-gray-200">Informações de Acesso</h3>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Nova Senha (deixe em branco para manter a atual)</label>
+                                <input type="password" name="senha" id="editar_senha"
+                                       class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent">
+                                <p class="text-xs text-gray-500 mt-1">Deixe em branco para manter a senha atual</p>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Username</label>
+                                <input type="text" id="editar_username_preview" readonly
+                                       class="w-full px-4 py-2 border border-gray-300 rounded-lg bg-gray-50">
+                            </div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            
+            <!-- Footer do Modal (Sticky) -->
+            <div class="flex justify-end space-x-3 p-6 border-t border-gray-200 bg-white sticky bottom-0 z-10">
+                <button type="button" onclick="fecharModalEditarFuncionario()" 
+                        class="px-6 py-3 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg font-medium transition-colors duration-200">
+                    Cancelar
+                </button>
+                <button type="submit" form="formEditarFuncionario" id="btnSalvarEdicao"
+                        class="px-6 py-3 text-white bg-teal-600 hover:bg-teal-700 rounded-lg font-medium transition-colors duration-200 flex items-center space-x-2">
+                    <span>Salvar Alterações</span>
+                    <svg id="spinnerSalvarEdicao" class="hidden animate-spin h-5 w-5 text-white" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                </button>
+            </div>
+        </div>
+    </div>
     
     <!-- Modal de Cadastro de Funcionário -->
     <div id="modalNovoFuncionario" class="fixed inset-0 bg-black bg-opacity-50 z-[60] hidden items-center justify-center" style="display: none;">
@@ -607,13 +928,182 @@ $funcionarios = $funcionarioModel->listar(['ativo' => 1]);
             }
         });
 
-        function editarFuncionario(id) {
-            alert('Funcionalidade de edição de funcionário em desenvolvimento. ID: ' + id);
+        async function editarFuncionario(id) {
+            try {
+                // Buscar dados do funcionário
+                const response = await fetch('?acao=buscar_funcionario&id=' + id);
+                const data = await response.json();
+                
+                if (!data.success || !data.funcionario) {
+                    alert('Erro ao carregar dados do funcionário: ' + (data.message || 'Funcionário não encontrado'));
+                    return;
+                }
+                
+                const func = data.funcionario;
+                
+                // Preencher formulário
+                document.getElementById('editar_funcionario_id').value = func.id;
+                document.getElementById('editar_nome').value = func.nome || '';
+                document.getElementById('editar_cpf').value = func.cpf_formatado || func.cpf || '';
+                document.getElementById('editar_data_nascimento').value = func.data_nascimento || '';
+                document.getElementById('editar_sexo').value = func.sexo || '';
+                document.getElementById('editar_email').value = func.email || '';
+                document.getElementById('editar_telefone').value = func.telefone_formatado || func.telefone || '';
+                document.getElementById('editar_matricula').value = func.matricula || '';
+                document.getElementById('editar_cargo').value = func.cargo || '';
+                document.getElementById('editar_setor').value = func.setor || '';
+                document.getElementById('editar_data_admissao').value = func.data_admissao || '';
+                document.getElementById('editar_ativo').value = func.ativo !== undefined ? func.ativo : 1;
+                document.getElementById('editar_username_preview').value = func.username || '';
+                
+                // Abrir modal
+                const modal = document.getElementById('modalEditarFuncionario');
+                if (modal) {
+                    modal.style.display = 'flex';
+                    modal.classList.remove('hidden');
+                    // Limpar alertas
+                    document.getElementById('alertaErroEditar').classList.add('hidden');
+                    document.getElementById('alertaSucessoEditar').classList.add('hidden');
+                }
+            } catch (error) {
+                console.error('Erro ao carregar funcionário:', error);
+                alert('Erro ao carregar dados do funcionário. Por favor, tente novamente.');
+            }
         }
+        
+        function fecharModalEditarFuncionario() {
+            const modal = document.getElementById('modalEditarFuncionario');
+            if (modal) {
+                modal.style.display = 'none';
+                modal.classList.add('hidden');
+            }
+        }
+        
+        // Submissão do formulário de edição
+        document.getElementById('formEditarFuncionario').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const btnSalvar = document.getElementById('btnSalvarEdicao');
+            const spinner = document.getElementById('spinnerSalvarEdicao');
+            const alertaErro = document.getElementById('alertaErroEditar');
+            const alertaSucesso = document.getElementById('alertaSucessoEditar');
+            
+            // Mostrar loading
+            btnSalvar.disabled = true;
+            spinner.classList.remove('hidden');
+            alertaErro.classList.add('hidden');
+            alertaSucesso.classList.add('hidden');
+            
+            // Coletar dados do formulário
+            const formData = new FormData(this);
+            formData.append('acao', 'editar_funcionario');
+            
+            try {
+                const response = await fetch('', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    alertaSucesso.textContent = 'Funcionário atualizado com sucesso!';
+                    alertaSucesso.classList.remove('hidden');
+                    
+                    // Recarregar lista de funcionários após 1.5 segundos
+                    setTimeout(() => {
+                        fecharModalEditarFuncionario();
+                        filtrarFuncionarios();
+                    }, 1500);
+                } else {
+                    alertaErro.textContent = data.message || 'Erro ao atualizar funcionário. Por favor, tente novamente.';
+                    alertaErro.classList.remove('hidden');
+                }
+            } catch (error) {
+                console.error('Erro:', error);
+                alertaErro.textContent = 'Erro ao processar requisição. Por favor, tente novamente.';
+                alertaErro.classList.remove('hidden');
+            } finally {
+                btnSalvar.disabled = false;
+                spinner.classList.add('hidden');
+            }
+        });
+        
+        // Fechar modal de edição ao clicar fora
+        document.getElementById('modalEditarFuncionario')?.addEventListener('click', function(e) {
+            if (e.target === this) {
+                fecharModalEditarFuncionario();
+            }
+        });
 
-        function excluirFuncionario(id) {
-            if (confirm('Tem certeza que deseja excluir este funcionário?')) {
-                alert('Funcionalidade de exclusão de funcionário em desenvolvimento. ID: ' + id);
+        async function excluirFuncionario(id) {
+            // Buscar nome do funcionário para exibir na confirmação
+            try {
+                const response = await fetch('?acao=buscar_funcionario&id=' + id);
+                const data = await response.json();
+                const nomeFuncionario = data.success && data.funcionario ? data.funcionario.nome : 'este funcionário';
+                
+                // Modal de confirmação customizado
+                if (confirm(`Tem certeza que deseja excluir o funcionário "${nomeFuncionario}"?\n\nEsta ação não pode ser desfeita. O funcionário será marcado como inativo no sistema.`)) {
+                    // Mostrar loading
+                    const btnExcluir = event.target;
+                    const originalText = btnExcluir.textContent;
+                    btnExcluir.disabled = true;
+                    btnExcluir.textContent = 'Excluindo...';
+                    
+                    try {
+                        const formData = new FormData();
+                        formData.append('acao', 'excluir_funcionario');
+                        formData.append('funcionario_id', id);
+                        
+                        const response = await fetch('', {
+                            method: 'POST',
+                            body: formData
+                        });
+                        
+                        const data = await response.json();
+                        
+                        if (data.success) {
+                            alert('Funcionário excluído com sucesso!');
+                            // Recarregar lista
+                            filtrarFuncionarios();
+                        } else {
+                            alert('Erro ao excluir funcionário: ' + (data.message || 'Erro desconhecido'));
+                        }
+                    } catch (error) {
+                        console.error('Erro ao excluir funcionário:', error);
+                        alert('Erro ao processar requisição. Por favor, tente novamente.');
+                    } finally {
+                        btnExcluir.disabled = false;
+                        btnExcluir.textContent = originalText;
+                    }
+                }
+            } catch (error) {
+                console.error('Erro ao buscar dados do funcionário:', error);
+                // Se não conseguir buscar o nome, usar confirmação simples
+                if (confirm('Tem certeza que deseja excluir este funcionário?\n\nEsta ação não pode ser desfeita.')) {
+                    const formData = new FormData();
+                    formData.append('acao', 'excluir_funcionario');
+                    formData.append('funcionario_id', id);
+                    
+                    fetch('', {
+                        method: 'POST',
+                        body: formData
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            alert('Funcionário excluído com sucesso!');
+                            filtrarFuncionarios();
+                        } else {
+                            alert('Erro ao excluir funcionário: ' + (data.message || 'Erro desconhecido'));
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Erro:', error);
+                        alert('Erro ao processar requisição. Por favor, tente novamente.');
+                    });
+                }
             }
         }
 
