@@ -38,7 +38,7 @@ function buscarEscolaPorId($id) {
                        p.cpf AS gestor_cpf, g.id AS gestor_id, g.cargo AS gestor_cargo
                 FROM escola e 
                 LEFT JOIN gestor_lotacao gl ON e.id = gl.escola_id AND gl.responsavel = 1 AND gl.fim IS NULL
-                LEFT JOIN gestor g ON gl.gestor_id = g.id
+                LEFT JOIN gestor g ON gl.gestor_id = g.id AND g.ativo = 1
                 LEFT JOIN pessoa p ON g.pessoa_id = p.id
                 WHERE e.id = :id";
 

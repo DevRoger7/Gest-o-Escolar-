@@ -266,20 +266,18 @@ function excluirUsuario($id) {
         // Iniciar transação
         $conn->beginTransaction();
         
-        // Excluir usuário
-        $stmt = $conn->prepare("DELETE FROM usuario WHERE id = :id");
+        // Soft delete do usuário (marcar como inativo)
+        $stmt = $conn->prepare("UPDATE usuario SET ativo = 0 WHERE id = :id");
         $stmt->bindParam(':id', $id);
         $stmt->execute();
         
-        // Excluir pessoa
-        $stmt = $conn->prepare("DELETE FROM pessoa WHERE id = :id");
-        $stmt->bindParam(':id', $pessoaId);
-        $stmt->execute();
+        // Não excluir a pessoa, pois pode estar sendo usada por outras entidades
+        // A pessoa será mantida no banco para preservar integridade referencial
         
         // Confirmar transação
         $conn->commit();
         
-        return ['status' => true, 'mensagem' => 'Usuário excluído com sucesso!'];
+        return ['status' => true, 'mensagem' => 'Usuário desativado com sucesso!'];
     } catch (PDOException $e) {
         // Reverter transação em caso de erro
         $conn->rollBack();
