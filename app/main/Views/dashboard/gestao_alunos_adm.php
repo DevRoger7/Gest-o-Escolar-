@@ -286,7 +286,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['acao'])) {
         }
         
         $aluno = $alunoModel->buscarPorId($alunoId);
-        if ($aluno) {
+        if ($aluno && is_array($aluno)) {
             // Formatar CPF e telefone para exibição
             if (!empty($aluno['cpf']) && strlen($aluno['cpf']) === 11) {
                 $aluno['cpf_formatado'] = substr($aluno['cpf'], 0, 3) . '.' . substr($aluno['cpf'], 3, 3) . '.' . substr($aluno['cpf'], 6, 3) . '-' . substr($aluno['cpf'], 9, 2);

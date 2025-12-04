@@ -77,7 +77,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao'])) {
             $senhaHash = password_hash($senhaPadrao, PASSWORD_DEFAULT);
             
             $conn->beginTransaction();
-            
+                
             // 1. Criar pessoa
             $dataNascimento = !empty($_POST['data_nascimento']) ? $_POST['data_nascimento'] : null;
             $sexo = !empty($_POST['sexo']) ? $_POST['sexo'] : null;
