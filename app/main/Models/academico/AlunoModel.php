@@ -110,17 +110,25 @@ class AlunoModel {
             $pessoaId = $conn->lastInsertId();
             
             // 2. Criar aluno
+            $matricula = $dados['matricula'] ?? '';
+            $nis = !empty($dados['nis']) ? $dados['nis'] : null;
+            $responsavelId = !empty($dados['responsavel_id']) ? $dados['responsavel_id'] : null;
+            $escolaId = !empty($dados['escola_id']) ? $dados['escola_id'] : null;
+            $dataMatricula = !empty($dados['data_matricula']) ? $dados['data_matricula'] : date('Y-m-d');
+            $situacao = !empty($dados['situacao']) ? $dados['situacao'] : 'MATRICULADO';
+            $criadoPor = $_SESSION['usuario_id'];
+            
             $sqlAluno = "INSERT INTO aluno (pessoa_id, matricula, nis, responsavel_id, escola_id, data_matricula, situacao, ativo, criado_por)
                         VALUES (:pessoa_id, :matricula, :nis, :responsavel_id, :escola_id, :data_matricula, :situacao, 1, :criado_por)";
             $stmtAluno = $conn->prepare($sqlAluno);
             $stmtAluno->bindParam(':pessoa_id', $pessoaId);
-            $stmtAluno->bindParam(':matricula', $dados['matricula']);
-            $stmtAluno->bindParam(':nis', $dados['nis'] ?? null);
-            $stmtAluno->bindParam(':responsavel_id', $dados['responsavel_id'] ?? null);
-            $stmtAluno->bindParam(':escola_id', $dados['escola_id'] ?? null);
-            $stmtAluno->bindParam(':data_matricula', $dados['data_matricula'] ?? date('Y-m-d'));
-            $stmtAluno->bindParam(':situacao', $dados['situacao'] ?? 'MATRICULADO');
-            $stmtAluno->bindParam(':criado_por', $_SESSION['usuario_id']);
+            $stmtAluno->bindParam(':matricula', $matricula);
+            $stmtAluno->bindParam(':nis', $nis);
+            $stmtAluno->bindParam(':responsavel_id', $responsavelId);
+            $stmtAluno->bindParam(':escola_id', $escolaId);
+            $stmtAluno->bindParam(':data_matricula', $dataMatricula);
+            $stmtAluno->bindParam(':situacao', $situacao);
+            $stmtAluno->bindParam(':criado_por', $criadoPor);
             $stmtAluno->execute();
             
             $alunoId = $conn->lastInsertId();
