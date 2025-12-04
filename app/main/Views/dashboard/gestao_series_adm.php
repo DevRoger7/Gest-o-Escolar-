@@ -19,27 +19,61 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao'])) {
     header('Content-Type: application/json');
     
     if ($_POST['acao'] === 'criar_serie') {
-        $sql = "INSERT INTO serie (nome, ordem, nivel, ativo, criado_em) 
-                VALUES (:nome, :ordem, :nivel, 1, NOW())";
-        $stmt = $conn->prepare($sql);
-        $stmt->bindParam(':nome', $_POST['nome']);
-        $stmt->bindParam(':ordem', $_POST['ordem']);
-        $stmt->bindParam(':nivel', $_POST['nivel'] ?? 'FUNDAMENTAL');
-        $resultado = $stmt->execute();
-        echo json_encode(['success' => $resultado, 'id' => $conn->lastInsertId()]);
+        try {
+            // Validar campos obrigatórios
+            if (empty(trim($_POST['nome'] ?? ''))) {
+                throw new Exception('Nome da série é obrigatório.');
+            }
+            if (empty($_POST['ordem'])) {
+                throw new Exception('Ordem da série é obrigatória.');
+            }
+            
+            $nome = trim($_POST['nome']);
+            $ordem = (int)$_POST['ordem'];
+            $nivel = !empty($_POST['nivel']) ? $_POST['nivel'] : 'FUNDAMENTAL';
+            
+            $sql = "INSERT INTO serie (nome, ordem, nivel, ativo, criado_em) 
+                    VALUES (:nome, :ordem, :nivel, 1, NOW())";
+            $stmt = $conn->prepare($sql);
+            $stmt->bindParam(':nome', $nome);
+            $stmt->bindParam(':ordem', $ordem);
+            $stmt->bindParam(':nivel', $nivel);
+            $resultado = $stmt->execute();
+            echo json_encode(['success' => $resultado, 'id' => $conn->lastInsertId()]);
+        } catch (Exception $e) {
+            echo json_encode(['success' => false, 'message' => $e->getMessage()]);
+        }
         exit;
     }
     
     if ($_POST['acao'] === 'editar_serie') {
-        $sql = "UPDATE serie SET nome = :nome, ordem = :ordem, nivel = :nivel, ativo = :ativo WHERE id = :id";
-        $stmt = $conn->prepare($sql);
-        $stmt->bindParam(':id', $_POST['id']);
-        $stmt->bindParam(':nome', $_POST['nome']);
-        $stmt->bindParam(':ordem', $_POST['ordem']);
-        $stmt->bindParam(':nivel', $_POST['nivel'] ?? 'FUNDAMENTAL');
-        $stmt->bindParam(':ativo', $_POST['ativo'] ?? 1);
-        $resultado = $stmt->execute();
-        echo json_encode(['success' => $resultado]);
+        try {
+            // Validar campos obrigatórios
+            if (empty(trim($_POST['nome'] ?? ''))) {
+                throw new Exception('Nome da série é obrigatório.');
+            }
+            if (empty($_POST['ordem'])) {
+                throw new Exception('Ordem da série é obrigatória.');
+            }
+            
+            $id = (int)$_POST['id'];
+            $nome = trim($_POST['nome']);
+            $ordem = (int)$_POST['ordem'];
+            $nivel = !empty($_POST['nivel']) ? $_POST['nivel'] : 'FUNDAMENTAL';
+            $ativo = isset($_POST['ativo']) ? (int)$_POST['ativo'] : 1;
+            
+            $sql = "UPDATE serie SET nome = :nome, ordem = :ordem, nivel = :nivel, ativo = :ativo WHERE id = :id";
+            $stmt = $conn->prepare($sql);
+            $stmt->bindParam(':id', $id);
+            $stmt->bindParam(':nome', $nome);
+            $stmt->bindParam(':ordem', $ordem);
+            $stmt->bindParam(':nivel', $nivel);
+            $stmt->bindParam(':ativo', $ativo);
+            $resultado = $stmt->execute();
+            echo json_encode(['success' => $resultado]);
+        } catch (Exception $e) {
+            echo json_encode(['success' => false, 'message' => $e->getMessage()]);
+        }
         exit;
     }
     
