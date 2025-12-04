@@ -93,29 +93,40 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao'])) {
             $conn->beginTransaction();
             
             // 1. Criar pessoa
+            $dataNascimento = !empty($_POST['data_nascimento']) ? $_POST['data_nascimento'] : null;
+            $sexo = !empty($_POST['sexo']) ? $_POST['sexo'] : null;
+            $email = !empty($_POST['email']) ? trim($_POST['email']) : null;
+            $telefoneVal = !empty($telefone) ? $telefone : null;
+            $criadoPor = $_SESSION['usuario_id'];
+            
             $sqlPessoa = "INSERT INTO pessoa (cpf, nome, data_nascimento, sexo, email, telefone, tipo, criado_por)
                          VALUES (:cpf, :nome, :data_nascimento, :sexo, :email, :telefone, 'GESTOR', :criado_por)";
             $stmtPessoa = $conn->prepare($sqlPessoa);
             $stmtPessoa->bindParam(':cpf', $cpf);
             $stmtPessoa->bindParam(':nome', $nome);
-            $stmtPessoa->bindParam(':data_nascimento', $_POST['data_nascimento'] ?? null);
-            $stmtPessoa->bindParam(':sexo', $_POST['sexo'] ?? null);
-            $stmtPessoa->bindParam(':email', !empty($_POST['email']) ? trim($_POST['email']) : null);
-            $stmtPessoa->bindParam(':telefone', !empty($telefone) ? $telefone : null);
-            $stmtPessoa->bindParam(':criado_por', $_SESSION['usuario_id']);
+            $stmtPessoa->bindParam(':data_nascimento', $dataNascimento);
+            $stmtPessoa->bindParam(':sexo', $sexo);
+            $stmtPessoa->bindParam(':email', $email);
+            $stmtPessoa->bindParam(':telefone', $telefoneVal);
+            $stmtPessoa->bindParam(':criado_por', $criadoPor);
             $stmtPessoa->execute();
             $pessoaId = $conn->lastInsertId();
             
             // 2. Criar gestor
+            $cargo = trim($_POST['cargo'] ?? '');
+            $formacao = !empty($_POST['formacao']) ? trim($_POST['formacao']) : null;
+            $registroProfissional = !empty($_POST['registro_profissional']) ? trim($_POST['registro_profissional']) : null;
+            $observacoes = !empty($_POST['observacoes']) ? trim($_POST['observacoes']) : null;
+            
             $sqlGestor = "INSERT INTO gestor (pessoa_id, cargo, formacao, registro_profissional, observacoes, ativo, criado_por)
                          VALUES (:pessoa_id, :cargo, :formacao, :registro_profissional, :observacoes, 1, :criado_por)";
             $stmtGestor = $conn->prepare($sqlGestor);
             $stmtGestor->bindParam(':pessoa_id', $pessoaId);
-            $stmtGestor->bindParam(':cargo', trim($_POST['cargo'] ?? ''));
-            $stmtGestor->bindParam(':formacao', !empty($_POST['formacao']) ? trim($_POST['formacao']) : null);
-            $stmtGestor->bindParam(':registro_profissional', !empty($_POST['registro_profissional']) ? trim($_POST['registro_profissional']) : null);
-            $stmtGestor->bindParam(':observacoes', !empty($_POST['observacoes']) ? trim($_POST['observacoes']) : null);
-            $stmtGestor->bindParam(':criado_por', $_SESSION['usuario_id']);
+            $stmtGestor->bindParam(':cargo', $cargo);
+            $stmtGestor->bindParam(':formacao', $formacao);
+            $stmtGestor->bindParam(':registro_profissional', $registroProfissional);
+            $stmtGestor->bindParam(':observacoes', $observacoes);
+            $stmtGestor->bindParam(':criado_por', $criadoPor);
             $stmtGestor->execute();
             $gestorId = $conn->lastInsertId();
             
@@ -130,15 +141,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao'])) {
             
             // 4. Lotar gestor na escola (se informado)
             if (!empty($_POST['escola_id'])) {
+                $escolaId = $_POST['escola_id'];
+                $responsavel = !empty($_POST['responsavel']) ? (int)$_POST['responsavel'] : 1;
+                $tipoLotacao = !empty($_POST['tipo_lotacao']) ? $_POST['tipo_lotacao'] : null;
+                $observacaoLotacao = !empty($_POST['observacao_lotacao']) ? trim($_POST['observacao_lotacao']) : null;
+                
                 $sqlLotacao = "INSERT INTO gestor_lotacao (gestor_id, escola_id, inicio, responsavel, tipo, observacoes, criado_por)
                               VALUES (:gestor_id, :escola_id, CURDATE(), :responsavel, :tipo, :observacoes, :criado_por)";
                 $stmtLotacao = $conn->prepare($sqlLotacao);
                 $stmtLotacao->bindParam(':gestor_id', $gestorId);
-                $stmtLotacao->bindParam(':escola_id', $_POST['escola_id']);
-                $stmtLotacao->bindParam(':responsavel', $_POST['responsavel'] ?? 1);
-                $stmtLotacao->bindParam(':tipo', !empty($_POST['tipo_lotacao']) ? $_POST['tipo_lotacao'] : null);
-                $stmtLotacao->bindParam(':observacoes', !empty($_POST['observacao_lotacao']) ? trim($_POST['observacao_lotacao']) : null);
-                $stmtLotacao->bindParam(':criado_por', $_SESSION['usuario_id']);
+                $stmtLotacao->bindParam(':escola_id', $escolaId);
+                $stmtLotacao->bindParam(':responsavel', $responsavel);
+                $stmtLotacao->bindParam(':tipo', $tipoLotacao);
+                $stmtLotacao->bindParam(':observacoes', $observacaoLotacao);
+                $stmtLotacao->bindParam(':criado_por', $criadoPor);
                 $stmtLotacao->execute();
             }
             
