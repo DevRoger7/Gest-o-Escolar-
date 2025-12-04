@@ -36,6 +36,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao'])) {
                 throw new Exception('CPF inválido. Deve conter 11 dígitos.');
             }
             
+            // Validar data de nascimento (não pode ser futura)
+            if (!empty($_POST['data_nascimento'])) {
+                $dataNasc = new DateTime($_POST['data_nascimento']);
+                $hoje = new DateTime();
+                if ($dataNasc > $hoje) {
+                    throw new Exception('Data de nascimento não pode ser futura.');
+                }
+            }
+            
             // Verificar se CPF já existe
             $sqlVerificarCPF = "SELECT id FROM pessoa WHERE cpf = :cpf";
             $stmtVerificar = $conn->prepare($sqlVerificarCPF);
