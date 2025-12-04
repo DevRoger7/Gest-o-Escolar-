@@ -208,17 +208,33 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao'])) {
             
             $conn->beginTransaction();
             
+            // Validar data de nascimento (não pode ser futura)
+            if (!empty($_POST['data_nascimento'])) {
+                $dataNasc = new DateTime($_POST['data_nascimento']);
+                $hoje = new DateTime();
+                if ($dataNasc > $hoje) {
+                    throw new Exception('Data de nascimento não pode ser futura.');
+                }
+            }
+            
             // 1. Atualizar pessoa
+            $nomeUpdate = trim($_POST['nome'] ?? '');
+            $dataNascimentoUpdate = !empty($_POST['data_nascimento']) ? $_POST['data_nascimento'] : null;
+            $sexoUpdate = !empty($_POST['sexo']) ? $_POST['sexo'] : null;
+            $emailUpdate = !empty($_POST['email']) ? trim($_POST['email']) : null;
+            $telefoneUpdate = !empty($telefone) ? $telefone : null;
+            $pessoaId = $gestor['pessoa_id'];
+            
             $sqlPessoa = "UPDATE pessoa SET nome = :nome, data_nascimento = :data_nascimento, 
                           sexo = :sexo, email = :email, telefone = :telefone
                           WHERE id = :pessoa_id";
             $stmtPessoa = $conn->prepare($sqlPessoa);
-            $stmtPessoa->bindParam(':nome', trim($_POST['nome'] ?? ''));
-            $stmtPessoa->bindParam(':data_nascimento', $_POST['data_nascimento'] ?? null);
-            $stmtPessoa->bindParam(':sexo', $_POST['sexo'] ?? null);
-            $stmtPessoa->bindParam(':email', !empty($_POST['email']) ? trim($_POST['email']) : null);
-            $stmtPessoa->bindParam(':telefone', !empty($telefone) ? $telefone : null);
-            $stmtPessoa->bindParam(':pessoa_id', $gestor['pessoa_id']);
+            $stmtPessoa->bindParam(':nome', $nomeUpdate);
+            $stmtPessoa->bindParam(':data_nascimento', $dataNascimentoUpdate);
+            $stmtPessoa->bindParam(':sexo', $sexoUpdate);
+            $stmtPessoa->bindParam(':email', $emailUpdate);
+            $stmtPessoa->bindParam(':telefone', $telefoneUpdate);
+            $stmtPessoa->bindParam(':pessoa_id', $pessoaId);
             $stmtPessoa->execute();
             
             // Atualizar CPF se foi alterado
@@ -226,20 +242,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao'])) {
                 $sqlUpdateCPF = "UPDATE pessoa SET cpf = :cpf WHERE id = :pessoa_id";
                 $stmtUpdateCPF = $conn->prepare($sqlUpdateCPF);
                 $stmtUpdateCPF->bindParam(':cpf', $cpfAtual);
-                $stmtUpdateCPF->bindParam(':pessoa_id', $gestor['pessoa_id']);
+                $stmtUpdateCPF->bindParam(':pessoa_id', $pessoaId);
                 $stmtUpdateCPF->execute();
             }
             
             // 2. Atualizar gestor
+            $cargoUpdate = trim($_POST['cargo'] ?? '');
+            $formacaoUpdate = !empty($_POST['formacao']) ? trim($_POST['formacao']) : null;
+            $registroProfissionalUpdate = !empty($_POST['registro_profissional']) ? trim($_POST['registro_profissional']) : null;
+            $observacoesUpdate = !empty($_POST['observacoes']) ? trim($_POST['observacoes']) : null;
+            $ativoUpdate = isset($_POST['ativo']) ? (int)$_POST['ativo'] : 1;
+            
             $sqlGestorUpdate = "UPDATE gestor SET cargo = :cargo, formacao = :formacao, 
                                registro_profissional = :registro_profissional, observacoes = :observacoes, ativo = :ativo
                                WHERE id = :id";
             $stmtGestorUpdate = $conn->prepare($sqlGestorUpdate);
-            $stmtGestorUpdate->bindParam(':cargo', trim($_POST['cargo'] ?? ''));
-            $stmtGestorUpdate->bindParam(':formacao', !empty($_POST['formacao']) ? trim($_POST['formacao']) : null);
-            $stmtGestorUpdate->bindParam(':registro_profissional', !empty($_POST['registro_profissional']) ? trim($_POST['registro_profissional']) : null);
-            $stmtGestorUpdate->bindParam(':observacoes', !empty($_POST['observacoes']) ? trim($_POST['observacoes']) : null);
-            $stmtGestorUpdate->bindParam(':ativo', isset($_POST['ativo']) ? (int)$_POST['ativo'] : 1);
+            $stmtGestorUpdate->bindParam(':cargo', $cargoUpdate);
+            $stmtGestorUpdate->bindParam(':formacao', $formacaoUpdate);
+            $stmtGestorUpdate->bindParam(':registro_profissional', $registroProfissionalUpdate);
+            $stmtGestorUpdate->bindParam(':observacoes', $observacoesUpdate);
+            $stmtGestorUpdate->bindParam(':ativo', $ativoUpdate);
             $stmtGestorUpdate->bindParam(':id', $gestorId);
             $stmtGestorUpdate->execute();
             
