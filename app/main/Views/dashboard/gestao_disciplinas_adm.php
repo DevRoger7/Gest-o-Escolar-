@@ -77,6 +77,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['acao'])) {
         echo json_encode(['success' => true, 'disciplinas' => $disciplinas]);
         exit;
     }
+    
+    if ($_GET['acao'] === 'buscar_disciplina' && isset($_GET['id'])) {
+        $sql = "SELECT * FROM disciplina WHERE id = :id";
+        $stmt = $conn->prepare($sql);
+        $stmt->bindParam(':id', $_GET['id'], PDO::PARAM_INT);
+        $stmt->execute();
+        $disciplina = $stmt->fetch(PDO::FETCH_ASSOC);
+        
+        if ($disciplina) {
+            echo json_encode(['success' => true, 'disciplina' => $disciplina]);
+        } else {
+            echo json_encode(['success' => false, 'message' => 'Disciplina não encontrada.']);
+        }
+        exit;
+    }
 }
 
 $sqlDisciplinas = "SELECT * FROM disciplina ORDER BY nome ASC";
@@ -211,6 +226,129 @@ $disciplinas = $stmtDisciplinas->fetchAll(PDO::FETCH_ASSOC);
         </div>
     </main>
     
+    <!-- Modal de Nova Disciplina -->
+    <div id="modalNovaDisciplina" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden items-center justify-center p-4" style="display: none;">
+        <div class="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div class="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex justify-between items-center">
+                <h3 class="text-xl font-semibold text-gray-900">Nova Disciplina</h3>
+                <button onclick="fecharModalNovaDisciplina()" class="text-gray-400 hover:text-gray-600 transition-colors">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+            </div>
+            
+            <form id="formNovaDisciplina" class="p-6 space-y-6">
+                <div>
+                    <label for="nova_nome" class="block text-sm font-medium text-gray-700 mb-2">
+                        Nome da Disciplina <span class="text-red-500">*</span>
+                    </label>
+                    <input type="text" id="nova_nome" name="nome" required
+                           class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent"
+                           placeholder="Ex: Matemática">
+                </div>
+                
+                <div>
+                    <label for="nova_codigo" class="block text-sm font-medium text-gray-700 mb-2">
+                        Código
+                    </label>
+                    <input type="text" id="nova_codigo" name="codigo"
+                           class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent"
+                           placeholder="Ex: MAT001">
+                </div>
+                
+                <div>
+                    <label for="nova_carga_horaria" class="block text-sm font-medium text-gray-700 mb-2">
+                        Carga Horária (horas)
+                    </label>
+                    <input type="number" id="nova_carga_horaria" name="carga_horaria" min="0"
+                           class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent"
+                           placeholder="Ex: 40">
+                </div>
+                
+                <div id="mensagem-nova" class="hidden"></div>
+                
+                <div class="flex space-x-3 pt-4 border-t border-gray-200">
+                    <button type="button" onclick="fecharModalNovaDisciplina()"
+                            class="flex-1 px-4 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg font-medium transition-colors duration-200">
+                        Cancelar
+                    </button>
+                    <button type="submit"
+                            class="flex-1 px-4 py-2 text-white bg-pink-600 hover:bg-pink-700 rounded-lg font-medium transition-colors duration-200">
+                        Criar Disciplina
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <!-- Modal de Edição de Disciplina -->
+    <div id="modalEditarDisciplina" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden items-center justify-center p-4" style="display: none;">
+        <div class="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div class="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex justify-between items-center">
+                <h3 class="text-xl font-semibold text-gray-900">Editar Disciplina</h3>
+                <button onclick="fecharModalEditarDisciplina()" class="text-gray-400 hover:text-gray-600 transition-colors">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+            </div>
+            
+            <form id="formEditarDisciplina" class="p-6 space-y-6">
+                <input type="hidden" id="edit_disciplina_id" name="id">
+                
+                <div>
+                    <label for="edit_nome" class="block text-sm font-medium text-gray-700 mb-2">
+                        Nome da Disciplina <span class="text-red-500">*</span>
+                    </label>
+                    <input type="text" id="edit_nome" name="nome" required
+                           class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent"
+                           placeholder="Ex: Matemática">
+                </div>
+                
+                <div>
+                    <label for="edit_codigo" class="block text-sm font-medium text-gray-700 mb-2">
+                        Código
+                    </label>
+                    <input type="text" id="edit_codigo" name="codigo"
+                           class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent"
+                           placeholder="Ex: MAT001">
+                </div>
+                
+                <div>
+                    <label for="edit_carga_horaria" class="block text-sm font-medium text-gray-700 mb-2">
+                        Carga Horária (horas)
+                    </label>
+                    <input type="number" id="edit_carga_horaria" name="carga_horaria" min="0"
+                           class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent"
+                           placeholder="Ex: 40">
+                </div>
+                
+                <div>
+                    <label class="flex items-center space-x-2">
+                        <input type="checkbox" id="edit_ativo" name="ativo" value="1" checked
+                               class="w-4 h-4 text-pink-600 border-gray-300 rounded focus:ring-pink-500">
+                        <span class="text-sm font-medium text-gray-700">Disciplina Ativa</span>
+                    </label>
+                    <p class="text-xs text-gray-500 mt-1">Desmarque para desativar a disciplina</p>
+                </div>
+                
+                <div id="mensagem-edicao" class="hidden"></div>
+                
+                <div class="flex space-x-3 pt-4 border-t border-gray-200">
+                    <button type="button" onclick="fecharModalEditarDisciplina()"
+                            class="flex-1 px-4 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg font-medium transition-colors duration-200">
+                        Cancelar
+                    </button>
+                    <button type="submit"
+                            class="flex-1 px-4 py-2 text-white bg-pink-600 hover:bg-pink-700 rounded-lg font-medium transition-colors duration-200">
+                        Salvar Alterações
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+    
     <div id="logoutModal" class="fixed inset-0 bg-black bg-opacity-50 z-[60] hidden items-center justify-center p-4" style="display: none;">
         <div class="bg-white rounded-2xl p-6 max-w-md w-full mx-4 shadow-2xl">
             <div class="flex items-center space-x-3 mb-4">
@@ -266,17 +404,43 @@ $disciplinas = $stmtDisciplinas->fetchAll(PDO::FETCH_ASSOC);
         };
 
         function abrirModalNovaDisciplina() {
-            const nome = prompt('Nome da disciplina:');
-            if (!nome) return;
+            // Limpar formulário
+            document.getElementById('formNovaDisciplina').reset();
+            const mensagemDiv = document.getElementById('mensagem-nova');
+            mensagemDiv.classList.add('hidden');
+            mensagemDiv.innerHTML = '';
             
-            const codigo = prompt('Código (opcional):') || null;
-            const cargaHoraria = prompt('Carga horária (horas):') || null;
+            // Abrir modal
+            const modal = document.getElementById('modalNovaDisciplina');
+            modal.style.display = 'flex';
+            modal.classList.remove('hidden');
             
-            const formData = new FormData();
+            // Focar no primeiro campo
+            setTimeout(() => {
+                document.getElementById('nova_nome').focus();
+            }, 100);
+        }
+        
+        function fecharModalNovaDisciplina() {
+            const modal = document.getElementById('modalNovaDisciplina');
+            modal.style.display = 'none';
+            modal.classList.add('hidden');
+            
+            // Limpar formulário
+            document.getElementById('formNovaDisciplina').reset();
+            document.getElementById('mensagem-nova').classList.add('hidden');
+        }
+        
+        // Submeter formulário de nova disciplina
+        document.getElementById('formNovaDisciplina').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const formData = new FormData(this);
             formData.append('acao', 'criar_disciplina');
-            formData.append('nome', nome);
-            if (codigo) formData.append('codigo', codigo);
-            if (cargaHoraria) formData.append('carga_horaria', cargaHoraria);
+            
+            const mensagemDiv = document.getElementById('mensagem-nova');
+            mensagemDiv.classList.remove('hidden');
+            mensagemDiv.innerHTML = '<div class="bg-blue-50 border border-blue-200 text-blue-800 px-4 py-3 rounded-lg">Criando disciplina...</div>';
             
             fetch('', {
                 method: 'POST',
@@ -285,21 +449,99 @@ $disciplinas = $stmtDisciplinas->fetchAll(PDO::FETCH_ASSOC);
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
-                    alert('Disciplina criada com sucesso!');
-                    location.reload();
+                    mensagemDiv.innerHTML = '<div class="bg-green-50 border border-green-200 text-green-800 px-4 py-3 rounded-lg">Disciplina criada com sucesso!</div>';
+                    setTimeout(() => {
+                        location.reload();
+                    }, 1500);
                 } else {
-                    alert('Erro ao criar disciplina.');
+                    mensagemDiv.innerHTML = '<div class="bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-lg">Erro ao criar disciplina. Tente novamente.</div>';
                 }
             })
             .catch(error => {
                 console.error('Erro:', error);
-                alert('Erro ao criar disciplina.');
+                mensagemDiv.innerHTML = '<div class="bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-lg">Erro ao criar disciplina. Tente novamente.</div>';
             });
-        }
+        });
 
         function editarDisciplina(id) {
-            alert('Funcionalidade de edição de disciplina em desenvolvimento. ID: ' + id);
+            // Buscar dados da disciplina
+            fetch(`?acao=buscar_disciplina&id=${id}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success && data.disciplina) {
+                        const disciplina = data.disciplina;
+                        
+                        // Preencher formulário
+                        document.getElementById('edit_disciplina_id').value = disciplina.id;
+                        document.getElementById('edit_nome').value = disciplina.nome || '';
+                        document.getElementById('edit_codigo').value = disciplina.codigo || '';
+                        document.getElementById('edit_carga_horaria').value = disciplina.carga_horaria || '';
+                        document.getElementById('edit_ativo').checked = disciplina.ativo == 1;
+                        
+                        // Limpar mensagem anterior
+                        const mensagemDiv = document.getElementById('mensagem-edicao');
+                        mensagemDiv.classList.add('hidden');
+                        mensagemDiv.innerHTML = '';
+                        
+                        // Abrir modal
+                        const modal = document.getElementById('modalEditarDisciplina');
+                        modal.style.display = 'flex';
+                        modal.classList.remove('hidden');
+                    } else {
+                        alert('Erro ao carregar dados da disciplina: ' + (data.message || 'Erro desconhecido'));
+                    }
+                })
+                .catch(error => {
+                    console.error('Erro ao buscar disciplina:', error);
+                    alert('Erro ao carregar dados da disciplina. Tente novamente.');
+                });
         }
+        
+        function fecharModalEditarDisciplina() {
+            const modal = document.getElementById('modalEditarDisciplina');
+            modal.style.display = 'none';
+            modal.classList.add('hidden');
+            
+            // Limpar formulário
+            document.getElementById('formEditarDisciplina').reset();
+            document.getElementById('mensagem-edicao').classList.add('hidden');
+        }
+        
+        // Submeter formulário de edição
+        document.getElementById('formEditarDisciplina').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const formData = new FormData(this);
+            formData.append('acao', 'editar_disciplina');
+            
+            // Adicionar campo ativo (checkbox)
+            const ativo = document.getElementById('edit_ativo').checked ? 1 : 0;
+            formData.set('ativo', ativo);
+            
+            const mensagemDiv = document.getElementById('mensagem-edicao');
+            mensagemDiv.classList.remove('hidden');
+            mensagemDiv.innerHTML = '<div class="bg-blue-50 border border-blue-200 text-blue-800 px-4 py-3 rounded-lg">Salvando alterações...</div>';
+            
+            fetch('', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    mensagemDiv.innerHTML = '<div class="bg-green-50 border border-green-200 text-green-800 px-4 py-3 rounded-lg">Disciplina atualizada com sucesso!</div>';
+                    setTimeout(() => {
+                        location.reload();
+                    }, 1500);
+                } else {
+                    mensagemDiv.innerHTML = '<div class="bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-lg">Erro ao atualizar disciplina. Tente novamente.</div>';
+                }
+            })
+            .catch(error => {
+                console.error('Erro:', error);
+                mensagemDiv.innerHTML = '<div class="bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-lg">Erro ao atualizar disciplina. Tente novamente.</div>';
+            });
+        });
 
         function excluirDisciplina(id) {
             if (confirm('Tem certeza que deseja excluir esta disciplina?')) {

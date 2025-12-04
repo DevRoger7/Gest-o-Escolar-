@@ -16,7 +16,7 @@ if (!temPermissao('cadastrar_pessoas') && !eAdm()) {
 require_once('../../config/Database.php');
 
 // Funções para gerenciamento de usuários
-function listarUsuarios($busca = '') {
+function listarUsuarios($busca = '', $role = '') {
     $db = Database::getInstance();
     $conn = $db->getConnection();
     
@@ -32,6 +32,10 @@ function listarUsuarios($busca = '') {
         $sql .= " AND (p.nome LIKE :busca OR p.cpf LIKE :busca OR p.email LIKE :busca OR u.username LIKE :busca)";
     }
     
+    if (!empty($role)) {
+        $sql .= " AND u.role = :role";
+    }
+    
     $sql .= " ORDER BY p.nome ASC";
     
     $stmt = $conn->prepare($sql);
@@ -39,6 +43,10 @@ function listarUsuarios($busca = '') {
     if (!empty($busca)) {
         $busca = "%{$busca}%";
         $stmt->bindParam(':busca', $busca);
+    }
+    
+    if (!empty($role)) {
+        $stmt->bindParam(':role', $role);
     }
     
     $stmt->execute();
@@ -456,7 +464,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 // Buscar usuários
 $busca = $_GET['busca'] ?? '';
-$usuarios = listarUsuarios($busca);
+$role = $_GET['role'] ?? '';
+$usuarios = listarUsuarios($busca, $role);
 $estatisticas = obterEstatisticasUsuarios();
 $estatisticasGestores = obterEstatisticasGestores();
 $gestores = listarGestores();
@@ -1475,15 +1484,38 @@ $gestores = listarGestores();
                     
                     <!-- Search Box -->
                     <form method="GET" class="mb-6">
-                        <div class="relative">
-                            <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                <svg class="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
-                                </svg>
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <div class="relative md:col-span-2">
+                                <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                    <svg class="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                                    </svg>
+                                </div>
+                                <input type="text" name="busca" placeholder="Buscar por nome, CPF ou email..." 
+                                       value="<?php echo htmlspecialchars($busca); ?>"
+                                       class="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-primary-green focus:border-primary-green">
                             </div>
-                            <input type="text" name="busca" placeholder="Buscar por nome, CPF ou email..." 
-                                   value="<?php echo htmlspecialchars($busca); ?>"
-                                   class="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-primary-green focus:border-primary-green">
+                            <div>
+                                <select name="role" class="block w-full px-3 py-2 border border-gray-300 rounded-lg leading-5 bg-white focus:outline-none focus:ring-1 focus:ring-primary-green focus:border-primary-green">
+                                    <option value="">Todos os níveis</option>
+                                    <option value="ADM" <?php echo $role === 'ADM' ? 'selected' : ''; ?>>Administrador</option>
+                                    <option value="GESTAO" <?php echo $role === 'GESTAO' ? 'selected' : ''; ?>>Gestão</option>
+                                    <option value="PROFESSOR" <?php echo $role === 'PROFESSOR' ? 'selected' : ''; ?>>Professor</option>
+                                    <option value="ALUNO" <?php echo $role === 'ALUNO' ? 'selected' : ''; ?>>Aluno</option>
+                                    <option value="NUTRICIONISTA" <?php echo $role === 'NUTRICIONISTA' ? 'selected' : ''; ?>>Nutricionista</option>
+                                    <option value="ADM_MERENDA" <?php echo $role === 'ADM_MERENDA' ? 'selected' : ''; ?>>Adm. Merenda</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="mt-4">
+                            <button type="submit" class="bg-primary-green hover:bg-green-700 text-white px-6 py-2 rounded-lg font-medium transition-colors duration-200">
+                                Filtrar
+                            </button>
+                            <?php if (!empty($busca) || !empty($role)): ?>
+                            <a href="?" class="ml-2 px-6 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-lg font-medium transition-colors duration-200 inline-block">
+                                Limpar Filtros
+                            </a>
+                            <?php endif; ?>
                         </div>
                     </form>
                     

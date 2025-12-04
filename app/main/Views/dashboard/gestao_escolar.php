@@ -256,35 +256,49 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 }
                 
                 // 1. Criar pessoa
+                $nome = $_POST['nome'] ?? '';
+                $dataNascimento = !empty($_POST['data_nascimento']) ? $_POST['data_nascimento'] : null;
+                $sexo = !empty($_POST['sexo']) ? $_POST['sexo'] : null;
+                $email = !empty($_POST['email']) ? $_POST['email'] : null;
+                $telefone = !empty($_POST['telefone']) ? $_POST['telefone'] : null;
+                $criadoPor = $_SESSION['usuario_id'];
+                
                 $sqlPessoa = "INSERT INTO pessoa (cpf, nome, data_nascimento, sexo, email, telefone, tipo, criado_por)
                              VALUES (:cpf, :nome, :data_nascimento, :sexo, :email, :telefone, 'PROFESSOR', :criado_por)";
                 $stmtPessoa = $conn->prepare($sqlPessoa);
                 $stmtPessoa->bindParam(':cpf', $cpfLimpo);
-                $stmtPessoa->bindParam(':nome', $_POST['nome']);
-                $stmtPessoa->bindParam(':data_nascimento', $_POST['data_nascimento'] ?: null);
-                $stmtPessoa->bindParam(':sexo', $_POST['sexo'] ?: null);
-                $stmtPessoa->bindParam(':email', $_POST['email'] ?: null);
-                $stmtPessoa->bindParam(':telefone', $_POST['telefone'] ?: null);
-                $stmtPessoa->bindParam(':criado_por', $_SESSION['usuario_id']);
+                $stmtPessoa->bindParam(':nome', $nome);
+                $stmtPessoa->bindParam(':data_nascimento', $dataNascimento);
+                $stmtPessoa->bindParam(':sexo', $sexo);
+                $stmtPessoa->bindParam(':email', $email);
+                $stmtPessoa->bindParam(':telefone', $telefone);
+                $stmtPessoa->bindParam(':criado_por', $criadoPor);
                 $stmtPessoa->execute();
                 $pessoaId = $conn->lastInsertId();
                 
                 // 2. Criar professor
+                $matricula = !empty($_POST['matricula']) ? $_POST['matricula'] : null;
+                $formacao = !empty($_POST['formacao']) ? $_POST['formacao'] : null;
+                $especializacao = !empty($_POST['especializacao']) ? $_POST['especializacao'] : null;
+                $registroProfissional = !empty($_POST['registro_profissional']) ? $_POST['registro_profissional'] : null;
+                $dataAdmissao = !empty($_POST['data_admissao']) ? $_POST['data_admissao'] : date('Y-m-d');
+                
                 $sqlProf = "INSERT INTO professor (pessoa_id, matricula, formacao, especializacao, registro_profissional, data_admissao, ativo, criado_por)
                            VALUES (:pessoa_id, :matricula, :formacao, :especializacao, :registro_profissional, :data_admissao, 1, :criado_por)";
                 $stmtProf = $conn->prepare($sqlProf);
                 $stmtProf->bindParam(':pessoa_id', $pessoaId);
-                $stmtProf->bindParam(':matricula', $_POST['matricula'] ?: null);
-                $stmtProf->bindParam(':formacao', $_POST['formacao'] ?: null);
-                $stmtProf->bindParam(':especializacao', $_POST['especializacao'] ?: null);
-                $stmtProf->bindParam(':registro_profissional', $_POST['registro_profissional'] ?: null);
-                $stmtProf->bindParam(':data_admissao', $_POST['data_admissao'] ?: date('Y-m-d'));
-                $stmtProf->bindParam(':criado_por', $_SESSION['usuario_id']);
+                $stmtProf->bindParam(':matricula', $matricula);
+                $stmtProf->bindParam(':formacao', $formacao);
+                $stmtProf->bindParam(':especializacao', $especializacao);
+                $stmtProf->bindParam(':registro_profissional', $registroProfissional);
+                $stmtProf->bindParam(':data_admissao', $dataAdmissao);
+                $stmtProf->bindParam(':criado_por', $criadoPor);
                 $stmtProf->execute();
                 $professorId = $conn->lastInsertId();
                 
                 // 3. Criar usuário
-                $senhaHash = password_hash($_POST['senha'] ?? '123456', PASSWORD_DEFAULT);
+                $senhaPadrao = $_POST['senha'] ?? '123456';
+                $senhaHash = password_hash($senhaPadrao, PASSWORD_DEFAULT);
                 $sqlUsuario = "INSERT INTO usuario (pessoa_id, username, senha_hash, role, ativo)
                               VALUES (:pessoa_id, :username, :senha_hash, 'PROFESSOR', 1)";
                 $stmtUsuario = $conn->prepare($sqlUsuario);
@@ -295,13 +309,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 
                 // 4. Lotar professor na escola (se informado)
                 if (!empty($_POST['escola_id'])) {
+                    $escolaId = $_POST['escola_id'];
+                    $cargaHoraria = !empty($_POST['carga_horaria']) ? $_POST['carga_horaria'] : null;
+                    $observacaoLotacao = !empty($_POST['observacao_lotacao']) ? $_POST['observacao_lotacao'] : null;
+                    
                     $sqlLotacao = "INSERT INTO professor_lotacao (professor_id, escola_id, inicio, carga_horaria, observacao, criado_em)
                                   VALUES (:professor_id, :escola_id, CURDATE(), :carga_horaria, :observacao, NOW())";
                     $stmtLotacao = $conn->prepare($sqlLotacao);
                     $stmtLotacao->bindParam(':professor_id', $professorId);
-                    $stmtLotacao->bindParam(':escola_id', $_POST['escola_id']);
-                    $stmtLotacao->bindParam(':carga_horaria', $_POST['carga_horaria'] ?: null);
-                    $stmtLotacao->bindParam(':observacao', $_POST['observacao_lotacao'] ?: null);
+                    $stmtLotacao->bindParam(':escola_id', $escolaId);
+                    $stmtLotacao->bindParam(':carga_horaria', $cargaHoraria);
+                    $stmtLotacao->bindParam(':observacao', $observacaoLotacao);
                     $stmtLotacao->execute();
                 }
                 

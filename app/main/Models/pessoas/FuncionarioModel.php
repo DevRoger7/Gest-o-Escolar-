@@ -100,15 +100,21 @@ class FuncionarioModel {
             $pessoaId = $conn->lastInsertId();
             
             // 2. Criar funcionário
+            $matricula = $dados['matricula'] ?? null;
+            $cargo = $dados['cargo'] ?? '';
+            $setor = $dados['setor'] ?? null;
+            $dataAdmissao = $dados['data_admissao'] ?? date('Y-m-d');
+            $criadoPor = $_SESSION['usuario_id'];
+            
             $sqlFunc = "INSERT INTO funcionario (pessoa_id, matricula, cargo, setor, data_admissao, ativo, criado_por)
                        VALUES (:pessoa_id, :matricula, :cargo, :setor, :data_admissao, 1, :criado_por)";
             $stmtFunc = $conn->prepare($sqlFunc);
             $stmtFunc->bindParam(':pessoa_id', $pessoaId);
-            $stmtFunc->bindParam(':matricula', $dados['matricula'] ?? null);
-            $stmtFunc->bindParam(':cargo', $dados['cargo']);
-            $stmtFunc->bindParam(':setor', $dados['setor'] ?? null);
-            $stmtFunc->bindParam(':data_admissao', $dados['data_admissao'] ?? date('Y-m-d'));
-            $stmtFunc->bindParam(':criado_por', $_SESSION['usuario_id']);
+            $stmtFunc->bindParam(':matricula', $matricula);
+            $stmtFunc->bindParam(':cargo', $cargo);
+            $stmtFunc->bindParam(':setor', $setor);
+            $stmtFunc->bindParam(':data_admissao', $dataAdmissao);
+            $stmtFunc->bindParam(':criado_por', $criadoPor);
             $stmtFunc->execute();
             
             $funcionarioId = $conn->lastInsertId();

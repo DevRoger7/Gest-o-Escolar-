@@ -79,30 +79,42 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao'])) {
             $conn->beginTransaction();
             
             // 1. Criar pessoa
+            $dataNascimento = !empty($_POST['data_nascimento']) ? $_POST['data_nascimento'] : null;
+            $sexo = !empty($_POST['sexo']) ? $_POST['sexo'] : null;
+            $email = !empty($_POST['email']) ? trim($_POST['email']) : null;
+            $telefoneVal = !empty($telefone) ? $telefone : null;
+            $criadoPor = $_SESSION['usuario_id'];
+            
             $sqlPessoa = "INSERT INTO pessoa (cpf, nome, data_nascimento, sexo, email, telefone, tipo, criado_por)
                          VALUES (:cpf, :nome, :data_nascimento, :sexo, :email, :telefone, 'PROFESSOR', :criado_por)";
             $stmtPessoa = $conn->prepare($sqlPessoa);
             $stmtPessoa->bindParam(':cpf', $cpf);
             $stmtPessoa->bindParam(':nome', $nome);
-            $stmtPessoa->bindParam(':data_nascimento', $_POST['data_nascimento'] ?? null);
-            $stmtPessoa->bindParam(':sexo', $_POST['sexo'] ?? null);
-            $stmtPessoa->bindParam(':email', !empty($_POST['email']) ? trim($_POST['email']) : null);
-            $stmtPessoa->bindParam(':telefone', !empty($telefone) ? $telefone : null);
-            $stmtPessoa->bindParam(':criado_por', $_SESSION['usuario_id']);
+            $stmtPessoa->bindParam(':data_nascimento', $dataNascimento);
+            $stmtPessoa->bindParam(':sexo', $sexo);
+            $stmtPessoa->bindParam(':email', $email);
+            $stmtPessoa->bindParam(':telefone', $telefoneVal);
+            $stmtPessoa->bindParam(':criado_por', $criadoPor);
             $stmtPessoa->execute();
             $pessoaId = $conn->lastInsertId();
             
             // 2. Criar professor
+            $matricula = !empty($_POST['matricula']) ? trim($_POST['matricula']) : null;
+            $formacao = !empty($_POST['formacao']) ? trim($_POST['formacao']) : null;
+            $especializacao = !empty($_POST['especializacao']) ? trim($_POST['especializacao']) : null;
+            $registroProfissional = !empty($_POST['registro_profissional']) ? trim($_POST['registro_profissional']) : null;
+            $dataAdmissao = !empty($_POST['data_admissao']) ? $_POST['data_admissao'] : date('Y-m-d');
+            
             $sqlProf = "INSERT INTO professor (pessoa_id, matricula, formacao, especializacao, registro_profissional, data_admissao, ativo, criado_por)
                        VALUES (:pessoa_id, :matricula, :formacao, :especializacao, :registro_profissional, :data_admissao, 1, :criado_por)";
             $stmtProf = $conn->prepare($sqlProf);
             $stmtProf->bindParam(':pessoa_id', $pessoaId);
-            $stmtProf->bindParam(':matricula', !empty($_POST['matricula']) ? trim($_POST['matricula']) : null);
-            $stmtProf->bindParam(':formacao', !empty($_POST['formacao']) ? trim($_POST['formacao']) : null);
-            $stmtProf->bindParam(':especializacao', !empty($_POST['especializacao']) ? trim($_POST['especializacao']) : null);
-            $stmtProf->bindParam(':registro_profissional', !empty($_POST['registro_profissional']) ? trim($_POST['registro_profissional']) : null);
-            $stmtProf->bindParam(':data_admissao', $_POST['data_admissao'] ?? date('Y-m-d'));
-            $stmtProf->bindParam(':criado_por', $_SESSION['usuario_id']);
+            $stmtProf->bindParam(':matricula', $matricula);
+            $stmtProf->bindParam(':formacao', $formacao);
+            $stmtProf->bindParam(':especializacao', $especializacao);
+            $stmtProf->bindParam(':registro_profissional', $registroProfissional);
+            $stmtProf->bindParam(':data_admissao', $dataAdmissao);
+            $stmtProf->bindParam(':criado_por', $criadoPor);
             $stmtProf->execute();
             $professorId = $conn->lastInsertId();
             
@@ -202,30 +214,43 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao'])) {
             }
             
             // 2. Atualizar pessoa
+            $nomeUpdate = trim($_POST['nome'] ?? '');
+            $dataNascimentoUpdate = !empty($_POST['data_nascimento']) ? $_POST['data_nascimento'] : null;
+            $sexoUpdate = !empty($_POST['sexo']) ? $_POST['sexo'] : null;
+            $emailUpdate = !empty($_POST['email']) ? trim($_POST['email']) : null;
+            $telefoneUpdate = !empty($telefone) ? $telefone : null;
+            
             $sqlPessoa = "UPDATE pessoa SET nome = :nome, data_nascimento = :data_nascimento, 
                          sexo = :sexo, email = :email, telefone = :telefone
                          WHERE id = :pessoa_id";
             $stmtPessoa = $conn->prepare($sqlPessoa);
-            $stmtPessoa->bindParam(':nome', trim($_POST['nome'] ?? ''));
-            $stmtPessoa->bindParam(':data_nascimento', $_POST['data_nascimento'] ?? null);
-            $stmtPessoa->bindParam(':sexo', $_POST['sexo'] ?? null);
-            $stmtPessoa->bindParam(':email', !empty($_POST['email']) ? trim($_POST['email']) : null);
-            $stmtPessoa->bindParam(':telefone', !empty($telefone) ? $telefone : null);
+            $stmtPessoa->bindParam(':nome', $nomeUpdate);
+            $stmtPessoa->bindParam(':data_nascimento', $dataNascimentoUpdate);
+            $stmtPessoa->bindParam(':sexo', $sexoUpdate);
+            $stmtPessoa->bindParam(':email', $emailUpdate);
+            $stmtPessoa->bindParam(':telefone', $telefoneUpdate);
             $stmtPessoa->bindParam(':pessoa_id', $professor['pessoa_id']);
             $stmtPessoa->execute();
             
             // 3. Atualizar professor
+            $matriculaUpdate = !empty($_POST['matricula']) ? trim($_POST['matricula']) : null;
+            $formacaoUpdate = !empty($_POST['formacao']) ? trim($_POST['formacao']) : null;
+            $especializacaoUpdate = !empty($_POST['especializacao']) ? trim($_POST['especializacao']) : null;
+            $registroProfissionalUpdate = !empty($_POST['registro_profissional']) ? trim($_POST['registro_profissional']) : null;
+            $dataAdmissaoUpdate = !empty($_POST['data_admissao']) ? $_POST['data_admissao'] : $professor['data_admissao'];
+            $ativoUpdate = isset($_POST['ativo']) ? (int)$_POST['ativo'] : 1;
+            
             $sqlProf = "UPDATE professor SET matricula = :matricula, formacao = :formacao, 
                        especializacao = :especializacao, registro_profissional = :registro_profissional,
                        data_admissao = :data_admissao, ativo = :ativo
                        WHERE id = :id";
             $stmtProf = $conn->prepare($sqlProf);
-            $stmtProf->bindParam(':matricula', !empty($_POST['matricula']) ? trim($_POST['matricula']) : null);
-            $stmtProf->bindParam(':formacao', !empty($_POST['formacao']) ? trim($_POST['formacao']) : null);
-            $stmtProf->bindParam(':especializacao', !empty($_POST['especializacao']) ? trim($_POST['especializacao']) : null);
-            $stmtProf->bindParam(':registro_profissional', !empty($_POST['registro_profissional']) ? trim($_POST['registro_profissional']) : null);
-            $stmtProf->bindParam(':data_admissao', $_POST['data_admissao'] ?? $professor['data_admissao']);
-            $stmtProf->bindParam(':ativo', isset($_POST['ativo']) ? (int)$_POST['ativo'] : 1);
+            $stmtProf->bindParam(':matricula', $matriculaUpdate);
+            $stmtProf->bindParam(':formacao', $formacaoUpdate);
+            $stmtProf->bindParam(':especializacao', $especializacaoUpdate);
+            $stmtProf->bindParam(':registro_profissional', $registroProfissionalUpdate);
+            $stmtProf->bindParam(':data_admissao', $dataAdmissaoUpdate);
+            $stmtProf->bindParam(':ativo', $ativoUpdate);
             $stmtProf->bindParam(':id', $professorId);
             $stmtProf->execute();
             
@@ -302,6 +327,36 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao'])) {
                 ]);
             } else {
                 throw new Exception('Erro ao excluir professor.');
+            }
+        } catch (Exception $e) {
+            echo json_encode([
+                'success' => false,
+                'message' => $e->getMessage()
+            ]);
+        }
+        exit;
+    }
+    
+    if ($_POST['acao'] === 'reverter_exclusao_professor') {
+        try {
+            $professorId = $_POST['professor_id'] ?? null;
+            if (empty($professorId)) {
+                throw new Exception('ID do professor não informado.');
+            }
+            
+            // Reverter soft delete (ativar novamente)
+            $sqlReverter = "UPDATE professor SET ativo = 1 WHERE id = :id";
+            $stmtReverter = $conn->prepare($sqlReverter);
+            $stmtReverter->bindParam(':id', $professorId);
+            $result = $stmtReverter->execute();
+            
+            if ($result) {
+                echo json_encode([
+                    'success' => true,
+                    'message' => 'Exclusão revertida com sucesso!'
+                ]);
+            } else {
+                throw new Exception('Erro ao reverter exclusão do professor.');
             }
         } catch (Exception $e) {
             echo json_encode([
@@ -1166,76 +1221,6 @@ $professores = $stmtProfessores->fetchAll(PDO::FETCH_ASSOC);
             }
         });
 
-        async function excluirProfessor(id) {
-            // Buscar nome do professor para exibir na confirmação
-            try {
-                const response = await fetch('?acao=buscar_professor&id=' + id);
-                const data = await response.json();
-                const nomeProfessor = data.success && data.professor ? data.professor.nome : 'este professor';
-                
-                // Modal de confirmação customizado
-                if (confirm(`Tem certeza que deseja excluir o professor "${nomeProfessor}"?\n\nEsta ação não pode ser desfeita. O professor será marcado como inativo no sistema.`)) {
-                    // Mostrar loading
-                    const btnExcluir = event.target;
-                    const originalText = btnExcluir.textContent;
-                    btnExcluir.disabled = true;
-                    btnExcluir.textContent = 'Excluindo...';
-                    
-                    try {
-                        const formData = new FormData();
-                        formData.append('acao', 'excluir_professor');
-                        formData.append('professor_id', id);
-                        
-                        const response = await fetch('', {
-                            method: 'POST',
-                            body: formData
-                        });
-                        
-                        const data = await response.json();
-                        
-                        if (data.success) {
-                            alert('Professor excluído com sucesso!');
-                            // Recarregar lista
-                            filtrarProfessores();
-                        } else {
-                            alert('Erro ao excluir professor: ' + (data.message || 'Erro desconhecido'));
-                        }
-                    } catch (error) {
-                        console.error('Erro ao excluir professor:', error);
-                        alert('Erro ao processar requisição. Por favor, tente novamente.');
-                    } finally {
-                        btnExcluir.disabled = false;
-                        btnExcluir.textContent = originalText;
-                    }
-                }
-            } catch (error) {
-                console.error('Erro ao buscar dados do professor:', error);
-                // Se não conseguir buscar o nome, usar confirmação simples
-                if (confirm('Tem certeza que deseja excluir este professor?\n\nEsta ação não pode ser desfeita.')) {
-                    const formData = new FormData();
-                    formData.append('acao', 'excluir_professor');
-                    formData.append('professor_id', id);
-                    
-                    fetch('', {
-                        method: 'POST',
-                        body: formData
-                    })
-                    .then(response => response.json())
-                    .then(data => {
-                        if (data.success) {
-                            alert('Professor excluído com sucesso!');
-                            filtrarProfessores();
-                        } else {
-                            alert('Erro ao excluir professor: ' + (data.message || 'Erro desconhecido'));
-                        }
-                    })
-                    .catch(error => {
-                        console.error('Erro:', error);
-                        alert('Erro ao processar requisição. Por favor, tente novamente.');
-                    });
-                }
-            }
-        }
 
         function filtrarProfessores() {
             const busca = document.getElementById('filtro-busca').value;
@@ -1283,6 +1268,294 @@ $professores = $stmtProfessores->fetchAll(PDO::FETCH_ASSOC);
                 .catch(error => {
                     console.error('Erro ao filtrar professores:', error);
                 });
+        }
+    </script>
+    
+    <!-- Modal de Confirmação de Exclusão -->
+    <div id="modalConfirmarExclusao" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden items-center justify-center p-4" style="display: none;">
+        <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full">
+            <div class="p-6">
+                <div class="flex items-center space-x-3 mb-4">
+                    <div class="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center">
+                        <svg class="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z"></path>
+                        </svg>
+                    </div>
+                    <div>
+                        <h3 class="text-lg font-semibold text-gray-900">Confirmar Exclusão</h3>
+                        <p class="text-sm text-gray-600">Esta ação pode ser revertida</p>
+                    </div>
+                </div>
+                <p class="text-gray-700 mb-6" id="textoConfirmacaoExclusao">
+                    Tem certeza que deseja excluir este professor?
+                </p>
+                <div class="flex space-x-3">
+                    <button onclick="fecharModalConfirmarExclusao()" 
+                            class="flex-1 px-4 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg font-medium transition-colors duration-200">
+                        Cancelar
+                    </button>
+                    <button onclick="confirmarExclusaoProfessor()" 
+                            class="flex-1 px-4 py-2 text-white bg-red-600 hover:bg-red-700 rounded-lg font-medium transition-colors duration-200">
+                        Excluir
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Modal de Erro -->
+    <div id="modalErroExclusao" class="fixed inset-0 bg-black bg-opacity-50 z-[60] hidden items-center justify-center p-4" style="display: none;">
+        <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full">
+            <div class="p-6">
+                <div class="flex items-center space-x-3 mb-4">
+                    <div class="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center flex-shrink-0">
+                        <svg class="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z"></path>
+                        </svg>
+                    </div>
+                    <div>
+                        <h3 class="text-lg font-semibold text-gray-900">Não é possível excluir</h3>
+                        <p class="text-sm text-gray-600">Ação bloqueada</p>
+                    </div>
+                </div>
+                <div class="mb-6">
+                    <p class="text-gray-700 mb-4" id="textoErroExclusao">
+                        Não é possível excluir o professor pois ele está atribuído a uma ou mais turmas ativas.
+                    </p>
+                    <div class="bg-yellow-50 border-l-4 border-yellow-400 p-4 rounded">
+                        <div class="flex">
+                            <div class="flex-shrink-0">
+                                <svg class="h-5 w-5 text-yellow-400" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"></path>
+                                </svg>
+                            </div>
+                            <div class="ml-3">
+                                <p class="text-sm text-yellow-700">
+                                    <strong class="font-medium">Solução:</strong> Primeiro, remova o professor das turmas antes de excluí-lo.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <button onclick="fecharModalErroExclusao()" 
+                        class="w-full px-4 py-2 text-white bg-red-600 hover:bg-red-700 rounded-lg font-medium transition-colors duration-200">
+                    Entendi
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Modal de Notificação com Contagem Regressiva -->
+    <div id="modalNotificacaoExclusao" class="fixed inset-0 bg-black bg-opacity-50 z-[60] hidden items-center justify-center p-4" style="display: none;">
+        <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full">
+            <div class="p-6">
+                <div class="flex items-center space-x-3 mb-4">
+                    <div class="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
+                        <svg class="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                        </svg>
+                    </div>
+                    <div>
+                        <h3 class="text-lg font-semibold text-gray-900">Professor Excluído</h3>
+                        <p class="text-sm text-gray-600" id="textoNotificacaoExclusao">Professor excluído com sucesso!</p>
+                    </div>
+                </div>
+                <div class="mb-6">
+                    <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                        <div class="flex items-center justify-between mb-2">
+                            <span class="text-sm font-medium text-blue-800">Tempo para reverter:</span>
+                            <span id="contadorRegressivo" class="text-2xl font-bold text-blue-600">5</span>
+                        </div>
+                        <div class="w-full bg-blue-200 rounded-full h-2">
+                            <div id="barraProgresso" class="bg-blue-600 h-2 rounded-full transition-all duration-1000" style="width: 100%"></div>
+                        </div>
+                    </div>
+                </div>
+                <button onclick="reverterExclusaoProfessor()" 
+                        class="w-full px-4 py-2 text-white bg-blue-600 hover:bg-blue-700 rounded-lg font-medium transition-colors duration-200">
+                    Reverter Exclusão
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        let professorIdExcluido = null;
+        let timerContagem = null;
+        let tempoRestante = 5;
+        
+        function abrirModalConfirmarExclusao(id, nome) {
+            professorIdExcluido = id;
+            document.getElementById('textoConfirmacaoExclusao').textContent = 
+                `Tem certeza que deseja excluir o professor "${nome}"?\n\nEsta ação pode ser revertida nos próximos 5 segundos após a exclusão.`;
+            
+            const modal = document.getElementById('modalConfirmarExclusao');
+            modal.style.display = 'flex';
+            modal.classList.remove('hidden');
+        }
+        
+        function fecharModalConfirmarExclusao() {
+            const modal = document.getElementById('modalConfirmarExclusao');
+            modal.style.display = 'none';
+            modal.classList.add('hidden');
+            professorIdExcluido = null;
+        }
+        
+        function confirmarExclusaoProfessor() {
+            if (!professorIdExcluido) return;
+            
+            const formData = new FormData();
+            formData.append('acao', 'excluir_professor');
+            formData.append('professor_id', professorIdExcluido);
+            
+            fetch('', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                fecharModalConfirmarExclusao();
+                
+                if (data.success) {
+                    // Abrir modal de notificação com contagem regressiva
+                    abrirModalNotificacaoExclusao();
+                } else {
+                    // Exibir modal de erro estilizado
+                    abrirModalErroExclusao(data.message || 'Erro desconhecido');
+                }
+            })
+            .catch(error => {
+                console.error('Erro ao excluir professor:', error);
+                abrirModalErroExclusao('Erro ao processar requisição. Por favor, tente novamente.');
+                fecharModalConfirmarExclusao();
+            });
+        }
+        
+        function abrirModalNotificacaoExclusao() {
+            tempoRestante = 5;
+            const modal = document.getElementById('modalNotificacaoExclusao');
+            modal.style.display = 'flex';
+            modal.classList.remove('hidden');
+            
+            // Atualizar contador e barra de progresso
+            atualizarContador();
+            
+            // Iniciar contagem regressiva
+            timerContagem = setInterval(() => {
+                tempoRestante--;
+                atualizarContador();
+                
+                if (tempoRestante <= 0) {
+                    fecharModalNotificacaoExclusao();
+                }
+            }, 1000);
+        }
+        
+        function atualizarContador() {
+            const contador = document.getElementById('contadorRegressivo');
+            const barraProgresso = document.getElementById('barraProgresso');
+            
+            if (contador) {
+                contador.textContent = tempoRestante;
+            }
+            
+            if (barraProgresso) {
+                const porcentagem = (tempoRestante / 5) * 100;
+                barraProgresso.style.width = porcentagem + '%';
+                
+                // Mudar cor conforme o tempo diminui
+                if (tempoRestante <= 2) {
+                    barraProgresso.classList.remove('bg-blue-600');
+                    barraProgresso.classList.add('bg-red-600');
+                } else if (tempoRestante <= 3) {
+                    barraProgresso.classList.remove('bg-blue-600');
+                    barraProgresso.classList.add('bg-yellow-600');
+                }
+            }
+        }
+        
+        function fecharModalNotificacaoExclusao() {
+            if (timerContagem) {
+                clearInterval(timerContagem);
+                timerContagem = null;
+            }
+            
+            const modal = document.getElementById('modalNotificacaoExclusao');
+            modal.style.display = 'none';
+            modal.classList.add('hidden');
+            
+            // Recarregar lista
+            filtrarProfessores();
+            professorIdExcluido = null;
+        }
+        
+        function abrirModalErroExclusao(mensagem) {
+            const textoErro = document.getElementById('textoErroExclusao');
+            
+            // Verificar se a mensagem é sobre turmas ativas
+            if (mensagem.includes('turmas ativas') || mensagem.includes('atribuído')) {
+                textoErro.innerHTML = 'Não é possível excluir o professor pois ele está atribuído a uma ou mais turmas ativas.';
+            } else {
+                textoErro.textContent = mensagem;
+            }
+            
+            const modal = document.getElementById('modalErroExclusao');
+            modal.style.display = 'flex';
+            modal.classList.remove('hidden');
+        }
+        
+        function fecharModalErroExclusao() {
+            const modal = document.getElementById('modalErroExclusao');
+            modal.style.display = 'none';
+            modal.classList.add('hidden');
+        }
+        
+        function reverterExclusaoProfessor() {
+            if (!professorIdExcluido) return;
+            
+            // Parar contagem
+            if (timerContagem) {
+                clearInterval(timerContagem);
+                timerContagem = null;
+            }
+            
+            const formData = new FormData();
+            formData.append('acao', 'reverter_exclusao_professor');
+            formData.append('professor_id', professorIdExcluido);
+            
+            fetch('', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                fecharModalNotificacaoExclusao();
+                
+                if (data.success) {
+                    alert('Exclusão revertida com sucesso!');
+                    filtrarProfessores();
+                } else {
+                    abrirModalErroExclusao('Erro ao reverter exclusão: ' + (data.message || 'Erro desconhecido'));
+                }
+            })
+            .catch(error => {
+                console.error('Erro ao reverter exclusão:', error);
+                abrirModalErroExclusao('Erro ao processar requisição. Por favor, tente novamente.');
+            });
+        }
+        
+        // Substituir função excluirProfessor existente
+        async function excluirProfessor(id) {
+            try {
+                const response = await fetch('?acao=buscar_professor&id=' + id);
+                const data = await response.json();
+                const nomeProfessor = data.success && data.professor ? data.professor.nome : 'este professor';
+                
+                abrirModalConfirmarExclusao(id, nomeProfessor);
+            } catch (error) {
+                console.error('Erro ao buscar dados do professor:', error);
+                alert('Erro ao carregar dados do professor. Tente novamente.');
+            }
         }
     </script>
 </body>

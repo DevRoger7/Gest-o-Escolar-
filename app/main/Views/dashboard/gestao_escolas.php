@@ -76,8 +76,8 @@ function listarEscolas($busca = '')
     $sql = "SELECT e.id, e.nome, e.endereco, e.telefone, e.email, e.municipio, e.cep, e.qtd_salas, e.obs, e.codigo, e.criado_em as data_criacao,
                    p.nome as gestor_nome, p.email as gestor_email
             FROM escola e 
-            LEFT JOIN gestor_lotacao gl ON e.id = gl.escola_id AND gl.responsavel = 1
-            LEFT JOIN gestor g ON gl.gestor_id = g.id
+            LEFT JOIN gestor_lotacao gl ON e.id = gl.escola_id AND gl.responsavel = 1 AND gl.fim IS NULL
+            LEFT JOIN gestor g ON gl.gestor_id = g.id AND g.ativo = 1
             LEFT JOIN pessoa p ON g.pessoa_id = p.id
             WHERE 1=1";
 
@@ -97,46 +97,13 @@ function listarEscolas($busca = '')
     $stmt->execute();
     $escolas = $stmt->fetchAll(PDO::FETCH_ASSOC);
     
-    // Filtrar gestores para mostrar apenas diretores
+    // Os dados do gestor já vêm do JOIN, não precisamos processar o campo obs
+    // Apenas garantir que valores vazios sejam tratados como null
     foreach ($escolas as &$escola) {
-        if (!empty($escola['obs'])) {
-            // Extrair dados do gestor do campo obs
-            $obs = $escola['obs'];
-            
-            // Verificar se há dados de gestor e se é diretor
-            if (strpos($obs, 'Gestor:') !== false) {
-                $gestorNomeMatch = preg_match('/Gestor:\s*([^|]+)/', $obs, $matches);
-                $cargoMatch = preg_match('/Cargo:\s*([^|]+)/', $obs, $cargoMatches);
-                
-                if ($gestorNomeMatch && $cargoMatch) {
-                    $cargo = trim($cargoMatches[1]);
-                    // Só mostrar se for diretor
-                    if (strtoupper($cargo) === 'DIRETOR') {
-                        $escola['gestor_nome'] = trim($matches[1]);
-                        
-                        // Extrair email do gestor se disponível
-                        $emailMatch = preg_match('/Email:\s*([^|]+)/', $obs, $emailMatches);
-                        if ($emailMatch) {
-                            $escola['gestor_email'] = trim($emailMatches[1]);
-                        }
-                    } else {
-                        // Não é diretor, não mostrar
-                        $escola['gestor_nome'] = null;
-                        $escola['gestor_email'] = null;
-                    }
-                } else {
-                    // Dados incompletos do gestor
-                    $escola['gestor_nome'] = null;
-                    $escola['gestor_email'] = null;
-                }
-            } else {
-                // Não há gestor
-                $escola['gestor_nome'] = null;
-                $escola['gestor_email'] = null;
-            }
-        } else {
-            // Não há obs, não há gestor
+        if (empty($escola['gestor_nome'])) {
             $escola['gestor_nome'] = null;
+        }
+        if (empty($escola['gestor_email'])) {
             $escola['gestor_email'] = null;
         }
     }
@@ -2712,7 +2679,7 @@ if ($_SESSION['tipo'] === 'ADM') {
                                                 <div class="flex items-center space-x-4 text-xs text-gray-500">
                                                     <span>📞 ${professor.telefone || 'Sem telefone'}</span>
                                                     <span>📚 ${professor.disciplina || 'Sem disciplina'}</span>
-                                                    <span>💼 ${professor.cargo || 'Professor'}</span>
+                                                    ${professor.matricula ? `<span>🎓 Matrícula: ${professor.matricula}</span>` : ''}
                                                 </div>
                                             </div>
                                         </div>
@@ -2829,13 +2796,59 @@ if ($_SESSION['tipo'] === 'ADM') {
         let dadosOriginaisEscola = {};
 
         function carregarDadosEscola(id) {
+            if (!id) {
+                console.error('ID da escola não informado');
+                alert('Erro: ID da escola não informado.');
+                return;
+            }
+            
+            // Mostrar loading
+            const loadingElement = document.getElementById('loading-escola');
+            if (loadingElement) {
+                loadingElement.classList.remove('hidden');
+            }
+            
             // Buscar dados da escola diretamente via PHP
             fetch(`../../Controllers/gestao/EscolaController.php?acao=buscar_escola&id=${encodeURIComponent(id)}`)
-                .then(response => response.json())
+                .then(response => {
+                    console.log('Response status:', response.status);
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+                    return response.text().then(text => {
+                        console.log('Response text:', text);
+                        try {
+                            return JSON.parse(text);
+                        } catch (e) {
+                            console.error('Erro ao fazer parse do JSON:', e);
+                            console.error('Texto recebido:', text);
+                            throw new Error('Resposta inválida do servidor');
+                        }
+                    });
+                })
                 .then(data => {
-                    if (!data || !data.success || !data.escola) {
-                        console.error('Não foi possível carregar a escola.');
-                        alert('Erro ao carregar dados da escola. Tente novamente.');
+                    console.log('Dados recebidos:', data);
+                    
+                    // Ocultar loading
+                    if (loadingElement) {
+                        loadingElement.classList.add('hidden');
+                    }
+                    
+                    if (!data) {
+                        console.error('Resposta vazia do servidor');
+                        alert('Erro ao carregar dados da escola. Resposta vazia do servidor.');
+                        return;
+                    }
+                    
+                    if (!data.success) {
+                        console.error('Erro na resposta:', data.message || 'Erro desconhecido');
+                        alert('Erro ao carregar dados da escola: ' + (data.message || 'Erro desconhecido'));
+                        return;
+                    }
+                    
+                    if (!data.escola) {
+                        console.error('Escola não encontrada nos dados');
+                        alert('Escola não encontrada.');
                         return;
                     }
                     const escola = data.escola;
@@ -2897,45 +2910,43 @@ if ($_SESSION['tipo'] === 'ADM') {
                             }
                         }
                         
-                        // Extrair dados do gestor
-                        const gestorNomeMatch = obs.match(/Gestor:\s*([^|]+)/);
-                        const gestorCpfMatch = obs.match(/CPF:\s*([^|]+)/);
-                        const gestorEmailMatch = obs.match(/Email:\s*([^|]+)/);
-                        const gestorCargoMatch = obs.match(/Cargo:\s*([^|]+)/);
+                        // Dados do gestor já vêm do banco de dados, não precisamos extrair do obs
+                    }
+                    
+                    // Preencher dados do gestor usando os dados que vêm do banco
+                    if (escola.gestor_nome || escola.gestor_email || escola.gestor_id) {
+                        // Mostrar seção do gestor
+                        document.getElementById('gestor-atual-section').classList.remove('hidden');
+                        document.getElementById('nenhum-gestor-section').classList.add('hidden');
                         
-                        if (gestorNomeMatch || gestorCpfMatch || gestorEmailMatch) {
-                            // Mostrar seção do gestor
-                            document.getElementById('gestor-atual-section').classList.remove('hidden');
-                            document.getElementById('nenhum-gestor-section').classList.add('hidden');
+                        // Preencher dados do gestor
+                        if (escola.gestor_nome) {
+                            document.getElementById('gestor-atual-nome').textContent = escola.gestor_nome;
                             
-                            // Preencher dados do gestor
-                            if (gestorNomeMatch) {
-                                const nome = gestorNomeMatch[1].trim();
-                                document.getElementById('gestor-atual-nome').textContent = nome;
-                                
-                                // Gerar iniciais
-                                const iniciais = nome.split(' ').map(n => n.charAt(0)).join('').toUpperCase().substring(0, 2);
-                                document.getElementById('gestor-atual-iniciais').textContent = iniciais;
-                            }
-                            
-                            if (gestorCpfMatch) {
-                                document.getElementById('gestor-atual-cpf').textContent = 'CPF: ' + gestorCpfMatch[1].trim();
-                            }
-                            
-                            if (gestorEmailMatch) {
-                                document.getElementById('gestor-atual-email').textContent = gestorEmailMatch[1].trim();
-                            }
-                            
-                            if (gestorCargoMatch) {
-                                document.getElementById('gestor-atual-cargo').textContent = 'Cargo: ' + gestorCargoMatch[1].trim();
-                            }
+                            // Gerar iniciais
+                            const iniciais = escola.gestor_nome.split(' ').map(n => n.charAt(0)).join('').toUpperCase().substring(0, 2);
+                            document.getElementById('gestor-atual-iniciais').textContent = iniciais;
+                        }
+                        
+                        if (escola.gestor_cpf) {
+                            document.getElementById('gestor-atual-cpf').textContent = 'CPF: ' + escola.gestor_cpf;
                         } else {
-                            // Não há gestor
-                            document.getElementById('gestor-atual-section').classList.add('hidden');
-                            document.getElementById('nenhum-gestor-section').classList.remove('hidden');
+                            document.getElementById('gestor-atual-cpf').textContent = '';
+                        }
+                        
+                        if (escola.gestor_email) {
+                            document.getElementById('gestor-atual-email').textContent = escola.gestor_email;
+                        } else {
+                            document.getElementById('gestor-atual-email').textContent = 'Sem e-mail';
+                        }
+                        
+                        if (escola.gestor_cargo) {
+                            document.getElementById('gestor-atual-cargo').textContent = 'Cargo: ' + escola.gestor_cargo;
+                        } else {
+                            document.getElementById('gestor-atual-cargo').textContent = '';
                         }
                     } else {
-                        // Não há obs, não há gestor
+                        // Não há gestor
                         document.getElementById('gestor-atual-section').classList.add('hidden');
                         document.getElementById('nenhum-gestor-section').classList.remove('hidden');
                     }
@@ -2963,7 +2974,14 @@ if ($_SESSION['tipo'] === 'ADM') {
                 })
                 .catch(err => {
                     console.error('Erro ao carregar dados da escola:', err);
-                    alert('Erro ao carregar dados da escola. Verifique se a escola existe.');
+                    
+                    // Ocultar loading
+                    const loadingElement = document.getElementById('loading-escola');
+                    if (loadingElement) {
+                        loadingElement.classList.add('hidden');
+                    }
+                    
+                    alert('Erro ao carregar dados da escola. Tente novamente.');
                 });
         }
         
@@ -2986,6 +3004,14 @@ if ($_SESSION['tipo'] === 'ADM') {
             const botaoAtivo = document.getElementById(`tab-${abaId}`);
             botaoAtivo.classList.add('active', 'border-primary-green', 'text-primary-green');
             botaoAtivo.classList.remove('border-transparent', 'text-gray-500');
+            
+            // Se a aba for "corpo-docente", garantir que os professores sejam carregados
+            if (abaId === 'corpo-docente') {
+                const escolaId = document.getElementById('edit_escola_id').value;
+                if (escolaId) {
+                    carregarProfessoresEscola(escolaId);
+                }
+            }
         }
         
         // Função para configurar monitoramento de mudanças nos campos
