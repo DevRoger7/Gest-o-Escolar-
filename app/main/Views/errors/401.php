@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <?php require_once('../../config/system_helper.php'); ?>
-    <title>Página Não Encontrada - <?= getNomeSistemaCurto() ?></title>
+    <title>Não Autorizado - <?= getNomeSistemaCurto() ?></title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@700&display=swap" rel="stylesheet">
@@ -56,7 +56,7 @@
                     <div class="text-center md:text-right">
                         <p class="text-[11px] uppercase tracking-[0.2em] text-gray-400 mb-4 font-medium">Código do erro</p>
                         <h1 class="error-code font-display text-[140px] md:text-[180px] leading-[0.85] text-gray-900 font-bold">
-                            404
+                            401
                         </h1>
                     </div>
 
@@ -66,10 +66,10 @@
                     <!-- Lado direito: Informações -->
                     <div class="text-center md:text-left">
                         <h2 class="text-lg font-semibold text-gray-900 mb-2">
-                            Página Não Encontrada
+                            Não Autorizado
                         </h2>
                         <p class="text-sm text-gray-500 leading-relaxed mb-8 max-w-xs">
-                            A página que você está procurando não existe ou foi movida. Verifique o endereço ou use os links abaixo para navegar.
+                            Você precisa estar autenticado para acessar esta página. Faça login para continuar.
                         </p>
                         
                         <!-- Botões -->
@@ -79,9 +79,9 @@
                                 class="group inline-flex items-center justify-center gap-2 bg-gray-900 text-white text-sm py-3 px-6 rounded-lg font-medium hover:bg-gray-800 transition-colors"
                             >
                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/>
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1"/>
                                 </svg>
-                                Ir para Login
+                                Fazer Login
                             </a>
                             <button 
                                 onclick="window.history.back()" 

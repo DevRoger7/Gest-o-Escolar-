@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <?php require_once('../../config/system_helper.php'); ?>
-    <title>Página Não Encontrada - <?= getNomeSistemaCurto() ?></title>
+    <title>Serviço Indisponível - <?= getNomeSistemaCurto() ?></title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@700&display=swap" rel="stylesheet">
@@ -56,7 +56,7 @@
                     <div class="text-center md:text-right">
                         <p class="text-[11px] uppercase tracking-[0.2em] text-gray-400 mb-4 font-medium">Código do erro</p>
                         <h1 class="error-code font-display text-[140px] md:text-[180px] leading-[0.85] text-gray-900 font-bold">
-                            404
+                            503
                         </h1>
                     </div>
 
@@ -66,29 +66,29 @@
                     <!-- Lado direito: Informações -->
                     <div class="text-center md:text-left">
                         <h2 class="text-lg font-semibold text-gray-900 mb-2">
-                            Página Não Encontrada
+                            Serviço Indisponível
                         </h2>
                         <p class="text-sm text-gray-500 leading-relaxed mb-8 max-w-xs">
-                            A página que você está procurando não existe ou foi movida. Verifique o endereço ou use os links abaixo para navegar.
+                            O serviço está temporariamente indisponível devido a manutenção ou sobrecarga. Por favor, tente novamente em alguns instantes.
                         </p>
                         
                         <!-- Botões -->
                         <div class="flex flex-col sm:flex-row gap-3">
-                            <a 
-                                href="../../auth/login.php" 
+                            <button 
+                                onclick="window.location.reload()" 
                                 class="group inline-flex items-center justify-center gap-2 bg-gray-900 text-white text-sm py-3 px-6 rounded-lg font-medium hover:bg-gray-800 transition-colors"
                             >
                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/>
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
                                 </svg>
-                                Ir para Login
-                            </a>
-                            <button 
-                                onclick="window.history.back()" 
+                                Tentar Novamente
+                            </button>
+                            <a 
+                                href="../../auth/login.php" 
                                 class="inline-flex items-center justify-center text-sm py-3 px-6 rounded-lg font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-100 transition-colors"
                             >
-                                Voltar
-                            </button>
+                                Ir para Login
+                            </a>
                         </div>
                     </div>
                 </div>
