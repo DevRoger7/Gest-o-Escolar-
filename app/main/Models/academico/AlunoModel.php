@@ -169,26 +169,42 @@ class AlunoModel {
             $stmtPessoa->bindParam(':sexo', $dados['sexo']);
             $stmtPessoa->bindParam(':email', $dados['email']);
             $stmtPessoa->bindParam(':telefone', $dados['telefone']);
-            $stmtPessoa->bindParam(':endereco', $dados['endereco'] ?? null);
-            $stmtPessoa->bindParam(':numero', $dados['numero'] ?? null);
-            $stmtPessoa->bindParam(':complemento', $dados['complemento'] ?? null);
-            $stmtPessoa->bindParam(':bairro', $dados['bairro'] ?? null);
-            $stmtPessoa->bindParam(':cidade', $dados['cidade'] ?? null);
-            $stmtPessoa->bindParam(':estado', $dados['estado'] ?? null);
-            $stmtPessoa->bindParam(':cep', $dados['cep'] ?? null);
-            $stmtPessoa->bindParam(':pessoa_id', $aluno['pessoa_id']);
+            $endereco = $dados['endereco'] ?? null;
+            $numero = $dados['numero'] ?? null;
+            $complemento = $dados['complemento'] ?? null;
+            $bairro = $dados['bairro'] ?? null;
+            $cidade = $dados['cidade'] ?? null;
+            $estado = $dados['estado'] ?? null;
+            $cep = $dados['cep'] ?? null;
+            $pessoaId = $aluno['pessoa_id'];
+            
+            $stmtPessoa->bindParam(':endereco', $endereco);
+            $stmtPessoa->bindParam(':numero', $numero);
+            $stmtPessoa->bindParam(':complemento', $complemento);
+            $stmtPessoa->bindParam(':bairro', $bairro);
+            $stmtPessoa->bindParam(':cidade', $cidade);
+            $stmtPessoa->bindParam(':estado', $estado);
+            $stmtPessoa->bindParam(':cep', $cep);
+            $stmtPessoa->bindParam(':pessoa_id', $pessoaId);
             $stmtPessoa->execute();
             
             // 2. Atualizar aluno
+            $matricula = $dados['matricula'] ?? '';
+            $nis = $dados['nis'] ?? null;
+            $responsavelId = $dados['responsavel_id'] ?? null;
+            $escolaId = $dados['escola_id'] ?? null;
+            $situacao = $dados['situacao'] ?? 'MATRICULADO';
+            $ativo = $dados['ativo'] ?? 1;
+            
             $sqlAluno = "UPDATE aluno SET matricula = :matricula, nis = :nis, 
                         responsavel_id = :responsavel_id, escola_id = :escola_id,
                         situacao = :situacao, ativo = :ativo
                         WHERE id = :id";
             $stmtAluno = $conn->prepare($sqlAluno);
-            $stmtAluno->bindParam(':matricula', $dados['matricula']);
-            $stmtAluno->bindParam(':nis', $dados['nis'] ?? null);
-            $stmtAluno->bindParam(':responsavel_id', $dados['responsavel_id'] ?? null);
-            $stmtAluno->bindParam(':escola_id', $dados['escola_id'] ?? null);
+            $stmtAluno->bindParam(':matricula', $matricula);
+            $stmtAluno->bindParam(':nis', $nis);
+            $stmtAluno->bindParam(':responsavel_id', $responsavelId);
+            $stmtAluno->bindParam(':escola_id', $escolaId);
             $stmtAluno->bindParam(':situacao', $dados['situacao'] ?? 'MATRICULADO');
             $stmtAluno->bindParam(':ativo', $dados['ativo'] ?? 1);
             $stmtAluno->bindParam(':id', $id);
