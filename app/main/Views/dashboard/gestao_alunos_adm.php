@@ -198,6 +198,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao'])) {
                 throw new Exception('Sexo é obrigatório.');
             }
             
+            // Validar NIS (se fornecido, deve ter 11 dígitos)
+            if (!empty($dados['nis'])) {
+                $nis = preg_replace('/[^0-9]/', '', $dados['nis']);
+                if (strlen($nis) !== 11) {
+                    throw new Exception('NIS inválido. Deve conter exatamente 11 dígitos.');
+                }
+                $dados['nis'] = $nis;
+            }
+            
+            // Validar data de nascimento (não pode ser futura)
+            if (!empty($dados['data_nascimento'])) {
+                $dataNasc = new DateTime($dados['data_nascimento']);
+                $hoje = new DateTime();
+                if ($dataNasc > $hoje) {
+                    throw new Exception('Data de nascimento não pode ser futura.');
+                }
+            }
+            
             // Atualizar CPF se foi alterado
             if (!empty($cpfAtual) && $cpfAtual !== $aluno['cpf']) {
                 $sqlUpdateCPF = "UPDATE pessoa SET cpf = :cpf WHERE id = :pessoa_id";
