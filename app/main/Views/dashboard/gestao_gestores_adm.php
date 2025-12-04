@@ -469,6 +469,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['acao'])) {
             echo json_encode(['success' => false, 'message' => 'Gestor não encontrado']);
         }
         exit;
+        exit;
     }
     
     if ($_GET['acao'] === 'listar_gestores') {

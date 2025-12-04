@@ -19,27 +19,55 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao'])) {
     header('Content-Type: application/json');
     
     if ($_POST['acao'] === 'criar_disciplina') {
-        $sql = "INSERT INTO disciplina (nome, codigo, carga_horaria, ativo, criado_em) 
-                VALUES (:nome, :codigo, :carga_horaria, 1, NOW())";
-        $stmt = $conn->prepare($sql);
-        $stmt->bindParam(':nome', $_POST['nome']);
-        $stmt->bindParam(':codigo', $_POST['codigo'] ?? null);
-        $stmt->bindParam(':carga_horaria', $_POST['carga_horaria'] ?? null);
-        $resultado = $stmt->execute();
-        echo json_encode(['success' => $resultado, 'id' => $conn->lastInsertId()]);
+        try {
+            // Validar nome obrigatório
+            if (empty(trim($_POST['nome'] ?? ''))) {
+                throw new Exception('Nome da disciplina é obrigatório.');
+            }
+            
+            $nome = trim($_POST['nome']);
+            $codigo = !empty($_POST['codigo']) ? trim($_POST['codigo']) : null;
+            $cargaHoraria = !empty($_POST['carga_horaria']) ? (int)$_POST['carga_horaria'] : null;
+            
+            $sql = "INSERT INTO disciplina (nome, codigo, carga_horaria, ativo, criado_em) 
+                    VALUES (:nome, :codigo, :carga_horaria, 1, NOW())";
+            $stmt = $conn->prepare($sql);
+            $stmt->bindParam(':nome', $nome);
+            $stmt->bindParam(':codigo', $codigo);
+            $stmt->bindParam(':carga_horaria', $cargaHoraria);
+            $resultado = $stmt->execute();
+            echo json_encode(['success' => $resultado, 'id' => $conn->lastInsertId()]);
+        } catch (Exception $e) {
+            echo json_encode(['success' => false, 'message' => $e->getMessage()]);
+        }
         exit;
     }
     
     if ($_POST['acao'] === 'editar_disciplina') {
-        $sql = "UPDATE disciplina SET nome = :nome, codigo = :codigo, carga_horaria = :carga_horaria, ativo = :ativo WHERE id = :id";
-        $stmt = $conn->prepare($sql);
-        $stmt->bindParam(':id', $_POST['id']);
-        $stmt->bindParam(':nome', $_POST['nome']);
-        $stmt->bindParam(':codigo', $_POST['codigo'] ?? null);
-        $stmt->bindParam(':carga_horaria', $_POST['carga_horaria'] ?? null);
-        $stmt->bindParam(':ativo', $_POST['ativo'] ?? 1);
-        $resultado = $stmt->execute();
-        echo json_encode(['success' => $resultado]);
+        try {
+            // Validar nome obrigatório
+            if (empty(trim($_POST['nome'] ?? ''))) {
+                throw new Exception('Nome da disciplina é obrigatório.');
+            }
+            
+            $id = (int)$_POST['id'];
+            $nome = trim($_POST['nome']);
+            $codigo = !empty($_POST['codigo']) ? trim($_POST['codigo']) : null;
+            $cargaHoraria = !empty($_POST['carga_horaria']) ? (int)$_POST['carga_horaria'] : null;
+            $ativo = isset($_POST['ativo']) ? (int)$_POST['ativo'] : 1;
+            
+            $sql = "UPDATE disciplina SET nome = :nome, codigo = :codigo, carga_horaria = :carga_horaria, ativo = :ativo WHERE id = :id";
+            $stmt = $conn->prepare($sql);
+            $stmt->bindParam(':id', $id);
+            $stmt->bindParam(':nome', $nome);
+            $stmt->bindParam(':codigo', $codigo);
+            $stmt->bindParam(':carga_horaria', $cargaHoraria);
+            $stmt->bindParam(':ativo', $ativo);
+            $resultado = $stmt->execute();
+            echo json_encode(['success' => $resultado]);
+        } catch (Exception $e) {
+            echo json_encode(['success' => false, 'message' => $e->getMessage()]);
+        }
         exit;
     }
     
