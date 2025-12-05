@@ -261,7 +261,30 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['acao'])) {
                     <div class="flex-1 text-center lg:text-left">
                         <h1 class="text-xl font-semibold text-gray-800">Lançar Notas</h1>
                     </div>
-                    <div class="w-10"></div>
+                    <div class="flex items-center space-x-4">
+                        <!-- School Info (Desktop Only) -->
+                        <div class="hidden lg:block">
+                            <?php if ($_SESSION['tipo'] === 'ADM') { ?>
+                                <!-- Para ADM, texto simples com padding para alinhamento -->
+                                <div class="text-right px-4 py-2">
+                                    <p class="text-sm font-medium text-gray-800">Secretaria Municipal da Educação</p>
+                                    <p class="text-xs text-gray-500">Órgão Central</p>
+                                </div>
+                            <?php } else { ?>
+                                <!-- Para outros usuários, card verde com ícone -->
+                                <div class="bg-primary-green text-white px-4 py-2 rounded-lg shadow-sm">
+                                    <div class="flex items-center space-x-2">
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path>
+                                        </svg>
+                                        <span class="text-sm font-semibold">
+                                            <?php echo $_SESSION['escola_atual'] ?? 'Escola Municipal'; ?>
+                                        </span>
+                                    </div>
+                                </div>
+                            <?php } ?>
+                        </div>
+                    </div>
                 </div>
             </div>
         </header>

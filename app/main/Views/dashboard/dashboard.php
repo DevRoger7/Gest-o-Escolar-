@@ -7986,20 +7986,23 @@ if (!defined('BASE_URL')) {
     </script>
     
     <!-- Modal Full Screen de Perfil do Usuário -->
-    <div id="userProfileModal" class="fixed inset-0 bg-white z-[70] hidden overflow-y-auto" style="display: none;">
+    <div id="userProfileModal" class="fixed inset-0 bg-gray-50 z-[70] hidden overflow-y-auto" style="display: none;">
         <!-- Header do Modal -->
-        <div class="sticky top-0 bg-gradient-to-r from-primary-green to-green-700 text-white shadow-lg z-10">
-            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        <div class="sticky top-0 bg-white border-b border-gray-200 shadow-sm z-10 backdrop-blur-sm bg-white/95">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
                 <div class="flex items-center justify-between">
                     <div class="flex items-center space-x-4">
-                        <button onclick="window.closeUserProfile()" class="p-2 hover:bg-white/20 rounded-lg transition-colors">
-                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <button onclick="window.closeUserProfile()" class="p-2 hover:bg-gray-100 rounded-lg transition-colors group">
+                            <svg class="w-5 h-5 text-gray-600 group-hover:text-gray-900" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
                             </svg>
                         </button>
-                        <h2 class="text-2xl font-bold">Meu Perfil</h2>
+                        <div>
+                            <h2 class="text-xl font-semibold text-gray-900">Meu Perfil</h2>
+                            <p class="text-xs text-gray-500 mt-0.5">Gerencie suas informações pessoais</p>
+                        </div>
                     </div>
-                    <button onclick="window.closeUserProfile()" class="px-4 py-2 bg-white/20 hover:bg-white/30 rounded-lg font-medium transition-colors">
+                    <button onclick="window.closeUserProfile()" class="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors">
                         Fechar
                     </button>
                 </div>
@@ -8009,70 +8012,137 @@ if (!defined('BASE_URL')) {
         <!-- Conteúdo do Modal -->
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
             <?php if ($dadosUsuario): ?>
-            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
                 <!-- Coluna Esquerda - Informações Principais -->
                 <div class="lg:col-span-2 space-y-6">
+                    <!-- Card de Avatar e Informações Principais -->
+                    <div class="bg-gradient-to-br from-green-50 to-emerald-50 rounded-2xl shadow-sm p-8 border border-green-100">
+                        <div class="flex flex-col sm:flex-row items-center sm:items-start gap-6">
+                            <div class="relative">
+                                <div class="w-24 h-24 bg-gradient-to-br from-primary-green to-green-700 rounded-2xl flex items-center justify-center text-white text-3xl font-bold shadow-lg ring-4 ring-white">
+                                    <?php
+                                    $nome = $dadosUsuario['nome'] ?? 'U';
+                                    $iniciais = '';
+                                    if (strlen($nome) >= 2) {
+                                        $iniciais = strtoupper(substr($nome, 0, 2));
+                                    } elseif (strlen($nome) == 1) {
+                                        $iniciais = strtoupper($nome);
+                                    } else {
+                                        $iniciais = 'US';
+                                    }
+                                    echo $iniciais;
+                                    ?>
+                                </div>
+                                <div class="absolute -bottom-1 -right-1 w-6 h-6 bg-green-500 border-2 border-white rounded-full"></div>
+                            </div>
+                            <div class="flex-1 text-center sm:text-left">
+                                <h3 class="text-2xl font-bold text-gray-900 mb-1"><?= htmlspecialchars($dadosUsuario['nome'] ?? 'Usuário') ?></h3>
+                                <p class="text-sm text-gray-600 mb-3"><?= htmlspecialchars($dadosUsuario['tipo'] ?? 'Funcionário') ?></p>
+                                <div class="flex flex-wrap gap-2 justify-center sm:justify-start">
+                                    <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium <?php 
+                                        $tipo = $dadosUsuario['tipo'] ?? '';
+                                        echo $tipo === 'ADM' ? 'bg-purple-100 text-purple-800' : 
+                                             ($tipo === 'GESTAO' ? 'bg-blue-100 text-blue-800' : 
+                                             ($tipo === 'PROFESSOR' ? 'bg-green-100 text-green-800' : 
+                                             ($tipo === 'ADM_MERENDA' ? 'bg-orange-100 text-orange-800' : 'bg-gray-100 text-gray-800'))); 
+                                    ?>">
+                                        <?= htmlspecialchars($tipo) ?>
+                                    </span>
+                                    <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium <?= ($dadosUsuario['ativo'] ?? 0) ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800' ?>">
+                                        <span class="w-1.5 h-1.5 rounded-full mr-1.5 <?= ($dadosUsuario['ativo'] ?? 0) ? 'bg-green-500' : 'bg-red-500' ?>"></span>
+                                        <?= ($dadosUsuario['ativo'] ?? 0) ? 'Ativo' : 'Bloqueado' ?>
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
                     <!-- Card de Informações Pessoais -->
-                    <div class="bg-white rounded-xl shadow-md p-6 border border-gray-200">
+                    <div class="bg-white rounded-xl shadow-sm p-6 border border-gray-200 hover:shadow-md transition-shadow">
                         <div class="flex items-center justify-between mb-6">
-                            <h3 class="text-xl font-semibold text-gray-900 flex items-center space-x-2">
-                                <svg class="w-6 h-6 text-primary-green" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
-                                </svg>
+                            <h3 class="text-lg font-semibold text-gray-900 flex items-center space-x-2">
+                                <div class="w-10 h-10 bg-blue-50 rounded-lg flex items-center justify-center">
+                                    <svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
+                                    </svg>
+                                </div>
                                 <span>Informações Pessoais</span>
                             </h3>
                         </div>
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-1">Nome Completo</label>
-                                <p class="text-gray-900 font-medium"><?= htmlspecialchars($dadosUsuario['nome'] ?? 'N/A') ?></p>
+                            <div class="space-y-1">
+                                <label class="block text-xs font-medium text-gray-500 uppercase tracking-wide">Nome Completo</label>
+                                <p class="text-gray-900 font-medium text-base"><?= htmlspecialchars($dadosUsuario['nome'] ?? 'N/A') ?></p>
                             </div>
-                            <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-1">CPF</label>
-                                <p class="text-gray-900"><?= !empty($dadosUsuario['cpf']) ? preg_replace('/(\d{3})(\d{3})(\d{3})(\d{2})/', '$1.$2.$3-$4', $dadosUsuario['cpf']) : 'N/A' ?></p>
+                            <div class="space-y-1">
+                                <label class="block text-xs font-medium text-gray-500 uppercase tracking-wide">CPF</label>
+                                <p class="text-gray-900 text-base font-mono"><?= !empty($dadosUsuario['cpf']) ? preg_replace('/(\d{3})(\d{3})(\d{3})(\d{2})/', '$1.$2.$3-$4', $dadosUsuario['cpf']) : 'N/A' ?></p>
                             </div>
-                            <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-1">Data de Nascimento</label>
-                                <p class="text-gray-900"><?= !empty($dadosUsuario['data_nascimento']) ? date('d/m/Y', strtotime($dadosUsuario['data_nascimento'])) : 'N/A' ?></p>
+                            <div class="space-y-1">
+                                <label class="block text-xs font-medium text-gray-500 uppercase tracking-wide">Data de Nascimento</label>
+                                <p class="text-gray-900 text-base flex items-center">
+                                    <svg class="w-4 h-4 text-gray-400 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                                    </svg>
+                                    <?= !empty($dadosUsuario['data_nascimento']) ? date('d/m/Y', strtotime($dadosUsuario['data_nascimento'])) : 'N/A' ?>
+                                </p>
                             </div>
-                            <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-1">Sexo</label>
-                                <p class="text-gray-900"><?= !empty($dadosUsuario['sexo']) ? ($dadosUsuario['sexo'] === 'M' ? 'Masculino' : ($dadosUsuario['sexo'] === 'F' ? 'Feminino' : 'Outro')) : 'N/A' ?></p>
+                            <div class="space-y-1">
+                                <label class="block text-xs font-medium text-gray-500 uppercase tracking-wide">Sexo</label>
+                                <p class="text-gray-900 text-base"><?= !empty($dadosUsuario['sexo']) ? ($dadosUsuario['sexo'] === 'M' ? 'Masculino' : ($dadosUsuario['sexo'] === 'F' ? 'Feminino' : 'Outro')) : 'N/A' ?></p>
                             </div>
                         </div>
                     </div>
                     
                     <!-- Card de Contato -->
-                    <div class="bg-white rounded-xl shadow-md p-6 border border-gray-200">
-                        <h3 class="text-xl font-semibold text-gray-900 mb-6 flex items-center space-x-2">
-                            <svg class="w-6 h-6 text-primary-green" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path>
-                            </svg>
+                    <div class="bg-white rounded-xl shadow-sm p-6 border border-gray-200 hover:shadow-md transition-shadow">
+                        <h3 class="text-lg font-semibold text-gray-900 mb-6 flex items-center space-x-2">
+                            <div class="w-10 h-10 bg-green-50 rounded-lg flex items-center justify-center">
+                                <svg class="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path>
+                                </svg>
+                            </div>
                             <span>Informações de Contato</span>
                         </h3>
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-1">E-mail</label>
-                                <p class="text-gray-900"><?= htmlspecialchars($dadosUsuario['email'] ?? 'N/A') ?></p>
+                            <div class="space-y-1">
+                                <label class="block text-xs font-medium text-gray-500 uppercase tracking-wide">E-mail</label>
+                                <p class="text-gray-900 text-base flex items-center">
+                                    <svg class="w-4 h-4 text-gray-400 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path>
+                                    </svg>
+                                    <?= htmlspecialchars($dadosUsuario['email'] ?? 'N/A') ?>
+                                </p>
                             </div>
-                            <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-1">Telefone</label>
-                                <p class="text-gray-900"><?= !empty($dadosUsuario['telefone']) ? preg_replace('/(\d{2})(\d{4,5})(\d{4})/', '($1) $2-$3', $dadosUsuario['telefone']) : 'N/A' ?></p>
+                            <div class="space-y-1">
+                                <label class="block text-xs font-medium text-gray-500 uppercase tracking-wide">Telefone</label>
+                                <p class="text-gray-900 text-base flex items-center">
+                                    <svg class="w-4 h-4 text-gray-400 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"></path>
+                                    </svg>
+                                    <?= !empty($dadosUsuario['telefone']) ? preg_replace('/(\d{2})(\d{4,5})(\d{4})/', '($1) $2-$3', $dadosUsuario['telefone']) : 'N/A' ?>
+                                </p>
                             </div>
                             <?php if (!empty($dadosUsuario['endereco'])): ?>
-                            <div class="md:col-span-2">
-                                <label class="block text-sm font-medium text-gray-700 mb-1">Endereço</label>
-                                <p class="text-gray-900">
-                                    <?= htmlspecialchars($dadosUsuario['endereco']) ?>
-                                    <?php if (!empty($dadosUsuario['cidade'])): ?>
-                                        , <?= htmlspecialchars($dadosUsuario['cidade']) ?>
-                                    <?php endif; ?>
-                                    <?php if (!empty($dadosUsuario['estado'])): ?>
-                                        - <?= htmlspecialchars($dadosUsuario['estado']) ?>
-                                    <?php endif; ?>
-                                    <?php if (!empty($dadosUsuario['cep'])): ?>
-                                        | CEP: <?= preg_replace('/(\d{5})(\d{3})/', '$1-$2', $dadosUsuario['cep']) ?>
-                                    <?php endif; ?>
+                            <div class="md:col-span-2 space-y-1">
+                                <label class="block text-xs font-medium text-gray-500 uppercase tracking-wide">Endereço</label>
+                                <p class="text-gray-900 text-base flex items-start">
+                                    <svg class="w-4 h-4 text-gray-400 mr-2 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path>
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                                    </svg>
+                                    <span>
+                                        <?= htmlspecialchars($dadosUsuario['endereco']) ?>
+                                        <?php if (!empty($dadosUsuario['cidade'])): ?>
+                                            , <?= htmlspecialchars($dadosUsuario['cidade']) ?>
+                                        <?php endif; ?>
+                                        <?php if (!empty($dadosUsuario['estado'])): ?>
+                                            - <?= htmlspecialchars($dadosUsuario['estado']) ?>
+                                        <?php endif; ?>
+                                        <?php if (!empty($dadosUsuario['cep'])): ?>
+                                            | CEP: <?= preg_replace('/(\d{5})(\d{3})/', '$1-$2', $dadosUsuario['cep']) ?>
+                                        <?php endif; ?>
+                                    </span>
                                 </p>
                             </div>
                             <?php endif; ?>
@@ -8080,112 +8150,113 @@ if (!defined('BASE_URL')) {
                     </div>
                     
                     <!-- Card de Informações da Conta -->
-                    <div class="bg-white rounded-xl shadow-md p-6 border border-gray-200">
-                        <h3 class="text-xl font-semibold text-gray-900 mb-6 flex items-center space-x-2">
-                            <svg class="w-6 h-6 text-primary-green" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path>
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
-                            </svg>
+                    <div class="bg-white rounded-xl shadow-sm p-6 border border-gray-200 hover:shadow-md transition-shadow">
+                        <h3 class="text-lg font-semibold text-gray-900 mb-6 flex items-center space-x-2">
+                            <div class="w-10 h-10 bg-purple-50 rounded-lg flex items-center justify-center">
+                                <svg class="w-5 h-5 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path>
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                                </svg>
+                            </div>
                             <span>Informações da Conta</span>
                         </h3>
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-1">Username</label>
-                                <p class="text-gray-900 font-mono"><?= htmlspecialchars($dadosUsuario['username'] ?? 'N/A') ?></p>
+                            <div class="space-y-1">
+                                <label class="block text-xs font-medium text-gray-500 uppercase tracking-wide">Username</label>
+                                <p class="text-gray-900 text-base font-mono bg-gray-50 px-3 py-2 rounded-lg inline-block"><?= htmlspecialchars($dadosUsuario['username'] ?? 'N/A') ?></p>
                             </div>
-                            <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-1">Tipo de Usuário</label>
-                                <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium <?php 
-                                    $tipo = $dadosUsuario['tipo'] ?? '';
-                                    echo $tipo === 'ADM' ? 'bg-purple-100 text-purple-800' : 
-                                         ($tipo === 'GESTAO' ? 'bg-blue-100 text-blue-800' : 
-                                         ($tipo === 'PROFESSOR' ? 'bg-green-100 text-green-800' : 
-                                         ($tipo === 'ADM_MERENDA' ? 'bg-orange-100 text-orange-800' : 'bg-gray-100 text-gray-800'))); 
-                                ?>">
-                                    <?= htmlspecialchars($tipo) ?>
-                                </span>
+                            <div class="space-y-1">
+                                <label class="block text-xs font-medium text-gray-500 uppercase tracking-wide">Data de Criação</label>
+                                <p class="text-gray-900 text-base flex items-center">
+                                    <svg class="w-4 h-4 text-gray-400 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                                    </svg>
+                                    <?= !empty($dadosUsuario['data_criacao']) ? date('d/m/Y H:i', strtotime($dadosUsuario['data_criacao'])) : 'N/A' ?>
+                                </p>
                             </div>
-                            <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-1">Status da Conta</label>
-                                <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium <?= ($dadosUsuario['ativo'] ?? 0) ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800' ?>">
-                                    <?= ($dadosUsuario['ativo'] ?? 0) ? 'Ativo' : 'Bloqueado' ?>
-                                </span>
-                            </div>
-                            <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-1">Data de Criação</label>
-                                <p class="text-gray-900"><?= !empty($dadosUsuario['data_criacao']) ? date('d/m/Y H:i', strtotime($dadosUsuario['data_criacao'])) : 'N/A' ?></p>
-                            </div>
-                            <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-1">Último Login</label>
-                                <p class="text-gray-900"><?= !empty($dadosUsuario['ultimo_login']) ? date('d/m/Y H:i', strtotime($dadosUsuario['ultimo_login'])) : 'Nunca' ?></p>
+                            <div class="space-y-1">
+                                <label class="block text-xs font-medium text-gray-500 uppercase tracking-wide">Último Login</label>
+                                <p class="text-gray-900 text-base flex items-center">
+                                    <svg class="w-4 h-4 text-gray-400 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                    </svg>
+                                    <?= !empty($dadosUsuario['ultimo_login']) ? date('d/m/Y H:i', strtotime($dadosUsuario['ultimo_login'])) : 'Nunca' ?>
+                                </p>
                             </div>
                         </div>
                     </div>
                 </div>
                 
-                <!-- Coluna Direita - Avatar e Ações -->
+                <!-- Coluna Direita - Ações -->
                 <div class="space-y-6">
-                    <!-- Card de Avatar -->
-                    <div class="bg-white rounded-xl shadow-md p-6 border border-gray-200 text-center">
-                        <div class="flex justify-center mb-4">
-                            <div class="w-32 h-32 bg-gradient-to-br from-primary-green to-green-700 rounded-full flex items-center justify-center text-white text-4xl font-bold shadow-lg">
-                                <?php
-                                $nome = $dadosUsuario['nome'] ?? 'U';
-                                $iniciais = '';
-                                if (strlen($nome) >= 2) {
-                                    $iniciais = strtoupper(substr($nome, 0, 2));
-                                } elseif (strlen($nome) == 1) {
-                                    $iniciais = strtoupper($nome);
-                                } else {
-                                    $iniciais = 'US';
-                                }
-                                echo $iniciais;
-                                ?>
-                            </div>
-                        </div>
-                        <h3 class="text-xl font-semibold text-gray-900 mb-2"><?= htmlspecialchars($dadosUsuario['nome'] ?? 'Usuário') ?></h3>
-                        <p class="text-sm text-gray-600 mb-4"><?= htmlspecialchars($dadosUsuario['tipo'] ?? 'Funcionário') ?></p>
-                        <div class="pt-4 border-t border-gray-200">
-                            <button class="w-full px-4 py-2 bg-primary-green text-white rounded-lg hover:bg-green-700 transition-colors font-medium">
-                                Editar Perfil
-                            </button>
-                        </div>
-                    </div>
-                    
                     <!-- Card de Ações Rápidas -->
-                    <div class="bg-white rounded-xl shadow-md p-6 border border-gray-200">
-                        <h3 class="text-lg font-semibold text-gray-900 mb-4">Ações Rápidas</h3>
+                    <div class="bg-white rounded-xl shadow-sm p-6 border border-gray-200 sticky top-24">
+                        <h3 class="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                            <svg class="w-5 h-5 text-gray-400 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"></path>
+                            </svg>
+                            Ações Rápidas
+                        </h3>
                         <div class="space-y-2">
-                            <button class="w-full text-left px-4 py-3 rounded-lg hover:bg-gray-50 transition-colors flex items-center space-x-3">
-                                <svg class="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"></path>
+                            <button class="w-full text-left px-4 py-3 rounded-lg hover:bg-gray-50 transition-all flex items-center space-x-3 group border border-transparent hover:border-gray-200">
+                                <div class="w-9 h-9 bg-blue-50 rounded-lg flex items-center justify-center group-hover:bg-blue-100 transition-colors">
+                                    <svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"></path>
+                                    </svg>
+                                </div>
+                                <div class="flex-1">
+                                    <span class="text-sm font-medium text-gray-900 block">Alterar Senha</span>
+                                    <span class="text-xs text-gray-500">Atualize sua senha de acesso</span>
+                                </div>
+                                <svg class="w-4 h-4 text-gray-400 group-hover:text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
                                 </svg>
-                                <span class="text-gray-700">Alterar Senha</span>
                             </button>
-                            <button class="w-full text-left px-4 py-3 rounded-lg hover:bg-gray-50 transition-colors flex items-center space-x-3">
-                                <svg class="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path>
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                            <button class="w-full text-left px-4 py-3 rounded-lg hover:bg-gray-50 transition-all flex items-center space-x-3 group border border-transparent hover:border-gray-200">
+                                <div class="w-9 h-9 bg-purple-50 rounded-lg flex items-center justify-center group-hover:bg-purple-100 transition-colors">
+                                    <svg class="w-5 h-5 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path>
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                                    </svg>
+                                </div>
+                                <div class="flex-1">
+                                    <span class="text-sm font-medium text-gray-900 block">Configurações</span>
+                                    <span class="text-xs text-gray-500">Preferências e opções</span>
+                                </div>
+                                <svg class="w-4 h-4 text-gray-400 group-hover:text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
                                 </svg>
-                                <span class="text-gray-700">Configurações</span>
                             </button>
-                            <button onclick="window.closeUserProfile(); window.confirmLogout();" class="w-full text-left px-4 py-3 rounded-lg hover:bg-red-50 transition-colors flex items-center space-x-3 text-red-600">
-                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path>
+                            <button onclick="window.closeUserProfile(); window.confirmLogout();" class="w-full text-left px-4 py-3 rounded-lg hover:bg-red-50 transition-all flex items-center space-x-3 group border border-transparent hover:border-red-200 text-red-600">
+                                <div class="w-9 h-9 bg-red-50 rounded-lg flex items-center justify-center group-hover:bg-red-100 transition-colors">
+                                    <svg class="w-5 h-5 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path>
+                                    </svg>
+                                </div>
+                                <div class="flex-1">
+                                    <span class="text-sm font-medium block">Sair do Sistema</span>
+                                    <span class="text-xs text-red-500">Encerrar sua sessão</span>
+                                </div>
+                                <svg class="w-4 h-4 text-red-400 group-hover:text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
                                 </svg>
-                                <span>Sair do Sistema</span>
                             </button>
                         </div>
                     </div>
                 </div>
             </div>
             <?php else: ?>
-            <div class="bg-white rounded-xl shadow-md p-12 text-center">
-                <svg class="w-16 h-16 text-gray-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                </svg>
+            <div class="bg-white rounded-xl shadow-sm p-12 text-center border border-gray-200">
+                <div class="w-16 h-16 bg-red-50 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <svg class="w-8 h-8 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                    </svg>
+                </div>
                 <h3 class="text-xl font-semibold text-gray-900 mb-2">Erro ao carregar perfil</h3>
-                <p class="text-gray-600">Não foi possível carregar as informações do seu perfil.</p>
+                <p class="text-gray-600 mb-6">Não foi possível carregar as informações do seu perfil.</p>
+                <button onclick="window.closeUserProfile()" class="px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 transition-colors text-sm font-medium">
+                    Fechar
+                </button>
             </div>
             <?php endif; ?>
         </div>
