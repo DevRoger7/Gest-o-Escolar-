@@ -1949,7 +1949,7 @@ if (!defined('BASE_URL')) {
                 <?php } ?>
                 <?php if ($_SESSION['tipo'] === 'GESTAO') { ?>
                 <li id="gestao-menu">
-                    <a href="gestao/escolar.php" class="menu-item flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700">
+                    <a href="gestao_escolar.php" class="menu-item flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700">
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
                         </svg>
@@ -1972,7 +1972,7 @@ if (!defined('BASE_URL')) {
                     </a>
                 </li>
                 <li>
-                    <a href="professor/notas.php" class="menu-item flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700">
+                    <a href="notas_professor.php" class="menu-item flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700">
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z"></path>
                         </svg>
@@ -2056,7 +2056,7 @@ if (!defined('BASE_URL')) {
                 <?php } ?>
                 <?php if ($_SESSION['tipo'] === 'ADM') { ?>
                 <li id="escolas-menu">
-                    <a href="adm/gestao/escolas.php" class="menu-item flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700">
+                    <a href="gestao_escolas.php" class="menu-item flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700">
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path>
                         </svg>
@@ -2064,7 +2064,7 @@ if (!defined('BASE_URL')) {
                     </a>
                 </li>
                 <li id="usuarios-menu">
-                    <a href="adm/gestao/usuarios.php" class="menu-item flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700">
+                    <a href="gestao_usuarios.php" class="menu-item flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700">
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z"></path>
                         </svg>
@@ -2072,7 +2072,7 @@ if (!defined('BASE_URL')) {
                     </a>
                 </li>
                 <li id="estoque-central-menu">
-                    <a href="merenda/estoque_central.php" class="menu-item flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700">
+                    <a href="gestao_estoque_central.php" class="menu-item flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700">
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path>
                         </svg>
@@ -2469,7 +2469,7 @@ if (!defined('BASE_URL')) {
                     
                     <!-- Cards de Acesso Rápido para ADM -->
                     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
-                        <a href="adm/gestao/alunos.php" class="bg-gradient-to-br from-blue-500 to-blue-600 text-white rounded-2xl p-6 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105">
+                        <a href="gestao_alunos_adm.php" class="bg-gradient-to-br from-blue-500 to-blue-600 text-white rounded-2xl p-6 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105">
                             <div class="flex items-center justify-between mb-4">
                                 <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"></path>
@@ -2479,7 +2479,7 @@ if (!defined('BASE_URL')) {
                             <p class="text-blue-100 text-sm">Cadastrar, editar e excluir alunos</p>
                         </a>
                         
-                        <a href="adm/gestao/professores.php" class="bg-gradient-to-br from-green-500 to-green-600 text-white rounded-2xl p-6 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105">
+                        <a href="gestao_professores_adm.php" class="bg-gradient-to-br from-green-500 to-green-600 text-white rounded-2xl p-6 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105">
                             <div class="flex items-center justify-between mb-4">
                                 <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path>
@@ -2489,7 +2489,7 @@ if (!defined('BASE_URL')) {
                             <p class="text-green-100 text-sm">Cadastrar, editar e excluir professores</p>
                         </a>
                         
-                        <a href="adm/gestao/turmas.php" class="bg-gradient-to-br from-purple-500 to-purple-600 text-white rounded-2xl p-6 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105">
+                        <a href="gestao_turmas_adm.php" class="bg-gradient-to-br from-purple-500 to-purple-600 text-white rounded-2xl p-6 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105">
                             <div class="flex items-center justify-between mb-4">
                                 <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"></path>
@@ -2730,7 +2730,7 @@ if (!defined('BASE_URL')) {
                         if (strtolower($userType) === 'aluno') { 
                         ?>
                             <!-- Botões específicos para alunos -->
-                            <a href="aluno/notas.php" class="group w-full flex items-center p-4 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-xl hover:from-blue-600 hover:to-blue-700 transition-all duration-300 shadow-md hover:shadow-lg hover:scale-[1.02]">
+                            <a href="aluno_notas.php" class="group w-full flex items-center p-4 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-xl hover:from-blue-600 hover:to-blue-700 transition-all duration-300 shadow-md hover:shadow-lg hover:scale-[1.02]">
                                 <div class="flex items-center space-x-4 flex-1">
                                     <div class="p-2 bg-white/20 rounded-lg group-hover:bg-white/30 transition-all duration-300">
                                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -2975,7 +2975,7 @@ if (!defined('BASE_URL')) {
                     $meses = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
                     $mesAtual = $meses[date('n') - 1];
                     echo '
-                    <a href="nutricionista/cardapios.php" class="card-hover bg-white rounded-2xl p-6 shadow-lg border border-gray-100 hover-lift block">
+                    <a href="cardapios_nutricionista.php" class="card-hover bg-white rounded-2xl p-6 shadow-lg border border-gray-100 hover-lift block">
                         <div class="flex items-center justify-between mb-4">
                             <div class="p-3 bg-green-100 rounded-xl">
                                 <svg class="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -3457,7 +3457,7 @@ if (!defined('BASE_URL')) {
                                 </div>
                             </div>
                             
-                            <a href="gestao/escolar.php" class="w-full bg-blue-600 text-white py-2.5 px-4 rounded-lg hover:bg-blue-700 transition-colors duration-200 font-medium text-center block">
+                            <a href="gestao_escolar.php" class="w-full bg-blue-600 text-white py-2.5 px-4 rounded-lg hover:bg-blue-700 transition-colors duration-200 font-medium text-center block">
                                 Gerenciar Turmas
                             </a>
                         </div>';
@@ -3631,7 +3631,7 @@ if (!defined('BASE_URL')) {
                             </div>
                         </div>
                         
-                        <a href="gestao/escolar.php#acompanhamento" class="w-full bg-yellow-600 text-white py-2.5 px-4 rounded-lg hover:bg-yellow-700 transition-colors duration-200 font-medium text-center block">
+                        <a href="gestao_escolar.php#acompanhamento" class="w-full bg-yellow-600 text-white py-2.5 px-4 rounded-lg hover:bg-yellow-700 transition-colors duration-200 font-medium text-center block">
                             Gerenciar Notas
                         </a>
                     </div>';
@@ -3821,7 +3821,7 @@ if (!defined('BASE_URL')) {
                         </div>
                         <h3 class="text-lg font-bold text-gray-800 mb-2">'.$card['title'].'</h3>
                         <p class="text-gray-600 text-sm mb-4">'.$card['desc'].'</p>
-                        <a href="'.($card['title'] === 'Calendário' ? 'shared/calendar.php' : ($card['title'] === 'Usuários' ? 'adm/gestao/usuarios.php' : ($card['title'] === 'Escolas' ? 'adm/gestao/escolas.php' : ($card['title'] === 'Estoque' ? 'merenda/estoque_central.php' : '#')))).'" class="w-full bg-gradient-to-r from-'.$card['color'].'-500 to-'.$card['color'].'-600 text-white py-2 px-4 rounded-lg hover:from-'.$card['color'].'-600 hover:to-'.$card['color'].'-700 transition-all duration-200 text-center block">
+                        <a href="'.($card['title'] === 'Calendário' ? 'calendar.php' : ($card['title'] === 'Usuários' ? 'gestao_usuarios.php' : ($card['title'] === 'Escolas' ? 'gestao_escolas.php' : ($card['title'] === 'Estoque' ? 'gestao_estoque_central.php' : '#')))).'" class="w-full bg-gradient-to-r from-'.$card['color'].'-500 to-'.$card['color'].'-600 text-white py-2 px-4 rounded-lg hover:from-'.$card['color'].'-600 hover:to-'.$card['color'].'-700 transition-all duration-200 text-center block">
                             Gerenciar
                         </a>
                     </div>';
