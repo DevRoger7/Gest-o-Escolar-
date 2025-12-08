@@ -4,6 +4,7 @@ require_once('../../config/permissions_helper.php');
 require_once('../../config/Database.php');
 require_once('../../Models/merenda/CardapioModel.php');
 require_once('../../Models/merenda/ConsumoDiarioModel.php');
+require_once('../../Models/merenda/FornecedorModel.php');
 
 $session = new sessions();
 $session->autenticar_session();
@@ -18,11 +19,14 @@ $db = Database::getInstance();
 $conn = $db->getConnection();
 $cardapioModel = new CardapioModel();
 $consumoModel = new ConsumoDiarioModel();
+$fornecedorModel = new FornecedorModel();
 
 // Estatísticas
 $cardapiosAtivos = count($cardapioModel->listar(['status' => 'APROVADO']));
 $consumosHoje = $consumoModel->listar(['data' => date('Y-m-d')]);
 $refeicoesHoje = array_sum(array_column($consumosHoje, 'alunos_atendidos'));
+$fornecedoresAtivos = count($fornecedorModel->listar(['ativo' => 1]));
+$cardapiosPendentes = count($cardapioModel->listar(['status' => 'RASCUNHO']));
 ?>
 <!DOCTYPE html>
 <html lang="pt-BR">
@@ -135,7 +139,7 @@ $refeicoesHoje = array_sum(array_column($consumosHoje, 'alunos_atendidos'));
                                 </svg>
                             </div>
                         </div>
-                        <h3 class="text-2xl font-bold text-gray-800 mb-1">-</h3>
+                        <h3 class="text-2xl font-bold text-gray-800 mb-1"><?= $fornecedoresAtivos ?></h3>
                         <p class="text-gray-600 text-sm">Fornecedores Ativos</p>
                     </div>
                     
@@ -147,14 +151,14 @@ $refeicoesHoje = array_sum(array_column($consumosHoje, 'alunos_atendidos'));
                                 </svg>
                             </div>
                         </div>
-                        <h3 class="text-2xl font-bold text-gray-800 mb-1">-</h3>
+                        <h3 class="text-2xl font-bold text-gray-800 mb-1"><?= $cardapiosPendentes ?></h3>
                         <p class="text-gray-600 text-sm">Aprovações Pendentes</p>
                     </div>
                 </div>
                 
                 <!-- Links Rápidos -->
-                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    <a href="cardapios_merenda.php" class="bg-white rounded-2xl p-6 shadow-lg hover:shadow-xl transition-all duration-300">
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                    <a href="cardapios_merenda.php" class="bg-white rounded-2xl p-6 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105">
                         <div class="flex items-center space-x-4">
                             <div class="p-3 bg-blue-100 rounded-xl">
                                 <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -168,7 +172,7 @@ $refeicoesHoje = array_sum(array_column($consumosHoje, 'alunos_atendidos'));
                         </div>
                     </a>
                     
-                    <a href="consumo_merenda.php" class="bg-white rounded-2xl p-6 shadow-lg hover:shadow-xl transition-all duration-300">
+                    <a href="consumo_merenda.php" class="bg-white rounded-2xl p-6 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105">
                         <div class="flex items-center space-x-4">
                             <div class="p-3 bg-green-100 rounded-xl">
                                 <svg class="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -182,7 +186,7 @@ $refeicoesHoje = array_sum(array_column($consumosHoje, 'alunos_atendidos'));
                         </div>
                     </a>
                     
-                    <a href="estoque_merenda.php" class="bg-white rounded-2xl p-6 shadow-lg hover:shadow-xl transition-all duration-300">
+                    <a href="estoque_merenda.php" class="bg-white rounded-2xl p-6 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105">
                         <div class="flex items-center space-x-4">
                             <div class="p-3 bg-purple-100 rounded-xl">
                                 <svg class="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -192,6 +196,20 @@ $refeicoesHoje = array_sum(array_column($consumosHoje, 'alunos_atendidos'));
                             <div>
                                 <h3 class="font-semibold text-gray-900">Estoque</h3>
                                 <p class="text-sm text-gray-600">Controle de estoque</p>
+                            </div>
+                        </div>
+                    </a>
+                    
+                    <a href="fornecedores_merenda.php" class="bg-white rounded-2xl p-6 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105">
+                        <div class="flex items-center space-x-4">
+                            <div class="p-3 bg-orange-100 rounded-xl">
+                                <svg class="w-6 h-6 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path>
+                                </svg>
+                            </div>
+                            <div>
+                                <h3 class="font-semibold text-gray-900">Fornecedores</h3>
+                                <p class="text-sm text-gray-600">Visualizar e cadastrar fornecedores</p>
                             </div>
                         </div>
                     </a>

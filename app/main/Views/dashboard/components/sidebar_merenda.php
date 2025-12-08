@@ -21,7 +21,7 @@ $nomeSistema = getNomeSistemaCurto();
 
     <!-- User Info -->
     <div class="p-4 border-b border-gray-200">
-        <div class="flex items-center space-x-3">
+        <button onclick="window.openUserProfile && window.openUserProfile()" class="w-full flex items-center space-x-3 hover:bg-gray-50 rounded-lg p-2 transition-colors cursor-pointer">
             <div class="w-10 h-10 bg-primary-green rounded-full flex items-center justify-center flex-shrink-0" style="aspect-ratio: 1; min-width: 2.5rem; min-height: 2.5rem; overflow: hidden;">
                 <span class="text-sm font-bold text-white">
                     <?php
@@ -38,11 +38,14 @@ $nomeSistema = getNomeSistemaCurto();
                     ?>
                 </span>
             </div>
-            <div>
+            <div class="flex-1 text-left">
                 <p class="text-sm font-medium text-gray-800"><?= $_SESSION['nome'] ?? 'Usuário' ?></p>
                 <p class="text-xs text-gray-500">Administrador de Merenda</p>
             </div>
-        </div>
+            <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+            </svg>
+        </button>
     </div>
 
     <nav class="p-4">

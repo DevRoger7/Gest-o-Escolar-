@@ -36,16 +36,16 @@ function buscarEscolaPorId($id) {
     try {
         $sql = "SELECT e.*, p.nome AS gestor_nome, p.email AS gestor_email, p.telefone AS gestor_telefone, 
                        p.cpf AS gestor_cpf, g.id AS gestor_id, g.cargo AS gestor_cargo
-                FROM escola e 
+            FROM escola e 
                 LEFT JOIN gestor_lotacao gl ON e.id = gl.escola_id AND gl.responsavel = 1 AND gl.fim IS NULL
                 LEFT JOIN gestor g ON gl.gestor_id = g.id AND g.ativo = 1
                 LEFT JOIN pessoa p ON g.pessoa_id = p.id
-                WHERE e.id = :id";
+            WHERE e.id = :id";
 
-        $stmt = $conn->prepare($sql);
+    $stmt = $conn->prepare($sql);
         $stmt->bindParam(':id', $id, PDO::PARAM_INT);
-        $stmt->execute();
-        
+    $stmt->execute();
+    
         $result = $stmt->fetch(PDO::FETCH_ASSOC);
         
         // Log para debug (remover em produção se necessário)
@@ -196,7 +196,7 @@ try {
     if ($acao === 'buscar_escola') {
         echo json_encode(['success' => false, 'message' => $e->getMessage()]);
     } else {
-        echo json_encode(['status' => false, 'mensagem' => $e->getMessage()]);
+    echo json_encode(['status' => false, 'mensagem' => $e->getMessage()]);
     }
 }
 

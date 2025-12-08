@@ -86,6 +86,22 @@ function obterDadosUsuarioLogado($usuarioId) {
 $dadosUsuario = null;
 if (isset($_SESSION['usuario_id'])) {
     $dadosUsuario = obterDadosUsuarioLogado($_SESSION['usuario_id']);
+    // Se não encontrou dados, tentar buscar apenas do usuário
+    if (!$dadosUsuario || empty($dadosUsuario['usuario_id'])) {
+        error_log("DEBUG: Não foi possível obter dados completos do usuário ID: " . $_SESSION['usuario_id']);
+        // Buscar dados mínimos do usuário
+        try {
+            $db = Database::getInstance();
+            $conn = $db->getConnection();
+            $sql = "SELECT id as usuario_id, username, role as tipo, ativo FROM usuario WHERE id = :usuario_id";
+            $stmt = $conn->prepare($sql);
+            $stmt->bindParam(':usuario_id', $_SESSION['usuario_id'], PDO::PARAM_INT);
+            $stmt->execute();
+            $dadosUsuario = $stmt->fetch(PDO::FETCH_ASSOC);
+        } catch (Exception $e) {
+            error_log("Erro ao buscar dados mínimos do usuário: " . $e->getMessage());
+        }
+    }
 }
 
 if (!defined('BASE_URL')) {
@@ -419,12 +435,46 @@ if (!defined('BASE_URL')) {
         };
 
         window.openUserProfile = function() {
-            const modal = document.getElementById('userProfileModal');
-            if (modal) {
-                modal.style.display = 'block';
-                modal.classList.remove('hidden');
-                document.body.style.overflow = 'hidden'; // Prevenir scroll do body
+            // Verificar se o DOM está pronto
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', function() {
+                    window.openUserProfile();
+                });
+                return;
             }
+            
+            let modal = document.getElementById('userProfileModal');
+            
+            // Se não encontrou, tentar novamente após um pequeno delay
+            if (!modal) {
+                console.warn('Modal de perfil não encontrado na primeira tentativa. Tentando novamente...');
+                setTimeout(function() {
+                    modal = document.getElementById('userProfileModal');
+                    if (modal) {
+                        modal.style.display = 'block';
+                        modal.classList.remove('hidden');
+                        document.body.style.overflow = 'hidden';
+                        modal.scrollTop = 0;
+                    } else {
+                        console.error('Modal de perfil não encontrado após múltiplas tentativas.');
+                        console.error('Verificando se o elemento existe no DOM...');
+                        const allModals = document.querySelectorAll('[id*="Profile"], [id*="profile"]');
+                        console.log('Modais encontrados:', allModals);
+                        const bodyContent = document.body.innerHTML;
+                        const hasModal = bodyContent.includes('userProfileModal');
+                        console.log('Modal presente no HTML?', hasModal);
+                        alert('Erro: Modal de perfil não encontrado. Por favor, recarregue a página e tente novamente.');
+                    }
+                }, 100);
+                return;
+            }
+            
+            // Se encontrou, abrir normalmente
+            modal.style.display = 'block';
+            modal.classList.remove('hidden');
+            document.body.style.overflow = 'hidden'; // Prevenir scroll do body
+            // Scroll para o topo do modal
+            modal.scrollTop = 0;
         };
         
         window.closeUserProfile = function() {
@@ -2469,7 +2519,7 @@ if (!defined('BASE_URL')) {
                     
                     <!-- Cards de Acesso Rápido para ADM -->
                     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
-                        <a href="gestao_alunos_adm.php" class="bg-gradient-to-br from-blue-500 to-blue-600 text-white rounded-2xl p-6 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105">
+                        <a href="./gestao_alunos_adm.php" class="bg-gradient-to-br from-blue-500 to-blue-600 text-white rounded-2xl p-6 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105">
                             <div class="flex items-center justify-between mb-4">
                                 <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"></path>
@@ -8089,6 +8139,15 @@ if (!defined('BASE_URL')) {
             } else {
                 console.log('Modal de logout encontrado no DOM');
             }
+            
+            // Verificar se o modal de perfil existe
+            const profileModal = document.getElementById('userProfileModal');
+            if (!profileModal) {
+                console.error('Modal de perfil não encontrado no DOM após carregamento completo!');
+                console.error('Verificando se há algum problema com a renderização...');
+            } else {
+                console.log('Modal de perfil encontrado no DOM com sucesso');
+            }
         });
         
         // Também verificar quando a página estiver completamente carregada
@@ -8129,6 +8188,19 @@ if (!defined('BASE_URL')) {
         
         <!-- Conteúdo do Modal -->
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+            <?php 
+            // Garantir que sempre temos dados mínimos do usuário
+            if (!$dadosUsuario || empty($dadosUsuario['usuario_id'])) {
+                // Se não temos dados, criar um objeto mínimo
+                $dadosUsuario = [
+                    'usuario_id' => $_SESSION['usuario_id'] ?? 0,
+                    'username' => $_SESSION['username'] ?? 'Usuário',
+                    'tipo' => $_SESSION['tipo'] ?? 'USUARIO',
+                    'nome' => $_SESSION['nome'] ?? $_SESSION['username'] ?? 'Usuário',
+                    'ativo' => 1
+                ];
+            }
+            ?>
             <?php if ($dadosUsuario && !empty($dadosUsuario['usuario_id'])): ?>
             <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
                 <!-- Coluna Esquerda - Informações Principais -->
