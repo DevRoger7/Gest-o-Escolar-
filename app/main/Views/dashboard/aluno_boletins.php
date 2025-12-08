@@ -147,7 +147,7 @@ if (isset($_GET['bimestre']) && $turmaId) {
                         <h2 class="text-lg font-bold text-gray-900">Boletim do <?= $boletimDetalhado['bimestre'] ?>º Bimestre</h2>
                         <p class="text-sm text-gray-500"><?= htmlspecialchars($turmaAtual['turma_nome'] ?? '') ?> • <?= $anoLetivo ?></p>
                     </div>
-                    <a href="../aluno/boletins.php" class="text-sm text-primary-green font-medium hover:underline">Voltar para lista</a>
+                    <a href="aluno_boletins.php" class="text-sm text-primary-green font-medium hover:underline">Voltar para lista</a>
                 </div>
                 
                 <div class="p-6">
