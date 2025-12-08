@@ -86,15 +86,25 @@ class ComunicadoModel {
                 :tipo, :prioridade, :canal, NOW())";
         
         $stmt = $conn->prepare($sql);
-        $stmt->bindParam(':turma_id', $dados['turma_id'] ?? null);
-        $stmt->bindParam(':aluno_id', $dados['aluno_id'] ?? null);
-        $stmt->bindParam(':escola_id', $dados['escola_id'] ?? null);
-        $stmt->bindParam(':enviado_por', $_SESSION['usuario_id']);
-        $stmt->bindParam(':titulo', $dados['titulo']);
-        $stmt->bindParam(':mensagem', $dados['mensagem']);
-        $stmt->bindParam(':tipo', $dados['tipo'] ?? 'GERAL');
-        $stmt->bindParam(':prioridade', $dados['prioridade'] ?? 'NORMAL');
-        $stmt->bindParam(':canal', $dados['canal'] ?? 'SISTEMA');
+        $turmaId = $dados['turma_id'] ?? null;
+        $alunoId = $dados['aluno_id'] ?? null;
+        $escolaId = $dados['escola_id'] ?? null;
+        $enviadoPor = $_SESSION['usuario_id'];
+        $titulo = $dados['titulo'];
+        $mensagem = $dados['mensagem'];
+        $tipo = $dados['tipo'] ?? 'GERAL';
+        $prioridade = $dados['prioridade'] ?? 'NORMAL';
+        $canal = $dados['canal'] ?? 'SISTEMA';
+
+        $stmt->bindParam(':turma_id', $turmaId);
+        $stmt->bindParam(':aluno_id', $alunoId);
+        $stmt->bindParam(':escola_id', $escolaId);
+        $stmt->bindParam(':enviado_por', $enviadoPor);
+        $stmt->bindParam(':titulo', $titulo);
+        $stmt->bindParam(':mensagem', $mensagem);
+        $stmt->bindParam(':tipo', $tipo);
+        $stmt->bindParam(':prioridade', $prioridade);
+        $stmt->bindParam(':canal', $canal);
         
         if ($stmt->execute()) {
             return ['success' => true, 'id' => $conn->lastInsertId()];

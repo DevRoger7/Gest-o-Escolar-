@@ -96,14 +96,23 @@ class TurmaModel {
                 VALUES (:escola_id, :serie_id, :ano_letivo, :serie, :letra, :turno, :capacidade, :sala, 1, NOW())";
         
         $stmt = $conn->prepare($sql);
-        $stmt->bindParam(':escola_id', $dados['escola_id']);
-        $stmt->bindParam(':serie_id', $dados['serie_id'] ?? null);
-        $stmt->bindParam(':ano_letivo', $dados['ano_letivo'] ?? date('Y'));
-        $stmt->bindParam(':serie', $dados['serie'] ?? null);
-        $stmt->bindParam(':letra', $dados['letra']);
-        $stmt->bindParam(':turno', $dados['turno']);
-        $stmt->bindParam(':capacidade', $dados['capacidade'] ?? null);
-        $stmt->bindParam(':sala', $dados['sala'] ?? null);
+        $escolaId = $dados['escola_id'];
+        $serieId = $dados['serie_id'] ?? null;
+        $anoLetivo = $dados['ano_letivo'] ?? date('Y');
+        $serie = $dados['serie'] ?? null;
+        $letra = $dados['letra'];
+        $turno = $dados['turno'];
+        $capacidade = $dados['capacidade'] ?? null;
+        $sala = $dados['sala'] ?? null;
+
+        $stmt->bindParam(':escola_id', $escolaId);
+        $stmt->bindParam(':serie_id', $serieId);
+        $stmt->bindParam(':ano_letivo', $anoLetivo);
+        $stmt->bindParam(':serie', $serie);
+        $stmt->bindParam(':letra', $letra);
+        $stmt->bindParam(':turno', $turno);
+        $stmt->bindParam(':capacidade', $capacidade);
+        $stmt->bindParam(':sala', $sala);
         
         if ($stmt->execute()) {
             return ['success' => true, 'id' => $conn->lastInsertId()];
@@ -124,16 +133,27 @@ class TurmaModel {
                 WHERE id = :id";
         
         $stmt = $conn->prepare($sql);
-        $stmt->bindParam(':escola_id', $dados['escola_id']);
-        $stmt->bindParam(':serie_id', $dados['serie_id'] ?? null);
-        $stmt->bindParam(':ano_letivo', $dados['ano_letivo']);
-        $stmt->bindParam(':serie', $dados['serie'] ?? null);
-        $stmt->bindParam(':letra', $dados['letra']);
-        $stmt->bindParam(':turno', $dados['turno']);
-        $stmt->bindParam(':capacidade', $dados['capacidade'] ?? null);
-        $stmt->bindParam(':sala', $dados['sala'] ?? null);
-        $stmt->bindParam(':coordenador_id', $dados['coordenador_id'] ?? null);
-        $stmt->bindParam(':ativo', $dados['ativo'] ?? 1);
+        $escolaId = $dados['escola_id'];
+        $serieId = $dados['serie_id'] ?? null;
+        $anoLetivo = $dados['ano_letivo'];
+        $serie = $dados['serie'] ?? null;
+        $letra = $dados['letra'];
+        $turno = $dados['turno'];
+        $capacidade = $dados['capacidade'] ?? null;
+        $sala = $dados['sala'] ?? null;
+        $coordenadorId = $dados['coordenador_id'] ?? null;
+        $ativo = $dados['ativo'] ?? 1;
+
+        $stmt->bindParam(':escola_id', $escolaId);
+        $stmt->bindParam(':serie_id', $serieId);
+        $stmt->bindParam(':ano_letivo', $anoLetivo);
+        $stmt->bindParam(':serie', $serie);
+        $stmt->bindParam(':letra', $letra);
+        $stmt->bindParam(':turno', $turno);
+        $stmt->bindParam(':capacidade', $capacidade);
+        $stmt->bindParam(':sala', $sala);
+        $stmt->bindParam(':coordenador_id', $coordenadorId);
+        $stmt->bindParam(':ativo', $ativo);
         $stmt->bindParam(':id', $id);
         
         return $stmt->execute();

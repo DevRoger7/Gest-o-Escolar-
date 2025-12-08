@@ -23,10 +23,46 @@ $pessoaId = $_SESSION['pessoa_id'] ?? null;
 if ($pessoaId) {
     $sqlProfessor = "SELECT pr.id FROM professor pr WHERE pr.pessoa_id = :pessoa_id AND pr.ativo = 1 LIMIT 1";
     $stmtProfessor = $conn->prepare($sqlProfessor);
-    $stmtProfessor->bindParam(':pessoa_id', $pessoaId);
+    $pessoaIdParam = $pessoaId;
+    $stmtProfessor->bindParam(':pessoa_id', $pessoaIdParam);
     $stmtProfessor->execute();
     $professor = $stmtProfessor->fetch(PDO::FETCH_ASSOC);
     $professorId = $professor['id'] ?? null;
+}
+
+// Fallback: tentar obter pessoa_id via usuario_id e CPF se necessário
+if (!$professorId) {
+    $usuarioId = $_SESSION['usuario_id'] ?? null;
+    if (!$pessoaId && $usuarioId) {
+        $sqlPessoa = "SELECT pessoa_id FROM usuario WHERE id = :usuario_id LIMIT 1";
+        $stmtPessoa = $conn->prepare($sqlPessoa);
+        $usuarioIdParam = $usuarioId;
+        $stmtPessoa->bindParam(':usuario_id', $usuarioIdParam);
+        $stmtPessoa->execute();
+        $usuario = $stmtPessoa->fetch(PDO::FETCH_ASSOC);
+        $pessoaId = $usuario['pessoa_id'] ?? null;
+    }
+    if (!$pessoaId) {
+        $cpf = $_SESSION['cpf'] ?? null;
+        if ($cpf) {
+            $cpfLimpo = preg_replace('/[^0-9]/', '', $cpf);
+            $sqlPessoaCpf = "SELECT id FROM pessoa WHERE cpf = :cpf LIMIT 1";
+            $stmtPessoaCpf = $conn->prepare($sqlPessoaCpf);
+            $stmtPessoaCpf->bindParam(':cpf', $cpfLimpo);
+            $stmtPessoaCpf->execute();
+            $pessoa = $stmtPessoaCpf->fetch(PDO::FETCH_ASSOC);
+            $pessoaId = $pessoa['id'] ?? null;
+        }
+    }
+    if ($pessoaId) {
+        $sqlProfessor = "SELECT pr.id FROM professor pr WHERE pr.pessoa_id = :pessoa_id AND pr.ativo = 1 LIMIT 1";
+        $stmtProfessor = $conn->prepare($sqlProfessor);
+        $pessoaIdParam = $pessoaId;
+        $stmtProfessor->bindParam(':pessoa_id', $pessoaIdParam);
+        $stmtProfessor->execute();
+        $professor = $stmtProfessor->fetch(PDO::FETCH_ASSOC);
+        $professorId = $professor['id'] ?? null;
+    }
 }
 
 // Buscar turmas e disciplinas do professor

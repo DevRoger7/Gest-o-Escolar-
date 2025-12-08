@@ -25,17 +25,29 @@ class ObservacaoDesempenhoModel {
                 :titulo, :observacao, :data, :bimestre, :visivel_responsavel, :criado_por, NOW())";
         
         $stmt = $conn->prepare($sql);
-        $stmt->bindParam(':aluno_id', $dados['aluno_id']);
-        $stmt->bindParam(':turma_id', $dados['turma_id']);
-        $stmt->bindParam(':disciplina_id', $dados['disciplina_id'] ?? null);
-        $stmt->bindParam(':professor_id', $dados['professor_id']);
-        $stmt->bindParam(':tipo', $dados['tipo'] ?? 'OUTROS');
-        $stmt->bindParam(':titulo', $dados['titulo'] ?? null);
-        $stmt->bindParam(':observacao', $dados['observacao']);
-        $stmt->bindParam(':data', $dados['data'] ?? date('Y-m-d'));
-        $stmt->bindParam(':bimestre', $dados['bimestre'] ?? null);
-        $stmt->bindParam(':visivel_responsavel', $dados['visivel_responsavel'] ?? 1, PDO::PARAM_BOOL);
-        $stmt->bindParam(':criado_por', $_SESSION['usuario_id']);
+        $alunoId = $dados['aluno_id'];
+        $turmaId = $dados['turma_id'];
+        $disciplinaId = $dados['disciplina_id'] ?? null;
+        $professorId = $dados['professor_id'];
+        $tipo = $dados['tipo'] ?? 'OUTROS';
+        $titulo = $dados['titulo'] ?? null;
+        $observacao = $dados['observacao'];
+        $data = $dados['data'] ?? date('Y-m-d');
+        $bimestre = $dados['bimestre'] ?? null;
+        $visivelResponsavel = $dados['visivel_responsavel'] ?? 1;
+        $criadoPor = $_SESSION['usuario_id'];
+
+        $stmt->bindParam(':aluno_id', $alunoId);
+        $stmt->bindParam(':turma_id', $turmaId);
+        $stmt->bindParam(':disciplina_id', $disciplinaId);
+        $stmt->bindParam(':professor_id', $professorId);
+        $stmt->bindParam(':tipo', $tipo);
+        $stmt->bindParam(':titulo', $titulo);
+        $stmt->bindParam(':observacao', $observacao);
+        $stmt->bindParam(':data', $data);
+        $stmt->bindParam(':bimestre', $bimestre);
+        $stmt->bindParam(':visivel_responsavel', $visivelResponsavel, PDO::PARAM_BOOL);
+        $stmt->bindParam(':criado_por', $criadoPor);
         
         if ($stmt->execute()) {
             return ['success' => true, 'id' => $conn->lastInsertId()];

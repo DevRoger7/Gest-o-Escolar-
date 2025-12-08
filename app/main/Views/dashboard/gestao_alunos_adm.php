@@ -29,25 +29,35 @@ $escolas = $stmtEscolas->fetchAll(PDO::FETCH_ASSOC);
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao'])) {
     header('Content-Type: application/json');
     
-    if ($_POST['acao'] === 'cadastrar_aluno') {
-        try {
-            // Preparar dados
-            $cpf = preg_replace('/[^0-9]/', '', $_POST['cpf'] ?? '');
-            $telefone = preg_replace('/[^0-9]/', '', $_POST['telefone'] ?? '');
+            if ($_POST['acao'] === 'cadastrar_aluno') {
+                try {
+                    // Preparar dados
+                    $cpf = preg_replace('/[^0-9]/', '', $_POST['cpf'] ?? '');
+                    $telefone = preg_replace('/[^0-9]/', '', $_POST['telefone'] ?? '');
+                    $emailInformado = !empty($_POST['email']) ? trim($_POST['email']) : '';
             
             // Validar CPF
             if (empty($cpf) || strlen($cpf) !== 11) {
                 throw new Exception('CPF inválido. Deve conter 11 dígitos.');
             }
             
-            // Verificar se CPF já existe
-            $sqlVerificarCPF = "SELECT id FROM pessoa WHERE cpf = :cpf";
-            $stmtVerificar = $conn->prepare($sqlVerificarCPF);
-            $stmtVerificar->bindParam(':cpf', $cpf);
-            $stmtVerificar->execute();
-            if ($stmtVerificar->fetch()) {
-                throw new Exception('CPF já cadastrado no sistema.');
-            }
+                    // Verificar se CPF já existe
+                    $sqlVerificarCPF = "SELECT id FROM pessoa WHERE cpf = :cpf";
+                    $stmtVerificar = $conn->prepare($sqlVerificarCPF);
+                    $stmtVerificar->bindParam(':cpf', $cpf);
+                    $stmtVerificar->execute();
+                    if ($stmtVerificar->fetch()) {
+                        throw new Exception('CPF já cadastrado no sistema.');
+                    }
+                    if (!empty($emailInformado)) {
+                        $sqlVerificarEmail = "SELECT id FROM pessoa WHERE email = :email LIMIT 1";
+                        $stmtVerificarEmail = $conn->prepare($sqlVerificarEmail);
+                        $stmtVerificarEmail->bindParam(':email', $emailInformado);
+                        $stmtVerificarEmail->execute();
+                        if ($stmtVerificarEmail->fetch()) {
+                            throw new Exception('Email já cadastrado no sistema.');
+                        }
+                    }
             
             // Gerar matrícula se não fornecida
             $matricula = $_POST['matricula'] ?? '';
@@ -86,17 +96,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao'])) {
             }
             
             // Preparar dados para o model
-            $dados = [
-                'cpf' => $cpf,
-                'nome' => trim($_POST['nome'] ?? ''),
-                'data_nascimento' => $_POST['data_nascimento'] ?? null,
-                'sexo' => $_POST['sexo'] ?? null,
-                'email' => !empty($_POST['email']) ? trim($_POST['email']) : null,
-                'telefone' => !empty($telefone) ? $telefone : null,
-                'matricula' => $matricula,
-                'nis' => !empty($_POST['nis']) ? preg_replace('/[^0-9]/', '', trim($_POST['nis'])) : null,
-                'responsavel_id' => !empty($_POST['responsavel_id']) ? $_POST['responsavel_id'] : null,
-                'escola_id' => !empty($_POST['escola_id']) ? $_POST['escola_id'] : null,
+                    $dados = [
+                        'cpf' => $cpf,
+                        'nome' => trim($_POST['nome'] ?? ''),
+                        'data_nascimento' => $_POST['data_nascimento'] ?? null,
+                        'sexo' => $_POST['sexo'] ?? null,
+                        'email' => !empty($emailInformado) ? $emailInformado : null,
+                        'telefone' => !empty($telefone) ? $telefone : null,
+                        'matricula' => $matricula,
+                        'nis' => !empty($_POST['nis']) ? preg_replace('/[^0-9]/', '', trim($_POST['nis'])) : null,
+                        'responsavel_id' => !empty($_POST['responsavel_id']) ? $_POST['responsavel_id'] : null,
+                        'escola_id' => !empty($_POST['escola_id']) ? $_POST['escola_id'] : null,
                 'data_matricula' => $_POST['data_matricula'] ?? date('Y-m-d'),
                 'situacao' => $_POST['situacao'] ?? 'MATRICULADO'
             ];
@@ -137,12 +147,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao'])) {
         exit;
     }
     
-    if ($_POST['acao'] === 'editar_aluno') {
-        try {
-            $alunoId = $_POST['aluno_id'] ?? null;
-            if (empty($alunoId)) {
-                throw new Exception('ID do aluno não informado.');
-            }
+            if ($_POST['acao'] === 'editar_aluno') {
+                try {
+                    $alunoId = $_POST['aluno_id'] ?? null;
+                    if (empty($alunoId)) {
+                        throw new Exception('ID do aluno não informado.');
+                    }
             
             // Buscar aluno existente
             $aluno = $alunoModel->buscarPorId($alunoId);
@@ -153,35 +163,46 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao'])) {
             // Preparar dados
             $telefone = preg_replace('/[^0-9]/', '', $_POST['telefone'] ?? '');
             
-            // Validar CPF (se foi alterado)
-            $cpfAtual = preg_replace('/[^0-9]/', '', $_POST['cpf'] ?? '');
-            if (!empty($cpfAtual) && strlen($cpfAtual) !== 11) {
-                throw new Exception('CPF inválido. Deve conter 11 dígitos.');
-            }
+                    // Validar CPF (se foi alterado)
+                    $cpfAtual = preg_replace('/[^0-9]/', '', $_POST['cpf'] ?? '');
+                    if (!empty($cpfAtual) && strlen($cpfAtual) !== 11) {
+                        throw new Exception('CPF inválido. Deve conter 11 dígitos.');
+                    }
+                    $emailAtual = !empty($_POST['email']) ? trim($_POST['email']) : '';
             
             // Verificar se CPF já existe em outro aluno
-            if (!empty($cpfAtual) && $cpfAtual !== $aluno['cpf']) {
-                $sqlVerificarCPF = "SELECT id FROM pessoa WHERE cpf = :cpf AND id != :pessoa_id";
-                $stmtVerificar = $conn->prepare($sqlVerificarCPF);
-                $stmtVerificar->bindParam(':cpf', $cpfAtual);
-                $stmtVerificar->bindParam(':pessoa_id', $aluno['pessoa_id']);
-                $stmtVerificar->execute();
-                if ($stmtVerificar->fetch()) {
-                    throw new Exception('CPF já cadastrado para outro aluno.');
-                }
-            }
+                    if (!empty($cpfAtual) && $cpfAtual !== $aluno['cpf']) {
+                        $sqlVerificarCPF = "SELECT id FROM pessoa WHERE cpf = :cpf AND id != :pessoa_id";
+                        $stmtVerificar = $conn->prepare($sqlVerificarCPF);
+                        $stmtVerificar->bindParam(':cpf', $cpfAtual);
+                        $stmtVerificar->bindParam(':pessoa_id', $aluno['pessoa_id']);
+                        $stmtVerificar->execute();
+                        if ($stmtVerificar->fetch()) {
+                            throw new Exception('CPF já cadastrado para outro aluno.');
+                        }
+                    }
+                    if (!empty($emailAtual) && $emailAtual !== ($aluno['email'] ?? '')) {
+                        $sqlVerificarEmail = "SELECT id FROM pessoa WHERE email = :email AND id != :pessoa_id LIMIT 1";
+                        $stmtVerificarEmail = $conn->prepare($sqlVerificarEmail);
+                        $stmtVerificarEmail->bindParam(':email', $emailAtual);
+                        $stmtVerificarEmail->bindParam(':pessoa_id', $aluno['pessoa_id']);
+                        $stmtVerificarEmail->execute();
+                        if ($stmtVerificarEmail->fetch()) {
+                            throw new Exception('Email já cadastrado para outro usuário.');
+                        }
+                    }
             
             // Preparar dados para atualização
-            $dados = [
-                'nome' => trim($_POST['nome'] ?? ''),
-                'data_nascimento' => $_POST['data_nascimento'] ?? null,
-                'sexo' => $_POST['sexo'] ?? null,
-                'email' => !empty($_POST['email']) ? trim($_POST['email']) : null,
-                'telefone' => !empty($telefone) ? $telefone : null,
-                'matricula' => $_POST['matricula'] ?? $aluno['matricula'],
-                'nis' => !empty($_POST['nis']) ? preg_replace('/[^0-9]/', '', trim($_POST['nis'])) : null,
-                'responsavel_id' => !empty($_POST['responsavel_id']) ? $_POST['responsavel_id'] : null,
-                'escola_id' => !empty($_POST['escola_id']) ? $_POST['escola_id'] : null,
+                    $dados = [
+                        'nome' => trim($_POST['nome'] ?? ''),
+                        'data_nascimento' => $_POST['data_nascimento'] ?? null,
+                        'sexo' => $_POST['sexo'] ?? null,
+                        'email' => !empty($emailAtual) ? $emailAtual : null,
+                        'telefone' => !empty($telefone) ? $telefone : null,
+                        'matricula' => $_POST['matricula'] ?? $aluno['matricula'],
+                        'nis' => !empty($_POST['nis']) ? preg_replace('/[^0-9]/', '', trim($_POST['nis'])) : null,
+                        'responsavel_id' => !empty($_POST['responsavel_id']) ? $_POST['responsavel_id'] : null,
+                        'escola_id' => !empty($_POST['escola_id']) ? $_POST['escola_id'] : null,
                 'data_matricula' => $_POST['data_matricula'] ?? $aluno['data_matricula'],
                 'situacao' => $_POST['situacao'] ?? 'MATRICULADO',
                 'ativo' => isset($_POST['ativo']) ? (int)$_POST['ativo'] : 1
@@ -580,7 +601,7 @@ $alunos = $stmtAlunos->fetchAll(PDO::FETCH_ASSOC);
                         </div>
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-2">Data de Nascimento *</label>
-                            <input type="date" name="data_nascimento" id="editar_data_nascimento" required
+                            <input type="date" name="data_nascimento" id="editar_data_nascimento" required max="<?= date('Y-m-d') ?>"
                                    class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
                         </div>
                         <div>
@@ -618,7 +639,8 @@ $alunos = $stmtAlunos->fetchAll(PDO::FETCH_ASSOC);
                         </div>
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-2">NIS (Número de Identificação Social)</label>
-                            <input type="text" name="nis" id="editar_nis"
+                            <input type="text" name="nis" id="editar_nis" maxlength="11"
+                                   oninput="formatarNIS(this)"
                                    class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
                         </div>
                         <div>
@@ -716,7 +738,7 @@ $alunos = $stmtAlunos->fetchAll(PDO::FETCH_ASSOC);
                         </div>
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-2">Data de Nascimento *</label>
-                            <input type="date" name="data_nascimento" id="data_nascimento" required
+                            <input type="date" name="data_nascimento" id="data_nascimento" required max="<?= date('Y-m-d') ?>"
                                    class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
                         </div>
                         <div>
@@ -756,7 +778,8 @@ $alunos = $stmtAlunos->fetchAll(PDO::FETCH_ASSOC);
                         </div>
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-2">NIS (Número de Identificação Social)</label>
-                            <input type="text" name="nis" id="nis"
+                            <input type="text" name="nis" id="nis" maxlength="11"
+                                   oninput="formatarNIS(this)"
                                    class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
                         </div>
                         <div>
@@ -921,6 +944,10 @@ $alunos = $stmtAlunos->fetchAll(PDO::FETCH_ASSOC);
             }
             input.value = value;
         }
+        function formatarNIS(input) {
+            let value = input.value.replace(/\D/g, '');
+            input.value = value.slice(0, 11);
+        }
         
         // Submissão do formulário
         document.getElementById('formNovoAluno').addEventListener('submit', async function(e) {
@@ -930,6 +957,13 @@ $alunos = $stmtAlunos->fetchAll(PDO::FETCH_ASSOC);
             const spinner = document.getElementById('spinnerSalvar');
             const alertaErro = document.getElementById('alertaErro');
             const alertaSucesso = document.getElementById('alertaSucesso');
+            const dn = document.getElementById('data_nascimento').value;
+            const hojeStr = new Date().toISOString().split('T')[0];
+            if (dn && dn > hojeStr) {
+                alertaErro.textContent = 'Data de nascimento não pode ser futura.';
+                alertaErro.classList.remove('hidden');
+                return;
+            }
             
             // Mostrar loading
             btnSalvar.disabled = true;
@@ -1043,6 +1077,13 @@ $alunos = $stmtAlunos->fetchAll(PDO::FETCH_ASSOC);
             const spinner = document.getElementById('spinnerSalvarEdicao');
             const alertaErro = document.getElementById('alertaErroEditar');
             const alertaSucesso = document.getElementById('alertaSucessoEditar');
+            const dnEditar = document.getElementById('editar_data_nascimento').value;
+            const hojeStrEditar = new Date().toISOString().split('T')[0];
+            if (dnEditar && dnEditar > hojeStrEditar) {
+                alertaErro.textContent = 'Data de nascimento não pode ser futura.';
+                alertaErro.classList.remove('hidden');
+                return;
+            }
             
             // Mostrar loading
             btnSalvar.disabled = true;

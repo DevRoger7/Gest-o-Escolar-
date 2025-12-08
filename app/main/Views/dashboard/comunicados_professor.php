@@ -24,39 +24,76 @@ $pessoaId = $_SESSION['pessoa_id'] ?? null;
 if ($pessoaId) {
     $sqlProfessor = "SELECT pr.id FROM professor pr WHERE pr.pessoa_id = :pessoa_id AND pr.ativo = 1 LIMIT 1";
     $stmtProfessor = $conn->prepare($sqlProfessor);
-    $stmtProfessor->bindParam(':pessoa_id', $pessoaId);
+    $pessoaIdParam = $pessoaId;
+    $stmtProfessor->bindParam(':pessoa_id', $pessoaIdParam);
     $stmtProfessor->execute();
     $professor = $stmtProfessor->fetch(PDO::FETCH_ASSOC);
     $professorId = $professor['id'] ?? null;
-    
-    // Buscar escola do professor através da lotação ou das turmas
-    if ($professorId) {
-        // Primeiro tenta pela lotação
-        $sqlEscola = "SELECT DISTINCT e.id, e.nome
-                      FROM professor_lotacao pl
-                      INNER JOIN escola e ON pl.escola_id = e.id
-                      WHERE pl.professor_id = :professor_id AND pl.fim IS NULL
-                      LIMIT 1";
-        $stmtEscola = $conn->prepare($sqlEscola);
-        $stmtEscola->bindParam(':professor_id', $professorId);
-        $stmtEscola->execute();
-        $escola = $stmtEscola->fetch(PDO::FETCH_ASSOC);
-        $escolaId = $escola['id'] ?? null;
-        
-        // Se não encontrou pela lotação, busca pela primeira turma atribuída
-        if (!$escolaId) {
-            $sqlEscolaTurma = "SELECT DISTINCT e.id, e.nome
-                              FROM turma_professor tp
-                              INNER JOIN turma t ON tp.turma_id = t.id
-                              INNER JOIN escola e ON t.escola_id = e.id
-                              WHERE tp.professor_id = :professor_id AND tp.fim IS NULL AND t.ativo = 1
-                              LIMIT 1";
-            $stmtEscolaTurma = $conn->prepare($sqlEscolaTurma);
-            $stmtEscolaTurma->bindParam(':professor_id', $professorId);
-            $stmtEscolaTurma->execute();
-            $escola = $stmtEscolaTurma->fetch(PDO::FETCH_ASSOC);
-            $escolaId = $escola['id'] ?? null;
+}
+
+// Fallback: tentar obter pessoa_id via usuario_id e CPF se necessário
+if (!$professorId) {
+    $usuarioId = $_SESSION['usuario_id'] ?? null;
+    if (!$pessoaId && $usuarioId) {
+        $sqlPessoa = "SELECT pessoa_id FROM usuario WHERE id = :usuario_id LIMIT 1";
+        $stmtPessoa = $conn->prepare($sqlPessoa);
+        $usuarioIdParam = $usuarioId;
+        $stmtPessoa->bindParam(':usuario_id', $usuarioIdParam);
+        $stmtPessoa->execute();
+        $usuario = $stmtPessoa->fetch(PDO::FETCH_ASSOC);
+        $pessoaId = $usuario['pessoa_id'] ?? null;
+    }
+    if (!$pessoaId) {
+        $cpf = $_SESSION['cpf'] ?? null;
+        if ($cpf) {
+            $cpfLimpo = preg_replace('/[^0-9]/', '', $cpf);
+            $sqlPessoaCpf = "SELECT id FROM pessoa WHERE cpf = :cpf LIMIT 1";
+            $stmtPessoaCpf = $conn->prepare($sqlPessoaCpf);
+            $stmtPessoaCpf->bindParam(':cpf', $cpfLimpo);
+            $stmtPessoaCpf->execute();
+            $pessoa = $stmtPessoaCpf->fetch(PDO::FETCH_ASSOC);
+            $pessoaId = $pessoa['id'] ?? null;
         }
+    }
+    if ($pessoaId) {
+        $sqlProfessor = "SELECT pr.id FROM professor pr WHERE pr.pessoa_id = :pessoa_id AND pr.ativo = 1 LIMIT 1";
+        $stmtProfessor = $conn->prepare($sqlProfessor);
+        $pessoaIdParam = $pessoaId;
+        $stmtProfessor->bindParam(':pessoa_id', $pessoaIdParam);
+        $stmtProfessor->execute();
+        $professor = $stmtProfessor->fetch(PDO::FETCH_ASSOC);
+        $professorId = $professor['id'] ?? null;
+    }
+}
+
+// Buscar escola do professor através da lotação ou das turmas
+if ($professorId) {
+    // Primeiro tenta pela lotação
+    $sqlEscola = "SELECT DISTINCT e.id, e.nome
+                  FROM professor_lotacao pl
+                  INNER JOIN escola e ON pl.escola_id = e.id
+                  WHERE pl.professor_id = :professor_id AND pl.fim IS NULL
+                  LIMIT 1";
+    $stmtEscola = $conn->prepare($sqlEscola);
+    $professorIdParam = $professorId;
+    $stmtEscola->bindParam(':professor_id', $professorIdParam);
+    $stmtEscola->execute();
+    $escola = $stmtEscola->fetch(PDO::FETCH_ASSOC);
+    $escolaId = $escola['id'] ?? null;
+    
+    // Se não encontrou pela lotação, busca pela primeira turma atribuída
+    if (!$escolaId) {
+        $sqlEscolaTurma = "SELECT DISTINCT e.id, e.nome
+                          FROM turma_professor tp
+                          INNER JOIN turma t ON tp.turma_id = t.id
+                          INNER JOIN escola e ON t.escola_id = e.id
+                          WHERE tp.professor_id = :professor_id AND tp.fim IS NULL AND t.ativo = 1
+                          LIMIT 1";
+        $stmtEscolaTurma = $conn->prepare($sqlEscolaTurma);
+        $stmtEscolaTurma->bindParam(':professor_id', $professorIdParam);
+        $stmtEscolaTurma->execute();
+        $escola = $stmtEscolaTurma->fetch(PDO::FETCH_ASSOC);
+        $escolaId = $escola['id'] ?? null;
     }
 }
 

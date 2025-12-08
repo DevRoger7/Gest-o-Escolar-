@@ -71,7 +71,10 @@ class AlunoModel {
     public function buscarPorId($id) {
         $conn = $this->db->getConnection();
         
-        $sql = "SELECT a.*, p.*, e.nome as escola_nome, pes_resp.nome as responsavel_nome
+        $sql = "SELECT a.*, 
+                       p.nome, p.cpf, p.email, p.telefone, p.data_nascimento, p.sexo,
+                       e.nome as escola_nome, 
+                       pes_resp.nome as responsavel_nome
                 FROM aluno a
                 INNER JOIN pessoa p ON a.pessoa_id = p.id
                 LEFT JOIN escola e ON a.escola_id = e.id
@@ -93,6 +96,14 @@ class AlunoModel {
         
         try {
             $conn->beginTransaction();
+            if (!empty($dados['email'])) {
+                $stmtChkEmail = $conn->prepare("SELECT id FROM pessoa WHERE email = :email LIMIT 1");
+                $stmtChkEmail->bindParam(':email', $dados['email']);
+                $stmtChkEmail->execute();
+                if ($stmtChkEmail->fetch()) {
+                    throw new Exception('Email já cadastrado no sistema');
+                }
+            }
             
             // 1. Criar pessoa
             $sqlPessoa = "INSERT INTO pessoa (cpf, nome, data_nascimento, sexo, email, telefone, tipo, criado_por)
@@ -156,12 +167,20 @@ class AlunoModel {
             if (!$aluno) {
                 throw new Exception('Aluno não encontrado');
             }
+            $pessoaId = $aluno['pessoa_id'];
+            if (!empty($dados['email']) && $dados['email'] !== ($aluno['email'] ?? '')) {
+                $stmtChkEmail = $conn->prepare("SELECT id FROM pessoa WHERE email = :email AND id != :pessoa_id LIMIT 1");
+                $stmtChkEmail->bindParam(':email', $dados['email']);
+                $stmtChkEmail->bindParam(':pessoa_id', $pessoaId);
+                $stmtChkEmail->execute();
+                if ($stmtChkEmail->fetch()) {
+                    throw new Exception('Email já cadastrado para outro usuário');
+                }
+            }
             
             // 1. Atualizar pessoa
             $sqlPessoa = "UPDATE pessoa SET nome = :nome, data_nascimento = :data_nascimento, 
-                          sexo = :sexo, email = :email, telefone = :telefone,
-                          endereco = :endereco, numero = :numero, complemento = :complemento,
-                          bairro = :bairro, cidade = :cidade, estado = :estado, cep = :cep
+                          sexo = :sexo, email = :email, telefone = :telefone
                           WHERE id = :pessoa_id";
             $stmtPessoa = $conn->prepare($sqlPessoa);
             $stmtPessoa->bindParam(':nome', $dados['nome']);
@@ -169,22 +188,7 @@ class AlunoModel {
             $stmtPessoa->bindParam(':sexo', $dados['sexo']);
             $stmtPessoa->bindParam(':email', $dados['email']);
             $stmtPessoa->bindParam(':telefone', $dados['telefone']);
-            $endereco = $dados['endereco'] ?? null;
-            $numero = $dados['numero'] ?? null;
-            $complemento = $dados['complemento'] ?? null;
-            $bairro = $dados['bairro'] ?? null;
-            $cidade = $dados['cidade'] ?? null;
-            $estado = $dados['estado'] ?? null;
-            $cep = $dados['cep'] ?? null;
-            $pessoaId = $aluno['pessoa_id'];
             
-            $stmtPessoa->bindParam(':endereco', $endereco);
-            $stmtPessoa->bindParam(':numero', $numero);
-            $stmtPessoa->bindParam(':complemento', $complemento);
-            $stmtPessoa->bindParam(':bairro', $bairro);
-            $stmtPessoa->bindParam(':cidade', $cidade);
-            $stmtPessoa->bindParam(':estado', $estado);
-            $stmtPessoa->bindParam(':cep', $cep);
             $stmtPessoa->bindParam(':pessoa_id', $pessoaId);
             $stmtPessoa->execute();
             

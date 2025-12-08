@@ -88,13 +88,20 @@ class FuncionarioModel {
             $sqlPessoa = "INSERT INTO pessoa (cpf, nome, data_nascimento, sexo, email, telefone, tipo, criado_por)
                          VALUES (:cpf, :nome, :data_nascimento, :sexo, :email, :telefone, 'FUNCIONARIO', :criado_por)";
             $stmtPessoa = $conn->prepare($sqlPessoa);
-            $stmtPessoa->bindParam(':cpf', $dados['cpf']);
-            $stmtPessoa->bindParam(':nome', $dados['nome']);
-            $stmtPessoa->bindParam(':data_nascimento', $dados['data_nascimento']);
-            $stmtPessoa->bindParam(':sexo', $dados['sexo']);
-            $stmtPessoa->bindParam(':email', $dados['email']);
-            $stmtPessoa->bindParam(':telefone', $dados['telefone']);
-            $stmtPessoa->bindParam(':criado_por', $_SESSION['usuario_id']);
+            $cpf = $dados['cpf'];
+            $nome = $dados['nome'];
+            $dataNascimento = $dados['data_nascimento'];
+            $sexo = $dados['sexo'];
+            $email = $dados['email'];
+            $telefone = $dados['telefone'];
+            $criadoPorUsuario = $_SESSION['usuario_id'];
+            $stmtPessoa->bindParam(':cpf', $cpf);
+            $stmtPessoa->bindParam(':nome', $nome);
+            $stmtPessoa->bindParam(':data_nascimento', $dataNascimento);
+            $stmtPessoa->bindParam(':sexo', $sexo);
+            $stmtPessoa->bindParam(':email', $email);
+            $stmtPessoa->bindParam(':telefone', $telefone);
+            $stmtPessoa->bindParam(':criado_por', $criadoPorUsuario);
             $stmtPessoa->execute();
             
             $pessoaId = $conn->lastInsertId();
@@ -147,12 +154,18 @@ class FuncionarioModel {
                           sexo = :sexo, email = :email, telefone = :telefone
                           WHERE id = :pessoa_id";
             $stmtPessoa = $conn->prepare($sqlPessoa);
-            $stmtPessoa->bindParam(':nome', $dados['nome']);
-            $stmtPessoa->bindParam(':data_nascimento', $dados['data_nascimento']);
-            $stmtPessoa->bindParam(':sexo', $dados['sexo']);
-            $stmtPessoa->bindParam(':email', $dados['email']);
-            $stmtPessoa->bindParam(':telefone', $dados['telefone']);
-            $stmtPessoa->bindParam(':pessoa_id', $funcionario['pessoa_id']);
+            $nome = $dados['nome'];
+            $dataNascimento = $dados['data_nascimento'];
+            $sexo = $dados['sexo'];
+            $email = $dados['email'];
+            $telefone = $dados['telefone'];
+            $pessoaIdAtual = $funcionario['pessoa_id'];
+            $stmtPessoa->bindParam(':nome', $nome);
+            $stmtPessoa->bindParam(':data_nascimento', $dataNascimento);
+            $stmtPessoa->bindParam(':sexo', $sexo);
+            $stmtPessoa->bindParam(':email', $email);
+            $stmtPessoa->bindParam(':telefone', $telefone);
+            $stmtPessoa->bindParam(':pessoa_id', $pessoaIdAtual);
             $stmtPessoa->execute();
             
             // 2. Atualizar funcionário
@@ -160,11 +173,16 @@ class FuncionarioModel {
                        setor = :setor, data_admissao = :data_admissao, ativo = :ativo
                        WHERE id = :id";
             $stmtFunc = $conn->prepare($sqlFunc);
-            $stmtFunc->bindParam(':matricula', $dados['matricula'] ?? null);
-            $stmtFunc->bindParam(':cargo', $dados['cargo']);
-            $stmtFunc->bindParam(':setor', $dados['setor'] ?? null);
-            $stmtFunc->bindParam(':data_admissao', $dados['data_admissao']);
-            $stmtFunc->bindParam(':ativo', $dados['ativo'] ?? 1);
+            $matricula = $dados['matricula'] ?? null;
+            $cargo = $dados['cargo'];
+            $setor = $dados['setor'] ?? null;
+            $dataAdmissao = $dados['data_admissao'];
+            $ativo = $dados['ativo'] ?? 1;
+            $stmtFunc->bindParam(':matricula', $matricula);
+            $stmtFunc->bindParam(':cargo', $cargo);
+            $stmtFunc->bindParam(':setor', $setor);
+            $stmtFunc->bindParam(':data_admissao', $dataAdmissao);
+            $stmtFunc->bindParam(':ativo', $ativo);
             $stmtFunc->bindParam(':id', $id);
             $stmtFunc->execute();
             
