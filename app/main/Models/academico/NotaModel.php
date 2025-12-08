@@ -23,15 +23,25 @@ class NotaModel {
                 VALUES (:avaliacao_id, :disciplina_id, :turma_id, :aluno_id, :nota, :bimestre, :recuperacao, :comentario, :lancado_por, NOW())";
         
         $stmt = $conn->prepare($sql);
-        $stmt->bindParam(':avaliacao_id', $dados['avaliacao_id'] ?? null);
-        $stmt->bindParam(':disciplina_id', $dados['disciplina_id']);
-        $stmt->bindParam(':turma_id', $dados['turma_id']);
-        $stmt->bindParam(':aluno_id', $dados['aluno_id']);
-        $stmt->bindParam(':nota', $dados['nota']);
-        $stmt->bindParam(':bimestre', $dados['bimestre'] ?? null);
-        $stmt->bindParam(':recuperacao', $dados['recuperacao'] ?? 0, PDO::PARAM_BOOL);
-        $stmt->bindParam(':comentario', $dados['comentario'] ?? null);
-        $stmt->bindParam(':lancado_por', $_SESSION['usuario_id']);
+        $avaliacaoId = (isset($dados['avaliacao_id']) && $dados['avaliacao_id'] !== '') ? $dados['avaliacao_id'] : null;
+        $disciplinaId = $dados['disciplina_id'];
+        $turmaId = $dados['turma_id'];
+        $alunoId = $dados['aluno_id'];
+        $notaValor = $dados['nota'];
+        $bimestre = (isset($dados['bimestre']) && $dados['bimestre'] !== '') ? $dados['bimestre'] : null;
+        $recuperacao = $dados['recuperacao'] ?? 0;
+        $comentario = $dados['comentario'] ?? null;
+        $lancadoPor = (isset($_SESSION['usuario_id']) && is_numeric($_SESSION['usuario_id'])) ? (int)$_SESSION['usuario_id'] : null;
+
+        $stmt->bindParam(':avaliacao_id', $avaliacaoId);
+        $stmt->bindParam(':disciplina_id', $disciplinaId);
+        $stmt->bindParam(':turma_id', $turmaId);
+        $stmt->bindParam(':aluno_id', $alunoId);
+        $stmt->bindParam(':nota', $notaValor);
+        $stmt->bindParam(':bimestre', $bimestre);
+        $stmt->bindParam(':recuperacao', $recuperacao, PDO::PARAM_BOOL);
+        $stmt->bindParam(':comentario', $comentario);
+        $stmt->bindParam(':lancado_por', $lancadoPor);
         
         return $stmt->execute();
     }
@@ -148,12 +158,18 @@ class NotaModel {
                 WHERE id = :id";
         
         $stmt = $conn->prepare($sql);
-        $stmt->bindParam(':nota', $dados['nota']);
-        $stmt->bindParam(':bimestre', $dados['bimestre'] ?? null);
-        $stmt->bindParam(':recuperacao', $dados['recuperacao'] ?? 0, PDO::PARAM_BOOL);
-        $stmt->bindParam(':comentario', $dados['comentario'] ?? null);
-        $stmt->bindParam(':atualizado_por', $_SESSION['usuario_id']);
-        $stmt->bindParam(':id', $id);
+        $notaValor = $dados['nota'];
+        $bimestre = isset($dados['bimestre']) ? $dados['bimestre'] : null;
+        $recuperacao = $dados['recuperacao'] ?? 0;
+        $comentario = $dados['comentario'] ?? null;
+        $atualizadoPor = (isset($_SESSION['usuario_id']) && is_numeric($_SESSION['usuario_id'])) ? (int)$_SESSION['usuario_id'] : null;
+        $idParam = $id;
+        $stmt->bindParam(':nota', $notaValor);
+        $stmt->bindParam(':bimestre', $bimestre);
+        $stmt->bindParam(':recuperacao', $recuperacao, PDO::PARAM_BOOL);
+        $stmt->bindParam(':comentario', $comentario);
+        $stmt->bindParam(':atualizado_por', $atualizadoPor);
+        $stmt->bindParam(':id', $idParam);
         
         return $stmt->execute();
     }
@@ -168,9 +184,12 @@ class NotaModel {
                 data_validacao = NOW() WHERE id = :id";
         
         $stmt = $conn->prepare($sql);
-        $stmt->bindParam(':validado', $validado, PDO::PARAM_BOOL);
-        $stmt->bindParam(':validado_por', $_SESSION['usuario_id']);
-        $stmt->bindParam(':id', $notaId);
+        $validadoParam = $validado ? 1 : 0;
+        $validadoPor = (isset($_SESSION['usuario_id']) && is_numeric($_SESSION['usuario_id'])) ? (int)$_SESSION['usuario_id'] : null;
+        $idParam = $notaId;
+        $stmt->bindParam(':validado', $validadoParam, PDO::PARAM_BOOL);
+        $stmt->bindParam(':validado_por', $validadoPor);
+        $stmt->bindParam(':id', $idParam);
         
         return $stmt->execute();
     }

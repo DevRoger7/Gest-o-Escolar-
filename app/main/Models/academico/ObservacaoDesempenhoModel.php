@@ -35,7 +35,7 @@ class ObservacaoDesempenhoModel {
         $data = $dados['data'] ?? date('Y-m-d');
         $bimestre = $dados['bimestre'] ?? null;
         $visivelResponsavel = $dados['visivel_responsavel'] ?? 1;
-        $criadoPor = $_SESSION['usuario_id'];
+        $criadoPor = (isset($_SESSION['usuario_id']) && is_numeric($_SESSION['usuario_id'])) ? (int)$_SESSION['usuario_id'] : null;
 
         $stmt->bindParam(':aluno_id', $alunoId);
         $stmt->bindParam(':turma_id', $turmaId);

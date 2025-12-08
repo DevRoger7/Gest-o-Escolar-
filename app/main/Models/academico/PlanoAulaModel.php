@@ -79,18 +79,30 @@ class PlanoAulaModel {
                 :metodologia, :recursos, :avaliacao, :data_aula, :bimestre, 'RASCUNHO', :criado_por, NOW())";
         
         $stmt = $conn->prepare($sql);
-        $stmt->bindParam(':turma_id', $dados['turma_id']);
-        $stmt->bindParam(':disciplina_id', $dados['disciplina_id']);
-        $stmt->bindParam(':professor_id', $dados['professor_id']);
-        $stmt->bindParam(':titulo', $dados['titulo']);
-        $stmt->bindParam(':conteudo', $dados['conteudo'] ?? null);
-        $stmt->bindParam(':objetivos', $dados['objetivos'] ?? null);
-        $stmt->bindParam(':metodologia', $dados['metodologia'] ?? null);
-        $stmt->bindParam(':recursos', $dados['recursos'] ?? null);
-        $stmt->bindParam(':avaliacao', $dados['avaliacao'] ?? null);
-        $stmt->bindParam(':data_aula', $dados['data_aula']);
-        $stmt->bindParam(':bimestre', $dados['bimestre'] ?? null);
-        $stmt->bindParam(':criado_por', $_SESSION['usuario_id']);
+        $turmaId = $dados['turma_id'];
+        $disciplinaId = $dados['disciplina_id'];
+        $professorId = $dados['professor_id'];
+        $titulo = $dados['titulo'];
+        $conteudo = $dados['conteudo'] ?? null;
+        $objetivos = $dados['objetivos'] ?? null;
+        $metodologia = $dados['metodologia'] ?? null;
+        $recursos = $dados['recursos'] ?? null;
+        $avaliacao = $dados['avaliacao'] ?? null;
+        $dataAula = $dados['data_aula'];
+        $bimestre = $dados['bimestre'] ?? null;
+        $criadoPor = (isset($_SESSION['usuario_id']) && is_numeric($_SESSION['usuario_id'])) ? (int)$_SESSION['usuario_id'] : null;
+        $stmt->bindParam(':turma_id', $turmaId);
+        $stmt->bindParam(':disciplina_id', $disciplinaId);
+        $stmt->bindParam(':professor_id', $professorId);
+        $stmt->bindParam(':titulo', $titulo);
+        $stmt->bindParam(':conteudo', $conteudo);
+        $stmt->bindParam(':objetivos', $objetivos);
+        $stmt->bindParam(':metodologia', $metodologia);
+        $stmt->bindParam(':recursos', $recursos);
+        $stmt->bindParam(':avaliacao', $avaliacao);
+        $stmt->bindParam(':data_aula', $dataAula);
+        $stmt->bindParam(':bimestre', $bimestre);
+        $stmt->bindParam(':criado_por', $criadoPor);
         
         if ($stmt->execute()) {
             return ['success' => true, 'id' => $conn->lastInsertId()];
@@ -109,9 +121,11 @@ class PlanoAulaModel {
                 data_aprovacao = NOW() WHERE id = :id";
         
         $stmt = $conn->prepare($sql);
-        $stmt->bindParam(':aprovado_por', $_SESSION['usuario_id']);
-        $stmt->bindParam(':id', $id);
-        
+        $aprovadoPor = (isset($_SESSION['usuario_id']) && is_numeric($_SESSION['usuario_id'])) ? (int)$_SESSION['usuario_id'] : null;
+        $idParam = $id;
+        $stmt->bindParam(':aprovado_por', $aprovadoPor);
+        $stmt->bindParam(':id', $idParam);
+
         return $stmt->execute();
     }
 }

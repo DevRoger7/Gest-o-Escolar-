@@ -79,7 +79,7 @@ class FornecedorModel {
         $contato = $dados['contato'] ?? null;
         $tipoFornecedor = $dados['tipo_fornecedor'] ?? 'ALIMENTOS';
         $observacoes = $dados['observacoes'] ?? null;
-        $criadoPor = $_SESSION['usuario_id'];
+        $criadoPor = (isset($_SESSION['usuario_id']) && is_numeric($_SESSION['usuario_id'])) ? (int)$_SESSION['usuario_id'] : null;
 
         $stmt->bindParam(':nome', $nome);
         $stmt->bindParam(':razao_social', $razaoSocial);

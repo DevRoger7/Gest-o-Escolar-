@@ -25,16 +25,26 @@ class RelatorioModel {
                 :escola_id, :turma_id, :parametros, 'GERANDO', :gerado_por, NOW())";
         
         $stmt = $conn->prepare($sql);
-        $stmt->bindParam(':tipo', $dados['tipo']);
-        $stmt->bindParam(':subtipo', $dados['subtipo'] ?? null);
-        $stmt->bindParam(':titulo', $dados['titulo']);
-        $stmt->bindParam(':descricao', $dados['descricao'] ?? null);
-        $stmt->bindParam(':periodo_inicio', $dados['periodo_inicio'] ?? null);
-        $stmt->bindParam(':periodo_fim', $dados['periodo_fim'] ?? null);
-        $stmt->bindParam(':escola_id', $dados['escola_id'] ?? null);
-        $stmt->bindParam(':turma_id', $dados['turma_id'] ?? null);
-        $stmt->bindParam(':parametros', $dados['parametros'] ?? null);
-        $stmt->bindParam(':gerado_por', $_SESSION['usuario_id']);
+        $geradoPor = (isset($_SESSION['usuario_id']) && is_numeric($_SESSION['usuario_id'])) ? (int)$_SESSION['usuario_id'] : null;
+        $tipo = isset($dados['tipo']) ? $dados['tipo'] : null;
+        $subtipo = isset($dados['subtipo']) && $dados['subtipo'] !== '' ? $dados['subtipo'] : null;
+        $titulo = isset($dados['titulo']) ? $dados['titulo'] : null;
+        $descricao = isset($dados['descricao']) && $dados['descricao'] !== '' ? $dados['descricao'] : null;
+        $periodoInicio = isset($dados['periodo_inicio']) && $dados['periodo_inicio'] !== '' ? $dados['periodo_inicio'] : null;
+        $periodoFim = isset($dados['periodo_fim']) && $dados['periodo_fim'] !== '' ? $dados['periodo_fim'] : null;
+        $escolaId = isset($dados['escola_id']) && $dados['escola_id'] !== '' ? $dados['escola_id'] : null;
+        $turmaId = isset($dados['turma_id']) && $dados['turma_id'] !== '' ? $dados['turma_id'] : null;
+        $parametros = isset($dados['parametros']) && $dados['parametros'] !== '' ? $dados['parametros'] : null;
+        $stmt->bindParam(':tipo', $tipo);
+        $stmt->bindParam(':subtipo', $subtipo);
+        $stmt->bindParam(':titulo', $titulo);
+        $stmt->bindParam(':descricao', $descricao);
+        $stmt->bindParam(':periodo_inicio', $periodoInicio);
+        $stmt->bindParam(':periodo_fim', $periodoFim);
+        $stmt->bindParam(':escola_id', $escolaId);
+        $stmt->bindParam(':turma_id', $turmaId);
+        $stmt->bindParam(':parametros', $parametros);
+        $stmt->bindParam(':gerado_por', $geradoPor);
         
         if ($stmt->execute()) {
             return ['success' => true, 'id' => $conn->lastInsertId()];

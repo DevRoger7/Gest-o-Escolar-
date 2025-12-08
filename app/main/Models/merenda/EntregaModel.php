@@ -28,14 +28,22 @@ class EntregaModel {
                     'AGENDADA', :transportadora, :nota_fiscal, :observacoes, :registrado_por, NOW())";
             
             $stmt = $conn->prepare($sql);
-            $stmt->bindParam(':pedido_cesta_id', $dados['pedido_cesta_id'] ?? null);
-            $stmt->bindParam(':escola_id', $dados['escola_id']);
-            $stmt->bindParam(':fornecedor_id', $dados['fornecedor_id'] ?? null);
-            $stmt->bindParam(':data_prevista', $dados['data_prevista']);
-            $stmt->bindParam(':transportadora', $dados['transportadora'] ?? null);
-            $stmt->bindParam(':nota_fiscal', $dados['nota_fiscal'] ?? null);
-            $stmt->bindParam(':observacoes', $dados['observacoes'] ?? null);
-            $stmt->bindParam(':registrado_por', $_SESSION['usuario_id']);
+            $pedidoCestaId = isset($dados['pedido_cesta_id']) ? $dados['pedido_cesta_id'] : null;
+            $escolaId = $dados['escola_id'];
+            $fornecedorId = isset($dados['fornecedor_id']) ? $dados['fornecedor_id'] : null;
+            $dataPrevista = $dados['data_prevista'];
+            $transportadora = $dados['transportadora'] ?? null;
+            $notaFiscal = $dados['nota_fiscal'] ?? null;
+            $observacoes = $dados['observacoes'] ?? null;
+            $registradoPor = (isset($_SESSION['usuario_id']) && is_numeric($_SESSION['usuario_id'])) ? (int)$_SESSION['usuario_id'] : null;
+            $stmt->bindParam(':pedido_cesta_id', $pedidoCestaId);
+            $stmt->bindParam(':escola_id', $escolaId);
+            $stmt->bindParam(':fornecedor_id', $fornecedorId);
+            $stmt->bindParam(':data_prevista', $dataPrevista);
+            $stmt->bindParam(':transportadora', $transportadora);
+            $stmt->bindParam(':nota_fiscal', $notaFiscal);
+            $stmt->bindParam(':observacoes', $observacoes);
+            $stmt->bindParam(':registrado_por', $registradoPor);
             $stmt->execute();
             
             $entregaId = $conn->lastInsertId();
@@ -74,10 +82,14 @@ class EntregaModel {
                 WHERE id = :id";
         
         $stmt = $conn->prepare($sql);
-        $stmt->bindParam(':data_entrega', $dados['data_entrega'] ?? date('Y-m-d'));
-        $stmt->bindParam(':recebido_por', $_SESSION['usuario_id']);
-        $stmt->bindParam(':observacoes', $dados['observacoes'] ?? null);
-        $stmt->bindParam(':id', $id);
+        $dataEntrega = $dados['data_entrega'] ?? date('Y-m-d');
+        $recebidoPor = (isset($_SESSION['usuario_id']) && is_numeric($_SESSION['usuario_id'])) ? (int)$_SESSION['usuario_id'] : null;
+        $observacoes = $dados['observacoes'] ?? null;
+        $idParam = $id;
+        $stmt->bindParam(':data_entrega', $dataEntrega);
+        $stmt->bindParam(':recebido_por', $recebidoPor);
+        $stmt->bindParam(':observacoes', $observacoes);
+        $stmt->bindParam(':id', $idParam);
         
         return $stmt->execute();
     }

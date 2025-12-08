@@ -95,7 +95,8 @@ class BoletimModel {
                 $stmtBoletim->bindParam(':frequencia_percentual', $freq['percentual']);
                 $stmtBoletim->bindParam(':total_faltas', $totalFaltas);
                 $stmtBoletim->bindParam(':situacao', $situacao);
-                $stmtBoletim->bindParam(':gerado_por', $_SESSION['usuario_id']);
+                $geradoPor = (isset($_SESSION['usuario_id']) && is_numeric($_SESSION['usuario_id'])) ? (int)$_SESSION['usuario_id'] : null;
+                $stmtBoletim->bindParam(':gerado_por', $geradoPor);
                 $stmtBoletim->execute();
                 
                 $boletimId = $conn->lastInsertId();

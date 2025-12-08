@@ -154,9 +154,12 @@ class PedidoCestaModel {
                 data_aprovacao = NOW(), observacoes = :observacoes WHERE id = :id";
         
         $stmt = $conn->prepare($sql);
-        $stmt->bindParam(':aprovado_por', $_SESSION['usuario_id']);
-        $stmt->bindParam(':observacoes', $observacoes);
-        $stmt->bindParam(':id', $id);
+        $aprovadoPor = (isset($_SESSION['usuario_id']) && is_numeric($_SESSION['usuario_id'])) ? (int)$_SESSION['usuario_id'] : null;
+        $obs = $observacoes ?? null;
+        $idParam = $id;
+        $stmt->bindParam(':aprovado_por', $aprovadoPor);
+        $stmt->bindParam(':observacoes', $obs);
+        $stmt->bindParam(':id', $idParam);
         
         return $stmt->execute();
     }

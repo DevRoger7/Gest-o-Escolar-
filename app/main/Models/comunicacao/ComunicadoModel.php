@@ -89,7 +89,7 @@ class ComunicadoModel {
         $turmaId = $dados['turma_id'] ?? null;
         $alunoId = $dados['aluno_id'] ?? null;
         $escolaId = $dados['escola_id'] ?? null;
-        $enviadoPor = $_SESSION['usuario_id'];
+        $enviadoPor = (isset($_SESSION['usuario_id']) && is_numeric($_SESSION['usuario_id'])) ? (int)$_SESSION['usuario_id'] : null;
         $titulo = $dados['titulo'];
         $mensagem = $dados['mensagem'];
         $tipo = $dados['tipo'] ?? 'GERAL';
@@ -123,8 +123,10 @@ class ComunicadoModel {
                 WHERE id = :id";
         
         $stmt = $conn->prepare($sql);
-        $stmt->bindParam(':lido_por', $_SESSION['usuario_id']);
-        $stmt->bindParam(':id', $id);
+        $lidoPor = (isset($_SESSION['usuario_id']) && is_numeric($_SESSION['usuario_id'])) ? (int)$_SESSION['usuario_id'] : null;
+        $idParam = $id;
+        $stmt->bindParam(':lido_por', $lidoPor);
+        $stmt->bindParam(':id', $idParam);
         
         return $stmt->execute();
     }

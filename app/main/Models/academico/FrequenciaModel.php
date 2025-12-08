@@ -24,12 +24,19 @@ class FrequenciaModel {
                 ON DUPLICATE KEY UPDATE presenca = :presenca, observacao = :observacao, atualizado_em = NOW()";
         
         $stmt = $conn->prepare($sql);
-        $stmt->bindParam(':aluno_id', $dados['aluno_id']);
-        $stmt->bindParam(':turma_id', $dados['turma_id']);
-        $stmt->bindParam(':data', $dados['data']);
-        $stmt->bindParam(':presenca', $dados['presenca']);
-        $stmt->bindParam(':observacao', $dados['observacao'] ?? null);
-        $stmt->bindParam(':registrado_por', $_SESSION['usuario_id']);
+        $alunoId = $dados['aluno_id'];
+        $turmaId = $dados['turma_id'];
+        $data = $dados['data'];
+        $presenca = isset($dados['presenca']) ? (int)$dados['presenca'] : 0;
+        $observacao = $dados['observacao'] ?? null;
+        $registradoPor = (isset($_SESSION['usuario_id']) && is_numeric($_SESSION['usuario_id'])) ? (int)$_SESSION['usuario_id'] : null;
+
+        $stmt->bindParam(':aluno_id', $alunoId);
+        $stmt->bindParam(':turma_id', $turmaId);
+        $stmt->bindParam(':data', $data);
+        $stmt->bindParam(':presenca', $presenca);
+        $stmt->bindParam(':observacao', $observacao);
+        $stmt->bindParam(':registrado_por', $registradoPor);
         
         return $stmt->execute();
     }
@@ -159,9 +166,12 @@ class FrequenciaModel {
                 data_validacao = NOW() WHERE id = :id";
         
         $stmt = $conn->prepare($sql);
-        $stmt->bindParam(':validado', $validado, PDO::PARAM_BOOL);
-        $stmt->bindParam(':validado_por', $_SESSION['usuario_id']);
-        $stmt->bindParam(':id', $frequenciaId);
+        $validadoParam = $validado ? 1 : 0;
+        $validadoPor = (isset($_SESSION['usuario_id']) && is_numeric($_SESSION['usuario_id'])) ? (int)$_SESSION['usuario_id'] : null;
+        $idParam = $frequenciaId;
+        $stmt->bindParam(':validado', $validadoParam, PDO::PARAM_BOOL);
+        $stmt->bindParam(':validado_por', $validadoPor);
+        $stmt->bindParam(':id', $idParam);
         
         return $stmt->execute();
     }

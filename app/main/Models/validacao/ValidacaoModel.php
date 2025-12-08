@@ -23,9 +23,12 @@ class ValidacaoModel {
                 VALUES (:tipo_registro, :registro_id, 'PENDENTE', :observacoes, NOW())";
         
         $stmt = $conn->prepare($sql);
-        $stmt->bindParam(':tipo_registro', $dados['tipo_registro']);
-        $stmt->bindParam(':registro_id', $dados['registro_id']);
-        $stmt->bindParam(':observacoes', $dados['observacoes'] ?? null);
+        $tipoRegistro = isset($dados['tipo_registro']) ? $dados['tipo_registro'] : null;
+        $registroId = isset($dados['registro_id']) ? $dados['registro_id'] : null;
+        $observacoes = isset($dados['observacoes']) && $dados['observacoes'] !== '' ? $dados['observacoes'] : null;
+        $stmt->bindParam(':tipo_registro', $tipoRegistro);
+        $stmt->bindParam(':registro_id', $registroId);
+        $stmt->bindParam(':observacoes', $observacoes);
         
         if ($stmt->execute()) {
             return ['success' => true, 'id' => $conn->lastInsertId()];
@@ -58,8 +61,10 @@ class ValidacaoModel {
             $sql = "UPDATE validacao SET status = 'APROVADO', validado_por = :validado_por,
                     data_validacao = NOW(), observacoes = :observacoes WHERE id = :id";
             $stmt = $conn->prepare($sql);
-            $stmt->bindParam(':validado_por', $_SESSION['usuario_id']);
-            $stmt->bindParam(':observacoes', $observacoes);
+            $validadoPor = (isset($_SESSION['usuario_id']) && is_numeric($_SESSION['usuario_id'])) ? (int)$_SESSION['usuario_id'] : null;
+            $obs = $observacoes ?? null;
+            $stmt->bindParam(':validado_por', $validadoPor);
+            $stmt->bindParam(':observacoes', $obs);
             $stmt->bindParam(':id', $id);
             $stmt->execute();
             
@@ -85,8 +90,10 @@ class ValidacaoModel {
                 data_validacao = NOW(), observacoes = :observacoes WHERE id = :id";
         
         $stmt = $conn->prepare($sql);
-        $stmt->bindParam(':validado_por', $_SESSION['usuario_id']);
-        $stmt->bindParam(':observacoes', $observacoes);
+        $validadoPor = (isset($_SESSION['usuario_id']) && is_numeric($_SESSION['usuario_id'])) ? (int)$_SESSION['usuario_id'] : null;
+        $obs = $observacoes ?? null;
+        $stmt->bindParam(':validado_por', $validadoPor);
+        $stmt->bindParam(':observacoes', $obs);
         $stmt->bindParam(':id', $id);
         
         return $stmt->execute();
@@ -113,9 +120,12 @@ class ValidacaoModel {
             $sql = "UPDATE $tabela SET validado = :validado, validado_por = :validado_por,
                     data_validacao = NOW() WHERE id = :id";
             $stmt = $conn->prepare($sql);
-            $stmt->bindParam(':validado', $validado, PDO::PARAM_BOOL);
-            $stmt->bindParam(':validado_por', $_SESSION['usuario_id']);
-            $stmt->bindParam(':id', $registroId);
+            $validadoParam = $validado ? 1 : 0;
+            $validadoPor = (isset($_SESSION['usuario_id']) && is_numeric($_SESSION['usuario_id'])) ? (int)$_SESSION['usuario_id'] : null;
+            $idParam = $registroId;
+            $stmt->bindParam(':validado', $validadoParam, PDO::PARAM_BOOL);
+            $stmt->bindParam(':validado_por', $validadoPor);
+            $stmt->bindParam(':id', $idParam);
             $stmt->execute();
         }
     }
@@ -139,7 +149,8 @@ class ValidacaoModel {
         
         $stmt = $conn->prepare($sql);
         if (!empty($filtros['tipo_registro'])) {
-            $stmt->bindParam(':tipo_registro', $filtros['tipo_registro']);
+            $tipoRegistroFiltro = $filtros['tipo_registro'];
+            $stmt->bindParam(':tipo_registro', $tipoRegistroFiltro);
         }
         
         $stmt->execute();

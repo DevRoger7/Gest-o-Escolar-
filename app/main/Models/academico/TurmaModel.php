@@ -97,13 +97,13 @@ class TurmaModel {
         
         $stmt = $conn->prepare($sql);
         $escolaId = $dados['escola_id'];
-        $serieId = $dados['serie_id'] ?? null;
+        $serieId = (isset($dados['serie_id']) && $dados['serie_id'] !== '') ? $dados['serie_id'] : null;
         $anoLetivo = $dados['ano_letivo'] ?? date('Y');
-        $serie = $dados['serie'] ?? null;
+        $serie = (isset($dados['serie']) && $dados['serie'] !== '') ? $dados['serie'] : null;
         $letra = $dados['letra'];
         $turno = $dados['turno'];
-        $capacidade = $dados['capacidade'] ?? null;
-        $sala = $dados['sala'] ?? null;
+        $capacidade = (isset($dados['capacidade']) && $dados['capacidade'] !== '') ? $dados['capacidade'] : null;
+        $sala = (isset($dados['sala']) && $dados['sala'] !== '') ? $dados['sala'] : null;
 
         $stmt->bindParam(':escola_id', $escolaId);
         $stmt->bindParam(':serie_id', $serieId);
@@ -134,14 +134,14 @@ class TurmaModel {
         
         $stmt = $conn->prepare($sql);
         $escolaId = $dados['escola_id'];
-        $serieId = $dados['serie_id'] ?? null;
+        $serieId = (isset($dados['serie_id']) && $dados['serie_id'] !== '') ? $dados['serie_id'] : null;
         $anoLetivo = $dados['ano_letivo'];
-        $serie = $dados['serie'] ?? null;
+        $serie = (isset($dados['serie']) && $dados['serie'] !== '') ? $dados['serie'] : null;
         $letra = $dados['letra'];
         $turno = $dados['turno'];
-        $capacidade = $dados['capacidade'] ?? null;
-        $sala = $dados['sala'] ?? null;
-        $coordenadorId = $dados['coordenador_id'] ?? null;
+        $capacidade = (isset($dados['capacidade']) && $dados['capacidade'] !== '') ? $dados['capacidade'] : null;
+        $sala = (isset($dados['sala']) && $dados['sala'] !== '') ? $dados['sala'] : null;
+        $coordenadorId = (isset($dados['coordenador_id']) && $dados['coordenador_id'] !== '') ? $dados['coordenador_id'] : null;
         $ativo = $dados['ativo'] ?? 1;
 
         $stmt->bindParam(':escola_id', $escolaId);

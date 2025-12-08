@@ -106,13 +106,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao'])) {
             $sqlPessoa = "INSERT INTO pessoa (cpf, nome, data_nascimento, sexo, email, telefone, tipo, criado_por)
                          VALUES (:cpf, :nome, :data_nascimento, :sexo, :email, :telefone, 'FUNCIONARIO', :criado_por)";
             $stmtPessoa = $conn->prepare($sqlPessoa);
+            $dataNascimentoParam = $_POST['data_nascimento'] ?? null;
+            $sexoParam = $_POST['sexo'] ?? null;
+            $emailParam = !empty($_POST['email']) ? trim($_POST['email']) : null;
+            $telefoneParam = !empty($telefone) ? $telefone : null;
+            $criadoPorParam = (isset($_SESSION['usuario_id']) && is_numeric($_SESSION['usuario_id'])) ? (int)$_SESSION['usuario_id'] : null;
             $stmtPessoa->bindParam(':cpf', $cpf);
             $stmtPessoa->bindParam(':nome', $nome);
-            $stmtPessoa->bindParam(':data_nascimento', $_POST['data_nascimento'] ?? null);
-            $stmtPessoa->bindParam(':sexo', $_POST['sexo'] ?? null);
-            $stmtPessoa->bindParam(':email', !empty($_POST['email']) ? trim($_POST['email']) : null);
-            $stmtPessoa->bindParam(':telefone', !empty($telefone) ? $telefone : null);
-            $stmtPessoa->bindParam(':criado_por', $_SESSION['usuario_id']);
+            $stmtPessoa->bindParam(':data_nascimento', $dataNascimentoParam);
+            $stmtPessoa->bindParam(':sexo', $sexoParam);
+            $stmtPessoa->bindParam(':email', $emailParam);
+            $stmtPessoa->bindParam(':telefone', $telefoneParam);
+            $stmtPessoa->bindParam(':criado_por', $criadoPorParam);
             $stmtPessoa->execute();
             $pessoaId = $conn->lastInsertId();
             
@@ -120,12 +125,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao'])) {
             $sqlFunc = "INSERT INTO funcionario (pessoa_id, matricula, cargo, setor, data_admissao, ativo, criado_por)
                        VALUES (:pessoa_id, :matricula, :cargo, :setor, :data_admissao, 1, :criado_por)";
             $stmtFunc = $conn->prepare($sqlFunc);
+            $matriculaParam = !empty($_POST['matricula']) ? trim($_POST['matricula']) : null;
+            $cargoParam = trim($_POST['cargo'] ?? '');
+            $setorParam = !empty($_POST['setor']) ? trim($_POST['setor']) : null;
+            $dataAdmissaoParam = $_POST['data_admissao'] ?? date('Y-m-d');
+            $criadoPorFuncParam = (isset($_SESSION['usuario_id']) && is_numeric($_SESSION['usuario_id'])) ? (int)$_SESSION['usuario_id'] : null;
             $stmtFunc->bindParam(':pessoa_id', $pessoaId);
-            $stmtFunc->bindParam(':matricula', !empty($_POST['matricula']) ? trim($_POST['matricula']) : null);
-            $stmtFunc->bindParam(':cargo', trim($_POST['cargo'] ?? ''));
-            $stmtFunc->bindParam(':setor', !empty($_POST['setor']) ? trim($_POST['setor']) : null);
-            $stmtFunc->bindParam(':data_admissao', $_POST['data_admissao'] ?? date('Y-m-d'));
-            $stmtFunc->bindParam(':criado_por', $_SESSION['usuario_id']);
+            $stmtFunc->bindParam(':matricula', $matriculaParam);
+            $stmtFunc->bindParam(':cargo', $cargoParam);
+            $stmtFunc->bindParam(':setor', $setorParam);
+            $stmtFunc->bindParam(':data_admissao', $dataAdmissaoParam);
+            $stmtFunc->bindParam(':criado_por', $criadoPorFuncParam);
             $stmtFunc->execute();
             $funcionarioId = $conn->lastInsertId();
             

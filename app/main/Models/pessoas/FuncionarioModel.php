@@ -63,7 +63,21 @@ class FuncionarioModel {
     public function buscarPorId($id) {
         $conn = $this->db->getConnection();
         
-        $sql = "SELECT f.*, p.*
+        // Seleciona colunas explicitamente para evitar colisão de nomes (ex.: id)
+        $sql = "SELECT 
+                    f.id, 
+                    f.pessoa_id, 
+                    f.matricula, 
+                    f.cargo, 
+                    f.setor, 
+                    f.data_admissao, 
+                    f.ativo,
+                    p.nome, 
+                    p.cpf, 
+                    p.email, 
+                    p.telefone, 
+                    p.data_nascimento, 
+                    p.sexo
                 FROM funcionario f
                 INNER JOIN pessoa p ON f.pessoa_id = p.id
                 WHERE f.id = :id";
@@ -94,7 +108,7 @@ class FuncionarioModel {
             $sexo = $dados['sexo'];
             $email = $dados['email'];
             $telefone = $dados['telefone'];
-            $criadoPorUsuario = $_SESSION['usuario_id'];
+            $criadoPorUsuario = (isset($_SESSION['usuario_id']) && is_numeric($_SESSION['usuario_id'])) ? (int)$_SESSION['usuario_id'] : null;
             $stmtPessoa->bindParam(':cpf', $cpf);
             $stmtPessoa->bindParam(':nome', $nome);
             $stmtPessoa->bindParam(':data_nascimento', $dataNascimento);
@@ -111,7 +125,7 @@ class FuncionarioModel {
             $cargo = $dados['cargo'] ?? '';
             $setor = $dados['setor'] ?? null;
             $dataAdmissao = $dados['data_admissao'] ?? date('Y-m-d');
-            $criadoPor = $_SESSION['usuario_id'];
+            $criadoPor = (isset($_SESSION['usuario_id']) && is_numeric($_SESSION['usuario_id'])) ? (int)$_SESSION['usuario_id'] : null;
             
             $sqlFunc = "INSERT INTO funcionario (pessoa_id, matricula, cargo, setor, data_admissao, ativo, criado_por)
                        VALUES (:pessoa_id, :matricula, :cargo, :setor, :data_admissao, 1, :criado_por)";
@@ -218,10 +232,11 @@ class FuncionarioModel {
                 VALUES (:funcionario_id, :escola_id, CURDATE(), :setor, :criado_por)";
         
         $stmt = $conn->prepare($sql);
+        $criadoPor = (isset($_SESSION['usuario_id']) && is_numeric($_SESSION['usuario_id'])) ? (int)$_SESSION['usuario_id'] : null;
         $stmt->bindParam(':funcionario_id', $funcionarioId);
         $stmt->bindParam(':escola_id', $escolaId);
         $stmt->bindParam(':setor', $setor);
-        $stmt->bindParam(':criado_por', $_SESSION['usuario_id']);
+        $stmt->bindParam(':criado_por', $criadoPor);
         
         return $stmt->execute();
     }
