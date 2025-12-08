@@ -70,7 +70,7 @@ $nomeSistema = getNomeSistemaCurto();
                 </a>
             </li>
             <li>
-                <a href="adm/gestao/professores.php" class="menu-item flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700 <?= $currentPage === 'professores.php' ? 'active' : '' ?>">
+                <a href="gestao_professores_adm.php" class="menu-item flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700 <?= $currentPage === 'gestao_professores_adm.php' ? 'active' : '' ?>">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path>
                     </svg>
@@ -78,7 +78,7 @@ $nomeSistema = getNomeSistemaCurto();
                 </a>
             </li>
             <li>
-                <a href="adm/gestao/funcionarios.php" class="menu-item flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700 <?= $currentPage === 'funcionarios.php' ? 'active' : '' ?>">
+                <a href="gestao_funcionarios_adm.php" class="menu-item flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700 <?= $currentPage === 'gestao_funcionarios_adm.php' ? 'active' : '' ?>">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path>
                     </svg>
@@ -86,7 +86,7 @@ $nomeSistema = getNomeSistemaCurto();
                 </a>
             </li>
             <li>
-                <a href="adm/gestao/gestores.php" class="menu-item flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700 <?= $currentPage === 'gestores.php' ? 'active' : '' ?>">
+                <a href="gestao_gestores_adm.php" class="menu-item flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700 <?= $currentPage === 'gestao_gestores_adm.php' ? 'active' : '' ?>">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path>
                     </svg>
@@ -94,7 +94,7 @@ $nomeSistema = getNomeSistemaCurto();
                 </a>
             </li>
             <li>
-                <a href="adm/gestao/usuarios.php" class="menu-item flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700 <?= $currentPage === 'usuarios.php' ? 'active' : '' ?>">
+                <a href="gestao_usuarios.php" class="menu-item flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700 <?= $currentPage === 'gestao_usuarios.php' ? 'active' : '' ?>">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path>
                     </svg>
@@ -107,7 +107,7 @@ $nomeSistema = getNomeSistemaCurto();
                 <p class="px-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Gestão Acadêmica</p>
             </li>
             <li>
-                <a href="adm/gestao/escolas.php" class="menu-item flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700 <?= $currentPage === 'escolas.php' ? 'active' : '' ?>">
+                <a href="gestao_escolas.php" class="menu-item flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700 <?= $currentPage === 'gestao_escolas.php' ? 'active' : '' ?>">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path>
                     </svg>
@@ -115,7 +115,7 @@ $nomeSistema = getNomeSistemaCurto();
                 </a>
             </li>
             <li>
-                <a href="adm/gestao/turmas.php" class="menu-item flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700 <?= $currentPage === 'turmas.php' ? 'active' : '' ?>">
+                <a href="gestao_turmas_adm.php" class="menu-item flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700 <?= $currentPage === 'gestao_turmas_adm.php' ? 'active' : '' ?>">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"></path>
                     </svg>
@@ -123,7 +123,7 @@ $nomeSistema = getNomeSistemaCurto();
                 </a>
             </li>
             <li>
-                <a href="adm/gestao/series.php" class="menu-item flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700 <?= $currentPage === 'series.php' ? 'active' : '' ?>">
+                <a href="gestao_series_adm.php" class="menu-item flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700 <?= $currentPage === 'gestao_series_adm.php' ? 'active' : '' ?>">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
                     </svg>
@@ -131,7 +131,7 @@ $nomeSistema = getNomeSistemaCurto();
                 </a>
             </li>
             <li>
-                <a href="adm/gestao/disciplinas.php" class="menu-item flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700 <?= $currentPage === 'disciplinas.php' ? 'active' : '' ?>">
+                <a href="gestao_disciplinas_adm.php" class="menu-item flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700 <?= $currentPage === 'gestao_disciplinas_adm.php' ? 'active' : '' ?>">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path>
                     </svg>
@@ -139,7 +139,7 @@ $nomeSistema = getNomeSistemaCurto();
                 </a>
             </li>
             <li>
-                <a href="gestao/escolar.php" class="menu-item flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700 <?= $currentPage === 'escolar.php' ? 'active' : '' ?>">
+                <a href="gestao_escolar.php" class="menu-item flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700 <?= $currentPage === 'gestao_escolar.php' ? 'active' : '' ?>">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"></path>
                     </svg>
@@ -152,7 +152,7 @@ $nomeSistema = getNomeSistemaCurto();
                 <p class="px-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Supervisão</p>
             </li>
             <li>
-                <a href="adm/supervisao/academica.php" class="menu-item flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700 <?= $currentPage === 'academica.php' ? 'active' : '' ?>">
+                <a href="supervisao_academica_adm.php" class="menu-item flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700 <?= $currentPage === 'supervisao_academica_adm.php' ? 'active' : '' ?>">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z"></path>
                     </svg>
@@ -160,7 +160,7 @@ $nomeSistema = getNomeSistemaCurto();
                 </a>
             </li>
             <li>
-                <a href="adm/supervisao/alimentacao.php" class="menu-item flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700 <?= $currentPage === 'alimentacao.php' ? 'active' : '' ?>">
+                <a href="supervisao_alimentacao_adm.php" class="menu-item flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700 <?= $currentPage === 'supervisao_alimentacao_adm.php' ? 'active' : '' ?>">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"></path>
                     </svg>
@@ -168,7 +168,7 @@ $nomeSistema = getNomeSistemaCurto();
                 </a>
             </li>
             <li>
-                <a href="adm/validacao.php" class="menu-item flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700 <?= $currentPage === 'validacao.php' ? 'active' : '' ?>">
+                <a href="validacao_lancamentos_adm.php" class="menu-item flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700 <?= $currentPage === 'validacao_lancamentos_adm.php' ? 'active' : '' ?>">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
                     </svg>
@@ -181,7 +181,7 @@ $nomeSistema = getNomeSistemaCurto();
                 <p class="px-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Relatórios</p>
             </li>
             <li>
-                <a href="adm/relatorios/financeiros.php" class="menu-item flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700 <?= $currentPage === 'financeiros.php' ? 'active' : '' ?>">
+                <a href="relatorios_financeiros_adm.php" class="menu-item flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700 <?= $currentPage === 'relatorios_financeiros_adm.php' ? 'active' : '' ?>">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
                     </svg>
@@ -189,7 +189,7 @@ $nomeSistema = getNomeSistemaCurto();
                 </a>
             </li>
             <li>
-                <a href="adm/relatorios/pedagogicos.php" class="menu-item flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700 <?= $currentPage === 'pedagogicos.php' ? 'active' : '' ?>">
+                <a href="relatorios_pedagogicos_adm.php" class="menu-item flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700 <?= $currentPage === 'relatorios_pedagogicos_adm.php' ? 'active' : '' ?>">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
                     </svg>
@@ -202,7 +202,7 @@ $nomeSistema = getNomeSistemaCurto();
                 <p class="px-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Configurações</p>
             </li>
             <li>
-                <a href="adm/permissoes.php" class="menu-item flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700 <?= $currentPage === 'permissoes.php' ? 'active' : '' ?>">
+                <a href="permissoes_adm.php" class="menu-item flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700 <?= $currentPage === 'permissoes_adm.php' ? 'active' : '' ?>">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path>
                     </svg>
@@ -210,7 +210,7 @@ $nomeSistema = getNomeSistemaCurto();
                 </a>
             </li>
             <li>
-                <a href="adm/configuracoes.php" class="menu-item flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700 <?= $currentPage === 'configuracoes.php' ? 'active' : '' ?>">
+                <a href="configuracoes_seguranca_adm.php" class="menu-item flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700 <?= $currentPage === 'configuracoes_seguranca_adm.php' ? 'active' : '' ?>">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path>
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>

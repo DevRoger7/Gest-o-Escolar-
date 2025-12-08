@@ -17,69 +17,35 @@ $stats = new DashboardStats();
 
 // Função para obter dados do usuário logado
 function obterDadosUsuarioLogado($usuarioId) {
-    try {
-        $db = Database::getInstance();
-        $conn = $db->getConnection();
-        
-        $sql = "SELECT 
-                    u.id as usuario_id,
-                    u.username,
-                    u.role as tipo,
-                    u.ativo,
-                    u.ultimo_login,
-                    u.created_at as data_criacao,
-                    p.id as pessoa_id,
-                    p.nome,
-                    p.cpf,
-                    p.email,
-                    p.telefone,
-                    p.data_nascimento,
-                    p.sexo,
-                    p.endereco,
-                    p.cep,
-                    p.cidade,
-                    p.estado
-                FROM usuario u 
-                LEFT JOIN pessoa p ON u.pessoa_id = p.id 
-                WHERE u.id = :usuario_id";
-        
-        $stmt = $conn->prepare($sql);
-        $stmt->bindParam(':usuario_id', $usuarioId, PDO::PARAM_INT);
-        $stmt->execute();
-        $resultado = $stmt->fetch(PDO::FETCH_ASSOC);
-        
-        // Se não encontrou dados, retornar pelo menos os dados básicos do usuário
-        if (!$resultado) {
-            $sqlUsuario = "SELECT 
-                            id as usuario_id,
-                            username,
-                            role as tipo,
-                            ativo,
-                            ultimo_login,
-                            created_at as data_criacao
-                        FROM usuario 
-                        WHERE id = :usuario_id";
-            $stmtUsuario = $conn->prepare($sqlUsuario);
-            $stmtUsuario->bindParam(':usuario_id', $usuarioId, PDO::PARAM_INT);
-            $stmtUsuario->execute();
-            $resultado = $stmtUsuario->fetch(PDO::FETCH_ASSOC);
-        }
-        
-        // Garantir que sempre retorne um array, mesmo que vazio
-        if (!$resultado) {
-            return [
-                'usuario_id' => $usuarioId,
-                'username' => 'Usuário',
-                'tipo' => 'USUARIO',
-                'ativo' => 1
-            ];
-        }
-        
-        return $resultado;
-    } catch (Exception $e) {
-        error_log("Erro ao obter dados do usuário: " . $e->getMessage());
-        return null;
-    }
+    $db = Database::getInstance();
+    $conn = $db->getConnection();
+    
+    $sql = "SELECT 
+                u.id as usuario_id,
+                u.username,
+                u.role as tipo,
+                u.ativo,
+                u.ultimo_login,
+                u.created_at as data_criacao,
+                p.id as pessoa_id,
+                p.nome,
+                p.cpf,
+                p.email,
+                p.telefone,
+                p.data_nascimento,
+                p.sexo,
+                p.endereco,
+                p.cep,
+                p.cidade,
+                p.estado
+            FROM usuario u 
+            JOIN pessoa p ON u.pessoa_id = p.id 
+            WHERE u.id = :usuario_id";
+    
+    $stmt = $conn->prepare($sql);
+    $stmt->bindParam(':usuario_id', $usuarioId, PDO::PARAM_INT);
+    $stmt->execute();
+    return $stmt->fetch(PDO::FETCH_ASSOC);
 }
 
 // Buscar dados do usuário logado
@@ -1865,8 +1831,6 @@ if (!defined('BASE_URL')) {
         <?php include('components/sidebar_merenda.php'); ?>
     <?php } elseif (isset($_SESSION['tipo']) && strtoupper($_SESSION['tipo']) === 'ADM') { ?>
         <?php include('components/sidebar_adm.php'); ?>
-    <?php } elseif (isset($_SESSION['tipo']) && strtoupper($_SESSION['tipo']) === 'NUTRICIONISTA') { ?>
-        <?php include('components/sidebar_nutricionista.php'); ?>
     <?php } else { ?>
     <aside id="sidebar" class="fixed left-0 top-0 h-full w-64 bg-white shadow-lg sidebar-transition z-50 lg:translate-x-0 sidebar-mobile">
         <!-- Logo e Header -->
@@ -1949,7 +1913,7 @@ if (!defined('BASE_URL')) {
                 <?php } ?>
                 <?php if ($_SESSION['tipo'] === 'GESTAO') { ?>
                 <li id="gestao-menu">
-                    <a href="gestao/escolar.php" class="menu-item flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700">
+                    <a href="gestao_escolar.php" class="menu-item flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700">
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
                         </svg>
@@ -1972,7 +1936,7 @@ if (!defined('BASE_URL')) {
                     </a>
                 </li>
                 <li>
-                    <a href="professor/notas.php" class="menu-item flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700">
+                    <a href="notas_professor.php" class="menu-item flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700">
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z"></path>
                         </svg>
@@ -2056,7 +2020,7 @@ if (!defined('BASE_URL')) {
                 <?php } ?>
                 <?php if ($_SESSION['tipo'] === 'ADM') { ?>
                 <li id="escolas-menu">
-                    <a href="adm/gestao/escolas.php" class="menu-item flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700">
+                    <a href="gestao_escolas.php" class="menu-item flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700">
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path>
                         </svg>
@@ -2064,7 +2028,7 @@ if (!defined('BASE_URL')) {
                     </a>
                 </li>
                 <li id="usuarios-menu">
-                    <a href="adm/gestao/usuarios.php" class="menu-item flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700">
+                    <a href="gestao_usuarios.php" class="menu-item flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700">
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z"></path>
                         </svg>
@@ -2072,7 +2036,7 @@ if (!defined('BASE_URL')) {
                     </a>
                 </li>
                 <li id="estoque-central-menu">
-                    <a href="merenda/estoque_central.php" class="menu-item flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700">
+                    <a href="gestao_estoque_central.php" class="menu-item flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700">
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path>
                         </svg>
@@ -2469,7 +2433,7 @@ if (!defined('BASE_URL')) {
                     
                     <!-- Cards de Acesso Rápido para ADM -->
                     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
-                        <a href="adm/gestao/alunos.php" class="bg-gradient-to-br from-blue-500 to-blue-600 text-white rounded-2xl p-6 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105">
+                        <a href="gestao_alunos_adm.php" class="bg-gradient-to-br from-blue-500 to-blue-600 text-white rounded-2xl p-6 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105">
                             <div class="flex items-center justify-between mb-4">
                                 <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"></path>
@@ -2479,7 +2443,7 @@ if (!defined('BASE_URL')) {
                             <p class="text-blue-100 text-sm">Cadastrar, editar e excluir alunos</p>
                         </a>
                         
-                        <a href="adm/gestao/professores.php" class="bg-gradient-to-br from-green-500 to-green-600 text-white rounded-2xl p-6 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105">
+                        <a href="gestao_professores_adm.php" class="bg-gradient-to-br from-green-500 to-green-600 text-white rounded-2xl p-6 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105">
                             <div class="flex items-center justify-between mb-4">
                                 <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path>
@@ -2489,7 +2453,7 @@ if (!defined('BASE_URL')) {
                             <p class="text-green-100 text-sm">Cadastrar, editar e excluir professores</p>
                         </a>
                         
-                        <a href="adm/gestao/turmas.php" class="bg-gradient-to-br from-purple-500 to-purple-600 text-white rounded-2xl p-6 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105">
+                        <a href="gestao_turmas_adm.php" class="bg-gradient-to-br from-purple-500 to-purple-600 text-white rounded-2xl p-6 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105">
                             <div class="flex items-center justify-between mb-4">
                                 <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"></path>
@@ -2584,80 +2548,8 @@ if (!defined('BASE_URL')) {
                             } else {
                                 echo '<div class="text-center py-8 text-gray-500">Nenhuma atividade recente</div>';
                             }
-                        } elseif (strtolower($userType) === 'nutricionista') {
-                            // Buscar atividades específicas do nutricionista
-                            $nutricionistaId = $_SESSION['usuario_id'] ?? null;
-                            if ($nutricionistaId) {
-                                $atividadesRecentes = $stats->getAtividadesNutricionista($nutricionistaId, 3);
-                                
-                                if (empty($atividadesRecentes)) {
-                                    echo '<div class="text-center py-8 text-gray-500">Nenhuma atividade recente</div>';
-                                } else {
-                                    foreach ($atividadesRecentes as $atividade) {
-                                        $iconColors = [
-                                            'blue' => 'from-blue-50 to-blue-100',
-                                            'green' => 'from-green-50 to-green-100',
-                                            'orange' => 'from-orange-50 to-orange-100',
-                                            'purple' => 'from-purple-50 to-purple-100'
-                                        ];
-                                        $bgColors = [
-                                            'blue' => 'bg-blue-500',
-                                            'green' => 'bg-green-500',
-                                            'orange' => 'bg-orange-500',
-                                            'purple' => 'bg-purple-500'
-                                        ];
-                                        $color = $atividade['color'] ?? 'green';
-                                        $gradient = $iconColors[$color] ?? $iconColors['green'];
-                                        $bgColor = $bgColors[$color] ?? $bgColors['green'];
-                                        
-                                        // Calcular tempo relativo
-                                        $dataAtividade = new DateTime($atividade['data']);
-                                        $agora = new DateTime();
-                                        $diff = $agora->diff($dataAtividade);
-                                        
-                                        $tempoRelativo = '';
-                                        if ($diff->days > 0) {
-                                            $tempoRelativo = $diff->days == 1 ? 'Ontem' : 'Há ' . $diff->days . ' dias';
-                                        } elseif ($diff->h > 0) {
-                                            $tempoRelativo = 'Há ' . $diff->h . ' hora' . ($diff->h > 1 ? 's' : '');
-                                        } elseif ($diff->i > 0) {
-                                            $tempoRelativo = 'Há ' . $diff->i . ' minuto' . ($diff->i > 1 ? 's' : '');
-                                        } else {
-                                            $tempoRelativo = 'Agora mesmo';
-                                        }
-                                        
-                                        $statusClass = [
-                                            'RASCUNHO' => 'bg-yellow-100 text-yellow-800',
-                                            'ENVIADO' => 'bg-blue-100 text-blue-800',
-                                            'APROVADO' => 'bg-green-100 text-green-800',
-                                            'REJEITADO' => 'bg-red-100 text-red-800'
-                                        ][$atividade['status'] ?? ''] ?? '';
-                                        ?>
-                                        <div class="flex items-start space-x-4 p-4 bg-gradient-to-r <?= $gradient ?> rounded-xl">
-                                            <div class="p-2 <?= $bgColor ?> rounded-lg">
-                                                <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
-                                                </svg>
-                                            </div>
-                                            <div class="flex-1">
-                                                <p class="text-sm font-medium text-gray-800"><?= htmlspecialchars($atividade['titulo']) ?></p>
-                                                <p class="text-xs text-gray-600"><?= htmlspecialchars($atividade['descricao']) ?></p>
-                                                <div class="flex items-center space-x-2 mt-1">
-                                                    <?php if ($statusClass): ?>
-                                                        <span class="text-xs px-2 py-1 rounded-full <?= $statusClass ?>"><?= htmlspecialchars($atividade['status']) ?></span>
-                                                    <?php endif; ?>
-                                                    <p class="text-xs text-gray-500"><?= $tempoRelativo ?></p>
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <?php
-                                    }
-                                }
-                            } else {
-                                echo '<div class="text-center py-8 text-gray-500">Nenhuma atividade recente</div>';
-                            }
                         } else { 
-                            // Buscar atividades recentes do banco (para outros tipos de usuário)
+                            // Buscar atividades recentes do banco
                             $atividadesRecentes = $stats->getAtividadesRecentes(3);
                             
                             if (empty($atividadesRecentes)) {
@@ -2730,7 +2622,7 @@ if (!defined('BASE_URL')) {
                         if (strtolower($userType) === 'aluno') { 
                         ?>
                             <!-- Botões específicos para alunos -->
-                            <a href="aluno/notas.php" class="group w-full flex items-center p-4 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-xl hover:from-blue-600 hover:to-blue-700 transition-all duration-300 shadow-md hover:shadow-lg hover:scale-[1.02]">
+                            <a href="aluno_notas.php" class="group w-full flex items-center p-4 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-xl hover:from-blue-600 hover:to-blue-700 transition-all duration-300 shadow-md hover:shadow-lg hover:scale-[1.02]">
                                 <div class="flex items-center space-x-4 flex-1">
                                     <div class="p-2 bg-white/20 rounded-lg group-hover:bg-white/30 transition-all duration-300">
                                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -2952,113 +2844,103 @@ if (!defined('BASE_URL')) {
 
             // === INTERFACE DO NUTRICIONISTA ===
             function renderNutricionistaInterface() {
-                global $stats;
-                
-                $nutricionistaId = $_SESSION['usuario_id'] ?? null;
-                if (!$nutricionistaId) return;
-                
-                // Buscar dados do nutricionista
-                $cardapiosPendentes = $stats->getCardapiosPendentesNutricionista($nutricionistaId);
-                $pedidosPendentes = $stats->getPedidosPendentesNutricionista($nutricionistaId);
-                $ultimosPedidos = $stats->getUltimosPedidosNutricionista($nutricionistaId, 3);
-                $atividadesRecentes = $stats->getAtividadesNutricionista($nutricionistaId, 5);
-                
-                echo '<section id="user-interface" class="content-section mt-8">';
-                
-                // === ACESSO RÁPIDO ===
-                echo '<div class="mb-8">';
-                echo '<h2 class="text-2xl font-bold text-gray-900 mb-4">Acesso Rápido</h2>';
-                echo '<div class="grid grid-cols-1 md:grid-cols-3 gap-6">';
-                
-                // Card de Cardápios
-                if (isset($_SESSION['adc_cardapio'])) {
-                    $meses = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
-                    $mesAtual = $meses[date('n') - 1];
-                    echo '
-                    <a href="nutricionista/cardapios.php" class="card-hover bg-white rounded-2xl p-6 shadow-lg border border-gray-100 hover-lift block">
-                        <div class="flex items-center justify-between mb-4">
-                            <div class="p-3 bg-green-100 rounded-xl">
-                                <svg class="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
-                                </svg>
+                if (isset($_SESSION['adc_cardapio']) || isset($_SESSION['lista_insulmos']) || isset($_SESSION['env_pedidos'])) {
+                    echo '<section id="user-interface" class="content-section mt-8">';
+                    echo '<div class="grid grid-cols-1 md:grid-cols-3 gap-6">';
+                    
+                    // Card de Cardápios
+                    if (isset($_SESSION['adc_cardapio'])) {
+                        echo '
+                        <div class="card-hover bg-white rounded-2xl p-6 shadow-lg border border-gray-100 hover-lift">
+                            <div class="flex items-center justify-between mb-4">
+                                <div class="p-3 bg-green-100 rounded-xl">
+                                    <svg class="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 100 4m0-4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 100 4m0-4v2m0-6V4"></path>
+                                    </svg>
+                                </div>
+                                <span class="text-xs bg-green-100 text-green-800 px-2 py-1 rounded-full">Semanal</span>
                             </div>
-                            <span class="text-xs bg-green-100 text-green-800 px-2 py-1 rounded-full">' . $mesAtual . '</span>
-                        </div>
-                        <h3 class="text-xl font-bold text-gray-800 mb-2">Cardápios</h3>
-                        <p class="text-gray-600 text-sm mb-4">Criar e gerenciar cardápios escolares</p>
-                        <div class="space-y-2 mb-4">
-                            <div class="flex justify-between items-center">
-                                <span class="text-sm text-gray-600">Pendentes</span>
-                                <span class="text-xs bg-yellow-100 text-yellow-800 px-2 py-1 rounded-full">' . $cardapiosPendentes . '</span>
+                            <h3 class="text-xl font-bold text-gray-800 mb-2">Cardápios</h3>
+                            <p class="text-gray-600 text-sm mb-4">Criar e gerenciar cardápios escolares</p>
+                            <div class="space-y-2 mb-4">
+                                <div class="flex justify-between items-center">
+                                    <span class="text-sm text-gray-600">Esta semana</span>
+                                    <span class="text-xs bg-green-100 text-green-800 px-2 py-1 rounded-full">Aprovado</span>
+                                </div>
+                                <div class="flex justify-between items-center">
+                                    <span class="text-sm text-gray-600">Próxima semana</span>
+                                    <span class="text-xs bg-yellow-100 text-yellow-800 px-2 py-1 rounded-full">Pendente</span>
+                                </div>
                             </div>
-                        </div>
-                        <div class="w-full bg-gradient-to-r from-green-500 to-green-600 text-white py-2 px-4 rounded-lg text-center font-medium">
-                            Gerenciar Cardápios
-                        </div>
-                    </a>';
-                }
-                
-                // Card de Estoque
-                if (isset($_SESSION['lista_insulmos'])) {
-                    echo '
-                    <a href="avaliacao_estoque_nutricionista.php" class="card-hover bg-white rounded-2xl p-6 shadow-lg border border-gray-100 hover-lift block">
-                        <div class="flex items-center justify-between mb-4">
-                            <div class="p-3 bg-blue-100 rounded-xl">
-                                <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path>
-                                </svg>
-                            </div>
-                            <span class="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded-full">Estoque</span>
-                        </div>
-                        <h3 class="text-xl font-bold text-gray-800 mb-2">Avaliação de Estoque</h3>
-                        <p class="text-gray-600 text-sm mb-4">Consultar estoque e consumo</p>
-                        <div class="w-full bg-gradient-to-r from-blue-500 to-blue-600 text-white py-2 px-4 rounded-lg text-center font-medium">
-                            Ver Estoque
-                        </div>
-                    </a>';
-                }
-                
-                // Card de Pedidos
-                if (isset($_SESSION['env_pedidos'])) {
-                    $pedidosHtml = '';
-                    if (!empty($ultimosPedidos)) {
-                        foreach (array_slice($ultimosPedidos, 0, 2) as $pedido) {
-                            $meses = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
-                            $mesNome = $meses[$pedido['mes'] - 1] ?? $pedido['mes'];
-                            $statusClass = $pedido['status'] === 'ENVIADO' ? 'bg-blue-100 text-blue-800' : 'bg-yellow-100 text-yellow-800';
-                            $pedidosHtml .= '
-                            <div class="p-2 bg-gray-50 rounded-lg">
-                                <p class="text-xs text-gray-600">' . htmlspecialchars($pedido['escola_nome'] ?? 'Escola') . '</p>
-                                <p class="text-sm font-medium">' . $mesNome . ' - ' . htmlspecialchars($pedido['status']) . '</p>
-                            </div>';
-                        }
-                    } else {
-                        $pedidosHtml = '<p class="text-sm text-gray-500 text-center py-2">Nenhum pedido recente</p>';
+                            <button class="w-full bg-gradient-to-r from-green-500 to-green-600 text-white py-2 px-4 rounded-lg hover:from-green-600 hover:to-green-700 transition-all duration-200">
+                                Gerenciar Cardápios
+                            </button>
+                        </div>';
                     }
                     
-                    echo '
-                    <a href="pedidos_nutricionista.php" class="card-hover bg-white rounded-2xl p-6 shadow-lg border border-gray-100 hover-lift block">
-                        <div class="flex items-center justify-between mb-4">
-                            <div class="p-3 bg-orange-100 rounded-xl">
-                                <svg class="w-6 h-6 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"></path>
-                                </svg>
+                    // Card de Insumos
+                    if (isset($_SESSION['lista_insulmos'])) {
+                        echo '
+                        <div class="card-hover bg-white rounded-2xl p-6 shadow-lg border border-gray-100 hover-lift">
+                            <div class="flex items-center justify-between mb-4">
+                                <div class="p-3 bg-blue-100 rounded-xl">
+                                    <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path>
+                                    </svg>
+                                </div>
+                                <span class="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded-full">' . $stats->getTotalItensInsumos() . ' itens</span>
                             </div>
-                            <span class="text-xs bg-orange-100 text-orange-800 px-2 py-1 rounded-full">' . $pedidosPendentes . ' pendentes</span>
-                        </div>
-                        <h3 class="text-xl font-bold text-gray-800 mb-2">Pedidos</h3>
-                        <p class="text-gray-600 text-sm mb-4">Solicitar produtos e ingredientes</p>
-                        <div class="space-y-2 mb-4">' . $pedidosHtml . '</div>
-                        <div class="w-full bg-gradient-to-r from-orange-500 to-orange-600 text-white py-2 px-4 rounded-lg text-center font-medium">
-                            Fazer Pedido
-                        </div>
-                    </a>';
+                            <h3 class="text-xl font-bold text-gray-800 mb-2">Insumos</h3>
+                            <p class="text-gray-600 text-sm mb-4">Consultar insumos disponíveis</p>
+                            <div class="space-y-2 mb-4">
+                                <div class="flex justify-between items-center">
+                                    <span class="text-sm text-gray-600">Arroz</span>
+                                    <span class="text-sm font-semibold text-green-600">' . $stats->getQuantidadeProduto("Arroz") . 'kg</span>
+                                </div>
+                                <div class="flex justify-between items-center">
+                                    <span class="text-sm text-gray-600">Feijão</span>
+                                    <span class="text-sm font-semibold text-orange-600">' . $stats->getQuantidadeProduto("Feijão") . 'kg</span>
+                                </div>
+                            </div>
+                            <button class="w-full bg-gradient-to-r from-blue-500 to-blue-600 text-white py-2 px-4 rounded-lg hover:from-blue-600 hover:to-blue-700 transition-all duration-200">
+                                Ver Estoque
+                            </button>
+                        </div>';
+                    }
+                    
+                    // Card de Pedidos
+                    if (isset($_SESSION['env_pedidos'])) {
+                        echo '
+                        <div class="card-hover bg-white rounded-2xl p-6 shadow-lg border border-gray-100 hover-lift">
+                            <div class="flex items-center justify-between mb-4">
+                                <div class="p-3 bg-orange-100 rounded-xl">
+                                    <svg class="w-6 h-6 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"></path>
+                                    </svg>
+                                </div>
+                                <span class="text-xs bg-orange-100 text-orange-800 px-2 py-1 rounded-full">3 pendentes</span>
+                            </div>
+                            <h3 class="text-xl font-bold text-gray-800 mb-2">Pedidos</h3>
+                            <p class="text-gray-600 text-sm mb-4">Solicitar produtos e ingredientes</p>
+                            <div class="space-y-2 mb-4">
+                                <div class="p-2 bg-gray-50 rounded-lg">
+                                    <p class="text-xs text-gray-600">Pedido #001</p>
+                                    <p class="text-sm font-medium">Verduras e legumes</p>
+                                </div>
+                                <div class="p-2 bg-gray-50 rounded-lg">
+                                    <p class="text-xs text-gray-600">Pedido #002</p>
+                                    <p class="text-sm font-medium">Proteínas</p>
+                                </div>
+                            </div>
+                            <button class="w-full bg-gradient-to-r from-orange-500 to-orange-600 text-white py-2 px-4 rounded-lg hover:from-orange-600 hover:to-orange-700 transition-all duration-200">
+                                Fazer Pedido
+                            </button>
+                        </div>';
+                    }
+                    
+                    echo '</div>';
+                    echo '</section>';
                 }
-                
-                echo '</div>';
-                echo '</div>';
-                
-                echo '</section>';
             }
 
             // === INTERFACE DO ADMINISTRADOR DE MERENDA ===
@@ -3457,7 +3339,7 @@ if (!defined('BASE_URL')) {
                                 </div>
                             </div>
                             
-                            <a href="gestao/escolar.php" class="w-full bg-blue-600 text-white py-2.5 px-4 rounded-lg hover:bg-blue-700 transition-colors duration-200 font-medium text-center block">
+                            <a href="gestao_escolar.php" class="w-full bg-blue-600 text-white py-2.5 px-4 rounded-lg hover:bg-blue-700 transition-colors duration-200 font-medium text-center block">
                                 Gerenciar Turmas
                             </a>
                         </div>';
@@ -3631,7 +3513,7 @@ if (!defined('BASE_URL')) {
                             </div>
                         </div>
                         
-                        <a href="gestao/escolar.php#acompanhamento" class="w-full bg-yellow-600 text-white py-2.5 px-4 rounded-lg hover:bg-yellow-700 transition-colors duration-200 font-medium text-center block">
+                        <a href="gestao_escolar.php#acompanhamento" class="w-full bg-yellow-600 text-white py-2.5 px-4 rounded-lg hover:bg-yellow-700 transition-colors duration-200 font-medium text-center block">
                             Gerenciar Notas
                         </a>
                     </div>';
@@ -3821,7 +3703,7 @@ if (!defined('BASE_URL')) {
                         </div>
                         <h3 class="text-lg font-bold text-gray-800 mb-2">'.$card['title'].'</h3>
                         <p class="text-gray-600 text-sm mb-4">'.$card['desc'].'</p>
-                        <a href="'.($card['title'] === 'Calendário' ? 'shared/calendar.php' : ($card['title'] === 'Usuários' ? 'adm/gestao/usuarios.php' : ($card['title'] === 'Escolas' ? 'adm/gestao/escolas.php' : ($card['title'] === 'Estoque' ? 'merenda/estoque_central.php' : '#')))).'" class="w-full bg-gradient-to-r from-'.$card['color'].'-500 to-'.$card['color'].'-600 text-white py-2 px-4 rounded-lg hover:from-'.$card['color'].'-600 hover:to-'.$card['color'].'-700 transition-all duration-200 text-center block">
+                        <a href="'.($card['title'] === 'Calendário' ? 'calendar.php' : ($card['title'] === 'Usuários' ? 'gestao_usuarios.php' : ($card['title'] === 'Escolas' ? 'gestao_escolas.php' : ($card['title'] === 'Estoque' ? 'gestao_estoque_central.php' : '#')))).'" class="w-full bg-gradient-to-r from-'.$card['color'].'-500 to-'.$card['color'].'-600 text-white py-2 px-4 rounded-lg hover:from-'.$card['color'].'-600 hover:to-'.$card['color'].'-700 transition-all duration-200 text-center block">
                             Gerenciar
                         </a>
                     </div>';
@@ -8129,7 +8011,7 @@ if (!defined('BASE_URL')) {
         
         <!-- Conteúdo do Modal -->
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-            <?php if ($dadosUsuario && !empty($dadosUsuario['usuario_id'])): ?>
+            <?php if ($dadosUsuario): ?>
             <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
                 <!-- Coluna Esquerda - Informações Principais -->
                 <div class="lg:col-span-2 space-y-6">
@@ -8139,7 +8021,7 @@ if (!defined('BASE_URL')) {
                             <div class="relative">
                                 <div class="w-24 h-24 bg-gradient-to-br from-primary-green to-green-700 rounded-2xl flex items-center justify-center text-white text-3xl font-bold shadow-lg ring-4 ring-white">
                                     <?php
-                                    $nome = $dadosUsuario['nome'] ?? $dadosUsuario['username'] ?? 'U';
+                                    $nome = $dadosUsuario['nome'] ?? 'U';
                                     $iniciais = '';
                                     if (strlen($nome) >= 2) {
                                         $iniciais = strtoupper(substr($nome, 0, 2));
@@ -8154,16 +8036,15 @@ if (!defined('BASE_URL')) {
                                 <div class="absolute -bottom-1 -right-1 w-6 h-6 bg-green-500 border-2 border-white rounded-full"></div>
                             </div>
                             <div class="flex-1 text-center sm:text-left">
-                                <h3 class="text-2xl font-bold text-gray-900 mb-1"><?= htmlspecialchars($dadosUsuario['nome'] ?? $dadosUsuario['username'] ?? 'Usuário') ?></h3>
-                                <p class="text-sm text-gray-600 mb-3"><?= htmlspecialchars($dadosUsuario['tipo'] ?? 'Usuário') ?></p>
+                                <h3 class="text-2xl font-bold text-gray-900 mb-1"><?= htmlspecialchars($dadosUsuario['nome'] ?? 'Usuário') ?></h3>
+                                <p class="text-sm text-gray-600 mb-3"><?= htmlspecialchars($dadosUsuario['tipo'] ?? 'Funcionário') ?></p>
                                 <div class="flex flex-wrap gap-2 justify-center sm:justify-start">
                                     <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium <?php 
                                         $tipo = $dadosUsuario['tipo'] ?? '';
                                         echo $tipo === 'ADM' ? 'bg-purple-100 text-purple-800' : 
                                              ($tipo === 'GESTAO' ? 'bg-blue-100 text-blue-800' : 
                                              ($tipo === 'PROFESSOR' ? 'bg-green-100 text-green-800' : 
-                                             ($tipo === 'ADM_MERENDA' ? 'bg-orange-100 text-orange-800' : 
-                                             ($tipo === 'NUTRICIONISTA' ? 'bg-pink-100 text-pink-800' : 'bg-gray-100 text-gray-800')))); 
+                                             ($tipo === 'ADM_MERENDA' ? 'bg-orange-100 text-orange-800' : 'bg-gray-100 text-gray-800'))); 
                                     ?>">
                                         <?= htmlspecialchars($tipo) ?>
                                     </span>
