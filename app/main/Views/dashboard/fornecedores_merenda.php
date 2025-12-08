@@ -25,46 +25,37 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao'])) {
     if ($_POST['acao'] === 'criar_fornecedor') {
         // Validar campos obrigatórios
         $nome = trim($_POST['nome'] ?? '');
-        $razaoSocial = trim($_POST['razao_social'] ?? '');
-        $cnpj = trim($_POST['cnpj'] ?? '');
+        $cnpjCpf = preg_replace('/[^0-9]/', '', $_POST['cnpj'] ?? ''); // Remover formatação
         $tipoFornecedor = trim($_POST['tipo_fornecedor'] ?? '');
-        $telefone = trim($_POST['telefone'] ?? '');
+        $telefone = preg_replace('/[^0-9]/', '', $_POST['telefone'] ?? ''); // Remover formatação
         $email = trim($_POST['email'] ?? '');
-        $contato = trim($_POST['contato'] ?? '');
         
         if (empty($nome)) {
             echo json_encode(['success' => false, 'message' => 'O campo Nome é obrigatório.']);
             exit;
         }
-        if (empty($razaoSocial)) {
-            echo json_encode(['success' => false, 'message' => 'O campo Razão Social é obrigatório.']);
-            exit;
-        }
-        if (empty($cnpj)) {
-            echo json_encode(['success' => false, 'message' => 'O campo CNPJ é obrigatório.']);
+        // Validar CNPJ/CPF apenas se preenchido (é opcional)
+        if (!empty($cnpjCpf) && strlen($cnpjCpf) !== 11 && strlen($cnpjCpf) !== 14) {
+            echo json_encode(['success' => false, 'message' => 'O CNPJ deve conter 14 dígitos ou o CPF deve conter 11 dígitos.']);
             exit;
         }
         if (empty($tipoFornecedor)) {
             echo json_encode(['success' => false, 'message' => 'O campo Tipo é obrigatório.']);
             exit;
         }
-        if (empty($telefone)) {
-            echo json_encode(['success' => false, 'message' => 'O campo Telefone é obrigatório.']);
+        if (empty($telefone) || (strlen($telefone) !== 10 && strlen($telefone) !== 11)) {
+            echo json_encode(['success' => false, 'message' => 'O campo Telefone é obrigatório e deve conter 10 ou 11 dígitos.']);
             exit;
         }
-        if (empty($email)) {
-            echo json_encode(['success' => false, 'message' => 'O campo Email é obrigatório.']);
-            exit;
-        }
-        if (empty($contato)) {
-            echo json_encode(['success' => false, 'message' => 'O campo Contato é obrigatório.']);
+        if (empty($email) || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            echo json_encode(['success' => false, 'message' => 'O campo Email é obrigatório e deve ser um email válido.']);
             exit;
         }
         
         $dados = [
             'nome' => $nome,
-            'razao_social' => $razaoSocial,
-            'cnpj' => $cnpj,
+            'razao_social' => trim($_POST['razao_social'] ?? '') ?: null,
+            'cnpj' => $cnpjCpf ?: null,
             'inscricao_estadual' => $_POST['inscricao_estadual'] ?? null,
             'endereco' => $_POST['endereco'] ?? null,
             'numero' => $_POST['numero'] ?? null,
@@ -76,7 +67,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao'])) {
             'telefone' => $telefone,
             'telefone_secundario' => $_POST['telefone_secundario'] ?? null,
             'email' => $email,
-            'contato' => $contato,
+            'contato' => null, // Removido - não é mais necessário
             'tipo_fornecedor' => $tipoFornecedor,
             'observacoes' => trim($_POST['observacoes'] ?? '') ?: null
         ];
@@ -241,7 +232,7 @@ $fornecedores = $fornecedorModel->listar(['ativo' => 1]);
                     <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-2">Buscar</label>
-                            <input type="text" id="filtro-busca" placeholder="Nome, CNPJ..." class="w-full px-4 py-2 border border-gray-300 rounded-lg" onkeyup="filtrarFornecedores()">
+                            <input type="text" id="filtro-busca" placeholder="Nome, CNPJ ou CPF..." class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-colors" onkeyup="filtrarFornecedores()" maxlength="18">
                         </div>
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-2">Tipo</label>
@@ -329,15 +320,16 @@ $fornecedores = $fornecedorModel->listar(['ativo' => 1]);
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-2">Nome <span class="text-red-500">*</span></label>
-                            <input type="text" id="fornecedor-nome" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-colors">
+                            <input type="text" id="fornecedor-nome" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-colors" placeholder="Nome do fornecedor">
                         </div>
                         <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-2">Razão Social <span class="text-red-500">*</span></label>
-                            <input type="text" id="fornecedor-razao-social" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-colors">
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Razão Social <span class="text-gray-400 text-xs">(opcional)</span></label>
+                            <input type="text" id="fornecedor-razao-social" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-colors" placeholder="Razão social (se houver)">
                         </div>
                         <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-2">CNPJ <span class="text-red-500">*</span></label>
-                            <input type="text" id="fornecedor-cnpj" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-colors">
+                            <label class="block text-sm font-medium text-gray-700 mb-2">CNPJ/CPF <span class="text-gray-400 text-xs">(opcional)</span></label>
+                            <input type="text" id="fornecedor-cnpj" maxlength="18" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-colors" placeholder="00.000.000/0000-00 ou 000.000.000-00">
+                            <p class="text-xs text-gray-500 mt-1">Informe CNPJ (14 dígitos) para empresa ou CPF (11 dígitos) para pessoa física</p>
                         </div>
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-2">Tipo <span class="text-red-500">*</span></label>
@@ -350,20 +342,16 @@ $fornecedores = $fornecedorModel->listar(['ativo' => 1]);
                         </div>
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-2">Telefone <span class="text-red-500">*</span></label>
-                            <input type="text" id="fornecedor-telefone" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-colors">
+                            <input type="text" id="fornecedor-telefone" required maxlength="15" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-colors" placeholder="(00) 00000-0000">
                         </div>
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-2">Email <span class="text-red-500">*</span></label>
-                            <input type="email" id="fornecedor-email" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-colors">
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-2">Contato <span class="text-red-500">*</span></label>
-                            <input type="text" id="fornecedor-contato" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-colors">
+                            <input type="email" id="fornecedor-email" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-colors" placeholder="email@exemplo.com">
                         </div>
                     </div>
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-2">Observações <span class="text-gray-400 text-xs">(opcional)</span></label>
-                        <textarea id="fornecedor-observacoes" rows="3" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-colors"></textarea>
+                        <textarea id="fornecedor-observacoes" rows="3" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-colors" placeholder="Observações adicionais sobre o fornecedor"></textarea>
                     </div>
                 </form>
             </div>
@@ -436,24 +424,94 @@ $fornecedores = $fornecedorModel->listar(['ativo' => 1]);
             window.location.href = '../auth/logout.php';
         };
 
-        function abrirModalNovoFornecedor() {
-            document.getElementById('modal-novo-fornecedor').classList.remove('hidden');
-            document.getElementById('form-fornecedor').reset();
-        }
+        // Aplicar máscara no campo de busca quando digitar CNPJ/CPF
+        document.addEventListener('DOMContentLoaded', function() {
+            const buscaInput = document.getElementById('filtro-busca');
+            if (buscaInput) {
+                buscaInput.addEventListener('input', function() {
+                    let value = this.value.replace(/\D/g, '');
+                    // Se tiver apenas números e mais de 3 dígitos, aplicar máscara
+                    if (value.length > 3 && value.length <= 14) {
+                        // Se tiver 11 dígitos ou menos, aplicar máscara de CPF
+                        if (value.length <= 11) {
+                            value = value.replace(/^(\d{3})(\d)/, '$1.$2');
+                            value = value.replace(/^(\d{3})\.(\d{3})(\d)/, '$1.$2.$3');
+                            value = value.replace(/\.(\d{3})(\d)/, '.$1-$2');
+                        } else {
+                            // Se tiver mais de 11 dígitos, aplicar máscara de CNPJ
+                            value = value.replace(/^(\d{2})(\d)/, '$1.$2');
+                            value = value.replace(/^(\d{2})\.(\d{3})(\d)/, '$1.$2.$3');
+                            value = value.replace(/\.(\d{3})(\d)/, '.$1/$2');
+                            value = value.replace(/(\d{4})(\d)/, '$1-$2');
+                        }
+                        this.value = value;
+                    }
+                });
+            }
+        });
 
         function fecharModalNovoFornecedor() {
             document.getElementById('modal-novo-fornecedor').classList.add('hidden');
         }
 
+        // Máscara de CNPJ ou CPF
+        function aplicarMascaraCNPJCPF(input) {
+            let value = input.value.replace(/\D/g, '');
+            // Se tiver 11 dígitos ou menos, aplicar máscara de CPF
+            if (value.length <= 11) {
+                value = value.replace(/^(\d{3})(\d)/, '$1.$2');
+                value = value.replace(/^(\d{3})\.(\d{3})(\d)/, '$1.$2.$3');
+                value = value.replace(/\.(\d{3})(\d)/, '.$1-$2');
+            } else {
+                // Se tiver mais de 11 dígitos, aplicar máscara de CNPJ
+                value = value.replace(/^(\d{2})(\d)/, '$1.$2');
+                value = value.replace(/^(\d{2})\.(\d{3})(\d)/, '$1.$2.$3');
+                value = value.replace(/\.(\d{3})(\d)/, '.$1/$2');
+                value = value.replace(/(\d{4})(\d)/, '$1-$2');
+            }
+            input.value = value;
+        }
+
+        // Máscara de Telefone
+        function aplicarMascaraTelefone(input) {
+            let value = input.value.replace(/\D/g, '');
+            if (value.length <= 11) {
+                if (value.length <= 10) {
+                    value = value.replace(/^(\d{2})(\d)/, '($1) $2');
+                    value = value.replace(/(\d{4})(\d)/, '$1-$2');
+                } else {
+                    value = value.replace(/^(\d{2})(\d)/, '($1) $2');
+                    value = value.replace(/(\d{5})(\d)/, '$1-$2');
+                }
+            }
+            input.value = value;
+        }
+
+        // Aplicar máscaras quando o modal abrir
+        function abrirModalNovoFornecedor() {
+            document.getElementById('modal-novo-fornecedor').classList.remove('hidden');
+            document.getElementById('form-fornecedor').reset();
+            
+            // Aplicar máscaras nos campos
+            const cnpjInput = document.getElementById('fornecedor-cnpj');
+            const telefoneInput = document.getElementById('fornecedor-telefone');
+            
+            cnpjInput.addEventListener('input', function() {
+                aplicarMascaraCNPJCPF(this);
+            });
+            
+            telefoneInput.addEventListener('input', function() {
+                aplicarMascaraTelefone(this);
+            });
+        }
+
         function salvarFornecedor() {
             // Validar campos obrigatórios
             const nome = document.getElementById('fornecedor-nome').value.trim();
-            const razaoSocial = document.getElementById('fornecedor-razao-social').value.trim();
-            const cnpj = document.getElementById('fornecedor-cnpj').value.trim();
+            const cnpjCpf = document.getElementById('fornecedor-cnpj').value.replace(/\D/g, ''); // Remover formatação
             const tipo = document.getElementById('fornecedor-tipo').value;
-            const telefone = document.getElementById('fornecedor-telefone').value.trim();
+            const telefone = document.getElementById('fornecedor-telefone').value.replace(/\D/g, ''); // Remover formatação
             const email = document.getElementById('fornecedor-email').value.trim();
-            const contato = document.getElementById('fornecedor-contato').value.trim();
             
             // Validação client-side
             if (!nome) {
@@ -461,13 +519,9 @@ $fornecedores = $fornecedorModel->listar(['ativo' => 1]);
                 document.getElementById('fornecedor-nome').focus();
                 return;
             }
-            if (!razaoSocial) {
-                alert('Por favor, preencha o campo Razão Social.');
-                document.getElementById('fornecedor-razao-social').focus();
-                return;
-            }
-            if (!cnpj) {
-                alert('Por favor, preencha o campo CNPJ.');
+            // Validar CNPJ/CPF apenas se preenchido (é opcional)
+            if (cnpjCpf && cnpjCpf.length !== 11 && cnpjCpf.length !== 14) {
+                alert('Por favor, preencha o CNPJ (14 dígitos) ou CPF (11 dígitos) corretamente.');
                 document.getElementById('fornecedor-cnpj').focus();
                 return;
             }
@@ -476,8 +530,8 @@ $fornecedores = $fornecedorModel->listar(['ativo' => 1]);
                 document.getElementById('fornecedor-tipo').focus();
                 return;
             }
-            if (!telefone) {
-                alert('Por favor, preencha o campo Telefone.');
+            if (!telefone || (telefone.length !== 10 && telefone.length !== 11)) {
+                alert('Por favor, preencha o Telefone corretamente.');
                 document.getElementById('fornecedor-telefone').focus();
                 return;
             }
@@ -486,22 +540,16 @@ $fornecedores = $fornecedorModel->listar(['ativo' => 1]);
                 document.getElementById('fornecedor-email').focus();
                 return;
             }
-            if (!contato) {
-                alert('Por favor, preencha o campo Contato.');
-                document.getElementById('fornecedor-contato').focus();
-                return;
-            }
             
             const formData = new FormData();
             formData.append('acao', 'criar_fornecedor');
             formData.append('nome', nome);
-            formData.append('razao_social', razaoSocial);
-            formData.append('cnpj', cnpj);
+            formData.append('razao_social', document.getElementById('fornecedor-razao-social').value.trim() || null);
+            formData.append('cnpj', cnpjCpf || null);
             formData.append('tipo_fornecedor', tipo);
             formData.append('telefone', telefone);
             formData.append('email', email);
-            formData.append('contato', contato);
-            formData.append('observacoes', document.getElementById('fornecedor-observacoes').value.trim());
+            formData.append('observacoes', document.getElementById('fornecedor-observacoes').value.trim() || null);
             
             fetch('', {
                 method: 'POST',
@@ -524,9 +572,17 @@ $fornecedores = $fornecedorModel->listar(['ativo' => 1]);
         }
 
         function filtrarFornecedores() {
-            const busca = document.getElementById('filtro-busca').value;
+            let busca = document.getElementById('filtro-busca').value;
             const tipo = document.getElementById('filtro-tipo').value;
             const status = document.getElementById('filtro-status').value;
+            
+            // Remover formatação de CNPJ/CPF para busca (manter apenas números)
+            // Mas manter o texto se for nome
+            const buscaNumeros = busca.replace(/\D/g, '');
+            if (buscaNumeros.length >= 11) {
+                // Se tiver muitos números, provavelmente é CNPJ/CPF, usar sem formatação
+                busca = buscaNumeros;
+            }
             
             let url = '?acao=listar_fornecedores';
             if (busca) url += '&busca=' + encodeURIComponent(busca);

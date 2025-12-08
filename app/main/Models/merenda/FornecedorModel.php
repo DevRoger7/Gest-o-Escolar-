@@ -23,8 +23,21 @@ class FornecedorModel {
         $params = [];
         
         if (!empty($filtros['busca'])) {
-            $sql .= " AND (nome LIKE :busca OR razao_social LIKE :busca OR cnpj LIKE :busca)";
-            $params[':busca'] = "%{$filtros['busca']}%";
+            // Remover formatação da busca para comparar com CNPJ/CPF sem formatação
+            $buscaLimpa = preg_replace('/[^0-9]/', '', $filtros['busca']);
+            $buscaTexto = $filtros['busca'];
+            
+            // Buscar por nome, razão social ou CNPJ (com ou sem formatação)
+            if (strlen($buscaLimpa) >= 11) {
+                // Se a busca tiver muitos números, buscar também no CNPJ sem formatação
+                $sql .= " AND (nome LIKE :busca OR razao_social LIKE :busca OR cnpj LIKE :busca OR REPLACE(REPLACE(REPLACE(REPLACE(cnpj, '.', ''), '/', ''), '-', ''), ' ', '') LIKE :busca_limpa)";
+                $params[':busca'] = "%{$buscaTexto}%";
+                $params[':busca_limpa'] = "%{$buscaLimpa}%";
+            } else {
+                // Se for texto ou poucos números, buscar normalmente
+                $sql .= " AND (nome LIKE :busca OR razao_social LIKE :busca OR cnpj LIKE :busca)";
+                $params[':busca'] = "%{$buscaTexto}%";
+            }
         }
         
         if (!empty($filtros['tipo_fornecedor'])) {
