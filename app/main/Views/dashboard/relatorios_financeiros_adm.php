@@ -8,8 +8,8 @@ $session = new sessions();
 $session->autenticar_session();
 $session->tempo_session();
 
-if (!isset($_SESSION['tipo']) || strtolower($_SESSION['tipo']) !== 'adm_merenda') {
-    header('Location: dashboard.php?erro=sem_permissao');
+if (!eAdm()) {
+    header('Location: ../auth/login.php?erro=sem_permissao');
     exit;
 }
 
@@ -23,35 +23,23 @@ $stmtEscolas = $conn->prepare($sqlEscolas);
 $stmtEscolas->execute();
 $escolas = $stmtEscolas->fetchAll(PDO::FETCH_ASSOC);
 
-// Processar requisições AJAX
 if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['acao'])) {
     header('Content-Type: application/json');
     
-    if ($_GET['acao'] === 'listar_custos') {
+    if ($_GET['acao'] === 'buscar_custos') {
         $filtros = [];
         if (!empty($_GET['escola_id'])) $filtros['escola_id'] = $_GET['escola_id'];
         if (!empty($_GET['mes'])) $filtros['mes'] = $_GET['mes'];
         if (!empty($_GET['ano'])) $filtros['ano'] = $_GET['ano'];
-        if (!empty($_GET['data_inicio'])) $filtros['data_inicio'] = $_GET['data_inicio'];
-        if (!empty($_GET['data_fim'])) $filtros['data_fim'] = $_GET['data_fim'];
         
         $custos = $custoModel->listar($filtros);
-        echo json_encode(['success' => true, 'custos' => $custos]);
-        exit;
-    }
-    
-    if ($_GET['acao'] === 'calcular_totais') {
-        $totais = $custoModel->calcularTotal(
-            $_GET['escola_id'] ?? null,
-            $_GET['mes'] ?? null,
-            $_GET['ano'] ?? null
-        );
-        echo json_encode(['success' => true, 'totais' => $totais]);
+        $totais = $custoModel->calcularTotal($filtros['escola_id'] ?? null, $filtros['mes'] ?? null, $filtros['ano'] ?? null);
+        
+        echo json_encode(['success' => true, 'custos' => $custos, 'totais' => $totais]);
         exit;
     }
 }
 
-// Buscar custos do mês atual
 $custosMes = $custoModel->listar(['mes' => date('n'), 'ano' => date('Y')]);
 $totaisMes = $custoModel->calcularTotal(null, date('n'), date('Y'));
 $totalGeral = array_sum(array_column($totaisMes, 'total_custos'));
@@ -61,30 +49,19 @@ $totalGeral = array_sum(array_column($totaisMes, 'total_custos'));
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Custos - SIGEA</title>
+    <title>Relatórios Financeiros - SIGEA</title>
     <link rel="icon" href="https://upload.wikimedia.org/wikipedia/commons/thumb/1/19/Bras%C3%A3o_de_Maranguape.png/250px-Bras%C3%A3o_de_Maranguape.png" type="image/png">
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="global-theme.css">
-    <script>
-        tailwind.config = {
-            theme: {
-                extend: {
-                    colors: {
-                        'primary-green': '#2D5A27',
-                    }
-                }
-            }
-        }
-    </script>
     <style>
         .sidebar-transition { transition: all 0.3s ease-in-out; }
         .content-transition { transition: margin-left 0.3s ease-in-out; }
         .menu-item.active {
-            background: linear-gradient(90deg, rgba(45, 90, 39, 0.12) 0%, rgba(45, 90, 39, 0.06) 100%);
-            border-right: 3px solid #2D5A27;
+            background: linear-gradient(90deg, rgba(220, 38, 38, 0.12) 0%, rgba(220, 38, 38, 0.06) 100%);
+            border-right: 3px solid #dc2626;
         }
         .menu-item:hover {
-            background: linear-gradient(90deg, rgba(45, 90, 39, 0.08) 0%, rgba(45, 90, 39, 0.04) 100%);
+            background: linear-gradient(90deg, rgba(220, 38, 38, 0.08) 0%, rgba(220, 38, 38, 0.04) 100%);
             transform: translateX(4px);
         }
         .mobile-menu-overlay { transition: opacity 0.3s ease-in-out; }
@@ -95,7 +72,7 @@ $totalGeral = array_sum(array_column($totaisMes, 'total_custos'));
     </style>
 </head>
 <body class="bg-gray-50">
-    <?php include 'components/sidebar_merenda.php'; ?>
+    <?php include 'components/sidebar_adm.php'; ?>
     
     <main class="content-transition ml-0 lg:ml-64 min-h-screen">
         <header class="bg-white shadow-sm border-b border-gray-200 sticky top-0 z-30">
@@ -107,12 +84,12 @@ $totalGeral = array_sum(array_column($totaisMes, 'total_custos'));
                         </svg>
                     </button>
                     <div class="flex-1 text-center lg:text-left">
-                        <h1 class="text-xl font-semibold text-gray-800">Monitoramento de Custos</h1>
+                        <h1 class="text-xl font-semibold text-gray-800">Relatórios Financeiros</h1>
                     </div>
                     <div class="flex items-center space-x-4">
                         <!-- School Info (Desktop Only) -->
                         <div class="hidden lg:block">
-                            <?php if ($_SESSION['tipo'] === 'ADM' || $_SESSION['tipo'] === 'ADM_MERENDA') { ?>
+                            <?php if ($_SESSION['tipo'] === 'ADM') { ?>
                                 <!-- Para ADM, texto simples com padding para alinhamento -->
                                 <div class="text-right px-4 py-2">
                                     <p class="text-sm font-medium text-gray-800">Secretaria Municipal da Educação</p>
@@ -140,16 +117,16 @@ $totalGeral = array_sum(array_column($totaisMes, 'total_custos'));
         <div class="p-8">
             <div class="max-w-7xl mx-auto">
                 <div class="mb-6">
-                    <h2 class="text-2xl font-bold text-gray-900">Custos da Merenda Escolar</h2>
-                    <p class="text-gray-600 mt-1">Acompanhe os custos e despesas da alimentação escolar</p>
+                    <h2 class="text-2xl font-bold text-gray-900">Relatórios Financeiros</h2>
+                    <p class="text-gray-600 mt-1">Acompanhe os custos e despesas do sistema</p>
                 </div>
                 
                 <!-- Cards de Resumo -->
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
                     <div class="bg-white rounded-2xl p-6 shadow-lg">
                         <div class="flex items-center justify-between mb-4">
-                            <div class="p-3 bg-yellow-100 rounded-xl">
-                                <svg class="w-6 h-6 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <div class="p-3 bg-teal-100 rounded-xl">
+                                <svg class="w-6 h-6 text-teal-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
                                 </svg>
                             </div>
@@ -157,6 +134,7 @@ $totalGeral = array_sum(array_column($totaisMes, 'total_custos'));
                         <h3 class="text-2xl font-bold text-gray-800 mb-1">R$ <?= number_format($totalGeral, 2, ',', '.') ?></h3>
                         <p class="text-gray-600 text-sm">Total do Mês</p>
                     </div>
+                    
                     <div class="bg-white rounded-2xl p-6 shadow-lg">
                         <div class="flex items-center justify-between mb-4">
                             <div class="p-3 bg-blue-100 rounded-xl">
@@ -168,6 +146,7 @@ $totalGeral = array_sum(array_column($totaisMes, 'total_custos'));
                         <h3 class="text-2xl font-bold text-gray-800 mb-1"><?= count($custosMes) ?></h3>
                         <p class="text-gray-600 text-sm">Registros do Mês</p>
                     </div>
+                    
                     <div class="bg-white rounded-2xl p-6 shadow-lg">
                         <div class="flex items-center justify-between mb-4">
                             <div class="p-3 bg-green-100 rounded-xl">
@@ -186,7 +165,7 @@ $totalGeral = array_sum(array_column($totaisMes, 'total_custos'));
                     <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-2">Escola</label>
-                            <select id="filtro-escola" class="w-full px-4 py-2 border border-gray-300 rounded-lg" onchange="filtrarCustos()">
+                            <select id="filtro-escola" class="w-full px-4 py-2 border border-gray-300 rounded-lg" onchange="buscarRelatorio()">
                                 <option value="">Todas as escolas</option>
                                 <?php foreach ($escolas as $escola): ?>
                                     <option value="<?= $escola['id'] ?>"><?= htmlspecialchars($escola['nome']) ?></option>
@@ -195,7 +174,7 @@ $totalGeral = array_sum(array_column($totaisMes, 'total_custos'));
                         </div>
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-2">Mês</label>
-                            <select id="filtro-mes" class="w-full px-4 py-2 border border-gray-300 rounded-lg" onchange="filtrarCustos()">
+                            <select id="filtro-mes" class="w-full px-4 py-2 border border-gray-300 rounded-lg" onchange="buscarRelatorio()">
                                 <option value="">Todos</option>
                                 <?php 
                                 $meses = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
@@ -206,21 +185,21 @@ $totalGeral = array_sum(array_column($totaisMes, 'total_custos'));
                         </div>
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-2">Ano</label>
-                            <select id="filtro-ano" class="w-full px-4 py-2 border border-gray-300 rounded-lg" onchange="filtrarCustos()">
+                            <select id="filtro-ano" class="w-full px-4 py-2 border border-gray-300 rounded-lg" onchange="buscarRelatorio()">
                                 <?php for ($i = date('Y'); $i >= date('Y') - 2; $i--): ?>
                                     <option value="<?= $i ?>" <?= $i == date('Y') ? 'selected' : '' ?>><?= $i ?></option>
                                 <?php endfor; ?>
                             </select>
                         </div>
                         <div class="flex items-end">
-                            <button onclick="filtrarCustos()" class="w-full bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-lg font-medium">
-                                Filtrar
+                            <button onclick="buscarRelatorio()" class="w-full bg-teal-600 hover:bg-teal-700 text-white px-4 py-2 rounded-lg font-medium">
+                                Gerar Relatório
                             </button>
                         </div>
                     </div>
                 </div>
                 
-                <!-- Lista de Custos -->
+                <!-- Tabela de Custos -->
                 <div class="bg-white rounded-2xl p-6 shadow-lg">
                     <div class="overflow-x-auto">
                         <table class="w-full">
@@ -265,7 +244,6 @@ $totalGeral = array_sum(array_column($totaisMes, 'total_custos'));
         </div>
     </main>
     
-    <!-- Logout Modal -->
     <div id="logoutModal" class="fixed inset-0 bg-black bg-opacity-50 z-[60] hidden items-center justify-center p-4" style="display: none;">
         <div class="bg-white rounded-2xl p-6 max-w-md w-full mx-4 shadow-2xl">
             <div class="flex items-center space-x-3 mb-4">
@@ -320,12 +298,12 @@ $totalGeral = array_sum(array_column($totaisMes, 'total_custos'));
             window.location.href = '../auth/logout.php';
         };
 
-        function filtrarCustos() {
+        function buscarRelatorio() {
             const escolaId = document.getElementById('filtro-escola').value;
             const mes = document.getElementById('filtro-mes').value;
             const ano = document.getElementById('filtro-ano').value;
             
-            let url = '?acao=listar_custos';
+            let url = '?acao=buscar_custos';
             if (escolaId) url += '&escola_id=' + escolaId;
             if (mes) url += '&mes=' + mes;
             if (ano) url += '&ano=' + ano;
@@ -363,7 +341,7 @@ $totalGeral = array_sum(array_column($totaisMes, 'total_custos'));
                     }
                 })
                 .catch(error => {
-                    console.error('Erro ao filtrar custos:', error);
+                    console.error('Erro ao buscar relatório:', error);
                 });
         }
     </script>

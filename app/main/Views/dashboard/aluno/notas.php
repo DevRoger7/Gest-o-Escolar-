@@ -8,7 +8,7 @@ $session->autenticar_session();
 $session->tempo_session();
 
 if (!eAluno() && !eAdm()) {
-    header('Location: ../../../auth/login.php?erro=sem_permissao');
+    header('Location: ../auth/login.php?erro=sem_permissao');
     exit;
 }
 
@@ -394,7 +394,7 @@ for ($b = 1; $b <= 4; $b++) {
     <header class="bg-white shadow-sm sticky top-0 z-40 border-b border-gray-200 h-16">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-full flex items-center justify-between">
             <div class="flex items-center gap-4">
-                <a href="../dashboard.php" class="p-2 rounded-lg hover:bg-gray-100 text-gray-500 hover:text-gray-700 transition-colors" title="Voltar ao Dashboard">
+                <a href="dashboard.php" class="p-2 rounded-lg hover:bg-gray-100 text-gray-500 hover:text-gray-700 transition-colors" title="Voltar ao Dashboard">
                     <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
                     </svg>
@@ -475,7 +475,7 @@ for ($b = 1; $b <= 4; $b++) {
                 </div>
                 <h3 class="text-lg font-semibold text-gray-900 mb-2">Aluno não encontrado</h3>
                 <p class="text-gray-500 mb-6 text-sm">Não foi possível identificar seu cadastro de aluno no sistema.</p>
-                <a href="../dashboard.php" class="inline-flex items-center px-4 py-2 bg-primary-green text-white rounded-lg hover:bg-green-800 transition-colors text-sm font-medium shadow-sm">
+                <a href="dashboard.php" class="inline-flex items-center px-4 py-2 bg-primary-green text-white rounded-lg hover:bg-green-800 transition-colors text-sm font-medium shadow-sm">
                     Voltar ao Início
                 </a>
             </div>
@@ -489,7 +489,7 @@ for ($b = 1; $b <= 4; $b++) {
                 </div>
                 <h3 class="text-lg font-semibold text-gray-900 mb-2">Não matriculado em turma</h3>
                 <p class="text-gray-500 mb-6 text-sm">Você precisa estar matriculado em uma turma para visualizar suas notas.</p>
-                <a href="../dashboard.php" class="inline-flex items-center px-4 py-2 bg-primary-green text-white rounded-lg hover:bg-green-800 transition-colors text-sm font-medium shadow-sm">
+                <a href="dashboard.php" class="inline-flex items-center px-4 py-2 bg-primary-green text-white rounded-lg hover:bg-green-800 transition-colors text-sm font-medium shadow-sm">
                     Voltar ao Início
                 </a>
             </div>
@@ -507,7 +507,7 @@ for ($b = 1; $b <= 4; $b++) {
                     <p class="text-sm text-gray-600"><strong>Turma:</strong> <?= htmlspecialchars($turmaAtual['turma_nome'] ?? 'N/A') ?></p>
                     <p class="text-sm text-gray-600"><strong>Ano Letivo:</strong> <?= $anoLetivo ?></p>
                 </div>
-                <a href="../dashboard.php" class="inline-flex items-center px-4 py-2 bg-primary-green text-white rounded-lg hover:bg-green-800 transition-colors text-sm font-medium shadow-sm">
+                <a href="dashboard.php" class="inline-flex items-center px-4 py-2 bg-primary-green text-white rounded-lg hover:bg-green-800 transition-colors text-sm font-medium shadow-sm">
                     Voltar ao Início
                 </a>
             </div>

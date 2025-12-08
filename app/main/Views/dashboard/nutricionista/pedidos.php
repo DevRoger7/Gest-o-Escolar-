@@ -124,7 +124,7 @@ $pedidos = $stmtPedidos->fetchAll(PDO::FETCH_ASSOC);
     </style>
 </head>
 <body class="bg-gray-50">
-    <?php include '../../components/sidebar_nutricionista.php'; ?>
+    <?php include 'components/sidebar_nutricionista.php'; ?>
     
     <main class="content-transition ml-0 lg:ml-64 min-h-screen">
         <header class="bg-white shadow-sm border-b border-gray-200 sticky top-0 z-30">
