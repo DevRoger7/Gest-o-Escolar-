@@ -1,59 +1,180 @@
-# Configurações do Apache para o SIGAE
+# ============================================
+# LacTech - Configurações SEO e Performance
+# ============================================
 
-# Habilitar mod_rewrite
-RewriteEngine On
+# Habilitar Rewrite Engine (apenas em produção)
+<IfModule mod_rewrite.c>
+    # Verificar se está em produção (não é localhost)
+    # Se for ambiente de desenvolvimento, pular todas as regras de rewrite
+    RewriteCond %{HTTP_HOST} ^localhost [NC,OR]
+    RewriteCond %{HTTP_HOST} ^127\.0\.0\.1 [NC,OR]
+    RewriteCond %{HTTP_HOST} ^192\.168\. [NC,OR]
+    RewriteCond %{HTTP_HOST} ^10\. [NC,OR]
+    RewriteCond %{HTTP_HOST} \.local$ [NC,OR]
+    RewriteCond %{HTTP_HOST} \.dev$ [NC,OR]
+    RewriteCond %{HTTP_HOST} \.test$ [NC]
+    RewriteRule ^ - [L]
+    
+    # Apenas em produção, ativar RewriteEngine
+    RewriteEngine On
+    RewriteBase /
+    
+    # Forçar HTTPS (quando em produção)
+    # RewriteCond %{HTTPS} off
+    # RewriteRule ^(.*)$ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
+    
+    # Forçar WWW ou não-WWW (escolha uma opção)
+    # RewriteCond %{HTTP_HOST} !^www\. [NC]
+    # RewriteRule ^(.*)$ https://www.%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
+    
+    # Exceção: NÃO processar arquivos da API
+    RewriteCond %{REQUEST_URI} ^.*/api/.*\.php$ [NC]
+    RewriteRule ^ - [L]
+    
+    # Exceção: NÃO processar arquivos que já têm .php explícito na URL
+    # Isso evita que arquivos .php sejam reescritos
+    RewriteCond %{REQUEST_URI} \.php$ [NC]
+    RewriteRule ^ - [L]
+    
+    # URLs amigáveis - apenas para URLs sem .php
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteCond %{REQUEST_FILENAME} !-d
+    RewriteCond %{REQUEST_URI} !\.php$ [NC]
+    
+    # Adicionar .php apenas se o arquivo existir e a URL não tiver .php
+    RewriteCond %{REQUEST_FILENAME}.php -f
+    RewriteCond %{REQUEST_URI} !^.*/api/
+    RewriteRule ^(.*?)/?$ $1.php [L]
+</IfModule>
 
-# Página de erro 404 personalizada
-ErrorDocument 404 /GitHub/Gest-o-Escolar-/404.php
+# ============================================
+# Compressão GZIP (Melhorada)
+# ============================================
+<IfModule mod_deflate.c>
+    # Habilitar compressão para todos os tipos de texto
+    AddOutputFilterByType DEFLATE text/html text/plain text/xml text/css text/javascript
+    AddOutputFilterByType DEFLATE application/javascript application/x-javascript application/json
+    AddOutputFilterByType DEFLATE application/xml application/xhtml+xml application/rss+xml
+    AddOutputFilterByType DEFLATE image/svg+xml
+    AddOutputFilterByType DEFLATE font/truetype font/opentype application/vnd.ms-fontobject
+    AddOutputFilterByType DEFLATE font/woff font/woff2
+    
+    # Forçar compressão mesmo para navegadores antigos
+    BrowserMatch ^Mozilla/4 gzip-only-text/html
+    BrowserMatch ^Mozilla/4\.0[678] no-gzip
+    BrowserMatch \bMSIE !no-gzip !gzip-only-text/html
+    
+    # Não comprimir imagens já comprimidas
+    SetEnvIfNoCase Request_URI \.(?:gif|jpe?g|png|webp)$ no-gzip dont-vary
+</IfModule>
 
-# Página de erro 403 personalizada (acesso negado)
-ErrorDocument 403 /GitHub/Gest-o-Escolar-/404.php
-
-# Página de erro 500 personalizada (erro interno do servidor)
-ErrorDocument 500 /GitHub/Gest-o-Escolar-/404.php
-
-# Redirecionamentos para URLs amigáveis (opcional)
-# RewriteRule ^login/?$ app/main/Views/auth/login.php [L]
-# RewriteRule ^dashboard/?$ app/main/Views/dashboard/dashboard.php [L]
-
-# Configurações de segurança
-# Impedir acesso direto a arquivos sensíveis
-<Files "*.sql">
-    Order Allow,Deny
-    Deny from all
-</Files>
-
-<Files "*.log">
-    Order Allow,Deny
-    Deny from all
-</Files>
-
-<Files ".htaccess">
-    Order Allow,Deny
-    Deny from all
-</Files>
-
-# Configurações de cache (opcional)
+# ============================================
+# Cache do Navegador
+# ============================================
 <IfModule mod_expires.c>
     ExpiresActive On
+    
+    # Imagens
+    ExpiresByType image/jpeg "access plus 1 year"
+    ExpiresByType image/png "access plus 1 year"
+    ExpiresByType image/gif "access plus 1 year"
+    ExpiresByType image/webp "access plus 1 year"
+    ExpiresByType image/svg+xml "access plus 1 year"
+    ExpiresByType image/x-icon "access plus 1 year"
+    
+    # CSS e JavaScript
     ExpiresByType text/css "access plus 1 month"
+    ExpiresByType text/javascript "access plus 1 month"
     ExpiresByType application/javascript "access plus 1 month"
-    ExpiresByType image/png "access plus 1 month"
-    ExpiresByType image/jpg "access plus 1 month"
-    ExpiresByType image/jpeg "access plus 1 month"
-    ExpiresByType image/gif "access plus 1 month"
-    ExpiresByType image/svg+xml "access plus 1 month"
+    ExpiresByType application/x-javascript "access plus 1 month"
+    
+    # Fontes
+    ExpiresByType font/ttf "access plus 1 year"
+    ExpiresByType font/otf "access plus 1 year"
+    ExpiresByType font/woff "access plus 1 year"
+    ExpiresByType font/woff2 "access plus 1 year"
+    ExpiresByType application/font-woff "access plus 1 year"
+    
+    # Vídeos
+    ExpiresByType video/mp4 "access plus 1 month"
+    ExpiresByType video/webm "access plus 1 month"
+    
+    # HTML
+    ExpiresByType text/html "access plus 0 seconds"
+    
+    # Dados
+    ExpiresByType application/json "access plus 0 seconds"
+    ExpiresByType application/xml "access plus 0 seconds"
+    ExpiresByType text/xml "access plus 0 seconds"
 </IfModule>
 
-# Compressão GZIP (opcional)
-<IfModule mod_deflate.c>
-    AddOutputFilterByType DEFLATE text/plain
-    AddOutputFilterByType DEFLATE text/html
-    AddOutputFilterByType DEFLATE text/xml
-    AddOutputFilterByType DEFLATE text/css
-    AddOutputFilterByType DEFLATE application/xml
-    AddOutputFilterByType DEFLATE application/xhtml+xml
-    AddOutputFilterByType DEFLATE application/rss+xml
-    AddOutputFilterByType DEFLATE application/javascript
-    AddOutputFilterByType DEFLATE application/x-javascript
+# ============================================
+# Headers de Cache
+# ============================================
+<IfModule mod_headers.c>
+    # Cache para arquivos estáticos
+    <FilesMatch "\.(jpg|jpeg|png|gif|webp|svg|ico|css|js|woff|woff2|ttf|otf)$">
+        Header set Cache-Control "max-age=31536000, public"
+    </FilesMatch>
+    
+    # Sem cache para HTML/PHP
+    <FilesMatch "\.(html|htm|php)$">
+        Header set Cache-Control "no-cache, no-store, must-revalidate"
+        Header set Pragma "no-cache"
+        Header set Expires 0
+    </FilesMatch>
+    
+    # Segurança
+    Header always set X-Frame-Options "SAMEORIGIN"
+    Header always set X-Content-Type-Options "nosniff"
+    Header always set X-XSS-Protection "1; mode=block"
+    Header always set Referrer-Policy "strict-origin-when-cross-origin"
+    
+    # Remove versão do servidor
+    Header unset Server
+    Header unset X-Powered-By
 </IfModule>
+
+# ============================================
+# Segurança
+# ============================================
+# Proteger arquivos sensíveis
+<FilesMatch "^\.">
+    Order allow,deny
+    Deny from all
+</FilesMatch>
+
+# Proteger arquivo .env especificamente
+<Files ".env">
+    Order allow,deny
+    Deny from all
+</Files>
+
+# Proteger arquivos sensíveis
+<FilesMatch "\.(bat|env|config|bak|sql|log)$">
+    Order allow,deny
+    Deny from all
+</FilesMatch>
+
+# Proteger arquivos de configuração sensíveis
+<FilesMatch "^(config_google|config_mysql|config_login|config)\.php$">
+    Order allow,deny
+    Deny from all
+</FilesMatch>
+
+# Bloquear acesso a diretórios
+Options -Indexes
+
+# ============================================
+# Otimização de Velocidade
+# ============================================
+# Desabilitar ETags
+Header unset ETag
+FileETag None
+
+# ============================================
+# Redirecionamentos úteis
+# ============================================
+# Página de erro 404 personalizada
+ErrorDocument 404 /acesso-bloqueado.php
+ErrorDocument 403 /acesso-bloqueado.php

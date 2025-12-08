@@ -8,7 +8,8 @@ $session = new sessions();
 $session->autenticar_session();
 $session->tempo_session();
 
-if (!isset($_SESSION['tipo']) || strtolower($_SESSION['tipo']) !== 'adm_merenda') {
+// Permitir acesso para ADM (geral) e ADM_MERENDA
+if (!isset($_SESSION['tipo']) || (!eAdm() && strtolower($_SESSION['tipo']) !== 'adm_merenda')) {
     header('Location: dashboard.php?erro=sem_permissao');
     exit;
 }
@@ -138,7 +139,14 @@ $consumosRecentes = $consumoModel->listar(['data_inicio' => date('Y-m-d', strtot
     </style>
 </head>
 <body class="bg-gray-50">
-    <?php include 'components/sidebar_merenda.php'; ?>
+    <?php 
+    // Mostrar sidebar correta baseada no tipo de usuário
+    if (eAdm()) {
+        include 'components/sidebar_adm.php';
+    } else {
+        include 'components/sidebar_merenda.php';
+    }
+    ?>
     
     <!-- Main Content -->
     <main class="content-transition ml-0 lg:ml-64 min-h-screen">

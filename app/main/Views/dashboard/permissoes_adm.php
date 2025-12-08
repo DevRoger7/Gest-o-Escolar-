@@ -44,18 +44,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao'])) {
             
             // Remover permissões existentes
             if ($temUsuarioId) {
-                $sql = "DELETE FROM role_permissao WHERE usuario_id = :usuario_id";
+            $sql = "DELETE FROM role_permissao WHERE usuario_id = :usuario_id";
+            $stmt = $conn->prepare($sql);
+            $stmt->bindParam(':usuario_id', $usuarioId);
+            $stmt->execute();
+            
+            // Adicionar novas permissões
+            foreach ($permissoes as $permissao) {
+                $sql = "INSERT INTO role_permissao (usuario_id, permissao, ativo) VALUES (:usuario_id, :permissao, 1)";
                 $stmt = $conn->prepare($sql);
                 $stmt->bindParam(':usuario_id', $usuarioId);
+                $stmt->bindParam(':permissao', $permissao);
                 $stmt->execute();
-                
-                // Adicionar novas permissões
-                foreach ($permissoes as $permissao) {
-                    $sql = "INSERT INTO role_permissao (usuario_id, permissao, ativo) VALUES (:usuario_id, :permissao, 1)";
-                    $stmt = $conn->prepare($sql);
-                    $stmt->bindParam(':usuario_id', $usuarioId);
-                    $stmt->bindParam(':permissao', $permissao);
-                    $stmt->execute();
                 }
             } else {
                 // Se não tem usuario_id, atualizar por role
@@ -145,18 +145,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['acao'])) {
             // Buscar permissões do usuário
             if ($temUsuarioId) {
                 // Se a tabela tem usuario_id, buscar por usuario_id
-                $sql = "SELECT permissao FROM role_permissao WHERE usuario_id = :usuario_id AND ativo = 1";
-                $stmt = $conn->prepare($sql);
-                $stmt->bindParam(':usuario_id', $_GET['usuario_id']);
+        $sql = "SELECT permissao FROM role_permissao WHERE usuario_id = :usuario_id AND ativo = 1";
+        $stmt = $conn->prepare($sql);
+        $stmt->bindParam(':usuario_id', $_GET['usuario_id']);
             } else {
                 // Se não tem, buscar por role
                 $sql = "SELECT permissao FROM role_permissao WHERE role = :role AND ativo = 1";
                 $stmt = $conn->prepare($sql);
                 $stmt->bindParam(':role', $usuario['role']);
             }
-            $stmt->execute();
-            $permissoes = $stmt->fetchAll(PDO::FETCH_COLUMN);
-            
+        $stmt->execute();
+        $permissoes = $stmt->fetchAll(PDO::FETCH_COLUMN);
+        
             echo json_encode([
                 'success' => true, 
                 'permissoes' => $permissoes,
@@ -395,8 +395,8 @@ $usuarios = $stmtUsuarios->fetchAll(PDO::FETCH_ASSOC);
                 <div id="alerta-erro-permissoes" class="hidden bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-lg mb-4"></div>
                 
                 <div id="permissoes-container" class="hidden space-y-6">
-                    <!-- Permissões serão carregadas aqui -->
-                </div>
+                <!-- Permissões serão carregadas aqui -->
+            </div>
             </div>
             
             <!-- Footer do Modal (Sticky) -->
@@ -470,7 +470,7 @@ $usuarios = $stmtUsuarios->fetchAll(PDO::FETCH_ASSOC);
         window.logout = function() {
             window.location.href = '../auth/logout.php';
         };
-        
+
         function filtrarUsuarios() {
             const busca = document.getElementById('filtro-busca').value;
             const role = document.getElementById('filtro-role').value;
@@ -666,7 +666,7 @@ $usuarios = $stmtUsuarios->fetchAll(PDO::FETCH_ASSOC);
                     alertaErro.classList.remove('hidden');
                 }
             } catch (error) {
-                console.error('Erro:', error);
+                    console.error('Erro:', error);
                 loading.classList.add('hidden');
                 alertaErro.textContent = 'Erro ao carregar permissões. Por favor, tente novamente.';
                 alertaErro.classList.remove('hidden');
@@ -682,7 +682,7 @@ $usuarios = $stmtUsuarios->fetchAll(PDO::FETCH_ASSOC);
         function desselecionarTodasPermissoes() {
             document.querySelectorAll('.permissao-checkbox').forEach(cb => {
                 cb.checked = false;
-            });
+                });
         }
 
         function fecharModalPermissoes() {
@@ -727,14 +727,14 @@ $usuarios = $stmtUsuarios->fetchAll(PDO::FETCH_ASSOC);
             alertaErro.classList.add('hidden');
             
             try {
-                const formData = new FormData();
-                formData.append('acao', 'atualizar_permissoes');
-                formData.append('usuario_id', usuarioIdAtual);
-                formData.append('permissoes', JSON.stringify(permissoes));
-                
+            const formData = new FormData();
+            formData.append('acao', 'atualizar_permissoes');
+            formData.append('usuario_id', usuarioIdAtual);
+            formData.append('permissoes', JSON.stringify(permissoes));
+            
                 const response = await fetch('', {
-                    method: 'POST',
-                    body: formData
+                method: 'POST',
+                body: formData
                 });
                 
                 const data = await response.json();
@@ -749,7 +749,7 @@ $usuarios = $stmtUsuarios->fetchAll(PDO::FETCH_ASSOC);
                     
                     // Fechar modal após 1.5 segundos
                     setTimeout(() => {
-                        fecharModalPermissoes();
+                    fecharModalPermissoes();
                     }, 1500);
                 } else {
                     alertaErro.textContent = 'Erro ao atualizar permissões: ' + (data.message || 'Erro desconhecido');

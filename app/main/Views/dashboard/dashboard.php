@@ -17,41 +17,91 @@ $stats = new DashboardStats();
 
 // Função para obter dados do usuário logado
 function obterDadosUsuarioLogado($usuarioId) {
-    $db = Database::getInstance();
-    $conn = $db->getConnection();
-    
-    $sql = "SELECT 
-                u.id as usuario_id,
-                u.username,
-                u.role as tipo,
-                u.ativo,
-                u.ultimo_login,
-                u.created_at as data_criacao,
-                p.id as pessoa_id,
-                p.nome,
-                p.cpf,
-                p.email,
-                p.telefone,
-                p.data_nascimento,
-                p.sexo,
-                p.endereco,
-                p.cep,
-                p.cidade,
-                p.estado
-            FROM usuario u 
-            JOIN pessoa p ON u.pessoa_id = p.id 
-            WHERE u.id = :usuario_id";
-    
-    $stmt = $conn->prepare($sql);
-    $stmt->bindParam(':usuario_id', $usuarioId, PDO::PARAM_INT);
-    $stmt->execute();
-    return $stmt->fetch(PDO::FETCH_ASSOC);
+    try {
+        $db = Database::getInstance();
+        $conn = $db->getConnection();
+        
+        $sql = "SELECT 
+                    u.id as usuario_id,
+                    u.username,
+                    u.role as tipo,
+                    u.ativo,
+                    u.ultimo_login,
+                    u.created_at as data_criacao,
+                    p.id as pessoa_id,
+                    p.nome,
+                    p.cpf,
+                    p.email,
+                    p.telefone,
+                    p.data_nascimento,
+                    p.sexo,
+                    p.endereco,
+                    p.cep,
+                    p.cidade,
+                    p.estado
+                FROM usuario u 
+                LEFT JOIN pessoa p ON u.pessoa_id = p.id 
+                WHERE u.id = :usuario_id";
+        
+        $stmt = $conn->prepare($sql);
+        $stmt->bindParam(':usuario_id', $usuarioId, PDO::PARAM_INT);
+        $stmt->execute();
+        $resultado = $stmt->fetch(PDO::FETCH_ASSOC);
+        
+        // Se não encontrou dados, retornar pelo menos os dados básicos do usuário
+        if (!$resultado) {
+            $sqlUsuario = "SELECT 
+                            id as usuario_id,
+                            username,
+                            role as tipo,
+                            ativo,
+                            ultimo_login,
+                            created_at as data_criacao
+                        FROM usuario 
+                        WHERE id = :usuario_id";
+            $stmtUsuario = $conn->prepare($sqlUsuario);
+            $stmtUsuario->bindParam(':usuario_id', $usuarioId, PDO::PARAM_INT);
+            $stmtUsuario->execute();
+            $resultado = $stmtUsuario->fetch(PDO::FETCH_ASSOC);
+        }
+        
+        // Garantir que sempre retorne um array, mesmo que vazio
+        if (!$resultado) {
+            return [
+                'usuario_id' => $usuarioId,
+                'username' => 'Usuário',
+                'tipo' => 'USUARIO',
+                'ativo' => 1
+            ];
+        }
+        
+        return $resultado;
+    } catch (Exception $e) {
+        error_log("Erro ao obter dados do usuário: " . $e->getMessage());
+        return null;
+    }
 }
 
 // Buscar dados do usuário logado
 $dadosUsuario = null;
 if (isset($_SESSION['usuario_id'])) {
     $dadosUsuario = obterDadosUsuarioLogado($_SESSION['usuario_id']);
+    // Se não encontrou dados, tentar buscar apenas do usuário
+    if (!$dadosUsuario || empty($dadosUsuario['usuario_id'])) {
+        error_log("DEBUG: Não foi possível obter dados completos do usuário ID: " . $_SESSION['usuario_id']);
+        // Buscar dados mínimos do usuário
+        try {
+            $db = Database::getInstance();
+            $conn = $db->getConnection();
+            $sql = "SELECT id as usuario_id, username, role as tipo, ativo FROM usuario WHERE id = :usuario_id";
+            $stmt = $conn->prepare($sql);
+            $stmt->bindParam(':usuario_id', $_SESSION['usuario_id'], PDO::PARAM_INT);
+            $stmt->execute();
+            $dadosUsuario = $stmt->fetch(PDO::FETCH_ASSOC);
+        } catch (Exception $e) {
+            error_log("Erro ao buscar dados mínimos do usuário: " . $e->getMessage());
+        }
+    }
 }
 
 if (!defined('BASE_URL')) {
@@ -385,12 +435,46 @@ if (!defined('BASE_URL')) {
         };
 
         window.openUserProfile = function() {
-            const modal = document.getElementById('userProfileModal');
-            if (modal) {
-                modal.style.display = 'block';
-                modal.classList.remove('hidden');
-                document.body.style.overflow = 'hidden'; // Prevenir scroll do body
+            // Verificar se o DOM está pronto
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', function() {
+                    window.openUserProfile();
+                });
+                return;
             }
+            
+            let modal = document.getElementById('userProfileModal');
+            
+            // Se não encontrou, tentar novamente após um pequeno delay
+            if (!modal) {
+                console.warn('Modal de perfil não encontrado na primeira tentativa. Tentando novamente...');
+                setTimeout(function() {
+                    modal = document.getElementById('userProfileModal');
+                    if (modal) {
+                        modal.style.display = 'block';
+                        modal.classList.remove('hidden');
+                        document.body.style.overflow = 'hidden';
+                        modal.scrollTop = 0;
+                    } else {
+                        console.error('Modal de perfil não encontrado após múltiplas tentativas.');
+                        console.error('Verificando se o elemento existe no DOM...');
+                        const allModals = document.querySelectorAll('[id*="Profile"], [id*="profile"]');
+                        console.log('Modais encontrados:', allModals);
+                        const bodyContent = document.body.innerHTML;
+                        const hasModal = bodyContent.includes('userProfileModal');
+                        console.log('Modal presente no HTML?', hasModal);
+                        alert('Erro: Modal de perfil não encontrado. Por favor, recarregue a página e tente novamente.');
+                    }
+                }, 100);
+                return;
+            }
+            
+            // Se encontrou, abrir normalmente
+            modal.style.display = 'block';
+            modal.classList.remove('hidden');
+            document.body.style.overflow = 'hidden'; // Prevenir scroll do body
+            // Scroll para o topo do modal
+            modal.scrollTop = 0;
         };
         
         window.closeUserProfile = function() {
@@ -1831,6 +1915,8 @@ if (!defined('BASE_URL')) {
         <?php include('components/sidebar_merenda.php'); ?>
     <?php } elseif (isset($_SESSION['tipo']) && strtoupper($_SESSION['tipo']) === 'ADM') { ?>
         <?php include('components/sidebar_adm.php'); ?>
+    <?php } elseif (isset($_SESSION['tipo']) && strtoupper($_SESSION['tipo']) === 'NUTRICIONISTA') { ?>
+        <?php include('components/sidebar_nutricionista.php'); ?>
     <?php } else { ?>
     <aside id="sidebar" class="fixed left-0 top-0 h-full w-64 bg-white shadow-lg sidebar-transition z-50 lg:translate-x-0 sidebar-mobile">
         <!-- Logo e Header -->
@@ -2433,7 +2519,7 @@ if (!defined('BASE_URL')) {
                     
                     <!-- Cards de Acesso Rápido para ADM -->
                     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
-                        <a href="gestao_alunos_adm.php" class="bg-gradient-to-br from-blue-500 to-blue-600 text-white rounded-2xl p-6 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105">
+                        <a href="./gestao_alunos_adm.php" class="bg-gradient-to-br from-blue-500 to-blue-600 text-white rounded-2xl p-6 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105">
                             <div class="flex items-center justify-between mb-4">
                                 <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"></path>
@@ -2548,8 +2634,80 @@ if (!defined('BASE_URL')) {
                             } else {
                                 echo '<div class="text-center py-8 text-gray-500">Nenhuma atividade recente</div>';
                             }
+                        } elseif (strtolower($userType) === 'nutricionista') {
+                            // Buscar atividades específicas do nutricionista
+                            $nutricionistaId = $_SESSION['usuario_id'] ?? null;
+                            if ($nutricionistaId) {
+                                $atividadesRecentes = $stats->getAtividadesNutricionista($nutricionistaId, 3);
+                                
+                                if (empty($atividadesRecentes)) {
+                                    echo '<div class="text-center py-8 text-gray-500">Nenhuma atividade recente</div>';
+                                } else {
+                                    foreach ($atividadesRecentes as $atividade) {
+                                        $iconColors = [
+                                            'blue' => 'from-blue-50 to-blue-100',
+                                            'green' => 'from-green-50 to-green-100',
+                                            'orange' => 'from-orange-50 to-orange-100',
+                                            'purple' => 'from-purple-50 to-purple-100'
+                                        ];
+                                        $bgColors = [
+                                            'blue' => 'bg-blue-500',
+                                            'green' => 'bg-green-500',
+                                            'orange' => 'bg-orange-500',
+                                            'purple' => 'bg-purple-500'
+                                        ];
+                                        $color = $atividade['color'] ?? 'green';
+                                        $gradient = $iconColors[$color] ?? $iconColors['green'];
+                                        $bgColor = $bgColors[$color] ?? $bgColors['green'];
+                                        
+                                        // Calcular tempo relativo
+                                        $dataAtividade = new DateTime($atividade['data']);
+                                        $agora = new DateTime();
+                                        $diff = $agora->diff($dataAtividade);
+                                        
+                                        $tempoRelativo = '';
+                                        if ($diff->days > 0) {
+                                            $tempoRelativo = $diff->days == 1 ? 'Ontem' : 'Há ' . $diff->days . ' dias';
+                                        } elseif ($diff->h > 0) {
+                                            $tempoRelativo = 'Há ' . $diff->h . ' hora' . ($diff->h > 1 ? 's' : '');
+                                        } elseif ($diff->i > 0) {
+                                            $tempoRelativo = 'Há ' . $diff->i . ' minuto' . ($diff->i > 1 ? 's' : '');
+                                        } else {
+                                            $tempoRelativo = 'Agora mesmo';
+                                        }
+                                        
+                                        $statusClass = [
+                                            'RASCUNHO' => 'bg-yellow-100 text-yellow-800',
+                                            'ENVIADO' => 'bg-blue-100 text-blue-800',
+                                            'APROVADO' => 'bg-green-100 text-green-800',
+                                            'REJEITADO' => 'bg-red-100 text-red-800'
+                                        ][$atividade['status'] ?? ''] ?? '';
+                                        ?>
+                                        <div class="flex items-start space-x-4 p-4 bg-gradient-to-r <?= $gradient ?> rounded-xl">
+                                            <div class="p-2 <?= $bgColor ?> rounded-lg">
+                                                <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                                                </svg>
+                                            </div>
+                                            <div class="flex-1">
+                                                <p class="text-sm font-medium text-gray-800"><?= htmlspecialchars($atividade['titulo']) ?></p>
+                                                <p class="text-xs text-gray-600"><?= htmlspecialchars($atividade['descricao']) ?></p>
+                                                <div class="flex items-center space-x-2 mt-1">
+                                                    <?php if ($statusClass): ?>
+                                                        <span class="text-xs px-2 py-1 rounded-full <?= $statusClass ?>"><?= htmlspecialchars($atividade['status']) ?></span>
+                                                    <?php endif; ?>
+                                                    <p class="text-xs text-gray-500"><?= $tempoRelativo ?></p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <?php
+                                    }
+                                }
+                            } else {
+                                echo '<div class="text-center py-8 text-gray-500">Nenhuma atividade recente</div>';
+                            }
                         } else { 
-                            // Buscar atividades recentes do banco
+                            // Buscar atividades recentes do banco (para outros tipos de usuário)
                             $atividadesRecentes = $stats->getAtividadesRecentes(3);
                             
                             if (empty($atividadesRecentes)) {
@@ -2844,103 +3002,113 @@ if (!defined('BASE_URL')) {
 
             // === INTERFACE DO NUTRICIONISTA ===
             function renderNutricionistaInterface() {
-                if (isset($_SESSION['adc_cardapio']) || isset($_SESSION['lista_insulmos']) || isset($_SESSION['env_pedidos'])) {
-                    echo '<section id="user-interface" class="content-section mt-8">';
-                    echo '<div class="grid grid-cols-1 md:grid-cols-3 gap-6">';
-                    
-                    // Card de Cardápios
-                    if (isset($_SESSION['adc_cardapio'])) {
-                        echo '
-                        <div class="card-hover bg-white rounded-2xl p-6 shadow-lg border border-gray-100 hover-lift">
-                            <div class="flex items-center justify-between mb-4">
-                                <div class="p-3 bg-green-100 rounded-xl">
-                                    <svg class="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 100 4m0-4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 100 4m0-4v2m0-6V4"></path>
-                                    </svg>
-                                </div>
-                                <span class="text-xs bg-green-100 text-green-800 px-2 py-1 rounded-full">Semanal</span>
+                global $stats;
+                
+                $nutricionistaId = $_SESSION['usuario_id'] ?? null;
+                if (!$nutricionistaId) return;
+                
+                // Buscar dados do nutricionista
+                $cardapiosPendentes = $stats->getCardapiosPendentesNutricionista($nutricionistaId);
+                $pedidosPendentes = $stats->getPedidosPendentesNutricionista($nutricionistaId);
+                $ultimosPedidos = $stats->getUltimosPedidosNutricionista($nutricionistaId, 3);
+                $atividadesRecentes = $stats->getAtividadesNutricionista($nutricionistaId, 5);
+                
+                echo '<section id="user-interface" class="content-section mt-8">';
+                
+                // === ACESSO RÁPIDO ===
+                echo '<div class="mb-8">';
+                echo '<h2 class="text-2xl font-bold text-gray-900 mb-4">Acesso Rápido</h2>';
+                echo '<div class="grid grid-cols-1 md:grid-cols-3 gap-6">';
+                
+                // Card de Cardápios
+                if (isset($_SESSION['adc_cardapio'])) {
+                    $meses = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
+                    $mesAtual = $meses[date('n') - 1];
+                    echo '
+                    <a href="cardapios_nutricionista.php" class="card-hover bg-white rounded-2xl p-6 shadow-lg border border-gray-100 hover-lift block">
+                        <div class="flex items-center justify-between mb-4">
+                            <div class="p-3 bg-green-100 rounded-xl">
+                                <svg class="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                                </svg>
                             </div>
-                            <h3 class="text-xl font-bold text-gray-800 mb-2">Cardápios</h3>
-                            <p class="text-gray-600 text-sm mb-4">Criar e gerenciar cardápios escolares</p>
-                            <div class="space-y-2 mb-4">
-                                <div class="flex justify-between items-center">
-                                    <span class="text-sm text-gray-600">Esta semana</span>
-                                    <span class="text-xs bg-green-100 text-green-800 px-2 py-1 rounded-full">Aprovado</span>
-                                </div>
-                                <div class="flex justify-between items-center">
-                                    <span class="text-sm text-gray-600">Próxima semana</span>
-                                    <span class="text-xs bg-yellow-100 text-yellow-800 px-2 py-1 rounded-full">Pendente</span>
-                                </div>
+                            <span class="text-xs bg-green-100 text-green-800 px-2 py-1 rounded-full">' . $mesAtual . '</span>
+                        </div>
+                        <h3 class="text-xl font-bold text-gray-800 mb-2">Cardápios</h3>
+                        <p class="text-gray-600 text-sm mb-4">Criar e gerenciar cardápios escolares</p>
+                        <div class="space-y-2 mb-4">
+                            <div class="flex justify-between items-center">
+                                <span class="text-sm text-gray-600">Pendentes</span>
+                                <span class="text-xs bg-yellow-100 text-yellow-800 px-2 py-1 rounded-full">' . $cardapiosPendentes . '</span>
                             </div>
-                            <button class="w-full bg-gradient-to-r from-green-500 to-green-600 text-white py-2 px-4 rounded-lg hover:from-green-600 hover:to-green-700 transition-all duration-200">
-                                Gerenciar Cardápios
-                            </button>
-                        </div>';
-                    }
-                    
-                    // Card de Insumos
-                    if (isset($_SESSION['lista_insulmos'])) {
-                        echo '
-                        <div class="card-hover bg-white rounded-2xl p-6 shadow-lg border border-gray-100 hover-lift">
-                            <div class="flex items-center justify-between mb-4">
-                                <div class="p-3 bg-blue-100 rounded-xl">
-                                    <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path>
-                                    </svg>
-                                </div>
-                                <span class="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded-full">' . $stats->getTotalItensInsumos() . ' itens</span>
-                            </div>
-                            <h3 class="text-xl font-bold text-gray-800 mb-2">Insumos</h3>
-                            <p class="text-gray-600 text-sm mb-4">Consultar insumos disponíveis</p>
-                            <div class="space-y-2 mb-4">
-                                <div class="flex justify-between items-center">
-                                    <span class="text-sm text-gray-600">Arroz</span>
-                                    <span class="text-sm font-semibold text-green-600">' . $stats->getQuantidadeProduto("Arroz") . 'kg</span>
-                                </div>
-                                <div class="flex justify-between items-center">
-                                    <span class="text-sm text-gray-600">Feijão</span>
-                                    <span class="text-sm font-semibold text-orange-600">' . $stats->getQuantidadeProduto("Feijão") . 'kg</span>
-                                </div>
-                            </div>
-                            <button class="w-full bg-gradient-to-r from-blue-500 to-blue-600 text-white py-2 px-4 rounded-lg hover:from-blue-600 hover:to-blue-700 transition-all duration-200">
-                                Ver Estoque
-                            </button>
-                        </div>';
-                    }
-                    
-                    // Card de Pedidos
-                    if (isset($_SESSION['env_pedidos'])) {
-                        echo '
-                        <div class="card-hover bg-white rounded-2xl p-6 shadow-lg border border-gray-100 hover-lift">
-                            <div class="flex items-center justify-between mb-4">
-                                <div class="p-3 bg-orange-100 rounded-xl">
-                                    <svg class="w-6 h-6 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"></path>
-                                    </svg>
-                                </div>
-                                <span class="text-xs bg-orange-100 text-orange-800 px-2 py-1 rounded-full">3 pendentes</span>
-                            </div>
-                            <h3 class="text-xl font-bold text-gray-800 mb-2">Pedidos</h3>
-                            <p class="text-gray-600 text-sm mb-4">Solicitar produtos e ingredientes</p>
-                            <div class="space-y-2 mb-4">
-                                <div class="p-2 bg-gray-50 rounded-lg">
-                                    <p class="text-xs text-gray-600">Pedido #001</p>
-                                    <p class="text-sm font-medium">Verduras e legumes</p>
-                                </div>
-                                <div class="p-2 bg-gray-50 rounded-lg">
-                                    <p class="text-xs text-gray-600">Pedido #002</p>
-                                    <p class="text-sm font-medium">Proteínas</p>
-                                </div>
-                            </div>
-                            <button class="w-full bg-gradient-to-r from-orange-500 to-orange-600 text-white py-2 px-4 rounded-lg hover:from-orange-600 hover:to-orange-700 transition-all duration-200">
-                                Fazer Pedido
-                            </button>
-                        </div>';
-                    }
-                    
-                    echo '</div>';
-                    echo '</section>';
+                        </div>
+                        <div class="w-full bg-gradient-to-r from-green-500 to-green-600 text-white py-2 px-4 rounded-lg text-center font-medium">
+                            Gerenciar Cardápios
+                        </div>
+                    </a>';
                 }
+                
+                // Card de Estoque
+                if (isset($_SESSION['lista_insulmos'])) {
+                    echo '
+                    <a href="avaliacao_estoque_nutricionista.php" class="card-hover bg-white rounded-2xl p-6 shadow-lg border border-gray-100 hover-lift block">
+                        <div class="flex items-center justify-between mb-4">
+                            <div class="p-3 bg-blue-100 rounded-xl">
+                                <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path>
+                                </svg>
+                            </div>
+                            <span class="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded-full">Estoque</span>
+                        </div>
+                        <h3 class="text-xl font-bold text-gray-800 mb-2">Avaliação de Estoque</h3>
+                        <p class="text-gray-600 text-sm mb-4">Consultar estoque e consumo</p>
+                        <div class="w-full bg-gradient-to-r from-blue-500 to-blue-600 text-white py-2 px-4 rounded-lg text-center font-medium">
+                            Ver Estoque
+                        </div>
+                    </a>';
+                }
+                
+                // Card de Pedidos
+                if (isset($_SESSION['env_pedidos'])) {
+                    $pedidosHtml = '';
+                    if (!empty($ultimosPedidos)) {
+                        foreach (array_slice($ultimosPedidos, 0, 2) as $pedido) {
+                            $meses = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
+                            $mesNome = $meses[$pedido['mes'] - 1] ?? $pedido['mes'];
+                            $statusClass = $pedido['status'] === 'ENVIADO' ? 'bg-blue-100 text-blue-800' : 'bg-yellow-100 text-yellow-800';
+                            $pedidosHtml .= '
+                            <div class="p-2 bg-gray-50 rounded-lg">
+                                <p class="text-xs text-gray-600">' . htmlspecialchars($pedido['escola_nome'] ?? 'Escola') . '</p>
+                                <p class="text-sm font-medium">' . $mesNome . ' - ' . htmlspecialchars($pedido['status']) . '</p>
+                            </div>';
+                        }
+                    } else {
+                        $pedidosHtml = '<p class="text-sm text-gray-500 text-center py-2">Nenhum pedido recente</p>';
+                    }
+                    
+                    echo '
+                    <a href="pedidos_nutricionista.php" class="card-hover bg-white rounded-2xl p-6 shadow-lg border border-gray-100 hover-lift block">
+                        <div class="flex items-center justify-between mb-4">
+                            <div class="p-3 bg-orange-100 rounded-xl">
+                                <svg class="w-6 h-6 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"></path>
+                                </svg>
+                            </div>
+                            <span class="text-xs bg-orange-100 text-orange-800 px-2 py-1 rounded-full">' . $pedidosPendentes . ' pendentes</span>
+                        </div>
+                        <h3 class="text-xl font-bold text-gray-800 mb-2">Pedidos</h3>
+                        <p class="text-gray-600 text-sm mb-4">Solicitar produtos e ingredientes</p>
+                        <div class="space-y-2 mb-4">' . $pedidosHtml . '</div>
+                        <div class="w-full bg-gradient-to-r from-orange-500 to-orange-600 text-white py-2 px-4 rounded-lg text-center font-medium">
+                            Fazer Pedido
+                        </div>
+                    </a>';
+                }
+                
+                echo '</div>';
+                echo '</div>';
+                
+                echo '</section>';
             }
 
             // === INTERFACE DO ADMINISTRADOR DE MERENDA ===
@@ -7971,6 +8139,15 @@ if (!defined('BASE_URL')) {
             } else {
                 console.log('Modal de logout encontrado no DOM');
             }
+            
+            // Verificar se o modal de perfil existe
+            const profileModal = document.getElementById('userProfileModal');
+            if (!profileModal) {
+                console.error('Modal de perfil não encontrado no DOM após carregamento completo!');
+                console.error('Verificando se há algum problema com a renderização...');
+            } else {
+                console.log('Modal de perfil encontrado no DOM com sucesso');
+            }
         });
         
         // Também verificar quando a página estiver completamente carregada
@@ -8011,7 +8188,20 @@ if (!defined('BASE_URL')) {
         
         <!-- Conteúdo do Modal -->
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-            <?php if ($dadosUsuario): ?>
+            <?php 
+            // Garantir que sempre temos dados mínimos do usuário
+            if (!$dadosUsuario || empty($dadosUsuario['usuario_id'])) {
+                // Se não temos dados, criar um objeto mínimo
+                $dadosUsuario = [
+                    'usuario_id' => $_SESSION['usuario_id'] ?? 0,
+                    'username' => $_SESSION['username'] ?? 'Usuário',
+                    'tipo' => $_SESSION['tipo'] ?? 'USUARIO',
+                    'nome' => $_SESSION['nome'] ?? $_SESSION['username'] ?? 'Usuário',
+                    'ativo' => 1
+                ];
+            }
+            ?>
+            <?php if ($dadosUsuario && !empty($dadosUsuario['usuario_id'])): ?>
             <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
                 <!-- Coluna Esquerda - Informações Principais -->
                 <div class="lg:col-span-2 space-y-6">
@@ -8021,7 +8211,7 @@ if (!defined('BASE_URL')) {
                             <div class="relative">
                                 <div class="w-24 h-24 bg-gradient-to-br from-primary-green to-green-700 rounded-2xl flex items-center justify-center text-white text-3xl font-bold shadow-lg ring-4 ring-white">
                                     <?php
-                                    $nome = $dadosUsuario['nome'] ?? 'U';
+                                    $nome = $dadosUsuario['nome'] ?? $dadosUsuario['username'] ?? 'U';
                                     $iniciais = '';
                                     if (strlen($nome) >= 2) {
                                         $iniciais = strtoupper(substr($nome, 0, 2));
@@ -8036,15 +8226,16 @@ if (!defined('BASE_URL')) {
                                 <div class="absolute -bottom-1 -right-1 w-6 h-6 bg-green-500 border-2 border-white rounded-full"></div>
                             </div>
                             <div class="flex-1 text-center sm:text-left">
-                                <h3 class="text-2xl font-bold text-gray-900 mb-1"><?= htmlspecialchars($dadosUsuario['nome'] ?? 'Usuário') ?></h3>
-                                <p class="text-sm text-gray-600 mb-3"><?= htmlspecialchars($dadosUsuario['tipo'] ?? 'Funcionário') ?></p>
+                                <h3 class="text-2xl font-bold text-gray-900 mb-1"><?= htmlspecialchars($dadosUsuario['nome'] ?? $dadosUsuario['username'] ?? 'Usuário') ?></h3>
+                                <p class="text-sm text-gray-600 mb-3"><?= htmlspecialchars($dadosUsuario['tipo'] ?? 'Usuário') ?></p>
                                 <div class="flex flex-wrap gap-2 justify-center sm:justify-start">
                                     <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium <?php 
                                         $tipo = $dadosUsuario['tipo'] ?? '';
                                         echo $tipo === 'ADM' ? 'bg-purple-100 text-purple-800' : 
                                              ($tipo === 'GESTAO' ? 'bg-blue-100 text-blue-800' : 
                                              ($tipo === 'PROFESSOR' ? 'bg-green-100 text-green-800' : 
-                                             ($tipo === 'ADM_MERENDA' ? 'bg-orange-100 text-orange-800' : 'bg-gray-100 text-gray-800'))); 
+                                             ($tipo === 'ADM_MERENDA' ? 'bg-orange-100 text-orange-800' : 
+                                             ($tipo === 'NUTRICIONISTA' ? 'bg-pink-100 text-pink-800' : 'bg-gray-100 text-gray-800')))); 
                                     ?>">
                                         <?= htmlspecialchars($tipo) ?>
                                     </span>
