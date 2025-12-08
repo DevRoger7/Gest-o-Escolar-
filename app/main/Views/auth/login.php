@@ -393,10 +393,6 @@ $nomeSistemaCurto = getNomeSistemaCurto();
             <p class="text-gray-500 text-xs">Entre em contato com a administração para solicitar acesso</p>
         </div>
 
-        <!-- Desenvolvido por -->
-        <div class="mt-8 text-center">
-            <p class="text-gray-400 text-xs">Desenvolvido por Kron</p>
-        </div>
     </div>
 
     <div class="hidden md:flex min-h-screen">
@@ -493,10 +489,6 @@ $nomeSistemaCurto = getNomeSistemaCurto();
                     </p>
                 </div> -->
 
-                <!-- Desenvolvido por -->
-                <div class="mt-8 text-center">
-                    <p class="text-slate-400 text-xs">Desenvolvido por Kron</p>
-                </div>
             </div>
         </div>
     </div>
