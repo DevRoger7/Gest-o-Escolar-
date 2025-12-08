@@ -23,10 +23,48 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao'])) {
     header('Content-Type: application/json');
     
     if ($_POST['acao'] === 'criar_fornecedor') {
+        // Validar campos obrigatórios
+        $nome = trim($_POST['nome'] ?? '');
+        $razaoSocial = trim($_POST['razao_social'] ?? '');
+        $cnpj = trim($_POST['cnpj'] ?? '');
+        $tipoFornecedor = trim($_POST['tipo_fornecedor'] ?? '');
+        $telefone = trim($_POST['telefone'] ?? '');
+        $email = trim($_POST['email'] ?? '');
+        $contato = trim($_POST['contato'] ?? '');
+        
+        if (empty($nome)) {
+            echo json_encode(['success' => false, 'message' => 'O campo Nome é obrigatório.']);
+            exit;
+        }
+        if (empty($razaoSocial)) {
+            echo json_encode(['success' => false, 'message' => 'O campo Razão Social é obrigatório.']);
+            exit;
+        }
+        if (empty($cnpj)) {
+            echo json_encode(['success' => false, 'message' => 'O campo CNPJ é obrigatório.']);
+            exit;
+        }
+        if (empty($tipoFornecedor)) {
+            echo json_encode(['success' => false, 'message' => 'O campo Tipo é obrigatório.']);
+            exit;
+        }
+        if (empty($telefone)) {
+            echo json_encode(['success' => false, 'message' => 'O campo Telefone é obrigatório.']);
+            exit;
+        }
+        if (empty($email)) {
+            echo json_encode(['success' => false, 'message' => 'O campo Email é obrigatório.']);
+            exit;
+        }
+        if (empty($contato)) {
+            echo json_encode(['success' => false, 'message' => 'O campo Contato é obrigatório.']);
+            exit;
+        }
+        
         $dados = [
-            'nome' => $_POST['nome'] ?? '',
-            'razao_social' => $_POST['razao_social'] ?? null,
-            'cnpj' => $_POST['cnpj'] ?? null,
+            'nome' => $nome,
+            'razao_social' => $razaoSocial,
+            'cnpj' => $cnpj,
             'inscricao_estadual' => $_POST['inscricao_estadual'] ?? null,
             'endereco' => $_POST['endereco'] ?? null,
             'numero' => $_POST['numero'] ?? null,
@@ -35,12 +73,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao'])) {
             'cidade' => $_POST['cidade'] ?? null,
             'estado' => $_POST['estado'] ?? null,
             'cep' => $_POST['cep'] ?? null,
-            'telefone' => $_POST['telefone'] ?? null,
+            'telefone' => $telefone,
             'telefone_secundario' => $_POST['telefone_secundario'] ?? null,
-            'email' => $_POST['email'] ?? null,
-            'contato' => $_POST['contato'] ?? null,
-            'tipo_fornecedor' => $_POST['tipo_fornecedor'] ?? 'ALIMENTOS',
-            'observacoes' => $_POST['observacoes'] ?? null
+            'email' => $email,
+            'contato' => $contato,
+            'tipo_fornecedor' => $tipoFornecedor,
+            'observacoes' => trim($_POST['observacoes'] ?? '') ?: null
         ];
         
         $resultado = $fornecedorModel->criar($dados);
@@ -190,7 +228,7 @@ $fornecedores = $fornecedorModel->listar(['ativo' => 1]);
                         <h2 class="text-2xl font-bold text-gray-900">Fornecedores</h2>
                         <p class="text-gray-600 mt-1">Cadastre e gerencie fornecedores de alimentos</p>
                     </div>
-                    <button onclick="abrirModalNovoFornecedor()" class="bg-purple-600 hover:bg-purple-700 text-white px-6 py-2 rounded-lg font-medium transition-colors duration-200 flex items-center space-x-2">
+                    <button onclick="abrirModalNovoFornecedor()" class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg font-medium transition-colors duration-200 flex items-center space-x-2">
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
                         </svg>
@@ -272,11 +310,14 @@ $fornecedores = $fornecedorModel->listar(['ativo' => 1]);
     </main>
     
     <!-- Modal Novo Fornecedor -->
-    <div id="modal-novo-fornecedor" class="fixed inset-0 bg-white z-[60] hidden flex flex-col">
-        <div class="bg-purple-600 text-white p-6 flex items-center justify-between shadow-lg">
-            <h3 class="text-2xl font-bold">Novo Fornecedor</h3>
-            <button onclick="fecharModalNovoFornecedor()" class="text-white hover:text-gray-200 transition-colors">
-                <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <div id="modal-novo-fornecedor" class="fixed inset-0 bg-gray-100 z-[60] hidden flex flex-col">
+        <div class="bg-white border-b border-gray-200 p-6 flex items-center justify-between shadow-sm">
+            <div>
+                <h3 class="text-2xl font-bold text-gray-900">Novo Fornecedor</h3>
+                <p class="text-sm text-gray-500 mt-1">Preencha os dados do fornecedor</p>
+            </div>
+            <button onclick="fecharModalNovoFornecedor()" class="text-gray-400 hover:text-gray-600 transition-colors p-2 hover:bg-gray-100 rounded-lg">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
                 </svg>
             </button>
@@ -287,52 +328,53 @@ $fornecedores = $fornecedorModel->listar(['ativo' => 1]);
                 <form id="form-fornecedor" class="space-y-6">
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-2">Nome *</label>
-                            <input type="text" id="fornecedor-nome" required class="w-full px-4 py-2 border border-gray-300 rounded-lg">
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Nome <span class="text-red-500">*</span></label>
+                            <input type="text" id="fornecedor-nome" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-colors">
                         </div>
                         <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-2">Razão Social</label>
-                            <input type="text" id="fornecedor-razao-social" class="w-full px-4 py-2 border border-gray-300 rounded-lg">
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Razão Social <span class="text-red-500">*</span></label>
+                            <input type="text" id="fornecedor-razao-social" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-colors">
                         </div>
                         <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-2">CNPJ</label>
-                            <input type="text" id="fornecedor-cnpj" class="w-full px-4 py-2 border border-gray-300 rounded-lg">
+                            <label class="block text-sm font-medium text-gray-700 mb-2">CNPJ <span class="text-red-500">*</span></label>
+                            <input type="text" id="fornecedor-cnpj" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-colors">
                         </div>
                         <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-2">Tipo</label>
-                            <select id="fornecedor-tipo" class="w-full px-4 py-2 border border-gray-300 rounded-lg">
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Tipo <span class="text-red-500">*</span></label>
+                            <select id="fornecedor-tipo" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-colors">
+                                <option value="">Selecione...</option>
                                 <option value="ALIMENTOS">Alimentos</option>
                                 <option value="BEBIDAS">Bebidas</option>
                                 <option value="OUTROS">Outros</option>
                             </select>
                         </div>
                         <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-2">Telefone</label>
-                            <input type="text" id="fornecedor-telefone" class="w-full px-4 py-2 border border-gray-300 rounded-lg">
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Telefone <span class="text-red-500">*</span></label>
+                            <input type="text" id="fornecedor-telefone" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-colors">
                         </div>
                         <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-2">Email</label>
-                            <input type="email" id="fornecedor-email" class="w-full px-4 py-2 border border-gray-300 rounded-lg">
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Email <span class="text-red-500">*</span></label>
+                            <input type="email" id="fornecedor-email" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-colors">
                         </div>
                         <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-2">Contato</label>
-                            <input type="text" id="fornecedor-contato" class="w-full px-4 py-2 border border-gray-300 rounded-lg">
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Contato <span class="text-red-500">*</span></label>
+                            <input type="text" id="fornecedor-contato" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-colors">
                         </div>
                     </div>
                     <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-2">Observações</label>
-                        <textarea id="fornecedor-observacoes" rows="3" class="w-full px-4 py-2 border border-gray-300 rounded-lg"></textarea>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Observações <span class="text-gray-400 text-xs">(opcional)</span></label>
+                        <textarea id="fornecedor-observacoes" rows="3" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-colors"></textarea>
                     </div>
                 </form>
             </div>
         </div>
         
-        <div class="bg-gray-50 border-t border-gray-200 p-6">
+        <div class="bg-white border-t border-gray-200 p-6 shadow-sm">
             <div class="max-w-4xl mx-auto flex space-x-3">
-                <button onclick="fecharModalNovoFornecedor()" class="flex-1 px-6 py-3 text-gray-700 bg-white border border-gray-300 hover:bg-gray-50 rounded-lg font-medium transition-colors">
+                <button onclick="fecharModalNovoFornecedor()" class="flex-1 px-6 py-3 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg font-medium transition-colors">
                     Cancelar
                 </button>
-                <button onclick="salvarFornecedor()" class="flex-1 px-6 py-3 text-white bg-purple-600 hover:bg-purple-700 rounded-lg font-medium transition-colors">
+                <button onclick="salvarFornecedor()" class="flex-1 px-6 py-3 text-white bg-blue-600 hover:bg-blue-700 rounded-lg font-medium transition-colors">
                     Salvar Fornecedor
                 </button>
             </div>
@@ -404,16 +446,62 @@ $fornecedores = $fornecedorModel->listar(['ativo' => 1]);
         }
 
         function salvarFornecedor() {
+            // Validar campos obrigatórios
+            const nome = document.getElementById('fornecedor-nome').value.trim();
+            const razaoSocial = document.getElementById('fornecedor-razao-social').value.trim();
+            const cnpj = document.getElementById('fornecedor-cnpj').value.trim();
+            const tipo = document.getElementById('fornecedor-tipo').value;
+            const telefone = document.getElementById('fornecedor-telefone').value.trim();
+            const email = document.getElementById('fornecedor-email').value.trim();
+            const contato = document.getElementById('fornecedor-contato').value.trim();
+            
+            // Validação client-side
+            if (!nome) {
+                alert('Por favor, preencha o campo Nome.');
+                document.getElementById('fornecedor-nome').focus();
+                return;
+            }
+            if (!razaoSocial) {
+                alert('Por favor, preencha o campo Razão Social.');
+                document.getElementById('fornecedor-razao-social').focus();
+                return;
+            }
+            if (!cnpj) {
+                alert('Por favor, preencha o campo CNPJ.');
+                document.getElementById('fornecedor-cnpj').focus();
+                return;
+            }
+            if (!tipo) {
+                alert('Por favor, selecione o Tipo de fornecedor.');
+                document.getElementById('fornecedor-tipo').focus();
+                return;
+            }
+            if (!telefone) {
+                alert('Por favor, preencha o campo Telefone.');
+                document.getElementById('fornecedor-telefone').focus();
+                return;
+            }
+            if (!email) {
+                alert('Por favor, preencha o campo Email.');
+                document.getElementById('fornecedor-email').focus();
+                return;
+            }
+            if (!contato) {
+                alert('Por favor, preencha o campo Contato.');
+                document.getElementById('fornecedor-contato').focus();
+                return;
+            }
+            
             const formData = new FormData();
             formData.append('acao', 'criar_fornecedor');
-            formData.append('nome', document.getElementById('fornecedor-nome').value);
-            formData.append('razao_social', document.getElementById('fornecedor-razao-social').value);
-            formData.append('cnpj', document.getElementById('fornecedor-cnpj').value);
-            formData.append('tipo_fornecedor', document.getElementById('fornecedor-tipo').value);
-            formData.append('telefone', document.getElementById('fornecedor-telefone').value);
-            formData.append('email', document.getElementById('fornecedor-email').value);
-            formData.append('contato', document.getElementById('fornecedor-contato').value);
-            formData.append('observacoes', document.getElementById('fornecedor-observacoes').value);
+            formData.append('nome', nome);
+            formData.append('razao_social', razaoSocial);
+            formData.append('cnpj', cnpj);
+            formData.append('tipo_fornecedor', tipo);
+            formData.append('telefone', telefone);
+            formData.append('email', email);
+            formData.append('contato', contato);
+            formData.append('observacoes', document.getElementById('fornecedor-observacoes').value.trim());
             
             fetch('', {
                 method: 'POST',
