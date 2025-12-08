@@ -30,13 +30,41 @@ class FrequenciaModel {
         $presenca = isset($dados['presenca']) ? (int)$dados['presenca'] : 0;
         $observacao = $dados['observacao'] ?? null;
         $registradoPor = (isset($_SESSION['usuario_id']) && is_numeric($_SESSION['usuario_id'])) ? (int)$_SESSION['usuario_id'] : null;
+        if ($registradoPor === null) {
+            // Fallback: tentar obter usuario.id a partir do pessoa_id da sessão
+            $pessoaIdSessao = isset($_SESSION['pessoa_id']) && is_numeric($_SESSION['pessoa_id']) ? (int)$_SESSION['pessoa_id'] : null;
+            if ($pessoaIdSessao) {
+                $sqlUsuario = "SELECT id FROM usuario WHERE pessoa_id = :pessoa_id LIMIT 1";
+                $stmtUsuario = $conn->prepare($sqlUsuario);
+                $stmtUsuario->bindParam(':pessoa_id', $pessoaIdSessao);
+                $stmtUsuario->execute();
+                $usuario = $stmtUsuario->fetch(PDO::FETCH_ASSOC);
+                if ($usuario && isset($usuario['id'])) {
+                    $registradoPor = (int)$usuario['id'];
+                }
+            }
+        }
+        // Validar que registrado_por existe em usuario, caso contrário usar NULL para evitar violação de FK
+        if (!is_null($registradoPor)) {
+            $sqlCheckUsuario = "SELECT 1 FROM usuario WHERE id = :id LIMIT 1";
+            $stmtCheck = $conn->prepare($sqlCheckUsuario);
+            $stmtCheck->bindParam(':id', $registradoPor);
+            $stmtCheck->execute();
+            if (!$stmtCheck->fetch(PDO::FETCH_ASSOC)) {
+                $registradoPor = null;
+            }
+        }
 
         $stmt->bindParam(':aluno_id', $alunoId);
         $stmt->bindParam(':turma_id', $turmaId);
         $stmt->bindParam(':data', $data);
         $stmt->bindParam(':presenca', $presenca);
         $stmt->bindParam(':observacao', $observacao);
-        $stmt->bindParam(':registrado_por', $registradoPor);
+        if (is_null($registradoPor)) {
+            $stmt->bindValue(':registrado_por', null, PDO::PARAM_NULL);
+        } else {
+            $stmt->bindValue(':registrado_por', $registradoPor);
+        }
         
         return $stmt->execute();
     }
@@ -51,13 +79,39 @@ class FrequenciaModel {
             $conn->beginTransaction();
             
             foreach ($frequencias as $freq) {
-                $this->registrar([
-                    'aluno_id' => $freq['aluno_id'],
+                $alunoId = isset($freq['aluno_id']) ? (int)$freq['aluno_id'] : null;
+                if (!$alunoId) {
+                    throw new Exception('Aluno inválido ao registrar frequência');
+                }
+                // Mapear chaves vindas do frontend
+                $presenca = null;
+                if (isset($freq['presenca'])) {
+                    $presenca = (int)$freq['presenca'];
+                } elseif (isset($freq['presente'])) {
+                    $presenca = (int)$freq['presente'];
+                } else {
+                    $presenca = 0;
+                }
+                $observacao = null;
+                if (array_key_exists('observacao', $freq)) {
+                    $observacao = $freq['observacao'];
+                } elseif (!empty($freq['justificada'])) {
+                    // Usar justificativa quando marcado como falta justificada
+                    $observacao = isset($freq['justificativa']) && $freq['justificativa'] !== ''
+                        ? $freq['justificativa']
+                        : 'Falta justificada';
+                }
+
+                $ok = $this->registrar([
+                    'aluno_id' => $alunoId,
                     'turma_id' => $turmaId,
                     'data' => $data,
-                    'presenca' => $freq['presenca'],
-                    'observacao' => $freq['observacao'] ?? null
+                    'presenca' => $presenca,
+                    'observacao' => $observacao
                 ]);
+                if (!$ok) {
+                    throw new Exception('Falha ao salvar frequência para aluno ID ' . $alunoId);
+                }
             }
             
             $conn->commit();

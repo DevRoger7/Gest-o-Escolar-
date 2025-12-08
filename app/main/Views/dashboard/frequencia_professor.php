@@ -94,7 +94,11 @@ if ($professorId) {
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao'])) {
     header('Content-Type: application/json');
     
-    if ($_POST['acao'] === 'lancar_frequencia' && $professorId) {
+    if ($_POST['acao'] === 'lancar_frequencia') {
+        if (!$professorId) {
+            echo json_encode(['success' => false, 'message' => 'Professor não encontrado']);
+            exit;
+        }
         $turmaId = $_POST['turma_id'] ?? null;
         $disciplinaId = $_POST['disciplina_id'] ?? null;
         $data = $_POST['data'] ?? date('Y-m-d');
