@@ -784,14 +784,12 @@ $fornecedores = $fornecedorModel->listar(['ativo' => 1]);
         }
 
         function editarFornecedor(id) {
-            // Buscar dados do fornecedor
             fetch('?acao=buscar_fornecedor&id=' + id)
                 .then(response => response.json())
                 .then(data => {
                     if (data.success && data.fornecedor) {
                         const f = data.fornecedor;
                         
-                        // Preencher campos do modal
                         document.getElementById('editar-fornecedor-id').value = f.id;
                         document.getElementById('editar-fornecedor-nome').value = f.nome || '';
                         document.getElementById('editar-fornecedor-razao-social').value = f.razao_social || '';
@@ -802,10 +800,8 @@ $fornecedores = $fornecedorModel->listar(['ativo' => 1]);
                         document.getElementById('editar-fornecedor-ativo').value = f.ativo || '1';
                         document.getElementById('editar-fornecedor-observacoes').value = f.observacoes || '';
                         
-                        // Abrir modal primeiro
                         document.getElementById('modal-editar-fornecedor').classList.remove('hidden');
                         
-                        // Aplicar máscaras nos campos de edição após um pequeno delay
                         setTimeout(() => {
                             const cnpjInputEdit = document.getElementById('editar-fornecedor-cnpj');
                             const telefoneInputEdit = document.getElementById('editar-fornecedor-telefone');
@@ -838,7 +834,6 @@ $fornecedores = $fornecedorModel->listar(['ativo' => 1]);
             document.getElementById('modal-editar-fornecedor').classList.add('hidden');
             document.getElementById('form-editar-fornecedor').reset();
             
-            // Remover flags de máscara para permitir reaplicação
             const cnpjInput = document.getElementById('editar-fornecedor-cnpj');
             const telefoneInput = document.getElementById('editar-fornecedor-telefone');
             if (cnpjInput) delete cnpjInput.dataset.mascaraAplicada;
@@ -852,20 +847,17 @@ $fornecedores = $fornecedorModel->listar(['ativo' => 1]);
                 return;
             }
             
-            // Validar campos obrigatórios
             const nome = document.getElementById('editar-fornecedor-nome').value.trim();
             const cnpjCpf = document.getElementById('editar-fornecedor-cnpj').value.replace(/\D/g, ''); // Remover formatação
             const tipo = document.getElementById('editar-fornecedor-tipo').value;
             const telefone = document.getElementById('editar-fornecedor-telefone').value.replace(/\D/g, ''); // Remover formatação
             const email = document.getElementById('editar-fornecedor-email').value.trim();
             
-            // Validação client-side
             if (!nome) {
                 alert('Por favor, preencha o campo Nome.');
                 document.getElementById('editar-fornecedor-nome').focus();
                 return;
             }
-            // Validar CNPJ/CPF apenas se preenchido (é opcional)
             if (cnpjCpf && cnpjCpf.length !== 11 && cnpjCpf.length !== 14) {
                 alert('Por favor, preencha o CNPJ (14 dígitos) ou CPF (11 dígitos) corretamente.');
                 document.getElementById('editar-fornecedor-cnpj').focus();

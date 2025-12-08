@@ -45,6 +45,53 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao'])) {
         }
         exit;
     }
+    
+    if ($_POST['acao'] === 'atualizar_turma') {
+        $id = $_POST['id'] ?? null;
+        if (empty($id)) {
+            echo json_encode(['success' => false, 'message' => 'ID da turma não informado.']);
+            exit;
+        }
+        
+        // Validar campos obrigatórios
+        $escolaId = $_POST['escola_id'] ?? null;
+        $letra = trim($_POST['letra'] ?? '');
+        $turno = trim($_POST['turno'] ?? '');
+        $anoLetivo = $_POST['ano_letivo'] ?? date('Y');
+        
+        if (empty($escolaId)) {
+            echo json_encode(['success' => false, 'message' => 'O campo Escola é obrigatório.']);
+            exit;
+        }
+        if (empty($letra)) {
+            echo json_encode(['success' => false, 'message' => 'O campo Letra é obrigatório.']);
+            exit;
+        }
+        if (empty($turno)) {
+            echo json_encode(['success' => false, 'message' => 'O campo Turno é obrigatório.']);
+            exit;
+        }        
+        $dados = [
+            'escola_id' => $escolaId,
+            'serie_id' => !empty($_POST['serie_id']) ? $_POST['serie_id'] : null,
+            'ano_letivo' => $anoLetivo,
+            'serie' => trim($_POST['serie'] ?? '') ?: null,
+            'letra' => $letra,
+            'turno' => $turno,
+            'capacidade' => !empty($_POST['capacidade']) ? (int)$_POST['capacidade'] : null,
+            'sala' => trim($_POST['sala'] ?? '') ?: null,
+            'coordenador_id' => !empty($_POST['coordenador_id']) ? $_POST['coordenador_id'] : null,
+            'ativo' => isset($_POST['ativo']) ? (int)$_POST['ativo'] : 1
+        ];
+        
+        $resultado = $turmaModel->atualizar($id, $dados);
+        if ($resultado) {
+            echo json_encode(['success' => true, 'message' => 'Turma atualizada com sucesso!']);
+        } else {
+            echo json_encode(['success' => false, 'message' => 'Erro ao atualizar turma.']);
+        }
+        exit;
+    }
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['acao'])) {
@@ -57,6 +104,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['acao'])) {
         
         $turmas = $turmaModel->listar($filtros);
         echo json_encode(['success' => true, 'turmas' => $turmas]);
+        exit;
+    }
+    
+    if ($_GET['acao'] === 'buscar_turma') {
+        $id = $_GET['id'] ?? null;
+        if (empty($id)) {
+            echo json_encode(['success' => false, 'message' => 'ID da turma não informado']);
+            exit;
+        }
+        
+        $turma = $turmaModel->buscarPorId($id);
+        if ($turma) {
+            echo json_encode(['success' => true, 'turma' => $turma]);
+        } else {
+            echo json_encode(['success' => false, 'message' => 'Turma não encontrada']);
+        }
         exit;
     }
 }
@@ -140,12 +203,12 @@ $turmas = $turmaModel->listar(['ano_letivo' => date('Y'), 'ativo' => 1]);
                         <h2 class="text-2xl font-bold text-gray-900">Turmas</h2>
                         <p class="text-gray-600 mt-1">Crie, edite e exclua turmas do sistema</p>
                     </div>
-                    <a href="gestao_escolar.php" class="bg-purple-600 hover:bg-purple-700 text-white px-6 py-2 rounded-lg font-medium transition-colors duration-200 flex items-center space-x-2">
+                    <button onclick="abrirModalNovaTurma()" class="bg-purple-600 hover:bg-purple-700 text-white px-6 py-2 rounded-lg font-medium transition-colors duration-200 flex items-center space-x-2">
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
                         </svg>
                         <span>Nova Turma</span>
-                    </a>
+                    </button>
                 </div>
                 
                 <div class="bg-white rounded-2xl p-6 shadow-lg mb-6">
@@ -205,9 +268,9 @@ $turmas = $turmaModel->listar(['ano_letivo' => date('Y'), 'ativo' => 1]);
                                             <td class="py-3 px-4"><?= $turma['total_alunos'] ?? 0 ?></td>
                                             <td class="py-3 px-4">
                                                 <div class="flex space-x-2">
-                                                    <a href="gestao_escolar.php?turma_id=<?= $turma['id'] ?>" class="text-blue-600 hover:text-blue-700 font-medium text-sm">
+                                                    <button onclick="editarTurma(<?= $turma['id'] ?>)" class="text-blue-600 hover:text-blue-700 font-medium text-sm">
                                                         Editar
-                                                    </a>
+                                                    </button>
                                                     <button onclick="excluirTurma(<?= $turma['id'] ?>)" class="text-red-600 hover:text-red-700 font-medium text-sm">
                                                         Excluir
                                                     </button>
@@ -223,6 +286,97 @@ $turmas = $turmaModel->listar(['ano_letivo' => date('Y'), 'ativo' => 1]);
             </div>
         </div>
     </main>
+    
+    <!-- Modal Editar Turma -->
+    <div id="modal-editar-turma" class="fixed inset-0 bg-gray-100 z-[60] hidden flex flex-col">
+        <div class="bg-white border-b border-gray-200 p-6 flex items-center justify-between shadow-sm">
+            <div>
+                <h3 class="text-2xl font-bold text-gray-900">Editar Turma</h3>
+                <p class="text-sm text-gray-500 mt-1">Atualize os dados da turma</p>
+            </div>
+            <button onclick="fecharModalEditarTurma()" class="text-gray-400 hover:text-gray-600 transition-colors p-2 hover:bg-gray-100 rounded-lg">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                </svg>
+            </button>
+        </div>
+        
+        <div class="flex-1 overflow-y-auto p-6">
+            <div class="max-w-4xl mx-auto">
+                <form id="form-editar-turma" class="space-y-6">
+                    <input type="hidden" id="editar-turma-id">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Escola <span class="text-red-500">*</span></label>
+                            <select id="editar-turma-escola" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 outline-none transition-colors">
+                                <option value="">Selecione a escola...</option>
+                                <?php foreach ($escolas as $escola): ?>
+                                    <option value="<?= $escola['id'] ?>"><?= htmlspecialchars($escola['nome']) ?></option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Série</label>
+                            <select id="editar-turma-serie" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 outline-none transition-colors">
+                                <option value="">Selecione a série...</option>
+                                <?php foreach ($series as $serie): ?>
+                                    <option value="<?= $serie['id'] ?>"><?= htmlspecialchars($serie['nome']) ?></option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Ano Letivo <span class="text-red-500">*</span></label>
+                            <input type="number" id="editar-turma-ano" required min="2000" max="2100" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 outline-none transition-colors" placeholder="Ex: 2024">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Série (texto) <span class="text-gray-400 text-xs">(opcional)</span></label>
+                            <input type="text" id="editar-turma-serie-texto" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 outline-none transition-colors" placeholder="Ex: 1º Ano">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Letra <span class="text-red-500">*</span></label>
+                            <input type="text" id="editar-turma-letra" required maxlength="1" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 outline-none transition-colors uppercase" placeholder="Ex: A">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Turno <span class="text-red-500">*</span></label>
+                            <select id="editar-turma-turno" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 outline-none transition-colors">
+                                <option value="">Selecione o turno...</option>
+                                <option value="MANHÃ">Manhã</option>
+                                <option value="TARDE">Tarde</option>
+                                <option value="NOITE">Noite</option>
+                                <option value="INTEGRAL">Integral</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Capacidade <span class="text-gray-400 text-xs">(opcional)</span></label>
+                            <input type="number" id="editar-turma-capacidade" min="1" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 outline-none transition-colors" placeholder="Ex: 30">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Sala <span class="text-gray-400 text-xs">(opcional)</span></label>
+                            <input type="text" id="editar-turma-sala" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 outline-none transition-colors" placeholder="Ex: Sala 101">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Status</label>
+                            <select id="editar-turma-ativo" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 outline-none transition-colors">
+                                <option value="1">Ativa</option>
+                                <option value="0">Inativa</option>
+                            </select>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+        
+        <div class="bg-white border-t border-gray-200 p-6 shadow-sm">
+            <div class="max-w-4xl mx-auto flex space-x-3">
+                <button onclick="fecharModalEditarTurma()" class="flex-1 px-6 py-3 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg font-medium transition-colors">
+                    Cancelar
+                </button>
+                <button onclick="salvarEdicaoTurma()" class="flex-1 px-6 py-3 text-white bg-purple-600 hover:bg-purple-700 rounded-lg font-medium transition-colors">
+                    Salvar Alterações
+                </button>
+            </div>
+        </div>
+    </div>
     
     <div id="logoutModal" class="fixed inset-0 bg-black bg-opacity-50 z-[60] hidden items-center justify-center p-4" style="display: none;">
         <div class="bg-white rounded-2xl p-6 max-w-md w-full mx-4 shadow-2xl">
@@ -327,16 +481,16 @@ $turmas = $turmaModel->listar(['ano_letivo' => date('Y'), 'ativo' => 1]);
                         data.turmas.forEach(turma => {
                             tbody.innerHTML += `
                                 <tr class="border-b border-gray-100 hover:bg-gray-50">
-                                    <td class="py-3 px-4 font-medium">${turma.serie} ${turma.letra}</td>
+                                    <td class="py-3 px-4 font-medium">${turma.serie || ''} ${turma.letra || ''}</td>
                                     <td class="py-3 px-4">${turma.escola_nome}</td>
                                     <td class="py-3 px-4">${turma.serie_nome || '-'}</td>
                                     <td class="py-3 px-4">${turma.turno}</td>
                                     <td class="py-3 px-4">${turma.total_alunos || 0}</td>
                                     <td class="py-3 px-4">
                                         <div class="flex space-x-2">
-                                            <a href="gestao_escolar.php?turma_id=${turma.id}" class="text-blue-600 hover:text-blue-700 font-medium text-sm">
+                                            <button onclick="editarTurma(${turma.id})" class="text-blue-600 hover:text-blue-700 font-medium text-sm">
                                                 Editar
-                                            </a>
+                                            </button>
                                             <button onclick="excluirTurma(${turma.id})" class="text-red-600 hover:text-red-700 font-medium text-sm">
                                                 Excluir
                                             </button>
@@ -350,6 +504,110 @@ $turmas = $turmaModel->listar(['ano_letivo' => date('Y'), 'ativo' => 1]);
                 .catch(error => {
                     console.error('Erro ao filtrar turmas:', error);
                 });
+        }
+        
+        function editarTurma(id) {
+            // Buscar dados da turma
+            fetch('?acao=buscar_turma&id=' + id)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success && data.turma) {
+                        const t = data.turma;
+                        
+                        // Preencher campos do modal
+                        document.getElementById('editar-turma-id').value = t.id;
+                        document.getElementById('editar-turma-escola').value = t.escola_id || '';
+                        document.getElementById('editar-turma-serie').value = t.serie_id || '';
+                        document.getElementById('editar-turma-ano').value = t.ano_letivo || new Date().getFullYear();
+                        document.getElementById('editar-turma-serie-texto').value = t.serie || '';
+                        document.getElementById('editar-turma-letra').value = t.letra || '';
+                        document.getElementById('editar-turma-turno').value = t.turno || '';
+                        document.getElementById('editar-turma-capacidade').value = t.capacidade || '';
+                        document.getElementById('editar-turma-sala').value = t.sala || '';
+                        document.getElementById('editar-turma-ativo').value = t.ativo || '1';
+                        
+                        // Abrir modal
+                        document.getElementById('modal-editar-turma').classList.remove('hidden');
+                    } else {
+                        alert('Erro ao carregar dados da turma: ' + (data.message || 'Erro desconhecido'));
+                    }
+                })
+                .catch(error => {
+                    console.error('Erro:', error);
+                    alert('Erro ao carregar dados da turma.');
+                });
+        }
+        
+        function fecharModalEditarTurma() {
+            document.getElementById('modal-editar-turma').classList.add('hidden');
+            document.getElementById('form-editar-turma').reset();
+        }
+        
+        function salvarEdicaoTurma() {
+            const id = document.getElementById('editar-turma-id').value;
+            if (!id) {
+                alert('ID da turma não encontrado.');
+                return;
+            }
+            
+            // Validar campos obrigatórios
+            const escolaId = document.getElementById('editar-turma-escola').value;
+            const letra = document.getElementById('editar-turma-letra').value.trim();
+            const turno = document.getElementById('editar-turma-turno').value;
+            
+            if (!escolaId) {
+                alert('Por favor, selecione a Escola.');
+                document.getElementById('editar-turma-escola').focus();
+                return;
+            }
+            if (!letra) {
+                alert('Por favor, preencha o campo Letra.');
+                document.getElementById('editar-turma-letra').focus();
+                return;
+            }
+            if (!turno) {
+                alert('Por favor, selecione o Turno.');
+                document.getElementById('editar-turma-turno').focus();
+                return;
+            }
+            
+            const formData = new FormData();
+            formData.append('acao', 'atualizar_turma');
+            formData.append('id', id);
+            formData.append('escola_id', escolaId);
+            formData.append('serie_id', document.getElementById('editar-turma-serie').value || '');
+            formData.append('ano_letivo', document.getElementById('editar-turma-ano').value);
+            formData.append('serie', document.getElementById('editar-turma-serie-texto').value.trim() || '');
+            formData.append('letra', letra.toUpperCase());
+            formData.append('turno', turno);
+            formData.append('capacidade', document.getElementById('editar-turma-capacidade').value || '');
+            formData.append('sala', document.getElementById('editar-turma-sala').value.trim() || '');
+            formData.append('ativo', document.getElementById('editar-turma-ativo').value);
+            
+            fetch('', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert('Turma atualizada com sucesso!');
+                    fecharModalEditarTurma();
+                    filtrarTurmas();
+                } else {
+                    alert('Erro ao atualizar turma: ' + (data.message || 'Erro desconhecido'));
+                }
+            })
+            .catch(error => {
+                console.error('Erro:', error);
+                alert('Erro ao atualizar turma.');
+            });
+        }
+        
+        function abrirModalNovaTurma() {
+            // Por enquanto, redireciona para gestao_escolar.php
+            // Pode ser implementado um modal de criação depois
+            window.location.href = 'gestao_escolar.php';
         }
     </script>
 </body>
