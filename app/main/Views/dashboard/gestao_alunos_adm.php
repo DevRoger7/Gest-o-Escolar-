@@ -1,18 +1,29 @@
 <?php
-require_once('../../Models/sessao/sessions.php');
-require_once('../../config/permissions_helper.php');
-require_once('../../config/Database.php');
-require_once('../../config/system_helper.php');
-require_once('../../Models/academico/AlunoModel.php');
+// Habilitar exibição de erros para debug (remover em produção)
+error_reporting(E_ALL);
+ini_set('display_errors', 0); // Não exibir erros na tela, apenas log
+ini_set('log_errors', 1);
 
-$session = new sessions();
-$session->autenticar_session();
-$session->tempo_session();
+try {
+    require_once('../../Models/sessao/sessions.php');
+    require_once('../../config/permissions_helper.php');
+    require_once('../../config/Database.php');
+    require_once('../../config/system_helper.php');
+    require_once('../../Models/academico/AlunoModel.php');
 
-// Verificar se é ADM
-if (!eAdm()) {
-    header('Location: ../auth/login.php?erro=sem_permissao');
-    exit;
+    $session = new sessions();
+    $session->autenticar_session();
+    $session->tempo_session();
+
+    // Verificar se é ADM
+    if (!eAdm()) {
+        header('Location: ../auth/login.php?erro=sem_permissao');
+        exit;
+    }
+} catch (Exception $e) {
+    error_log("Erro em gestao_alunos_adm.php: " . $e->getMessage());
+    http_response_code(500);
+    die("Erro ao carregar a página. Por favor, tente novamente mais tarde.");
 }
 
 $db = Database::getInstance();
