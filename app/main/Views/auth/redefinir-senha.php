@@ -217,10 +217,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao']) && $_POST['ac
             </div>
         <?php endif; ?>
 
-        <!-- Desenvolvido por -->
-        <div class="mt-8 text-center">
-            <p class="text-gray-400 text-xs">Desenvolvido por Kron</p>
-        </div>
     </div>
 
     <!-- Desktop Layout -->
@@ -355,10 +351,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao']) && $_POST['ac
                     </div>
                 <?php endif; ?>
 
-                <!-- Desenvolvido por -->
-                <div class="mt-8 text-center">
-                    <p class="text-slate-400 text-xs">Desenvolvido por Kron</p>
-                </div>
             </div>
         </div>
     </div>
