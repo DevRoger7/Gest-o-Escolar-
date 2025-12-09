@@ -97,7 +97,12 @@ class CustoMerendaModel {
     public function listar($filtros = []) {
         $conn = $this->db->getConnection();
         
-        $sql = "SELECT c.*, e.nome as escola_nome, p.nome as produto_nome, f.nome as fornecedor_nome
+        $sql = "SELECT c.*, 
+                CASE 
+                    WHEN c.escola_id IS NULL THEN 'Compra Centralizada'
+                    ELSE e.nome 
+                END as escola_nome,
+                p.nome as produto_nome, f.nome as fornecedor_nome
                 FROM custo_merenda c
                 LEFT JOIN escola e ON c.escola_id = e.id
                 LEFT JOIN produto p ON c.produto_id = p.id
@@ -107,7 +112,8 @@ class CustoMerendaModel {
         $params = [];
         
         if (!empty($filtros['escola_id'])) {
-            $sql .= " AND c.escola_id = :escola_id";
+            // Se filtrar por escola, mostra custos daquela escola OU compras centralizadas
+            $sql .= " AND (c.escola_id = :escola_id OR c.escola_id IS NULL)";
             $params[':escola_id'] = $filtros['escola_id'];
         }
         

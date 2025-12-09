@@ -1,4 +1,7 @@
 <?php
+// Iniciar output buffering para evitar output antes do JSON
+ob_start();
+
 require_once('../../Models/sessao/sessions.php');
 require_once('../../config/permissions_helper.php');
 require_once('../../config/Database.php');
@@ -20,7 +23,18 @@ $fornecedorModel = new FornecedorModel();
 
 // Processar requisições AJAX
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao'])) {
-    header('Content-Type: application/json');
+    // Limpar qualquer output anterior (incluindo warnings/notices)
+    while (ob_get_level()) {
+        ob_end_clean();
+    }
+    ob_start();
+    
+    // Desabilitar exibição de erros para não quebrar o JSON
+    error_reporting(E_ALL);
+    ini_set('display_errors', 0);
+    ini_set('log_errors', 1);
+    
+    header('Content-Type: application/json; charset=utf-8');
     
     if ($_POST['acao'] === 'criar_fornecedor') {
         // Validar campos obrigatórios
@@ -31,24 +45,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao'])) {
         $email = trim($_POST['email'] ?? '');
         
         if (empty($nome)) {
-            echo json_encode(['success' => false, 'message' => 'O campo Nome é obrigatório.']);
+            echo json_encode(['success' => false, 'message' => 'O campo Nome é obrigatório.'], JSON_UNESCAPED_UNICODE);
             exit;
         }
         // Validar CNPJ/CPF apenas se preenchido (é opcional)
         if (!empty($cnpjCpf) && strlen($cnpjCpf) !== 11 && strlen($cnpjCpf) !== 14) {
-            echo json_encode(['success' => false, 'message' => 'O CNPJ deve conter 14 dígitos ou o CPF deve conter 11 dígitos.']);
+            echo json_encode(['success' => false, 'message' => 'O CNPJ deve conter 14 dígitos ou o CPF deve conter 11 dígitos.'], JSON_UNESCAPED_UNICODE);
             exit;
         }
         if (empty($tipoFornecedor)) {
-            echo json_encode(['success' => false, 'message' => 'O campo Tipo é obrigatório.']);
+            echo json_encode(['success' => false, 'message' => 'O campo Tipo é obrigatório.'], JSON_UNESCAPED_UNICODE);
             exit;
         }
         if (empty($telefone) || (strlen($telefone) !== 10 && strlen($telefone) !== 11)) {
-            echo json_encode(['success' => false, 'message' => 'O campo Telefone é obrigatório e deve conter 10 ou 11 dígitos.']);
+            echo json_encode(['success' => false, 'message' => 'O campo Telefone é obrigatório e deve conter 10 ou 11 dígitos.'], JSON_UNESCAPED_UNICODE);
             exit;
         }
-        if (empty($email) || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
-            echo json_encode(['success' => false, 'message' => 'O campo Email é obrigatório e deve ser um email válido.']);
+        // Validar formato de email apenas se preenchido (é opcional)
+        if (!empty($email) && !filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            echo json_encode(['success' => false, 'message' => 'O email informado é inválido.'], JSON_UNESCAPED_UNICODE);
             exit;
         }
         
@@ -66,21 +81,29 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao'])) {
             'cep' => $_POST['cep'] ?? null,
             'telefone' => $telefone,
             'telefone_secundario' => $_POST['telefone_secundario'] ?? null,
-            'email' => $email,
+            'email' => !empty($email) ? $email : null,
             'contato' => null, // Removido - não é mais necessário
             'tipo_fornecedor' => $tipoFornecedor,
             'observacoes' => trim($_POST['observacoes'] ?? '') ?: null
         ];
         
-        $resultado = $fornecedorModel->criar($dados);
-        echo json_encode($resultado);
-        exit;
+        try {
+            $resultado = $fornecedorModel->criar($dados);
+            echo json_encode($resultado, JSON_UNESCAPED_UNICODE);
+            exit;
+        } catch (Exception $e) {
+            echo json_encode(['success' => false, 'message' => 'Erro ao criar fornecedor: ' . $e->getMessage()], JSON_UNESCAPED_UNICODE);
+            exit;
+        } catch (Throwable $e) {
+            echo json_encode(['success' => false, 'message' => 'Erro inesperado: ' . $e->getMessage()], JSON_UNESCAPED_UNICODE);
+            exit;
+        }
     }
     
     if ($_POST['acao'] === 'atualizar_fornecedor') {
         $id = $_POST['id'] ?? null;
         if (empty($id)) {
-            echo json_encode(['success' => false, 'message' => 'ID do fornecedor não informado.']);
+            echo json_encode(['success' => false, 'message' => 'ID do fornecedor não informado.'], JSON_UNESCAPED_UNICODE);
             exit;
         }
         
@@ -92,24 +115,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao'])) {
         $email = trim($_POST['email'] ?? '');
         
         if (empty($nome)) {
-            echo json_encode(['success' => false, 'message' => 'O campo Nome é obrigatório.']);
+            echo json_encode(['success' => false, 'message' => 'O campo Nome é obrigatório.'], JSON_UNESCAPED_UNICODE);
             exit;
         }
         // Validar CNPJ/CPF apenas se preenchido (é opcional)
         if (!empty($cnpjCpf) && strlen($cnpjCpf) !== 11 && strlen($cnpjCpf) !== 14) {
-            echo json_encode(['success' => false, 'message' => 'O CNPJ deve conter 14 dígitos ou o CPF deve conter 11 dígitos.']);
+            echo json_encode(['success' => false, 'message' => 'O CNPJ deve conter 14 dígitos ou o CPF deve conter 11 dígitos.'], JSON_UNESCAPED_UNICODE);
             exit;
         }
         if (empty($tipoFornecedor)) {
-            echo json_encode(['success' => false, 'message' => 'O campo Tipo é obrigatório.']);
+            echo json_encode(['success' => false, 'message' => 'O campo Tipo é obrigatório.'], JSON_UNESCAPED_UNICODE);
             exit;
         }
         if (empty($telefone) || (strlen($telefone) !== 10 && strlen($telefone) !== 11)) {
-            echo json_encode(['success' => false, 'message' => 'O campo Telefone é obrigatório e deve conter 10 ou 11 dígitos.']);
+            echo json_encode(['success' => false, 'message' => 'O campo Telefone é obrigatório e deve conter 10 ou 11 dígitos.'], JSON_UNESCAPED_UNICODE);
             exit;
         }
-        if (empty($email) || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
-            echo json_encode(['success' => false, 'message' => 'O campo Email é obrigatório e deve ser um email válido.']);
+        // Validar formato de email apenas se preenchido (é opcional)
+        if (!empty($email) && !filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            echo json_encode(['success' => false, 'message' => 'O email informado é inválido.'], JSON_UNESCAPED_UNICODE);
             exit;
         }
         
@@ -127,7 +151,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao'])) {
             'cep' => $_POST['cep'] ?? null,
             'telefone' => $telefone,
             'telefone_secundario' => $_POST['telefone_secundario'] ?? null,
-            'email' => $email,
+            'email' => !empty($email) ? $email : null,
             'contato' => null, // Removido - não é mais necessário
             'tipo_fornecedor' => $tipoFornecedor,
             'observacoes' => trim($_POST['observacoes'] ?? '') ?: null,
@@ -136,9 +160,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao'])) {
         
         $resultado = $fornecedorModel->atualizar($id, $dados);
         if ($resultado) {
-            echo json_encode(['success' => true, 'message' => 'Fornecedor atualizado com sucesso!']);
+            echo json_encode(['success' => true, 'message' => 'Fornecedor atualizado com sucesso!'], JSON_UNESCAPED_UNICODE);
         } else {
-            echo json_encode(['success' => false, 'message' => 'Erro ao atualizar fornecedor.']);
+            echo json_encode(['success' => false, 'message' => 'Erro ao atualizar fornecedor.'], JSON_UNESCAPED_UNICODE);
         }
         exit;
     }
@@ -154,14 +178,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['acao'])) {
         if (isset($_GET['ativo'])) $filtros['ativo'] = $_GET['ativo'];
         
         $fornecedores = $fornecedorModel->listar($filtros);
-        echo json_encode(['success' => true, 'fornecedores' => $fornecedores]);
+        echo json_encode(['success' => true, 'fornecedores' => $fornecedores], JSON_UNESCAPED_UNICODE);
         exit;
     }
     
     if ($_GET['acao'] === 'buscar_fornecedor') {
         $id = $_GET['id'] ?? null;
         if (empty($id)) {
-            echo json_encode(['success' => false, 'message' => 'ID do fornecedor não informado']);
+            echo json_encode(['success' => false, 'message' => 'ID do fornecedor não informado'], JSON_UNESCAPED_UNICODE);
             exit;
         }
         
@@ -186,9 +210,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['acao'])) {
                     $fornecedor['telefone_formatado'] = '(' . substr($tel, 0, 2) . ') ' . substr($tel, 2, 4) . '-' . substr($tel, 6);
                 }
             }
-            echo json_encode(['success' => true, 'fornecedor' => $fornecedor]);
+            echo json_encode(['success' => true, 'fornecedor' => $fornecedor], JSON_UNESCAPED_UNICODE);
         } else {
-            echo json_encode(['success' => false, 'message' => 'Fornecedor não encontrado']);
+            echo json_encode(['success' => false, 'message' => 'Fornecedor não encontrado'], JSON_UNESCAPED_UNICODE);
         }
         exit;
     }
@@ -419,8 +443,8 @@ $fornecedores = $fornecedorModel->listar(['ativo' => 1]);
                             <input type="text" id="editar-fornecedor-telefone" required maxlength="15" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-colors" placeholder="(00) 00000-0000">
                         </div>
                         <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-2">Email <span class="text-red-500">*</span></label>
-                            <input type="email" id="editar-fornecedor-email" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-colors" placeholder="email@exemplo.com">
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Email <span class="text-gray-400 text-xs">(opcional)</span></label>
+                            <input type="email" id="editar-fornecedor-email" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-colors" placeholder="email@exemplo.com">
                         </div>
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-2">Status</label>
@@ -495,8 +519,8 @@ $fornecedores = $fornecedorModel->listar(['ativo' => 1]);
                             <input type="text" id="fornecedor-telefone" required maxlength="15" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-colors" placeholder="(00) 00000-0000">
                         </div>
                         <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-2">Email <span class="text-red-500">*</span></label>
-                            <input type="email" id="fornecedor-email" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-colors" placeholder="email@exemplo.com">
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Email <span class="text-gray-400 text-xs">(opcional)</span></label>
+                            <input type="email" id="fornecedor-email" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-colors" placeholder="email@exemplo.com">
                         </div>
                     </div>
                     <div>
@@ -685,8 +709,9 @@ $fornecedores = $fornecedorModel->listar(['ativo' => 1]);
                 document.getElementById('fornecedor-telefone').focus();
                 return;
             }
-            if (!email) {
-                alert('Por favor, preencha o campo Email.');
+            // Validar formato de email apenas se preenchido (é opcional)
+            if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+                alert('Por favor, preencha um Email válido.');
                 document.getElementById('fornecedor-email').focus();
                 return;
             }
@@ -873,8 +898,9 @@ $fornecedores = $fornecedorModel->listar(['ativo' => 1]);
                 document.getElementById('editar-fornecedor-telefone').focus();
                 return;
             }
-            if (!email) {
-                alert('Por favor, preencha o campo Email.');
+            // Validar formato de email apenas se preenchido (é opcional)
+            if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+                alert('Por favor, preencha um Email válido.');
                 document.getElementById('editar-fornecedor-email').focus();
                 return;
             }
