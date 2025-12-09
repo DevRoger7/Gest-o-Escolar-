@@ -590,18 +590,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['acao'])) {
                                     </div>
                                 </div>
                                 <div class="col-span-2">
-                                    <input type="number" step="0.1" min="0" max="10" 
+                                    <input type="text" 
                                         class="nota-input nota-parcial w-full px-2 py-1.5 text-sm text-center border border-gray-200 rounded-lg" 
                                         data-aluno-id="${aluno.id}" 
-                                        placeholder="0.0" 
-                                        oninput="calcularMediaAluno(this); atualizarContadores();">
+                                        placeholder="0,0" 
+                                        oninput="aplicarMascaraNota(this); calcularMediaAluno(this); atualizarContadores();"
+                                        onblur="aplicarMascaraNota(this); calcularMediaAluno(this);">
                                 </div>
                                 <div class="col-span-2">
-                                    <input type="number" step="0.1" min="0" max="10" 
+                                    <input type="text" 
                                         class="nota-input nota-bimestral w-full px-2 py-1.5 text-sm text-center border border-gray-200 rounded-lg" 
                                         data-aluno-id="${aluno.id}" 
-                                        placeholder="0.0" 
-                                        oninput="calcularMediaAluno(this); atualizarContadores();">
+                                        placeholder="0,0" 
+                                        oninput="aplicarMascaraNota(this); calcularMediaAluno(this); atualizarContadores();"
+                                        onblur="aplicarMascaraNota(this); calcularMediaAluno(this);">
                                 </div>
                                 <div class="col-span-1">
                                     <div class="media-badge media-aluno text-sm font-medium text-gray-400 py-1 rounded" data-aluno-id="${aluno.id}">
@@ -625,6 +627,52 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['acao'])) {
                 });
         }
         
+        function aplicarMascaraNota(input) {
+            let valor = input.value.replace(/[^0-9,]/g, ''); // Remove tudo exceto números e vírgula
+            
+            if (valor.length === 0) {
+                input.value = '';
+                return;
+            }
+            
+            // Se já tem vírgula, mantém o formato
+            if (valor.includes(',')) {
+                const partes = valor.split(',');
+                if (partes.length > 2) {
+                    // Múltiplas vírgulas, mantém apenas a primeira
+                    valor = partes[0] + ',' + partes.slice(1).join('');
+                }
+                // Limita a uma casa decimal após a vírgula
+                if (partes.length > 1 && partes[1].length > 1) {
+                    valor = partes[0] + ',' + partes[1].substring(0, 1);
+                }
+                // Garante que não passe de 10
+                const numero = parseFloat(valor.replace(',', '.'));
+                if (numero > 10) {
+                    valor = '10,0';
+                }
+            } else {
+                // Não tem vírgula ainda
+                const numero = parseInt(valor);
+                
+                // Se o número for maior que 10, adiciona vírgula automaticamente
+                if (numero > 10 && numero < 100) {
+                    // Exemplo: 11 vira 1,1 | 12 vira 1,2 | 19 vira 1,9
+                    const primeiroDigito = Math.floor(numero / 10);
+                    const segundoDigito = numero % 10;
+                    valor = primeiroDigito + ',' + segundoDigito;
+                } else if (numero >= 100) {
+                    // Exemplo: 100 vira 10,0 | 123 vira 10,0 (limite máximo)
+                    valor = '10,0';
+                } else if (numero === 10) {
+                    // Permite 10 ou 10,0
+                    valor = '10';
+                }
+            }
+            
+            input.value = valor;
+        }
+        
         function calcularMediaAluno(input) {
             const alunoId = input.dataset.alunoId;
             const row = input.closest('.aluno-row');
@@ -632,8 +680,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['acao'])) {
             const notaBimestralInput = row.querySelector('.nota-bimestral[data-aluno-id="' + alunoId + '"]');
             const mediaDiv = row.querySelector('.media-aluno[data-aluno-id="' + alunoId + '"]');
             
-            const notaParcial = parseFloat(notaParcialInput.value) || 0;
-            const notaBimestral = parseFloat(notaBimestralInput.value) || 0;
+            // Converter vírgula para ponto para cálculo
+            const notaParcial = parseFloat((notaParcialInput.value || '0').replace(',', '.')) || 0;
+            const notaBimestral = parseFloat((notaBimestralInput.value || '0').replace(',', '.')) || 0;
             
             let media = 0;
             if (notaParcial > 0 && notaBimestral > 0) {
@@ -677,8 +726,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['acao'])) {
                     const notaBimestralInput = document.querySelector(`.nota-bimestral[data-aluno-id="${alunoId}"]`);
                     const comentarioInput = document.querySelector(`input[type="text"][data-aluno-id="${alunoId}"]`);
                     
-                    const notaParcial = notaParcialInput ? parseFloat(notaParcialInput.value) : null;
-                    const notaBimestral = notaBimestralInput ? parseFloat(notaBimestralInput.value) : null;
+                    // Converter vírgula para ponto para envio ao servidor
+                    const notaParcial = notaParcialInput ? parseFloat((notaParcialInput.value || '').replace(',', '.')) : null;
+                    const notaBimestral = notaBimestralInput ? parseFloat((notaBimestralInput.value || '').replace(',', '.')) : null;
                     const comentario = comentarioInput ? comentarioInput.value : '';
                     
                     if (notaParcial !== null && notaParcial > 0) {
