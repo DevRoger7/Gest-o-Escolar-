@@ -175,6 +175,69 @@ class NotaModel {
     }
     
     /**
+     * Busca notas por turma e disciplina
+     */
+    public function buscarPorTurmaDisciplina($turmaId, $disciplinaId, $bimestre = null) {
+        $conn = $this->db->getConnection();
+        
+        $sql = "SELECT n.*, 
+                p.nome as aluno_nome, 
+                COALESCE(al.matricula, '') as aluno_matricula,
+                av.titulo as avaliacao_titulo,
+                av.tipo as avaliacao_tipo
+                FROM nota n
+                INNER JOIN aluno al ON n.aluno_id = al.id
+                INNER JOIN pessoa p ON al.pessoa_id = p.id
+                LEFT JOIN avaliacao av ON n.avaliacao_id = av.id
+                WHERE n.turma_id = :turma_id AND n.disciplina_id = :disciplina_id";
+        
+        $params = [
+            ':turma_id' => $turmaId,
+            ':disciplina_id' => $disciplinaId
+        ];
+        
+        if ($bimestre) {
+            $sql .= " AND n.bimestre = :bimestre";
+            $params[':bimestre'] = $bimestre;
+        }
+        
+        $sql .= " ORDER BY p.nome ASC, n.bimestre ASC, n.lancado_em DESC";
+        
+        $stmt = $conn->prepare($sql);
+        foreach ($params as $key => $value) {
+            $stmt->bindValue($key, $value);
+        }
+        
+        $stmt->execute();
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
+    
+    /**
+     * Busca uma nota específica por ID
+     */
+    public function buscarPorId($id) {
+        $conn = $this->db->getConnection();
+        
+        $sql = "SELECT n.*, 
+                p.nome as aluno_nome,
+                COALESCE(al.matricula, '') as aluno_matricula,
+                d.nome as disciplina_nome,
+                av.titulo as avaliacao_titulo
+                FROM nota n
+                INNER JOIN aluno al ON n.aluno_id = al.id
+                INNER JOIN pessoa p ON al.pessoa_id = p.id
+                LEFT JOIN disciplina d ON n.disciplina_id = d.id
+                LEFT JOIN avaliacao av ON n.avaliacao_id = av.id
+                WHERE n.id = :id";
+        
+        $stmt = $conn->prepare($sql);
+        $stmt->bindParam(':id', $id);
+        $stmt->execute();
+        
+        return $stmt->fetch(PDO::FETCH_ASSOC);
+    }
+    
+    /**
      * Valida nota (GESTAO)
      */
     public function validar($notaId, $validado = true) {

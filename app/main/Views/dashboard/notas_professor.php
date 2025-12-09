@@ -17,7 +17,6 @@ $db = Database::getInstance();
 $conn = $db->getConnection();
 $notaModel = new NotaModel();
 
-// Buscar professor_id
 $professorId = null;
 $pessoaId = $_SESSION['pessoa_id'] ?? null;
 if ($pessoaId) {
@@ -30,7 +29,6 @@ if ($pessoaId) {
     $professorId = $professor['id'] ?? null;
 }
 
-// Fallback: tentar obter pessoa_id via usuario_id e CPF se necessário
 if (!$professorId) {
     $usuarioId = $_SESSION['usuario_id'] ?? null;
     if (!$pessoaId && $usuarioId) {
@@ -65,7 +63,6 @@ if (!$professorId) {
     }
 }
 
-// Buscar turmas e disciplinas do professor
 $turmasProfessor = [];
 if ($professorId) {
     $sqlTurmas = "SELECT DISTINCT 
@@ -186,7 +183,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['acao'])) {
     
     if ($_GET['acao'] === 'buscar_alunos_turma' && !empty($_GET['turma_id'])) {
         $turmaId = $_GET['turma_id'];
-        $sql = "SELECT a.id, p.nome, a.matricula
+        $sql = "SELECT a.id, p.nome, COALESCE(a.matricula, '') as matricula
                 FROM aluno_turma at
                 INNER JOIN aluno a ON at.aluno_id = a.id
                 INNER JOIN pessoa p ON a.pessoa_id = p.id
@@ -215,6 +212,127 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['acao'])) {
         echo json_encode(['success' => true, 'turma_nome' => $info['turma_nome'] ?? '', 'disciplina_nome' => $info['disciplina_nome'] ?? '']);
         exit;
     }
+    
+    if ($_GET['acao'] === 'buscar_historico_notas' && !empty($_GET['turma_id']) && !empty($_GET['disciplina_id'])) {
+        try {
+            $turmaId = $_GET['turma_id'];
+            $disciplinaId = $_GET['disciplina_id'];
+            $bimestre = $_GET['bimestre'] ?? null;
+            
+            $notas = $notaModel->buscarPorTurmaDisciplina($turmaId, $disciplinaId, $bimestre);
+            echo json_encode(['success' => true, 'notas' => $notas]);
+        } catch (Exception $e) {
+            error_log("Erro ao buscar histórico de notas: " . $e->getMessage());
+            echo json_encode(['success' => false, 'message' => 'Erro ao buscar histórico: ' . $e->getMessage()]);
+        }
+        exit;
+    }
+    
+    if ($_GET['acao'] === 'buscar_nota' && !empty($_GET['nota_id'])) {
+        $notaId = $_GET['nota_id'];
+        $nota = $notaModel->buscarPorId($notaId);
+        if ($nota) {
+            echo json_encode(['success' => true, 'nota' => $nota]);
+        } else {
+            echo json_encode(['success' => false, 'message' => 'Nota não encontrada']);
+        }
+        exit;
+    }
+    
+    if ($_GET['acao'] === 'buscar_notas_aluno_bimestre' && !empty($_GET['aluno_id']) && !empty($_GET['turma_id']) && !empty($_GET['disciplina_id']) && !empty($_GET['bimestre'])) {
+        $alunoId = $_GET['aluno_id'];
+        $turmaId = $_GET['turma_id'];
+        $disciplinaId = $_GET['disciplina_id'];
+        $bimestre = $_GET['bimestre'];
+        
+        try {
+            // Buscar todas as notas do aluno no bimestre
+            $notas = $notaModel->buscarPorAluno($alunoId, $turmaId, $disciplinaId, $bimestre);
+            
+            // Separar parcial e bimestral
+            $parcial = null;
+            $bimestral = null;
+            
+            foreach ($notas as $nota) {
+                // Buscar tipo da avaliação
+                $sqlAvaliacao = "SELECT tipo FROM avaliacao WHERE id = :avaliacao_id LIMIT 1";
+                $stmtAvaliacao = $conn->prepare($sqlAvaliacao);
+                $avaliacaoId = $nota['avaliacao_id'] ?? null;
+                if ($avaliacaoId) {
+                    $stmtAvaliacao->bindParam(':avaliacao_id', $avaliacaoId);
+                    $stmtAvaliacao->execute();
+                    $avaliacao = $stmtAvaliacao->fetch(PDO::FETCH_ASSOC);
+                    $tipoAvaliacao = $avaliacao['tipo'] ?? null;
+                    
+                    if ($tipoAvaliacao === 'ATIVIDADE') {
+                        $parcial = $nota;
+                    } else if ($tipoAvaliacao === 'PROVA') {
+                        $bimestral = $nota;
+                    }
+                }
+            }
+            
+            // Buscar nome do aluno
+            $sqlAluno = "SELECT p.nome, COALESCE(a.matricula, '') as matricula 
+                        FROM aluno a 
+                        INNER JOIN pessoa p ON a.pessoa_id = p.id 
+                        WHERE a.id = :aluno_id";
+            $stmtAluno = $conn->prepare($sqlAluno);
+            $stmtAluno->bindParam(':aluno_id', $alunoId);
+            $stmtAluno->execute();
+            $aluno = $stmtAluno->fetch(PDO::FETCH_ASSOC);
+            
+            echo json_encode([
+                'success' => true, 
+                'aluno' => $aluno,
+                'parcial' => $parcial,
+                'bimestral' => $bimestral
+            ]);
+        } catch (Exception $e) {
+            error_log("Erro ao buscar notas do aluno: " . $e->getMessage());
+            echo json_encode(['success' => false, 'message' => 'Erro ao buscar notas: ' . $e->getMessage()]);
+        }
+        exit;
+    }
+}
+
+// Processar edição de nota
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao']) && $_POST['acao'] === 'editar_nota' && $professorId) {
+    header('Content-Type: application/json');
+    
+    $notaId = $_POST['nota_id'] ?? null;
+    $notaValor = $_POST['nota'] ?? null;
+    $bimestre = $_POST['bimestre'] ?? null;
+    $comentario = $_POST['comentario'] ?? null;
+    
+    if (!$notaId || $notaValor === null) {
+        echo json_encode(['success' => false, 'message' => 'Dados incompletos']);
+        exit;
+    }
+    
+    // Validar que a nota está entre 0 e 10
+    $notaValor = floatval(str_replace(',', '.', $notaValor));
+    if ($notaValor < 0 || $notaValor > 10) {
+        echo json_encode(['success' => false, 'message' => 'Nota deve estar entre 0 e 10']);
+        exit;
+    }
+    
+    try {
+        $result = $notaModel->atualizar($notaId, [
+            'nota' => $notaValor,
+            'bimestre' => $bimestre,
+            'comentario' => $comentario
+        ]);
+        
+        if ($result) {
+            echo json_encode(['success' => true, 'message' => 'Nota atualizada com sucesso']);
+        } else {
+            echo json_encode(['success' => false, 'message' => 'Erro ao atualizar nota']);
+        }
+    } catch (Exception $e) {
+        echo json_encode(['success' => false, 'message' => 'Erro: ' . $e->getMessage()]);
+    }
+    exit;
 }
 ?>
 <!DOCTYPE html>
@@ -277,6 +395,32 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['acao'])) {
         }
         .aluno-row:hover {
             background-color: #f9fafb;
+        }
+        
+        /* Animação para modal de sucesso */
+        @keyframes bounce-in {
+            0% {
+                transform: scale(0.3);
+                opacity: 0;
+            }
+            50% {
+                transform: scale(1.05);
+            }
+            70% {
+                transform: scale(0.9);
+            }
+            100% {
+                transform: scale(1);
+                opacity: 1;
+            }
+        }
+        
+        .modal-sucesso-icon {
+            animation: bounce-in 0.6s ease-out;
+        }
+        
+        .modal-sucesso-content {
+            transition: transform 0.2s ease-out;
         }
     </style>
 </head>
@@ -358,9 +502,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['acao'])) {
                                         <p class="text-sm text-gray-600"><?= htmlspecialchars($turma['disciplina_nome']) ?></p>
                                         <p class="text-xs text-gray-500 mt-1"><?= htmlspecialchars($turma['escola_nome']) ?></p>
                                     </div>
-                                    <button onclick="abrirModalLancarNotas(<?= $turma['turma_id'] ?>, <?= $turma['disciplina_id'] ?>, '<?= htmlspecialchars($turma['turma_nome'], ENT_QUOTES) ?>', '<?= htmlspecialchars($turma['disciplina_nome'], ENT_QUOTES) ?>')" class="w-full text-orange-600 hover:text-orange-700 font-medium text-sm py-2 border border-orange-200 rounded-lg hover:bg-orange-50 transition-colors">
-                                        Lançar Notas
-                                    </button>
+                                    <div class="flex gap-2">
+                                        <button onclick="verTurma(<?= $turma['turma_id'] ?>, <?= $turma['disciplina_id'] ?>, '<?= htmlspecialchars($turma['turma_nome'], ENT_QUOTES) ?>', '<?= htmlspecialchars($turma['disciplina_nome'], ENT_QUOTES) ?>')" class="flex-1 text-blue-600 hover:text-blue-700 font-medium text-sm py-2 border border-blue-200 rounded-lg hover:bg-blue-50 transition-colors">
+                                            Ver Turma
+                                        </button>
+                                        <button onclick="abrirModalLancarNotas(<?= $turma['turma_id'] ?>, <?= $turma['disciplina_id'] ?>, '<?= htmlspecialchars($turma['turma_nome'], ENT_QUOTES) ?>', '<?= htmlspecialchars($turma['disciplina_nome'], ENT_QUOTES) ?>')" class="flex-1 text-orange-600 hover:text-orange-700 font-medium text-sm py-2 border border-orange-200 rounded-lg hover:bg-orange-50 transition-colors">
+                                            Lançar Notas
+                                        </button>
+                                    </div>
                                 </div>
                             <?php endforeach; ?>
                         </div>
@@ -452,6 +601,162 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['acao'])) {
                         Salvar Notas
                     </button>
                 </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Modal Ver Turma - Fullscreen -->
+    <div id="modal-ver-turma" class="fixed inset-0 bg-gray-50 z-[60] hidden flex flex-col">
+        <!-- Header -->
+        <div class="bg-white border-b border-gray-200 px-4 py-3 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <button onclick="fecharModalVerTurma()" class="p-1.5 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+                <div>
+                    <h3 class="text-base font-semibold text-gray-900">Visualizar Turma</h3>
+                    <p id="ver-turma-info" class="text-xs text-gray-500"></p>
+                </div>
+            </div>
+            <div class="flex items-center gap-3">
+                <label class="text-xs font-medium text-gray-600">Bimestre:</label>
+                <select id="ver-turma-bimestre" class="text-sm px-3 py-1.5 border border-gray-200 rounded-lg bg-white focus:outline-none focus:border-blue-500" onchange="carregarHistoricoNotas()">
+                    <option value="">Todos</option>
+                    <option value="1">1º Bimestre</option>
+                    <option value="2">2º Bimestre</option>
+                    <option value="3">3º Bimestre</option>
+                    <option value="4">4º Bimestre</option>
+                </select>
+            </div>
+        </div>
+        
+        <!-- Content -->
+        <div class="flex-1 overflow-y-auto">
+            <div class="max-w-7xl mx-auto py-4 px-4">
+                <!-- Tabs -->
+                <div class="mb-4 border-b border-gray-200">
+                    <div class="flex gap-4">
+                        <button onclick="mostrarTabTurma('alunos')" id="tab-alunos" class="px-4 py-2 text-sm font-medium text-blue-600 border-b-2 border-blue-600">
+                            Alunos
+                        </button>
+                        <button onclick="mostrarTabTurma('historico')" id="tab-historico" class="px-4 py-2 text-sm font-medium text-gray-500 hover:text-gray-700">
+                            Histórico de Notas
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- Tab Alunos -->
+                <div id="conteudo-alunos" class="tab-conteudo">
+                    <div id="ver-turma-alunos-container" class="space-y-2">
+                        <div class="text-center py-16 text-gray-400">
+                            <p class="text-sm">Carregando alunos...</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Tab Histórico -->
+                <div id="conteudo-historico" class="tab-conteudo hidden">
+                    <div id="ver-turma-historico-container" class="space-y-2">
+                        <div class="text-center py-16 text-gray-400">
+                            <p class="text-sm">Selecione um bimestre para ver o histórico</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <input type="hidden" id="ver-turma-id">
+        <input type="hidden" id="ver-turma-disciplina-id">
+    </div>
+    
+    <!-- Modal Editar Notas -->
+    <div id="modal-editar-nota" class="fixed inset-0 bg-black bg-opacity-50 z-[70] hidden items-center justify-center p-4">
+        <div class="bg-white rounded-lg p-6 max-w-lg w-full max-h-[90vh] overflow-y-auto">
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="text-lg font-semibold text-gray-900">Editar Notas</h3>
+                <button onclick="fecharModalEditarNota()" class="text-gray-400 hover:text-gray-600">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+            </div>
+            
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Aluno</label>
+                    <p id="editar-nota-aluno" class="text-sm text-gray-600"></p>
+                </div>
+                
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Bimestre</label>
+                    <select id="editar-nota-bimestre" class="w-full px-3 py-2 border border-gray-200 rounded-lg" onchange="carregarNotasParaEdicao()">
+                        <option value="1">1º Bimestre</option>
+                        <option value="2">2º Bimestre</option>
+                        <option value="3">3º Bimestre</option>
+                        <option value="4">4º Bimestre</option>
+                    </select>
+                </div>
+                
+                <div class="border-t pt-4">
+                    <h4 class="text-sm font-semibold text-gray-700 mb-3">Nota Parcial</h4>
+                    <div class="space-y-3">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Nota (0 a 10)</label>
+                            <input type="text" id="editar-nota-parcial-valor" class="w-full px-3 py-2 border border-gray-200 rounded-lg" placeholder="0,0" oninput="aplicarMascaraNota(this)">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Observação</label>
+                            <textarea id="editar-nota-parcial-comentario" rows="2" class="w-full px-3 py-2 border border-gray-200 rounded-lg"></textarea>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="border-t pt-4">
+                    <h4 class="text-sm font-semibold text-gray-700 mb-3">Nota Bimestral</h4>
+                    <div class="space-y-3">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Nota (0 a 10)</label>
+                            <input type="text" id="editar-nota-bimestral-valor" class="w-full px-3 py-2 border border-gray-200 rounded-lg" placeholder="0,0" oninput="aplicarMascaraNota(this)">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Observação</label>
+                            <textarea id="editar-nota-bimestral-comentario" rows="2" class="w-full px-3 py-2 border border-gray-200 rounded-lg"></textarea>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="flex gap-3 mt-6">
+                <button onclick="fecharModalEditarNota()" class="flex-1 px-4 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg font-medium transition-colors">
+                    Cancelar
+                </button>
+                <button onclick="salvarEdicaoNota()" class="flex-1 px-4 py-2 text-white bg-orange-600 hover:bg-orange-700 rounded-lg font-medium transition-colors">
+                    Salvar
+                </button>
+            </div>
+            
+            <input type="hidden" id="editar-nota-aluno-id">
+            <input type="hidden" id="editar-nota-parcial-id">
+            <input type="hidden" id="editar-nota-bimestral-id">
+        </div>
+    </div>
+    
+    <!-- Modal de Sucesso -->
+    <div id="modal-sucesso" class="fixed inset-0 bg-black bg-opacity-50 z-[80] hidden items-center justify-center p-4">
+        <div class="bg-white rounded-lg p-6 max-w-sm w-full mx-4 shadow-2xl modal-sucesso-content scale-95">
+            <div class="text-center">
+                <div class="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-green-100 mb-4 modal-sucesso-icon">
+                    <svg class="h-8 w-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                    </svg>
+                </div>
+                <h3 class="text-lg font-semibold text-gray-900 mb-2">Sucesso!</h3>
+                <p id="modal-sucesso-mensagem" class="text-sm text-gray-600 mb-6"></p>
+                <button onclick="fecharModalSucesso()" class="w-full px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium transition-colors">
+                    OK
+                </button>
             </div>
         </div>
     </div>
@@ -773,9 +1078,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['acao'])) {
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
-                    alert('Notas registradas com sucesso!');
-                    fecharModalLancarNotas();
-                    location.reload();
+                    mostrarModalSucesso('Notas registradas com sucesso!');
+                    setTimeout(() => {
+                        fecharModalLancarNotas();
+                        location.reload();
+                    }, 1500);
                 } else {
                     alert('Erro ao registrar notas: ' + (data.message || 'Erro desconhecido'));
                 }
@@ -784,6 +1091,494 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['acao'])) {
                 console.error('Erro:', error);
                 alert('Erro ao registrar notas');
             });
+        }
+        
+        // Funções para modal Ver Turma
+        function verTurma(turmaId, disciplinaId, turmaNome, disciplinaNome) {
+            const modal = document.getElementById('modal-ver-turma');
+            if (modal) {
+                modal.classList.remove('hidden');
+                document.getElementById('ver-turma-id').value = turmaId;
+                document.getElementById('ver-turma-disciplina-id').value = disciplinaId;
+                document.getElementById('ver-turma-info').textContent = turmaNome + ' - ' + disciplinaNome;
+                
+                // Mostrar tab de alunos por padrão
+                mostrarTabTurma('alunos');
+                carregarAlunosTurma(turmaId);
+            }
+        }
+        
+        function fecharModalVerTurma() {
+            const modal = document.getElementById('modal-ver-turma');
+            if (modal) {
+                modal.classList.add('hidden');
+            }
+        }
+        
+        function mostrarTabTurma(tab) {
+            // Atualizar botões das tabs
+            document.getElementById('tab-alunos').classList.remove('text-blue-600', 'border-blue-600');
+            document.getElementById('tab-alunos').classList.add('text-gray-500');
+            document.getElementById('tab-historico').classList.remove('text-blue-600', 'border-blue-600');
+            document.getElementById('tab-historico').classList.add('text-gray-500');
+            
+            // Esconder todos os conteúdos
+            document.getElementById('conteudo-alunos').classList.add('hidden');
+            document.getElementById('conteudo-historico').classList.add('hidden');
+            
+            // Mostrar conteúdo selecionado
+            if (tab === 'alunos') {
+                document.getElementById('tab-alunos').classList.remove('text-gray-500');
+                document.getElementById('tab-alunos').classList.add('text-blue-600', 'border-b-2', 'border-blue-600');
+                document.getElementById('conteudo-alunos').classList.remove('hidden');
+            } else if (tab === 'historico') {
+                document.getElementById('tab-historico').classList.remove('text-gray-500');
+                document.getElementById('tab-historico').classList.add('text-blue-600', 'border-b-2', 'border-blue-600');
+                document.getElementById('conteudo-historico').classList.remove('hidden');
+                carregarHistoricoNotas();
+            }
+        }
+        
+        function carregarAlunosTurma(turmaId) {
+            fetch('?acao=buscar_alunos_turma&turma_id=' + turmaId)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success && data.alunos) {
+                        const container = document.getElementById('ver-turma-alunos-container');
+                        container.innerHTML = '';
+                        
+                        // Header da tabela
+                        const header = document.createElement('div');
+                        header.className = 'grid grid-cols-12 gap-3 text-xs font-medium text-gray-500 uppercase tracking-wide px-3 py-2 border-b border-gray-200 mb-2';
+                        header.innerHTML = `
+                            <div class="col-span-1">#</div>
+                            <div class="col-span-5">Aluno</div>
+                            <div class="col-span-3">Matrícula</div>
+                            <div class="col-span-3 text-center">Ações</div>
+                        `;
+                        container.appendChild(header);
+                        
+                        data.alunos.forEach((aluno, index) => {
+                            const div = document.createElement('div');
+                            div.className = 'grid grid-cols-12 gap-3 items-center px-3 py-3 bg-white rounded-lg border border-gray-100 hover:bg-gray-50';
+                            div.innerHTML = `
+                                <div class="col-span-1 text-sm text-gray-400">${index + 1}</div>
+                                <div class="col-span-5">
+                                    <div class="text-sm font-medium text-gray-900">${aluno.nome}</div>
+                                </div>
+                                <div class="col-span-3 text-sm text-gray-600">${aluno.matricula || '-'}</div>
+                                <div class="col-span-3 flex gap-2 justify-center">
+                                    <button onclick="verHistoricoAluno(${aluno.id}, '${aluno.nome.replace(/'/g, "\\'")}')" class="px-3 py-1 text-xs font-medium text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-lg transition-colors">
+                                        Ver Notas
+                                    </button>
+                                </div>
+                            `;
+                            container.appendChild(div);
+                        });
+                    }
+                })
+                .catch(error => {
+                    console.error('Erro ao carregar alunos:', error);
+                    alert('Erro ao carregar alunos da turma');
+                });
+        }
+        
+        function carregarHistoricoNotas() {
+            const turmaId = document.getElementById('ver-turma-id').value;
+            const disciplinaId = document.getElementById('ver-turma-disciplina-id').value;
+            const bimestre = document.getElementById('ver-turma-bimestre').value;
+            
+            if (!turmaId || !disciplinaId) return;
+            
+            let url = '?acao=buscar_historico_notas&turma_id=' + turmaId + '&disciplina_id=' + disciplinaId;
+            if (bimestre) {
+                url += '&bimestre=' + bimestre;
+            }
+            
+            fetch(url)
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Erro na resposta do servidor: ' + response.status);
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    if (data.success && data.notas) {
+                        const container = document.getElementById('ver-turma-historico-container');
+                        container.innerHTML = '';
+                        
+                        if (data.notas.length === 0) {
+                            container.innerHTML = '<div class="text-center py-16 text-gray-400"><p class="text-sm">Nenhuma nota lançada ainda</p></div>';
+                            return;
+                        }
+                        
+                        // Agrupar notas por aluno e bimestre
+                        const notasPorAlunoBimestre = {};
+                        data.notas.forEach(nota => {
+                            const key = `${nota.aluno_id}_${nota.bimestre || '0'}`;
+                            if (!notasPorAlunoBimestre[key]) {
+                                notasPorAlunoBimestre[key] = {
+                                    aluno_id: nota.aluno_id,
+                                    aluno_nome: nota.aluno_nome,
+                                    aluno_matricula: nota.aluno_matricula,
+                                    bimestre: nota.bimestre || '-',
+                                    notas: [],
+                                    parcial: null,
+                                    bimestral: null
+                                };
+                            }
+                            
+                            // Separar parcial e bimestral
+                            const tipoAvaliacao = nota.avaliacao_tipo === 'PROVA' ? 'BIMESTRAL' : (nota.avaliacao_tipo === 'ATIVIDADE' ? 'PARCIAL' : null);
+                            if (tipoAvaliacao === 'PARCIAL') {
+                                notasPorAlunoBimestre[key].parcial = nota;
+                            } else if (tipoAvaliacao === 'BIMESTRAL') {
+                                notasPorAlunoBimestre[key].bimestral = nota;
+                            }
+                            
+                            notasPorAlunoBimestre[key].notas.push(nota);
+                        });
+                        
+                        // Calcular médias
+                        Object.values(notasPorAlunoBimestre).forEach(item => {
+                            const notas = [];
+                            if (item.parcial) notas.push(parseFloat(item.parcial.nota));
+                            if (item.bimestral) notas.push(parseFloat(item.bimestral.nota));
+                            
+                            if (notas.length > 0) {
+                                item.media = (notas.reduce((a, b) => a + b, 0) / notas.length).toFixed(1).replace('.', ',');
+                            } else {
+                                item.media = '-';
+                            }
+                        });
+                        
+                        // Header da tabela
+                        const header = document.createElement('div');
+                        header.className = 'grid grid-cols-12 gap-3 text-xs font-medium text-gray-500 uppercase tracking-wide px-3 py-2 border-b border-gray-200 mb-2';
+                        header.innerHTML = `
+                            <div class="col-span-4">Aluno</div>
+                            <div class="col-span-1 text-center">Bim.</div>
+                            <div class="col-span-1 text-center">Parcial</div>
+                            <div class="col-span-1 text-center">Bimestral</div>
+                            <div class="col-span-1 text-center">Média</div>
+                            <div class="col-span-3">Observação</div>
+                            <div class="col-span-1 text-center">Ação</div>
+                        `;
+                        container.appendChild(header);
+                        
+                        // Renderizar notas agrupadas
+                        Object.values(notasPorAlunoBimestre).forEach(item => {
+                            const div = document.createElement('div');
+                            div.className = 'grid grid-cols-12 gap-3 items-center px-3 py-3 bg-white rounded-lg border border-gray-100 hover:bg-gray-50';
+                            
+                            const notaParcial = item.parcial ? parseFloat(item.parcial.nota).toFixed(1).replace('.', ',') : '-';
+                            const notaBimestral = item.bimestral ? parseFloat(item.bimestral.nota).toFixed(1).replace('.', ',') : '-';
+                            const mediaNum = item.media !== '-' ? parseFloat(item.media.replace(',', '.')) : 0;
+                            
+                            // Pegar observação (priorizar a do bimestral, senão da parcial)
+                            const observacao = (item.bimestral && item.bimestral.comentario) ? item.bimestral.comentario : 
+                                             (item.parcial && item.parcial.comentario) ? item.parcial.comentario : '-';
+                            
+                            div.innerHTML = `
+                                <div class="col-span-4">
+                                    <div class="text-sm font-medium text-gray-900">${item.aluno_nome}</div>
+                                    ${item.aluno_matricula ? `<div class="text-xs text-gray-400">${item.aluno_matricula}</div>` : ''}
+                                </div>
+                                <div class="col-span-1 text-center text-sm text-gray-600">${item.bimestre}</div>
+                                <div class="col-span-1 text-center">
+                                    ${item.parcial ? `<span class="px-2 py-1 text-sm font-medium rounded ${parseFloat(item.parcial.nota) >= 7 ? 'text-green-600 bg-green-50' : parseFloat(item.parcial.nota) >= 5 ? 'text-amber-600 bg-amber-50' : 'text-red-600 bg-red-50'}">${notaParcial}</span>` : '<span class="text-gray-400">-</span>'}
+                                </div>
+                                <div class="col-span-1 text-center">
+                                    ${item.bimestral ? `<span class="px-2 py-1 text-sm font-medium rounded ${parseFloat(item.bimestral.nota) >= 7 ? 'text-green-600 bg-green-50' : parseFloat(item.bimestral.nota) >= 5 ? 'text-amber-600 bg-amber-50' : 'text-red-600 bg-red-50'}">${notaBimestral}</span>` : '<span class="text-gray-400">-</span>'}
+                                </div>
+                                <div class="col-span-1 text-center">
+                                    ${item.media !== '-' ? `<span class="px-2 py-1 text-sm font-semibold rounded ${mediaNum >= 7 ? 'text-green-600 bg-green-50' : mediaNum >= 5 ? 'text-amber-600 bg-amber-50' : 'text-red-600 bg-red-50'}">${item.media}</span>` : '<span class="text-gray-400">-</span>'}
+                                </div>
+                                <div class="col-span-3 text-sm text-gray-600 truncate" title="${observacao}">${observacao}</div>
+                                <div class="col-span-1 text-center">
+                                    <button onclick="editarNotasAluno(${item.aluno_id}, ${item.bimestre || 0})" class="px-2 py-1 text-xs font-medium text-orange-600 hover:text-orange-700 hover:bg-orange-50 rounded transition-colors">
+                                        Editar
+                                    </button>
+                                </div>
+                            `;
+                            container.appendChild(div);
+                        });
+                    }
+                })
+                .catch(error => {
+                    console.error('Erro ao carregar histórico:', error);
+                    const container = document.getElementById('ver-turma-historico-container');
+                    if (container) {
+                        container.innerHTML = '<div class="text-center py-16 text-red-400"><p class="text-sm">Erro ao carregar histórico de notas. Verifique o console para mais detalhes.</p></div>';
+                    }
+                });
+        }
+        
+        function verHistoricoAluno(alunoId, alunoNome) {
+            mostrarTabTurma('historico');
+            // Filtrar histórico para mostrar apenas notas deste aluno
+            // Por enquanto, apenas muda para a tab de histórico
+            setTimeout(() => {
+                carregarHistoricoNotas();
+            }, 100);
+        }
+        
+        // Funções para editar notas
+        function editarNotasAluno(alunoId, bimestre) {
+            const turmaId = document.getElementById('ver-turma-id').value;
+            const disciplinaId = document.getElementById('ver-turma-disciplina-id').value;
+            
+            if (!turmaId || !disciplinaId || !alunoId) {
+                alert('Erro: dados incompletos');
+                return;
+            }
+            
+            fetch(`?acao=buscar_notas_aluno_bimestre&aluno_id=${alunoId}&turma_id=${turmaId}&disciplina_id=${disciplinaId}&bimestre=${bimestre}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        document.getElementById('editar-nota-aluno-id').value = alunoId;
+                        document.getElementById('editar-nota-aluno').textContent = data.aluno ? (data.aluno.nome + (data.aluno.matricula ? ' - ' + data.aluno.matricula : '')) : 'Aluno';
+                        document.getElementById('editar-nota-bimestre').value = bimestre;
+                        
+                        // Preencher parcial
+                        if (data.parcial) {
+                            document.getElementById('editar-nota-parcial-id').value = data.parcial.id;
+                            document.getElementById('editar-nota-parcial-valor').value = parseFloat(data.parcial.nota).toFixed(1).replace('.', ',');
+                            document.getElementById('editar-nota-parcial-comentario').value = data.parcial.comentario || '';
+                        } else {
+                            document.getElementById('editar-nota-parcial-id').value = '';
+                            document.getElementById('editar-nota-parcial-valor').value = '';
+                            document.getElementById('editar-nota-parcial-comentario').value = '';
+                        }
+                        
+                        // Preencher bimestral
+                        if (data.bimestral) {
+                            document.getElementById('editar-nota-bimestral-id').value = data.bimestral.id;
+                            document.getElementById('editar-nota-bimestral-valor').value = parseFloat(data.bimestral.nota).toFixed(1).replace('.', ',');
+                            document.getElementById('editar-nota-bimestral-comentario').value = data.bimestral.comentario || '';
+                        } else {
+                            document.getElementById('editar-nota-bimestral-id').value = '';
+                            document.getElementById('editar-nota-bimestral-valor').value = '';
+                            document.getElementById('editar-nota-bimestral-comentario').value = '';
+                        }
+                        
+                        const modal = document.getElementById('modal-editar-nota');
+                        if (modal) {
+                            modal.classList.remove('hidden');
+                            modal.style.display = 'flex';
+                        }
+                    } else {
+                        alert('Erro ao carregar dados das notas: ' + (data.message || 'Erro desconhecido'));
+                    }
+                })
+                .catch(error => {
+                    console.error('Erro:', error);
+                    alert('Erro ao carregar dados das notas');
+                });
+        }
+        
+        function carregarNotasParaEdicao() {
+            const alunoId = document.getElementById('editar-nota-aluno-id').value;
+            const bimestre = document.getElementById('editar-nota-bimestre').value;
+            if (alunoId && bimestre) {
+                editarNotasAluno(alunoId, bimestre);
+            }
+        }
+        
+        function fecharModalEditarNota() {
+            const modal = document.getElementById('modal-editar-nota');
+            if (modal) {
+                modal.classList.add('hidden');
+                modal.style.display = 'none';
+            }
+        }
+        
+        function salvarEdicaoNota() {
+            const alunoId = document.getElementById('editar-nota-aluno-id').value;
+            const bimestre = document.getElementById('editar-nota-bimestre').value;
+            const turmaId = document.getElementById('ver-turma-id').value;
+            const disciplinaId = document.getElementById('ver-turma-disciplina-id').value;
+            
+            const parcialId = document.getElementById('editar-nota-parcial-id').value;
+            const parcialValor = document.getElementById('editar-nota-parcial-valor').value;
+            const parcialComentario = document.getElementById('editar-nota-parcial-comentario').value;
+            
+            const bimestralId = document.getElementById('editar-nota-bimestral-id').value;
+            const bimestralValor = document.getElementById('editar-nota-bimestral-valor').value;
+            const bimestralComentario = document.getElementById('editar-nota-bimestral-comentario').value;
+            
+            if (!alunoId || !bimestre || !turmaId || !disciplinaId) {
+                alert('Erro: dados incompletos');
+                return;
+            }
+            
+            const notasParaSalvar = [];
+            const notasParaEditar = [];
+            
+            // Processar parcial
+            if (parcialValor && parcialValor.trim() !== '') {
+                const notaParcial = parseFloat(parcialValor.replace(',', '.'));
+                if (notaParcial < 0 || notaParcial > 10) {
+                    alert('Nota parcial deve estar entre 0 e 10');
+                    return;
+                }
+                
+                if (parcialId) {
+                    notasParaEditar.push({
+                        id: parcialId,
+                        nota: notaParcial,
+                        bimestre: bimestre,
+                        comentario: parcialComentario
+                    });
+                } else {
+                    notasParaSalvar.push({
+                        aluno_id: alunoId,
+                        nota: notaParcial,
+                        tipo: 'PARCIAL',
+                        bimestre: bimestre,
+                        comentario: parcialComentario
+                    });
+                }
+            }
+            
+            // Processar bimestral
+            if (bimestralValor && bimestralValor.trim() !== '') {
+                const notaBimestral = parseFloat(bimestralValor.replace(',', '.'));
+                if (notaBimestral < 0 || notaBimestral > 10) {
+                    alert('Nota bimestral deve estar entre 0 e 10');
+                    return;
+                }
+                
+                if (bimestralId) {
+                    notasParaEditar.push({
+                        id: bimestralId,
+                        nota: notaBimestral,
+                        bimestre: bimestre,
+                        comentario: bimestralComentario
+                    });
+                } else {
+                    notasParaSalvar.push({
+                        aluno_id: alunoId,
+                        nota: notaBimestral,
+                        tipo: 'BIMESTRAL',
+                        bimestre: bimestre,
+                        comentario: bimestralComentario
+                    });
+                }
+            }
+            
+            // Salvar novas notas
+            if (notasParaSalvar.length > 0) {
+                const formData = new FormData();
+                formData.append('acao', 'lancar_notas');
+                formData.append('turma_id', turmaId);
+                formData.append('disciplina_id', disciplinaId);
+                formData.append('notas', JSON.stringify(notasParaSalvar));
+                
+                fetch('', {
+                    method: 'POST',
+                    body: formData
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (!data.success) {
+                        throw new Error(data.message || 'Erro ao salvar notas');
+                    }
+                    // Continuar para editar
+                    editarNotasRestantes(notasParaEditar);
+                })
+                .catch(error => {
+                    console.error('Erro ao salvar notas:', error);
+                    alert('Erro ao salvar notas: ' + error.message);
+                });
+            } else {
+                // Apenas editar
+                editarNotasRestantes(notasParaEditar);
+            }
+        }
+        
+        // Funções para modal de sucesso
+        function mostrarModalSucesso(mensagem) {
+            const modal = document.getElementById('modal-sucesso');
+            const mensagemElement = document.getElementById('modal-sucesso-mensagem');
+            if (modal && mensagemElement) {
+                mensagemElement.textContent = mensagem;
+                modal.classList.remove('hidden');
+                modal.style.display = 'flex';
+                
+                // Animação de entrada
+                setTimeout(() => {
+                    const modalContent = modal.querySelector('.modal-sucesso-content');
+                    if (modalContent) {
+                        modalContent.classList.remove('scale-95');
+                        modalContent.classList.add('scale-100');
+                    }
+                }, 10);
+            }
+        }
+        
+        function fecharModalSucesso() {
+            const modal = document.getElementById('modal-sucesso');
+            if (modal) {
+                const modalContent = modal.querySelector('.modal-sucesso-content');
+                if (modalContent) {
+                    modalContent.classList.remove('scale-100');
+                    modalContent.classList.add('scale-95');
+                }
+                setTimeout(() => {
+                    modal.classList.add('hidden');
+                    modal.style.display = 'none';
+                }, 200);
+            }
+        }
+        
+        function editarNotasRestantes(notasParaEditar) {
+            if (notasParaEditar.length === 0) {
+                mostrarModalSucesso('Notas atualizadas com sucesso!');
+                fecharModalEditarNota();
+                carregarHistoricoNotas();
+                return;
+            }
+            
+            // Editar uma por vez
+            let index = 0;
+            function editarProxima() {
+                if (index >= notasParaEditar.length) {
+                    mostrarModalSucesso('Notas atualizadas com sucesso!');
+                    fecharModalEditarNota();
+                    carregarHistoricoNotas();
+                    return;
+                }
+                
+                const nota = notasParaEditar[index];
+                const formData = new FormData();
+                formData.append('acao', 'editar_nota');
+                formData.append('nota_id', nota.id);
+                formData.append('nota', nota.nota);
+                formData.append('bimestre', nota.bimestre);
+                formData.append('comentario', nota.comentario || '');
+                
+                fetch('', {
+                    method: 'POST',
+                    body: formData
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        index++;
+                        editarProxima();
+                    } else {
+                        throw new Error(data.message || 'Erro ao atualizar nota');
+                    }
+                })
+                .catch(error => {
+                    console.error('Erro ao editar nota:', error);
+                    alert('Erro ao atualizar nota: ' + error.message);
+                });
+            }
+            
+            editarProxima();
         }
     </script>
 </body>

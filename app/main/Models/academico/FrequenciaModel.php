@@ -211,6 +211,73 @@ class FrequenciaModel {
     }
     
     /**
+     * Busca frequência por turma e data
+     */
+    public function buscarPorTurmaData($turmaId, $data) {
+        $conn = $this->db->getConnection();
+        
+        $sql = "SELECT f.*, 
+                p.nome as aluno_nome,
+                COALESCE(a.matricula, '') as aluno_matricula
+                FROM frequencia f
+                INNER JOIN aluno a ON f.aluno_id = a.id
+                INNER JOIN pessoa p ON a.pessoa_id = p.id
+                WHERE f.turma_id = :turma_id AND f.data = :data
+                ORDER BY p.nome ASC";
+        
+        $stmt = $conn->prepare($sql);
+        $stmt->bindParam(':turma_id', $turmaId);
+        $stmt->bindParam(':data', $data);
+        $stmt->execute();
+        
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
+    
+    /**
+     * Busca uma frequência específica por ID
+     */
+    public function buscarPorId($id) {
+        $conn = $this->db->getConnection();
+        
+        $sql = "SELECT f.*, 
+                p.nome as aluno_nome,
+                COALESCE(a.matricula, '') as aluno_matricula
+                FROM frequencia f
+                INNER JOIN aluno a ON f.aluno_id = a.id
+                INNER JOIN pessoa p ON a.pessoa_id = p.id
+                WHERE f.id = :id";
+        
+        $stmt = $conn->prepare($sql);
+        $stmt->bindParam(':id', $id);
+        $stmt->execute();
+        
+        return $stmt->fetch(PDO::FETCH_ASSOC);
+    }
+    
+    /**
+     * Atualiza frequência
+     */
+    public function atualizar($id, $dados) {
+        $conn = $this->db->getConnection();
+        
+        $sql = "UPDATE frequencia SET presenca = :presenca, observacao = :observacao, 
+                atualizado_em = NOW(), atualizado_por = :atualizado_por
+                WHERE id = :id";
+        
+        $stmt = $conn->prepare($sql);
+        $presenca = isset($dados['presenca']) ? (int)$dados['presenca'] : 0;
+        $observacao = $dados['observacao'] ?? null;
+        $atualizadoPor = (isset($_SESSION['usuario_id']) && is_numeric($_SESSION['usuario_id'])) ? (int)$_SESSION['usuario_id'] : null;
+        
+        $stmt->bindParam(':presenca', $presenca);
+        $stmt->bindParam(':observacao', $observacao);
+        $stmt->bindParam(':atualizado_por', $atualizadoPor);
+        $stmt->bindParam(':id', $id);
+        
+        return $stmt->execute();
+    }
+    
+    /**
      * Valida frequência (GESTAO)
      */
     public function validar($frequenciaId, $validado = true) {

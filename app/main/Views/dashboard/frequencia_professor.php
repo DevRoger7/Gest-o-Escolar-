@@ -119,7 +119,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['acao'])) {
     
     if ($_GET['acao'] === 'buscar_alunos_turma' && !empty($_GET['turma_id'])) {
         $turmaId = $_GET['turma_id'];
-        $sql = "SELECT a.id, p.nome, a.matricula
+        $sql = "SELECT a.id, p.nome, COALESCE(a.matricula, '') as matricula
                 FROM aluno_turma at
                 INNER JOIN aluno a ON at.aluno_id = a.id
                 INNER JOIN pessoa p ON a.pessoa_id = p.id
@@ -132,6 +132,61 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['acao'])) {
         echo json_encode(['success' => true, 'alunos' => $alunos]);
         exit;
     }
+    
+    if ($_GET['acao'] === 'buscar_frequencia_data' && !empty($_GET['turma_id']) && !empty($_GET['data'])) {
+        $turmaId = $_GET['turma_id'];
+        $data = $_GET['data'];
+        
+        try {
+            $frequencias = $frequenciaModel->buscarPorTurmaData($turmaId, $data);
+            echo json_encode(['success' => true, 'frequencias' => $frequencias]);
+        } catch (Exception $e) {
+            error_log("Erro ao buscar frequência: " . $e->getMessage());
+            echo json_encode(['success' => false, 'message' => 'Erro ao buscar frequência: ' . $e->getMessage()]);
+        }
+        exit;
+    }
+    
+    if ($_GET['acao'] === 'buscar_frequencia' && !empty($_GET['frequencia_id'])) {
+        $frequenciaId = $_GET['frequencia_id'];
+        $frequencia = $frequenciaModel->buscarPorId($frequenciaId);
+        if ($frequencia) {
+            echo json_encode(['success' => true, 'frequencia' => $frequencia]);
+        } else {
+            echo json_encode(['success' => false, 'message' => 'Frequência não encontrada']);
+        }
+        exit;
+    }
+}
+
+// Processar atualização de frequência
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao']) && $_POST['acao'] === 'editar_frequencia' && $professorId) {
+    header('Content-Type: application/json');
+    
+    $frequenciaId = $_POST['frequencia_id'] ?? null;
+    $presenca = $_POST['presenca'] ?? null;
+    $observacao = $_POST['observacao'] ?? null;
+    
+    if (!$frequenciaId || $presenca === null) {
+        echo json_encode(['success' => false, 'message' => 'Dados incompletos']);
+        exit;
+    }
+    
+    try {
+        $result = $frequenciaModel->atualizar($frequenciaId, [
+            'presenca' => $presenca,
+            'observacao' => $observacao
+        ]);
+        
+        if ($result) {
+            echo json_encode(['success' => true, 'message' => 'Frequência atualizada com sucesso']);
+        } else {
+            echo json_encode(['success' => false, 'message' => 'Erro ao atualizar frequência']);
+        }
+    } catch (Exception $e) {
+        echo json_encode(['success' => false, 'message' => 'Erro: ' . $e->getMessage()]);
+    }
+    exit;
 }
 
 if (!defined('BASE_URL')) {
@@ -320,6 +375,32 @@ if (!defined('BASE_URL')) {
                 transform: translateX(0);
             }
         }
+        
+        /* Animação para modal de sucesso */
+        @keyframes bounce-in {
+            0% {
+                transform: scale(0.3);
+                opacity: 0;
+            }
+            50% {
+                transform: scale(1.05);
+            }
+            70% {
+                transform: scale(0.9);
+            }
+            100% {
+                transform: scale(1);
+                opacity: 1;
+            }
+        }
+        
+        .modal-sucesso-icon {
+            animation: bounce-in 0.6s ease-out;
+        }
+        
+        .modal-sucesso-content {
+            transition: transform 0.2s ease-out;
+        }
     </style>
 </head>
 <body class="bg-gray-50">
@@ -398,9 +479,14 @@ if (!defined('BASE_URL')) {
                                         <p class="text-sm text-gray-600"><?= htmlspecialchars($turma['disciplina_nome']) ?></p>
                                         <p class="text-xs text-gray-500 mt-1"><?= htmlspecialchars($turma['escola_nome']) ?></p>
                                     </div>
-                                    <button onclick="abrirModalLancarFrequencia(<?= $turma['turma_id'] ?>, <?= $turma['disciplina_id'] ?>, '<?= htmlspecialchars($turma['turma_nome'], ENT_QUOTES) ?>', '<?= htmlspecialchars($turma['disciplina_nome'], ENT_QUOTES) ?>')" class="w-full text-green-600 hover:text-green-700 font-medium text-sm py-2 border border-green-200 rounded-lg hover:bg-green-50 transition-colors">
-                                        Registrar Frequência
-                                    </button>
+                                    <div class="flex gap-2">
+                                        <button onclick="abrirModalHistoricoFrequencia(<?= $turma['turma_id'] ?>, '<?= htmlspecialchars($turma['turma_nome'], ENT_QUOTES) ?>')" class="flex-1 text-blue-600 hover:text-blue-700 font-medium text-sm py-2 border border-blue-200 rounded-lg hover:bg-blue-50 transition-colors">
+                                            Ver Histórico
+                                        </button>
+                                        <button onclick="abrirModalLancarFrequencia(<?= $turma['turma_id'] ?>, <?= $turma['disciplina_id'] ?>, '<?= htmlspecialchars($turma['turma_nome'], ENT_QUOTES) ?>', '<?= htmlspecialchars($turma['disciplina_nome'], ENT_QUOTES) ?>')" class="flex-1 text-green-600 hover:text-green-700 font-medium text-sm py-2 border border-green-200 rounded-lg hover:bg-green-50 transition-colors">
+                                            Registrar
+                                        </button>
+                                    </div>
                                 </div>
                             <?php endforeach; ?>
                         </div>
@@ -438,7 +524,7 @@ if (!defined('BASE_URL')) {
             <div class="bg-white border-b border-gray-200 px-4 sm:px-6 py-3 flex flex-wrap items-center gap-3 flex-shrink-0">
                 <div class="flex items-center gap-2">
                     <label class="text-xs font-medium text-gray-600">Data:</label>
-                    <input type="date" id="frequencia-data" value="<?= date('Y-m-d') ?>" class="text-sm px-3 py-1.5 border border-gray-300 rounded focus:border-primary-green focus:ring-1 focus:ring-primary-green focus:outline-none">
+                    <input type="date" id="frequencia-data" value="<?= date('Y-m-d') ?>" class="text-sm px-3 py-1.5 border border-gray-300 rounded focus:border-primary-green focus:ring-1 focus:ring-primary-green focus:outline-none" onchange="recarregarFrequenciaComData()">
                 </div>
                 <div class="h-4 w-px bg-gray-300 hidden sm:block"></div>
                 <div class="flex items-center gap-2 text-xs">
@@ -481,6 +567,117 @@ if (!defined('BASE_URL')) {
                         <p class="text-sm text-gray-500">Selecione uma turma para carregar os alunos</p>
                     </div>
                 </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Modal Histórico de Frequência -->
+    <div id="modal-historico-frequencia" class="fixed inset-0 bg-gray-50 z-[60] hidden flex flex-col">
+        <!-- Header -->
+        <div class="bg-white border-b border-gray-200 px-4 py-3 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <button onclick="fecharModalHistoricoFrequencia()" class="p-1.5 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+                <div>
+                    <h3 class="text-base font-semibold text-gray-900">Histórico de Frequência</h3>
+                    <p id="historico-turma-info" class="text-xs text-gray-500"></p>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Filtros -->
+        <div class="bg-white border-b border-gray-100 px-4 py-3">
+            <div class="flex items-center gap-4">
+                <div class="flex-1">
+                    <label class="block text-xs font-medium text-gray-600 mb-1">Selecione a Data</label>
+                    <input type="date" id="historico-data" class="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-green-500" onchange="carregarFrequenciaPorData()">
+                </div>
+            </div>
+            <input type="hidden" id="historico-turma-id">
+        </div>
+        
+        <!-- Content -->
+        <div class="flex-1 overflow-y-auto">
+            <div class="max-w-5xl mx-auto py-4 px-4">
+                <div id="historico-frequencia-container" class="space-y-2">
+                    <div class="text-center py-16 text-gray-400">
+                        <p class="text-sm">Selecione uma data para ver o histórico de frequência</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Modal Editar Frequência -->
+    <div id="modal-editar-frequencia" class="fixed inset-0 bg-black bg-opacity-50 z-[70] hidden items-center justify-center p-4">
+        <div class="bg-white rounded-lg p-6 max-w-md w-full">
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="text-lg font-semibold text-gray-900">Editar Frequência</h3>
+                <button onclick="fecharModalEditarFrequencia()" class="text-gray-400 hover:text-gray-600">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+            </div>
+            
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Aluno</label>
+                    <p id="editar-frequencia-aluno" class="text-sm text-gray-600"></p>
+                </div>
+                
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Status</label>
+                    <div class="flex gap-3">
+                        <button onclick="selecionarStatusFrequencia('presente')" id="btn-status-presente" class="flex-1 px-4 py-2 border-2 border-gray-200 rounded-lg font-medium transition-colors hover:bg-green-50">
+                            Presente
+                        </button>
+                        <button onclick="selecionarStatusFrequencia('ausente')" id="btn-status-ausente" class="flex-1 px-4 py-2 border-2 border-gray-200 rounded-lg font-medium transition-colors hover:bg-red-50">
+                            Ausente
+                        </button>
+                        <button onclick="selecionarStatusFrequencia('justificada')" id="btn-status-justificada" class="flex-1 px-4 py-2 border-2 border-gray-200 rounded-lg font-medium transition-colors hover:bg-amber-50">
+                            Justificada
+                        </button>
+                    </div>
+                </div>
+                
+                <div id="editar-frequencia-justificativa-container" class="hidden">
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Justificativa</label>
+                    <textarea id="editar-frequencia-justificativa" rows="3" class="w-full px-3 py-2 border border-gray-200 rounded-lg" placeholder="Digite a justificativa..."></textarea>
+                </div>
+            </div>
+            
+            <div class="flex gap-3 mt-6">
+                <button onclick="fecharModalEditarFrequencia()" class="flex-1 px-4 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg font-medium transition-colors">
+                    Cancelar
+                </button>
+                <button onclick="salvarEdicaoFrequencia()" class="flex-1 px-4 py-2 text-white bg-green-600 hover:bg-green-700 rounded-lg font-medium transition-colors">
+                    Salvar
+                </button>
+            </div>
+            
+            <input type="hidden" id="editar-frequencia-id">
+            <input type="hidden" id="editar-frequencia-status">
+        </div>
+    </div>
+    
+    <!-- Modal de Sucesso -->
+    <div id="modal-sucesso" class="fixed inset-0 bg-black bg-opacity-50 z-[80] hidden items-center justify-center p-4">
+        <div class="bg-white rounded-lg p-6 max-w-sm w-full mx-4 shadow-2xl modal-sucesso-content scale-95">
+            <div class="text-center">
+                <div class="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-green-100 mb-4 modal-sucesso-icon">
+                    <svg class="h-8 w-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                    </svg>
+                </div>
+                <h3 class="text-lg font-semibold text-gray-900 mb-2">Sucesso!</h3>
+                <p id="modal-sucesso-mensagem" class="text-sm text-gray-600 mb-6"></p>
+                <button onclick="fecharModalSucesso()" class="w-full px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium transition-colors">
+                    OK
+                </button>
             </div>
         </div>
     </div>
@@ -564,6 +761,13 @@ if (!defined('BASE_URL')) {
             }
         }
         
+        function recarregarFrequenciaComData() {
+            const turmaId = document.getElementById('frequencia-turma-id').value;
+            if (turmaId) {
+                carregarAlunosParaFrequencia(turmaId);
+            }
+        }
+        
         function buscarInfoTurma(turmaId, disciplinaId) {
             fetch('?acao=buscar_info_turma&turma_id=' + turmaId + '&disciplina_id=' + disciplinaId)
                 .then(response => response.json())
@@ -587,65 +791,106 @@ if (!defined('BASE_URL')) {
         }
         
         function carregarAlunosParaFrequencia(turmaId) {
-            fetch('?acao=buscar_alunos_turma&turma_id=' + turmaId)
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success && data.alunos) {
-                        const container = document.getElementById('frequencia-alunos-container');
-                        container.innerHTML = '';
-                        
-                        const totalAlunos = data.alunos.length;
-                        document.getElementById('alunos-count').textContent = totalAlunos + ' alunos';
-                        
-                        data.alunos.forEach((aluno, index) => {
-                            const wrapper = document.createElement('div');
-                            wrapper.className = 'aluno-wrapper';
-                            
-                            const div = document.createElement('div');
-                            div.className = 'aluno-row presente';
-                            div.setAttribute('data-aluno-id', aluno.id);
-                            div.setAttribute('data-status', 'presente'); // presente, ausente, justificada
-                            div.setAttribute('data-justificativa', '');
-                            
-                            const iniciais = aluno.nome.split(' ').map(n => n[0]).slice(0, 2).join('').toUpperCase();
-                            
-                            div.innerHTML = `
-                                <div class="aluno-avatar-sm">${iniciais}</div>
-                                <div class="flex-1 min-w-0">
-                                    <p class="text-sm font-medium text-gray-900 truncate">${aluno.nome}</p>
-                                    ${aluno.matricula ? `<p class="text-xs text-gray-400">${aluno.matricula}</p>` : ''}
-                                </div>
-                                <button type="button" class="presenca-toggle presente" data-aluno-id="${aluno.id}">
-                                    <svg class="icon-check" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"></path>
-                                    </svg>
-                                    <svg class="icon-x hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12"></path>
-                                    </svg>
-                                    <svg class="icon-justified hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
-                                    </svg>
-                                </button>
-                            `;
-                            
-                            const justificativaField = document.createElement('div');
-                            justificativaField.className = 'justificativa-field';
-                            justificativaField.innerHTML = `
-                                <input type="text" placeholder="Motivo da falta (opcional)" data-aluno-id="${aluno.id}" onchange="atualizarJustificativa(this, ${aluno.id})">
-                            `;
-                            
-                            wrapper.appendChild(div);
-                            wrapper.appendChild(justificativaField);
-                            container.appendChild(wrapper);
-                            
-                            const button = div.querySelector('.presenca-toggle');
-                            setupLongPress(button, aluno.id);
+            const data = document.getElementById('frequencia-data').value;
+            
+            // Buscar alunos e frequências em paralelo
+            Promise.all([
+                fetch('?acao=buscar_alunos_turma&turma_id=' + turmaId).then(r => r.json()),
+                fetch('?acao=buscar_frequencia_data&turma_id=' + turmaId + '&data=' + data).then(r => r.json())
+            ])
+            .then(([alunosData, frequenciasData]) => {
+                if (alunosData.success && alunosData.alunos) {
+                    const container = document.getElementById('frequencia-alunos-container');
+                    container.innerHTML = '';
+                    
+                    const totalAlunos = alunosData.alunos.length;
+                    document.getElementById('alunos-count').textContent = totalAlunos + ' alunos';
+                    
+                    // Criar mapa de frequências por aluno_id
+                    const frequenciasMap = {};
+                    if (frequenciasData.success && frequenciasData.frequencias) {
+                        frequenciasData.frequencias.forEach(freq => {
+                            frequenciasMap[freq.aluno_id] = freq;
                         });
-                        
-                        atualizarContadores();
                     }
-                })
-                .catch(error => console.error('Erro ao carregar alunos:', error));
+                    
+                    alunosData.alunos.forEach((aluno, index) => {
+                        const wrapper = document.createElement('div');
+                        wrapper.className = 'aluno-wrapper';
+                        
+                        // Verificar se há frequência registrada para este aluno
+                        const frequencia = frequenciasMap[aluno.id];
+                        let status = 'presente';
+                        let justificativa = '';
+                        let statusClass = 'presente';
+                        
+                        if (frequencia) {
+                            if (frequencia.presenca == 1) {
+                                status = 'presente';
+                                statusClass = 'presente';
+                            } else if (frequencia.observacao) {
+                                status = 'justificada';
+                                statusClass = 'justificada';
+                                justificativa = frequencia.observacao;
+                            } else {
+                                status = 'ausente';
+                                statusClass = 'ausente';
+                            }
+                        }
+                        
+                        const div = document.createElement('div');
+                        div.className = `aluno-row ${statusClass}`;
+                        div.setAttribute('data-aluno-id', aluno.id);
+                        div.setAttribute('data-status', status);
+                        div.setAttribute('data-justificativa', justificativa);
+                        
+                        const iniciais = aluno.nome.split(' ').map(n => n[0]).slice(0, 2).join('').toUpperCase();
+                        
+                        // Determinar quais ícones mostrar
+                        const iconCheckClass = status === 'presente' ? '' : 'hidden';
+                        const iconXClass = status === 'ausente' ? '' : 'hidden';
+                        const iconJustifiedClass = status === 'justificada' ? '' : 'hidden';
+                        
+                        div.innerHTML = `
+                            <div class="aluno-avatar-sm">${iniciais}</div>
+                            <div class="flex-1 min-w-0">
+                                <p class="text-sm font-medium text-gray-900 truncate">${aluno.nome}</p>
+                                ${aluno.matricula ? `<p class="text-xs text-gray-400">${aluno.matricula}</p>` : ''}
+                            </div>
+                            <button type="button" class="presenca-toggle ${statusClass}" data-aluno-id="${aluno.id}">
+                                <svg class="icon-check ${iconCheckClass}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"></path>
+                                </svg>
+                                <svg class="icon-x ${iconXClass}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12"></path>
+                                </svg>
+                                <svg class="icon-justified ${iconJustifiedClass}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
+                                </svg>
+                            </button>
+                        `;
+                        
+                        const justificativaField = document.createElement('div');
+                        justificativaField.className = status === 'justificada' ? 'justificativa-field show' : 'justificativa-field';
+                        justificativaField.innerHTML = `
+                            <input type="text" placeholder="Motivo da falta (opcional)" data-aluno-id="${aluno.id}" value="${justificativa}" onchange="atualizarJustificativa(this, ${aluno.id})">
+                        `;
+                        
+                        wrapper.appendChild(div);
+                        wrapper.appendChild(justificativaField);
+                        container.appendChild(wrapper);
+                        
+                        const button = div.querySelector('.presenca-toggle');
+                        setupLongPress(button, aluno.id);
+                    });
+                    
+                    atualizarContadores();
+                }
+            })
+            .catch(error => {
+                console.error('Erro ao carregar alunos:', error);
+                alert('Erro ao carregar alunos e frequências');
+            });
         }
         
         function setupLongPress(button, alunoId) {
@@ -857,18 +1102,258 @@ if (!defined('BASE_URL')) {
             
             fetch('', { method: 'POST', body: formData })
                 .then(response => response.json())
-                .then(data => {
-                    if (data.success) {
-                        alert('Frequência registrada com sucesso!');
-                        fecharModalLancarFrequencia();
-                    } else {
-                        alert('Erro ao registrar frequência: ' + (data.message || 'Tente novamente.'));
-                    }
-                })
+            .then(data => {
+                if (data.success) {
+                    mostrarModalSucesso('Frequência registrada com sucesso!');
+                    // Recarregar os alunos para mostrar o que foi salvo
+                    setTimeout(() => {
+                        carregarAlunosParaFrequencia(turmaId);
+                    }, 500);
+                } else {
+                    alert('Erro ao registrar frequência: ' + (data.message || 'Tente novamente.'));
+                }
+            })
                 .catch(error => {
                     console.error('Erro:', error);
                     alert('Erro ao salvar frequência. Tente novamente.');
                 });
+        }
+        
+        // Funções para modal de histórico
+        function abrirModalHistoricoFrequencia(turmaId, turmaNome) {
+            const modal = document.getElementById('modal-historico-frequencia');
+            if (modal) {
+                modal.classList.remove('hidden');
+                document.getElementById('historico-turma-id').value = turmaId;
+                document.getElementById('historico-turma-info').textContent = turmaNome;
+                
+                // Definir data padrão como hoje
+                const hoje = new Date().toISOString().split('T')[0];
+                document.getElementById('historico-data').value = hoje;
+                
+                // Carregar frequência do dia
+                setTimeout(() => {
+                    carregarFrequenciaPorData();
+                }, 100);
+            }
+        }
+        
+        function fecharModalHistoricoFrequencia() {
+            const modal = document.getElementById('modal-historico-frequencia');
+            if (modal) {
+                modal.classList.add('hidden');
+            }
+        }
+        
+        function carregarFrequenciaPorData() {
+            const turmaId = document.getElementById('historico-turma-id').value;
+            const data = document.getElementById('historico-data').value;
+            
+            if (!turmaId || !data) {
+                return;
+            }
+            
+            fetch(`?acao=buscar_frequencia_data&turma_id=${turmaId}&data=${data}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success && data.frequencias) {
+                        const container = document.getElementById('historico-frequencia-container');
+                        container.innerHTML = '';
+                        
+                        if (data.frequencias.length === 0) {
+                            container.innerHTML = '<div class="text-center py-16 text-gray-400"><p class="text-sm">Nenhuma frequência registrada para esta data</p></div>';
+                            return;
+                        }
+                        
+                        // Header da tabela
+                        const header = document.createElement('div');
+                        header.className = 'grid grid-cols-12 gap-3 text-xs font-medium text-gray-500 uppercase tracking-wide px-3 py-2 border-b border-gray-200 mb-2';
+                        header.innerHTML = `
+                            <div class="col-span-5">Aluno</div>
+                            <div class="col-span-2 text-center">Status</div>
+                            <div class="col-span-4">Observação</div>
+                            <div class="col-span-1 text-center">Ação</div>
+                        `;
+                        container.appendChild(header);
+                        
+                        // Renderizar frequências
+                        data.frequencias.forEach(freq => {
+                            const div = document.createElement('div');
+                            div.className = 'grid grid-cols-12 gap-3 items-center px-3 py-3 bg-white rounded-lg border border-gray-100 hover:bg-gray-50';
+                            
+                            const status = freq.presenca == 1 ? 'Presente' : (freq.observacao ? 'Justificada' : 'Ausente');
+                            const statusClass = freq.presenca == 1 ? 'text-green-600 bg-green-50' : (freq.observacao ? 'text-amber-600 bg-amber-50' : 'text-red-600 bg-red-50');
+                            
+                            div.innerHTML = `
+                                <div class="col-span-5">
+                                    <div class="text-sm font-medium text-gray-900">${freq.aluno_nome}</div>
+                                    ${freq.aluno_matricula ? `<div class="text-xs text-gray-400">${freq.aluno_matricula}</div>` : ''}
+                                </div>
+                                <div class="col-span-2 text-center">
+                                    <span class="px-2 py-1 text-xs font-medium rounded ${statusClass}">${status}</span>
+                                </div>
+                                <div class="col-span-4 text-sm text-gray-600 truncate" title="${freq.observacao || ''}">${freq.observacao || '-'}</div>
+                                <div class="col-span-1 text-center">
+                                    <button onclick="editarFrequencia(${freq.id})" class="px-2 py-1 text-xs font-medium text-green-600 hover:text-green-700 hover:bg-green-50 rounded transition-colors">
+                                        Editar
+                                    </button>
+                                </div>
+                            `;
+                            container.appendChild(div);
+                        });
+                    }
+                })
+                .catch(error => {
+                    console.error('Erro ao carregar frequência:', error);
+                    alert('Erro ao carregar frequência');
+                });
+        }
+        
+        // Funções para editar frequência
+        function editarFrequencia(frequenciaId) {
+            fetch(`?acao=buscar_frequencia&frequencia_id=${frequenciaId}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success && data.frequencia) {
+                        const freq = data.frequencia;
+                        document.getElementById('editar-frequencia-id').value = frequenciaId;
+                        document.getElementById('editar-frequencia-aluno').textContent = freq.aluno_nome + (freq.aluno_matricula ? ' - ' + freq.aluno_matricula : '');
+                        
+                        // Determinar status atual
+                        let statusAtual = 'ausente';
+                        if (freq.presenca == 1) {
+                            statusAtual = 'presente';
+                        } else if (freq.observacao) {
+                            statusAtual = 'justificada';
+                        }
+                        
+                        document.getElementById('editar-frequencia-status').value = statusAtual;
+                        selecionarStatusFrequencia(statusAtual);
+                        
+                        if (freq.observacao) {
+                            document.getElementById('editar-frequencia-justificativa').value = freq.observacao;
+                        }
+                        
+                        const modal = document.getElementById('modal-editar-frequencia');
+                        if (modal) {
+                            modal.classList.remove('hidden');
+                            modal.style.display = 'flex';
+                        }
+                    } else {
+                        alert('Erro ao carregar dados da frequência');
+                    }
+                })
+                .catch(error => {
+                    console.error('Erro:', error);
+                    alert('Erro ao carregar dados da frequência');
+                });
+        }
+        
+        function selecionarStatusFrequencia(status) {
+            document.getElementById('editar-frequencia-status').value = status;
+            
+            // Resetar todos os botões
+            document.getElementById('btn-status-presente').classList.remove('border-green-500', 'bg-green-50', 'text-green-700');
+            document.getElementById('btn-status-presente').classList.add('border-gray-200');
+            document.getElementById('btn-status-ausente').classList.remove('border-red-500', 'bg-red-50', 'text-red-700');
+            document.getElementById('btn-status-ausente').classList.add('border-gray-200');
+            document.getElementById('btn-status-justificada').classList.remove('border-amber-500', 'bg-amber-50', 'text-amber-700');
+            document.getElementById('btn-status-justificada').classList.add('border-gray-200');
+            
+            // Ativar botão selecionado
+            if (status === 'presente') {
+                document.getElementById('btn-status-presente').classList.add('border-green-500', 'bg-green-50', 'text-green-700');
+                document.getElementById('editar-frequencia-justificativa-container').classList.add('hidden');
+            } else if (status === 'ausente') {
+                document.getElementById('btn-status-ausente').classList.add('border-red-500', 'bg-red-50', 'text-red-700');
+                document.getElementById('editar-frequencia-justificativa-container').classList.add('hidden');
+            } else if (status === 'justificada') {
+                document.getElementById('btn-status-justificada').classList.add('border-amber-500', 'bg-amber-50', 'text-amber-700');
+                document.getElementById('editar-frequencia-justificativa-container').classList.remove('hidden');
+            }
+        }
+        
+        function fecharModalEditarFrequencia() {
+            const modal = document.getElementById('modal-editar-frequencia');
+            if (modal) {
+                modal.classList.add('hidden');
+                modal.style.display = 'none';
+            }
+        }
+        
+        // Funções para modal de sucesso
+        function mostrarModalSucesso(mensagem) {
+            const modal = document.getElementById('modal-sucesso');
+            const mensagemElement = document.getElementById('modal-sucesso-mensagem');
+            if (modal && mensagemElement) {
+                mensagemElement.textContent = mensagem;
+                modal.classList.remove('hidden');
+                modal.style.display = 'flex';
+                
+                setTimeout(() => {
+                    const modalContent = modal.querySelector('.modal-sucesso-content');
+                    if (modalContent) {
+                        modalContent.classList.remove('scale-95');
+                        modalContent.classList.add('scale-100');
+                    }
+                }, 10);
+            }
+        }
+        
+        function fecharModalSucesso() {
+            const modal = document.getElementById('modal-sucesso');
+            if (modal) {
+                const modalContent = modal.querySelector('.modal-sucesso-content');
+                if (modalContent) {
+                    modalContent.classList.remove('scale-100');
+                    modalContent.classList.add('scale-95');
+                }
+                setTimeout(() => {
+                    modal.classList.add('hidden');
+                    modal.style.display = 'none';
+                }, 200);
+            }
+        }
+        
+        function salvarEdicaoFrequencia() {
+            const frequenciaId = document.getElementById('editar-frequencia-id').value;
+            const status = document.getElementById('editar-frequencia-status').value;
+            const justificativa = document.getElementById('editar-frequencia-justificativa').value;
+            
+            if (!frequenciaId || !status) {
+                alert('Por favor, selecione um status');
+                return;
+            }
+            
+            const presenca = status === 'presente' ? 1 : 0;
+            const observacao = (status === 'justificada' && justificativa) ? justificativa : (status === 'justificada' ? 'Falta justificada' : null);
+            
+            const formData = new FormData();
+            formData.append('acao', 'editar_frequencia');
+            formData.append('frequencia_id', frequenciaId);
+            formData.append('presenca', presenca);
+            formData.append('observacao', observacao || '');
+            
+            fetch('', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    mostrarModalSucesso('Frequência atualizada com sucesso!');
+                    fecharModalEditarFrequencia();
+                    setTimeout(() => {
+                        carregarFrequenciaPorData();
+                    }, 1500);
+                } else {
+                    alert('Erro ao atualizar frequência: ' + (data.message || 'Erro desconhecido'));
+                }
+            })
+            .catch(error => {
+                console.error('Erro:', error);
+                alert('Erro ao atualizar frequência');
+            });
         }
     </script>
 </body>
