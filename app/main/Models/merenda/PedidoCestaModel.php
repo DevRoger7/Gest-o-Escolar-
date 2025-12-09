@@ -44,6 +44,11 @@ class PedidoCestaModel {
             $params[':mes'] = $filtros['mes'];
         }
         
+        if (!empty($filtros['nutricionista_id'])) {
+            $sql .= " AND pc.nutricionista_id = :nutricionista_id";
+            $params[':nutricionista_id'] = $filtros['nutricionista_id'];
+        }
+        
         $sql .= " ORDER BY pc.data_criacao DESC";
         
         $stmt = $conn->prepare($sql);

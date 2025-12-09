@@ -8,8 +8,9 @@ $session = new sessions();
 $session->autenticar_session();
 $session->tempo_session();
 
-// Permitir acesso para ADM (geral) e ADM_MERENDA
-if (!isset($_SESSION['tipo']) || (!eAdm() && strtolower($_SESSION['tipo']) !== 'adm_merenda')) {
+// Permitir acesso para ADM (geral), ADM_MERENDA e NUTRICIONISTA
+$tipoUsuario = strtolower($_SESSION['tipo'] ?? '');
+if (!isset($_SESSION['tipo']) || (!eAdm() && $tipoUsuario !== 'adm_merenda' && $tipoUsuario !== 'nutricionista')) {
     header('Location: dashboard.php?erro=sem_permissao');
     exit;
 }
@@ -68,6 +69,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['acao'])) {
         if (!empty($_GET['ano'])) $filtros['ano'] = $_GET['ano'];
         if (!empty($_GET['status'])) $filtros['status'] = $_GET['status'];
         
+        // Nutricionista vê apenas os cardápios que ele criou
+        if ($tipoUsuario === 'nutricionista') {
+            $filtros['criado_por'] = $_SESSION['usuario_id'];
+        }
+        
         $cardapios = $cardapioModel->listar($filtros);
         echo json_encode(['success' => true, 'cardapios' => $cardapios]);
         exit;
@@ -80,8 +86,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['acao'])) {
     }
 }
 
-// Buscar cardápios para exibição inicial
+// Buscar cardápios para exibição inicial conforme o tipo de usuário
 $filtrosInicial = ['ano' => date('Y')];
+if ($tipoUsuario === 'nutricionista') {
+    // Nutricionista vê apenas os cardápios que ele criou
+    $filtrosInicial['criado_por'] = $_SESSION['usuario_id'];
+}
 $cardapios = $cardapioModel->listar($filtrosInicial);
 ?>
 <!DOCTYPE html>
@@ -132,6 +142,8 @@ $cardapios = $cardapioModel->listar($filtrosInicial);
     <?php 
     if (eAdm()) {
         include 'components/sidebar_adm.php';
+    } elseif ($tipoUsuario === 'nutricionista') {
+        include 'components/sidebar_nutricionista.php';
     } else {
         include 'components/sidebar_merenda.php';
     }
@@ -154,7 +166,7 @@ $cardapios = $cardapioModel->listar($filtrosInicial);
                     <div class="flex items-center space-x-4">
                         <!-- School Info (Desktop Only) -->
                         <div class="hidden lg:block">
-                            <?php if ($_SESSION['tipo'] === 'ADM' || $_SESSION['tipo'] === 'ADM_MERENDA') { ?>
+                            <?php if (eAdm() || $tipoUsuario === 'adm_merenda') { ?>
                                 <!-- Para ADM, texto simples com padding para alinhamento -->
                                 <div class="text-right px-4 py-2">
                                     <p class="text-sm font-medium text-gray-800">Secretaria Municipal da Educação</p>
@@ -186,12 +198,14 @@ $cardapios = $cardapioModel->listar($filtrosInicial);
                         <h2 class="text-2xl font-bold text-gray-900">Cardápios Escolares</h2>
                         <p class="text-gray-600 mt-1">Cadastre e gerencie os cardápios das escolas</p>
                     </div>
+                    <?php if ($tipoUsuario === 'nutricionista' || eAdm()): ?>
                     <button onclick="abrirModalNovoCardapio()" class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg font-medium transition-colors duration-200 flex items-center space-x-2">
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
                         </svg>
                         <span>Novo Cardápio</span>
                     </button>
+                    <?php endif; ?>
                 </div>
                 
                 <!-- Filtros -->
@@ -270,9 +284,14 @@ $cardapios = $cardapioModel->listar($filtrosInicial);
                                             <button onclick="verDetalhesCardapio(<?= $cardapio['id'] ?>)" class="text-blue-600 hover:text-blue-700 font-medium text-sm">
                                                 Ver Detalhes
                                             </button>
-                                            <?php if ($cardapio['status'] === 'RASCUNHO'): ?>
+                                            <?php if ($tipoUsuario === 'adm_merenda' && $cardapio['status'] === 'RASCUNHO'): ?>
                                                 <button onclick="aprovarCardapio(<?= $cardapio['id'] ?>)" class="text-green-600 hover:text-green-700 font-medium text-sm">
                                                     Aprovar
+                                                </button>
+                                            <?php endif; ?>
+                                            <?php if ($tipoUsuario === 'nutricionista' && $cardapio['status'] === 'RASCUNHO' && $cardapio['criado_por'] == $_SESSION['usuario_id']): ?>
+                                                <button onclick="editarCardapio(<?= $cardapio['id'] ?>)" class="text-blue-600 hover:text-blue-700 font-medium text-sm">
+                                                    Editar
                                                 </button>
                                             <?php endif; ?>
                                         </div>
@@ -559,7 +578,8 @@ $cardapios = $cardapioModel->listar($filtrosInicial);
                                             <button onclick="verDetalhesCardapio(${cardapio.id})" class="text-blue-600 hover:text-blue-700 font-medium text-sm">
                                                 Ver Detalhes
                                             </button>
-                                            ${cardapio.status === 'RASCUNHO' ? `<button onclick="aprovarCardapio(${cardapio.id})" class="text-green-600 hover:text-green-700 font-medium text-sm">Aprovar</button>` : ''}
+                                            ${cardapio.status === 'RASCUNHO' && '<?= $tipoUsuario ?>' === 'adm_merenda' ? `<button onclick="aprovarCardapio(${cardapio.id})" class="text-green-600 hover:text-green-700 font-medium text-sm">Aprovar</button>` : ''}
+                                            ${cardapio.status === 'RASCUNHO' && '<?= $tipoUsuario ?>' === 'nutricionista' && cardapio.criado_por == <?= $_SESSION['usuario_id'] ?> ? `<button onclick="editarCardapio(${cardapio.id})" class="text-blue-600 hover:text-blue-700 font-medium text-sm">Editar</button>` : ''}
                                         </div>
                                     </div>
                                 </div>

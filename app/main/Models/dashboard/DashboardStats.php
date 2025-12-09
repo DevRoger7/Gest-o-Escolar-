@@ -1105,5 +1105,174 @@ class DashboardStats {
             return 0;
         }
     }
+
+    /**
+     * Busca atividades recentes de um nutricionista específico
+     */
+    public function getAtividadesNutricionista($nutricionistaId, $limit = 3) {
+        $atividades = [];
+        
+        try {
+            // Últimos cardápios criados pelo nutricionista
+            $stmt = $this->conn->prepare("
+                SELECT c.id, c.mes, c.ano, c.status, e.nome as escola_nome, c.criado_em
+                FROM cardapio c
+                INNER JOIN escola e ON c.escola_id = e.id
+                WHERE c.criado_por = :nutricionista_id
+                ORDER BY c.criado_em DESC
+                LIMIT :limit
+            ");
+            $stmt->bindParam(':nutricionista_id', $nutricionistaId, PDO::PARAM_INT);
+            $stmt->bindValue(':limit', (int)$limit, PDO::PARAM_INT);
+            $stmt->execute();
+            $cardapios = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            
+            $meses = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 
+                     'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
+            
+            foreach ($cardapios as $cardapio) {
+                $dataCardapio = new DateTime($cardapio['criado_em']);
+                $agora = new DateTime();
+                $diff = $agora->diff($dataCardapio);
+                
+                $tempo = '';
+                if ($diff->days > 0) {
+                    $tempo = $diff->days == 1 ? 'Ontem' : 'Há ' . $diff->days . ' dias';
+                } elseif ($diff->h > 0) {
+                    $tempo = 'Há ' . $diff->h . ' hora' . ($diff->h > 1 ? 's' : '');
+                } else {
+                    $tempo = 'Agora mesmo';
+                }
+                
+                $mesNome = isset($meses[$cardapio['mes'] - 1]) ? $meses[$cardapio['mes'] - 1] : $cardapio['mes'];
+                $statusText = $cardapio['status'] === 'APROVADO' ? 'Aprovado' : 
+                             ($cardapio['status'] === 'REJEITADO' ? 'Rejeitado' : 
+                             ($cardapio['status'] === 'ENVIADO' ? 'Enviado' : 'Rascunho'));
+                
+                $atividades[] = [
+                    'tipo' => 'cardapio',
+                    'titulo' => 'Cardápio criado',
+                    'descricao' => ($cardapio['escola_nome'] ?? 'Escola') . ' - ' . $mesNome . '/' . $cardapio['ano'] . ' (' . $statusText . ')',
+                    'data' => $cardapio['criado_em'],
+                    'tempo' => $tempo,
+                    'color' => 'blue'
+                ];
+            }
+            
+            // Últimos pedidos criados pelo nutricionista
+            $stmt = $this->conn->prepare("
+                SELECT pc.id, pc.mes, pc.status, e.nome as escola_nome, pc.data_criacao, pc.data_envio
+                FROM pedido_cesta pc
+                INNER JOIN escola e ON pc.escola_id = e.id
+                WHERE pc.nutricionista_id = :nutricionista_id
+                ORDER BY COALESCE(pc.data_envio, pc.data_criacao) DESC
+                LIMIT :limit
+            ");
+            $stmt->bindParam(':nutricionista_id', $nutricionistaId, PDO::PARAM_INT);
+            $stmt->bindValue(':limit', (int)$limit, PDO::PARAM_INT);
+            $stmt->execute();
+            $pedidos = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            
+            foreach ($pedidos as $pedido) {
+                $dataPedido = new DateTime($pedido['data_envio'] ?? $pedido['data_criacao']);
+                $agora = new DateTime();
+                $diff = $agora->diff($dataPedido);
+                
+                $tempo = '';
+                if ($diff->days > 0) {
+                    $tempo = $diff->days == 1 ? 'Ontem' : 'Há ' . $diff->days . ' dias';
+                } elseif ($diff->h > 0) {
+                    $tempo = 'Há ' . $diff->h . ' hora' . ($diff->h > 1 ? 's' : '');
+                } else {
+                    $tempo = 'Agora mesmo';
+                }
+                
+                $mesNome = isset($meses[$pedido['mes'] - 1]) ? $meses[$pedido['mes'] - 1] : $pedido['mes'];
+                $statusText = $pedido['status'] === 'APROVADO' ? 'Aprovado' : 
+                             ($pedido['status'] === 'REJEITADO' ? 'Rejeitado' : 
+                             ($pedido['status'] === 'ENVIADO' ? 'Enviado' : 'Rascunho'));
+                
+                $atividades[] = [
+                    'tipo' => 'pedido',
+                    'titulo' => 'Pedido de compra',
+                    'descricao' => ($pedido['escola_nome'] ?? 'Escola') . ' - ' . $mesNome . ' (' . $statusText . ')',
+                    'data' => $pedido['data_envio'] ?? $pedido['data_criacao'],
+                    'tempo' => $tempo,
+                    'color' => 'green'
+                ];
+            }
+            
+            // Ordenar por data
+            usort($atividades, function($a, $b) {
+                return strtotime($b['data']) - strtotime($a['data']);
+            });
+            
+            return array_slice($atividades, 0, $limit);
+        } catch (Exception $e) {
+            return [];
+        }
+    }
+
+    /**
+     * Conta cardápios pendentes de um nutricionista específico
+     */
+    public function getCardapiosPendentesNutricionista($nutricionistaId) {
+        try {
+            $stmt = $this->conn->prepare("
+                SELECT COUNT(*) as total 
+                FROM cardapio 
+                WHERE criado_por = :nutricionista_id 
+                AND (status = 'RASCUNHO' OR status = 'ENVIADO')
+            ");
+            $stmt->bindParam(':nutricionista_id', $nutricionistaId, PDO::PARAM_INT);
+            $stmt->execute();
+            $result = $stmt->fetch(PDO::FETCH_ASSOC);
+            return (int)($result['total'] ?? 0);
+        } catch (Exception $e) {
+            return 0;
+        }
+    }
+
+    /**
+     * Conta pedidos pendentes de um nutricionista específico
+     */
+    public function getPedidosPendentesNutricionista($nutricionistaId) {
+        try {
+            $stmt = $this->conn->prepare("
+                SELECT COUNT(*) as total 
+                FROM pedido_cesta 
+                WHERE nutricionista_id = :nutricionista_id 
+                AND status = 'ENVIADO'
+            ");
+            $stmt->bindParam(':nutricionista_id', $nutricionistaId, PDO::PARAM_INT);
+            $stmt->execute();
+            $result = $stmt->fetch(PDO::FETCH_ASSOC);
+            return (int)($result['total'] ?? 0);
+        } catch (Exception $e) {
+            return 0;
+        }
+    }
+
+    /**
+     * Busca os últimos pedidos de um nutricionista específico
+     */
+    public function getUltimosPedidosNutricionista($nutricionistaId, $limit = 3) {
+        try {
+            $stmt = $this->conn->prepare("
+                SELECT pc.*, e.nome as escola_nome
+                FROM pedido_cesta pc
+                INNER JOIN escola e ON pc.escola_id = e.id
+                WHERE pc.nutricionista_id = :nutricionista_id
+                ORDER BY COALESCE(pc.data_envio, pc.data_criacao) DESC
+                LIMIT :limit
+            ");
+            $stmt->bindParam(':nutricionista_id', $nutricionistaId, PDO::PARAM_INT);
+            $stmt->bindValue(':limit', (int)$limit, PDO::PARAM_INT);
+            $stmt->execute();
+            return $stmt->fetchAll(PDO::FETCH_ASSOC);
+        } catch (Exception $e) {
+            return [];
+        }
+    }
 }
 

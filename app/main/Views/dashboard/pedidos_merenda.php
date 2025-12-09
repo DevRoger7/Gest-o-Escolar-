@@ -8,7 +8,11 @@ $session = new sessions();
 $session->autenticar_session();
 $session->tempo_session();
 
-if (!isset($_SESSION['tipo']) || strtolower($_SESSION['tipo']) !== 'adm_merenda') {
+// Definir tipo de usuário
+$tipoUsuario = strtolower($_SESSION['tipo'] ?? '');
+
+// Permitir acesso para ADM_MERENDA (aprovar/rejeitar) e NUTRICIONISTA (criar/enviar pedidos)
+if (!isset($_SESSION['tipo']) || ($tipoUsuario !== 'adm_merenda' && $tipoUsuario !== 'nutricionista')) {
     header('Location: dashboard.php?erro=sem_permissao');
     exit;
 }
@@ -53,6 +57,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['acao'])) {
         if (!empty($_GET['status'])) $filtros['status'] = $_GET['status'];
         if (!empty($_GET['mes'])) $filtros['mes'] = $_GET['mes'];
         
+        // Nutricionista vê apenas seus próprios pedidos
+        if ($tipoUsuario === 'nutricionista') {
+            $filtros['nutricionista_id'] = $_SESSION['usuario_id'];
+        }
+        
         $pedidos = $pedidoModel->listar($filtros);
         echo json_encode(['success' => true, 'pedidos' => $pedidos]);
         exit;
@@ -65,8 +74,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['acao'])) {
     }
 }
 
-// Buscar pedidos pendentes
-$pedidosPendentes = $pedidoModel->listar(['status' => 'ENVIADO']);
+// Buscar pedidos conforme o tipo de usuário para exibição inicial
+if ($tipoUsuario === 'adm_merenda') {
+    // ADM_MERENDA vê pedidos pendentes para aprovar
+    $pedidosPendentes = $pedidoModel->listar(['status' => 'ENVIADO']);
+} else {
+    // NUTRICIONISTA vê seus próprios pedidos
+    $pedidosPendentes = $pedidoModel->listar(['nutricionista_id' => $_SESSION['usuario_id']]);
+}
 ?>
 <!DOCTYPE html>
 <html lang="pt-BR">
@@ -107,7 +122,15 @@ $pedidosPendentes = $pedidoModel->listar(['status' => 'ENVIADO']);
     </style>
 </head>
 <body class="bg-gray-50">
-    <?php include 'components/sidebar_merenda.php'; ?>
+    <?php 
+    if (eAdm()) {
+        include 'components/sidebar_adm.php';
+    } elseif ($tipoUsuario === 'nutricionista') {
+        include 'components/sidebar_nutricionista.php';
+    } else {
+        include 'components/sidebar_merenda.php';
+    }
+    ?>
     
     <main class="content-transition ml-0 lg:ml-64 min-h-screen">
         <header class="bg-white shadow-sm border-b border-gray-200 sticky top-0 z-30">
@@ -124,7 +147,7 @@ $pedidosPendentes = $pedidoModel->listar(['status' => 'ENVIADO']);
                     <div class="flex items-center space-x-4">
                         <!-- School Info (Desktop Only) -->
                         <div class="hidden lg:block">
-                            <?php if ($_SESSION['tipo'] === 'ADM' || $_SESSION['tipo'] === 'ADM_MERENDA') { ?>
+                            <?php if (eAdm() || $tipoUsuario === 'adm_merenda') { ?>
                                 <!-- Para ADM, texto simples com padding para alinhamento -->
                                 <div class="text-right px-4 py-2">
                                     <p class="text-sm font-medium text-gray-800">Secretaria Municipal da Educação</p>
@@ -152,8 +175,13 @@ $pedidosPendentes = $pedidoModel->listar(['status' => 'ENVIADO']);
         <div class="p-8">
             <div class="max-w-7xl mx-auto">
                 <div class="mb-6">
-                    <h2 class="text-2xl font-bold text-gray-900">Aprovação de Pedidos</h2>
-                    <p class="text-gray-600 mt-1">Aprove ou rejeite pedidos de compra de alimentos</p>
+                    <?php if ($tipoUsuario === 'adm_merenda'): ?>
+                        <h2 class="text-2xl font-bold text-gray-900">Aprovação de Pedidos</h2>
+                        <p class="text-gray-600 mt-1">Aprove ou rejeite pedidos de compra de alimentos</p>
+                    <?php else: ?>
+                        <h2 class="text-2xl font-bold text-gray-900">Meus Pedidos de Compra</h2>
+                        <p class="text-gray-600 mt-1">Gerencie seus pedidos de compra de alimentos</p>
+                    <?php endif; ?>
                 </div>
                 
                 <!-- Filtros -->
@@ -172,7 +200,12 @@ $pedidosPendentes = $pedidoModel->listar(['status' => 'ENVIADO']);
                             <label class="block text-sm font-medium text-gray-700 mb-2">Status</label>
                             <select id="filtro-status" class="w-full px-4 py-2 border border-gray-300 rounded-lg" onchange="filtrarPedidos()">
                                 <option value="">Todos</option>
-                                <option value="ENVIADO" selected>Pendentes</option>
+                                <?php if ($tipoUsuario === 'adm_merenda'): ?>
+                                    <option value="ENVIADO" selected>Pendentes</option>
+                                <?php else: ?>
+                                    <option value="RASCUHO">Rascunhos</option>
+                                    <option value="ENVIADO">Enviados</option>
+                                <?php endif; ?>
                                 <option value="APROVADO">Aprovados</option>
                                 <option value="REJEITADO">Rejeitados</option>
                             </select>
@@ -196,7 +229,7 @@ $pedidosPendentes = $pedidoModel->listar(['status' => 'ENVIADO']);
                     <div id="lista-pedidos" class="space-y-4">
                         <?php if (empty($pedidosPendentes)): ?>
                             <div class="text-center py-12">
-                                <p class="text-gray-600">Nenhum pedido pendente encontrado.</p>
+                                <p class="text-gray-600"><?= $tipoUsuario === 'adm_merenda' ? 'Nenhum pedido pendente encontrado.' : 'Nenhum pedido encontrado.' ?></p>
                             </div>
                         <?php else: ?>
                             <?php foreach ($pedidosPendentes as $pedido): ?>
@@ -220,7 +253,7 @@ $pedidosPendentes = $pedidoModel->listar(['status' => 'ENVIADO']);
                                             <button onclick="verDetalhesPedido(<?= $pedido['id'] ?>)" class="text-blue-600 hover:text-blue-700 font-medium text-sm">
                                                 Ver Detalhes
                                             </button>
-                                            <?php if ($pedido['status'] === 'ENVIADO'): ?>
+                                            <?php if ($tipoUsuario === 'adm_merenda' && $pedido['status'] === 'ENVIADO'): ?>
                                                 <button onclick="aprovarPedido(<?= $pedido['id'] ?>)" class="text-green-600 hover:text-green-700 font-medium text-sm">
                                                     Aprovar
                                                 </button>
@@ -498,7 +531,7 @@ $pedidosPendentes = $pedidoModel->listar(['status' => 'ENVIADO']);
                                             <button onclick="verDetalhesPedido(${pedido.id})" class="text-blue-600 hover:text-blue-700 font-medium text-sm">
                                                 Ver Detalhes
                                             </button>
-                                            ${pedido.status === 'ENVIADO' ? `
+                                            ${pedido.status === 'ENVIADO' && '<?= $tipoUsuario ?>' === 'adm_merenda' ? `
                                                 <button onclick="aprovarPedido(${pedido.id})" class="text-green-600 hover:text-green-700 font-medium text-sm">
                                                     Aprovar
                                                 </button>

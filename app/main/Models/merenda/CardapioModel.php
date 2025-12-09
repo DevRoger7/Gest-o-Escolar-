@@ -47,6 +47,11 @@ class CardapioModel {
             $params[':status'] = $filtros['status'];
         }
         
+        if (!empty($filtros['criado_por'])) {
+            $sql .= " AND c.criado_por = :criado_por";
+            $params[':criado_por'] = $filtros['criado_por'];
+        }
+        
         $sql .= " ORDER BY c.ano DESC, c.mes DESC, c.criado_em DESC";
         
         $stmt = $conn->prepare($sql);
