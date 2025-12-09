@@ -183,13 +183,12 @@ class AlunoModel {
                           sexo = :sexo, email = :email, telefone = :telefone
                           WHERE id = :pessoa_id";
             $stmtPessoa = $conn->prepare($sqlPessoa);
-            $stmtPessoa->bindParam(':nome', $dados['nome']);
-            $stmtPessoa->bindParam(':data_nascimento', $dados['data_nascimento']);
-            $stmtPessoa->bindParam(':sexo', $dados['sexo']);
-            $stmtPessoa->bindParam(':email', $dados['email']);
-            $stmtPessoa->bindParam(':telefone', $dados['telefone']);
-            
-            $stmtPessoa->bindParam(':pessoa_id', $pessoaId);
+            $stmtPessoa->bindValue(':nome', $dados['nome']);
+            $stmtPessoa->bindValue(':data_nascimento', $dados['data_nascimento']);
+            $stmtPessoa->bindValue(':sexo', isset($dados['sexo']) ? $dados['sexo'] : null, isset($dados['sexo']) ? PDO::PARAM_STR : PDO::PARAM_NULL);
+            $stmtPessoa->bindValue(':email', isset($dados['email']) ? $dados['email'] : null, isset($dados['email']) ? PDO::PARAM_STR : PDO::PARAM_NULL);
+            $stmtPessoa->bindValue(':telefone', isset($dados['telefone']) ? $dados['telefone'] : null, isset($dados['telefone']) ? PDO::PARAM_STR : PDO::PARAM_NULL);
+            $stmtPessoa->bindValue(':pessoa_id', $pessoaId);
             $stmtPessoa->execute();
             
             // 2. Atualizar aluno
@@ -202,16 +201,17 @@ class AlunoModel {
             
             $sqlAluno = "UPDATE aluno SET matricula = :matricula, nis = :nis, 
                         responsavel_id = :responsavel_id, escola_id = :escola_id,
-                        situacao = :situacao, ativo = :ativo
+                        data_matricula = :data_matricula, situacao = :situacao, ativo = :ativo
                         WHERE id = :id";
             $stmtAluno = $conn->prepare($sqlAluno);
-            $stmtAluno->bindParam(':matricula', $matricula);
-            $stmtAluno->bindParam(':nis', $nis);
-            $stmtAluno->bindParam(':responsavel_id', $responsavelId);
-            $stmtAluno->bindParam(':escola_id', $escolaId);
-            $stmtAluno->bindParam(':situacao', $dados['situacao'] ?? 'MATRICULADO');
-            $stmtAluno->bindParam(':ativo', $dados['ativo'] ?? 1);
-            $stmtAluno->bindParam(':id', $id);
+            $stmtAluno->bindValue(':matricula', $matricula);
+            $stmtAluno->bindValue(':nis', isset($nis) ? $nis : null, isset($nis) ? PDO::PARAM_STR : PDO::PARAM_NULL);
+            $stmtAluno->bindValue(':responsavel_id', isset($responsavelId) ? $responsavelId : null, isset($responsavelId) ? PDO::PARAM_INT : PDO::PARAM_NULL);
+            $stmtAluno->bindValue(':escola_id', isset($escolaId) ? $escolaId : null, isset($escolaId) ? PDO::PARAM_INT : PDO::PARAM_NULL);
+            $stmtAluno->bindValue(':data_matricula', isset($dados['data_matricula']) ? $dados['data_matricula'] : null, isset($dados['data_matricula']) ? PDO::PARAM_STR : PDO::PARAM_NULL);
+            $stmtAluno->bindValue(':situacao', isset($dados['situacao']) ? $dados['situacao'] : 'MATRICULADO');
+            $stmtAluno->bindValue(':ativo', isset($dados['ativo']) ? (int)$dados['ativo'] : 1, PDO::PARAM_INT);
+            $stmtAluno->bindValue(':id', $id, PDO::PARAM_INT);
             $stmtAluno->execute();
             
             $conn->commit();

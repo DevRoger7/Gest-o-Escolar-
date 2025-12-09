@@ -20,14 +20,46 @@ $stats = new DashboardStats();
 $db = Database::getInstance();
 $conn = $db->getConnection();
 
-// Buscar aluno_id
+// Buscar aluno_id com fallback robusto
 $usuarioId = $_SESSION['usuario_id'] ?? null;
-$sqlAluno = "SELECT a.id FROM aluno a INNER JOIN usuario u ON a.pessoa_id = u.pessoa_id WHERE u.id = :usuario_id";
-$stmtAluno = $conn->prepare($sqlAluno);
-$stmtAluno->bindParam(':usuario_id', $usuarioId);
-$stmtAluno->execute();
-$aluno = $stmtAluno->fetch(PDO::FETCH_ASSOC);
-$alunoIdReal = $aluno['id'] ?? null;
+$pessoaId = $_SESSION['pessoa_id'] ?? null;
+$cpf = $_SESSION['cpf'] ?? null;
+
+if (!$pessoaId && $usuarioId) {
+    $sqlPessoa = "SELECT pessoa_id FROM usuario WHERE id = :usuario_id LIMIT 1";
+    $stmtPessoa = $conn->prepare($sqlPessoa);
+    $stmtPessoa->bindParam(':usuario_id', $usuarioId);
+    $stmtPessoa->execute();
+    $usuario = $stmtPessoa->fetch(PDO::FETCH_ASSOC);
+    $pessoaId = $usuario['pessoa_id'] ?? null;
+}
+
+$alunoIdReal = null;
+if ($pessoaId) {
+    $sqlAluno = "SELECT a.id FROM aluno a WHERE a.pessoa_id = :pessoa_id LIMIT 1";
+    $stmtAluno = $conn->prepare($sqlAluno);
+    $stmtAluno->bindParam(':pessoa_id', $pessoaId);
+    $stmtAluno->execute();
+    $aluno = $stmtAluno->fetch(PDO::FETCH_ASSOC);
+    $alunoIdReal = $aluno['id'] ?? null;
+}
+if (!$alunoIdReal && $usuarioId) {
+    $sqlAluno = "SELECT a.id FROM aluno a INNER JOIN usuario u ON a.pessoa_id = u.pessoa_id WHERE u.id = :usuario_id LIMIT 1";
+    $stmtAluno = $conn->prepare($sqlAluno);
+    $stmtAluno->bindParam(':usuario_id', $usuarioId);
+    $stmtAluno->execute();
+    $aluno = $stmtAluno->fetch(PDO::FETCH_ASSOC);
+    $alunoIdReal = $aluno['id'] ?? null;
+}
+if (!$alunoIdReal && $cpf) {
+    $cpfLimpo = preg_replace('/[^0-9]/', '', $cpf);
+    $sqlAluno = "SELECT a.id FROM aluno a INNER JOIN pessoa p ON a.pessoa_id = p.id WHERE p.cpf = :cpf LIMIT 1";
+    $stmtAluno = $conn->prepare($sqlAluno);
+    $stmtAluno->bindParam(':cpf', $cpfLimpo);
+    $stmtAluno->execute();
+    $aluno = $stmtAluno->fetch(PDO::FETCH_ASSOC);
+    $alunoIdReal = $aluno['id'] ?? null;
+}
 
 // Buscar turma atual
 $turmaId = null;
@@ -38,7 +70,9 @@ if ($alunoIdReal) {
                  CONCAT(COALESCE(t.serie, ''), ' ', COALESCE(t.letra, ''), ' - ', COALESCE(t.turno, '')) as turma_nome
                  FROM aluno_turma at 
                  INNER JOIN turma t ON at.turma_id = t.id 
-                 WHERE at.aluno_id = :aluno_id AND at.fim IS NULL 
+                 WHERE at.aluno_id = :aluno_id 
+                 AND (at.fim IS NULL OR at.status = 'MATRICULADO' OR at.status IS NULL)
+                 ORDER BY at.inicio DESC
                  LIMIT 1";
     $stmtTurma = $conn->prepare($sqlTurma);
     $stmtTurma->bindParam(':aluno_id', $alunoIdReal);
@@ -50,20 +84,10 @@ if ($alunoIdReal) {
     }
 }
 
-// Buscar boletins (sem filtrar por ano para mostrar todos)
+// Buscar boletins pela tabela 'boletim'
 $boletins = [];
 if ($alunoIdReal) {
-    // Buscar todos os boletins do aluno diretamente do banco
-    $sqlBoletins = "SELECT b.*, 
-                    CONCAT(COALESCE(t.serie, ''), ' ', COALESCE(t.letra, ''), ' - ', COALESCE(t.turno, '')) as turma_nome
-                    FROM boletim b
-                    INNER JOIN turma t ON b.turma_id = t.id
-                    WHERE b.aluno_id = :aluno_id
-                    ORDER BY b.ano_letivo DESC, b.bimestre DESC";
-    $stmtBoletins = $conn->prepare($sqlBoletins);
-    $stmtBoletins->bindParam(':aluno_id', $alunoIdReal);
-    $stmtBoletins->execute();
-    $boletins = $stmtBoletins->fetchAll(PDO::FETCH_ASSOC);
+    $boletins = $boletimModel->listarPorAluno($alunoIdReal);
 }
 
 // Buscar boletim detalhado se solicitado

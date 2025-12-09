@@ -149,17 +149,76 @@ class BoletimModel {
         $stmt->execute();
         
         $result = $stmt->fetchAll(PDO::FETCH_ASSOC);
-        
-        if (empty($result)) {
-            return null;
+
+        // Se não houver boletim ou não houver itens, calcular dinamicamente a partir das notas
+        $temItens = false;
+        foreach ($result as $rowCheck) {
+            if (!empty($rowCheck['disciplina_id'])) { $temItens = true; break; }
         }
-        
-        // Organizar resultado
+
+        if (empty($result) || !$temItens) {
+            $notaModel = new NotaModel();
+            $frequenciaModel = new FrequenciaModel();
+
+            // Buscar disciplinas da turma
+            $sqlDisc = "SELECT DISTINCT d.id, d.nome
+                        FROM turma_professor tp
+                        INNER JOIN disciplina d ON tp.disciplina_id = d.id
+                        WHERE tp.turma_id = :turma_id";
+            $stmtDisc = $conn->prepare($sqlDisc);
+            $stmtDisc->bindParam(':turma_id', $turmaId);
+            $stmtDisc->execute();
+            $disciplinas = $stmtDisc->fetchAll(PDO::FETCH_ASSOC);
+
+            // Calcular médias por disciplina
+            $medias = [];
+            $itens = [];
+            $periodoInicio = $this->getInicioBimestre($bimestre, $anoLetivo);
+            $periodoFim = $this->getFimBimestre($bimestre, $anoLetivo);
+            $freqGeral = $frequenciaModel->calcularPercentual($alunoId, $turmaId, $periodoInicio, $periodoFim);
+
+            foreach ($disciplinas as $disc) {
+                $m = $notaModel->calcularMedia($alunoId, $disc['id'], $turmaId, $bimestre);
+                $medias[] = $m['media'];
+                $situacaoItem = $m['media'] >= 7 ? 'APROVADO' : ($m['media'] >= 5 ? 'RECUPERACAO' : 'REPROVADO');
+                $itens[] = [
+                    'disciplina_id' => $disc['id'],
+                    'disciplina_nome' => $disc['nome'],
+                    'media' => $m['media'],
+                    'faltas' => $freqGeral['dias_faltas'] ?? 0,
+                    'situacao' => $situacaoItem
+                ];
+            }
+
+            $mediaGeral = count($medias) > 0 ? array_sum($medias) / count($medias) : 0;
+            $situacao = 'PENDENTE';
+            if ($mediaGeral >= 7 && ($freqGeral['percentual'] ?? 0) >= 75) {
+                $situacao = 'APROVADO';
+            } elseif ($mediaGeral < 5 || ($freqGeral['percentual'] ?? 0) < 75) {
+                $situacao = 'REPROVADO';
+            } elseif ($mediaGeral >= 5 && $mediaGeral < 7) {
+                $situacao = 'RECUPERACAO';
+            }
+
+            return [
+                'id' => null,
+                'aluno_id' => $alunoId,
+                'turma_id' => $turmaId,
+                'ano_letivo' => $anoLetivo,
+                'bimestre' => $bimestre,
+                'media_geral' => round($mediaGeral, 2),
+                'frequencia_percentual' => $freqGeral['percentual'] ?? 0,
+                'total_faltas' => $freqGeral['dias_faltas'] ?? 0,
+                'situacao' => $situacao,
+                'itens' => $itens
+            ];
+        }
+
+        // Organizar resultado a partir do banco
         $boletim = $result[0];
         $boletim['itens'] = [];
-        
         foreach ($result as $row) {
-            if ($row['disciplina_id']) {
+            if (!empty($row['disciplina_id'])) {
                 $boletim['itens'][] = [
                     'disciplina_id' => $row['disciplina_id'],
                     'disciplina_nome' => $row['disciplina_nome'],
@@ -169,7 +228,6 @@ class BoletimModel {
                 ];
             }
         }
-        
         return $boletim;
     }
     
@@ -182,7 +240,7 @@ class BoletimModel {
         $sql = "SELECT b.*, 
                 CONCAT(COALESCE(t.serie, ''), ' ', COALESCE(t.letra, ''), ' - ', COALESCE(t.turno, '')) as turma_nome
                 FROM boletim b
-                INNER JOIN turma t ON b.turma_id = t.id
+                LEFT JOIN turma t ON b.turma_id = t.id
                 WHERE b.aluno_id = :aluno_id";
         
         $params = [':aluno_id' => $alunoId];

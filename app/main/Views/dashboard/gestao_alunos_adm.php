@@ -38,6 +38,7 @@ $escolas = $stmtEscolas->fetchAll(PDO::FETCH_ASSOC);
 
 // Processar requisições AJAX
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao'])) {
+    if (ob_get_level()) { ob_clean(); }
     header('Content-Type: application/json');
     
             if ($_POST['acao'] === 'cadastrar_aluno') {
