@@ -1219,6 +1219,21 @@ if (!defined('BASE_URL')) {
         .modal-sucesso-content {
             transition: transform 0.2s ease-out;
         }
+        
+        @keyframes slide-in {
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+        
+        .animate-slide-in {
+            animation: slide-in 0.3s ease-out;
+        }
     </style>
 </head>
 <body class="bg-gray-50">
@@ -1370,6 +1385,9 @@ if (!defined('BASE_URL')) {
                 </button>
                 <button onclick="mostrarAba('responsaveis')" id="tab-responsaveis" class="tab-button py-4 px-1 border-b-2 border-transparent font-medium text-sm text-gray-500 hover:text-gray-700 hover:border-gray-300">
                     Responsáveis
+                </button>
+                <button onclick="mostrarAba('relatorios')" id="tab-relatorios" class="tab-button py-4 px-1 border-b-2 border-transparent font-medium text-sm text-gray-500 hover:text-gray-700 hover:border-gray-300">
+                    Relatórios
                 </button>
             </nav>
         </div>
@@ -2113,6 +2131,158 @@ if (!defined('BASE_URL')) {
                         </tbody>
                     </table>
                 </div>
+            </div>
+        </div>
+
+        <!-- ABA: RELATÓRIOS -->
+        <div id="conteudo-relatorios" class="aba-conteudo hidden">
+            <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+                <div class="flex justify-between items-center mb-6">
+                    <h2 class="text-xl font-bold text-gray-800">Geração de Relatórios</h2>
+                </div>
+
+                <!-- Cards de Relatórios -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                    <!-- Boletim Bimestral -->
+                    <div class="bg-white rounded-lg shadow-sm border-2 border-gray-200 p-6 hover:border-primary-green transition-colors">
+                        <div class="flex items-center justify-between mb-4">
+                            <div class="w-14 h-14 bg-blue-100 rounded-lg flex items-center justify-center">
+                                <svg class="w-7 h-7 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                                </svg>
+                            </div>
+                        </div>
+                        <h3 class="text-lg font-semibold text-gray-900 mb-2">Boletim Bimestral</h3>
+                        <p class="text-sm text-gray-600 mb-4">Gere boletins bimestrais com notas e frequência dos alunos</p>
+                        <button onclick="abrirModalBoletimBimestral()" class="w-full bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors">
+                            Gerar Boletim Bimestral
+                        </button>
+                    </div>
+
+                    <!-- Boletim Final -->
+                    <div class="bg-white rounded-lg shadow-sm border-2 border-gray-200 p-6 hover:border-primary-green transition-colors">
+                        <div class="flex items-center justify-between mb-4">
+                            <div class="w-14 h-14 bg-green-100 rounded-lg flex items-center justify-center">
+                                <svg class="w-7 h-7 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z"></path>
+                                </svg>
+                            </div>
+                        </div>
+                        <h3 class="text-lg font-semibold text-gray-900 mb-2">Boletim Final</h3>
+                        <p class="text-sm text-gray-600 mb-4">Gere boletim final com média anual e situação do aluno</p>
+                        <button onclick="abrirModalBoletimFinal()" class="w-full bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-medium transition-colors">
+                            Gerar Boletim Final
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Boletim Bimestral -->
+    <div id="modal-boletim-bimestral" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+        <div class="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div class="sticky top-0 bg-primary-green text-white p-6 rounded-t-lg flex justify-between items-center">
+                <h3 class="text-xl font-bold">Gerar Boletim Bimestral</h3>
+                <button onclick="fecharModalBoletimBimestral()" class="text-white hover:text-gray-200 transition-colors">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+            </div>
+            <div class="p-6">
+                <form id="form-boletim-bimestral" onsubmit="event.preventDefault(); gerarBoletimBimestral();">
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Turma <span class="text-red-500">*</span></label>
+                            <select id="boletim-bimestral-turma" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-green focus:border-primary-green">
+                                <option value="">Selecione uma turma...</option>
+                                <?php
+                                $sqlTurmas = "SELECT t.id, t.serie, t.letra, t.turno, e.nome as escola_nome 
+                                             FROM turma t 
+                                             INNER JOIN escola e ON t.escola_id = e.id 
+                                             WHERE t.ativo = 1 
+                                             ORDER BY e.nome, t.serie, t.letra";
+                                $stmtTurmas = $conn->prepare($sqlTurmas);
+                                $stmtTurmas->execute();
+                                $turmas = $stmtTurmas->fetchAll(PDO::FETCH_ASSOC);
+                                foreach ($turmas as $turma):
+                                ?>
+                                    <option value="<?= $turma['id'] ?>">
+                                        <?= htmlspecialchars($turma['escola_nome']) ?> - <?= htmlspecialchars($turma['serie']) ?> <?= htmlspecialchars($turma['letra']) ?> (<?= htmlspecialchars($turma['turno']) ?>)
+                                    </option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Bimestre <span class="text-red-500">*</span></label>
+                            <select id="boletim-bimestral-bimestre" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-green focus:border-primary-green">
+                                <option value="">Selecione o bimestre...</option>
+                                <option value="1">1º Bimestre</option>
+                                <option value="2">2º Bimestre</option>
+                                <option value="3">3º Bimestre</option>
+                                <option value="4">4º Bimestre</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Ano Letivo <span class="text-red-500">*</span></label>
+                            <input type="number" id="boletim-bimestral-ano" required min="2020" max="2099" value="<?= date('Y') ?>" 
+                                   class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-green focus:border-primary-green">
+                        </div>
+                    </div>
+                    <div class="mt-6 flex gap-3">
+                        <button type="submit" class="flex-1 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors">
+                            Gerar Boletim
+                        </button>
+                        <button type="button" onclick="fecharModalBoletimBimestral()" class="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-700 px-4 py-2 rounded-lg font-medium transition-colors">
+                            Cancelar
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Boletim Final -->
+    <div id="modal-boletim-final" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+        <div class="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div class="sticky top-0 bg-green-600 text-white p-6 rounded-t-lg flex justify-between items-center">
+                <h3 class="text-xl font-bold">Gerar Boletim Final</h3>
+                <button onclick="fecharModalBoletimFinal()" class="text-white hover:text-gray-200 transition-colors">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+            </div>
+            <div class="p-6">
+                <form id="form-boletim-final" onsubmit="event.preventDefault(); gerarBoletimFinal();">
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Turma <span class="text-red-500">*</span></label>
+                            <select id="boletim-final-turma" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-green focus:border-primary-green">
+                                <option value="">Selecione uma turma...</option>
+                                <?php foreach ($turmas as $turma): ?>
+                                    <option value="<?= $turma['id'] ?>">
+                                        <?= htmlspecialchars($turma['escola_nome']) ?> - <?= htmlspecialchars($turma['serie']) ?> <?= htmlspecialchars($turma['letra']) ?> (<?= htmlspecialchars($turma['turno']) ?>)
+                                    </option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Ano Letivo <span class="text-red-500">*</span></label>
+                            <input type="number" id="boletim-final-ano" required min="2020" max="2099" value="<?= date('Y') ?>" 
+                                   class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-green focus:border-primary-green">
+                        </div>
+                    </div>
+                    <div class="mt-6 flex gap-3">
+                        <button type="submit" class="flex-1 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-medium transition-colors">
+                            Gerar Boletim Final
+                        </button>
+                        <button type="button" onclick="fecharModalBoletimFinal()" class="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-700 px-4 py-2 rounded-lg font-medium transition-colors">
+                            Cancelar
+                        </button>
+                    </div>
+                </form>
             </div>
         </div>
     </div>
@@ -3226,6 +3396,187 @@ if (!defined('BASE_URL')) {
             if (aba === 'responsaveis') {
                 carregarResponsaveis();
             }
+        }
+
+        // Função para mostrar notificação de sucesso
+        function mostrarNotificacaoSucesso(mensagem) {
+            // Remover notificação anterior se existir
+            const notifAnterior = document.getElementById('notificacao-boletim');
+            if (notifAnterior) {
+                notifAnterior.remove();
+            }
+            
+            // Criar elemento de notificação
+            const notificacao = document.createElement('div');
+            notificacao.id = 'notificacao-boletim';
+            notificacao.className = 'fixed top-4 right-4 bg-green-500 text-white px-6 py-4 rounded-lg shadow-lg z-50 flex items-center gap-3 animate-slide-in';
+            notificacao.innerHTML = `
+                <svg class="w-6 h-6 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                </svg>
+                <div>
+                    <p class="font-semibold">Sucesso!</p>
+                    <p class="text-sm">${mensagem}</p>
+                </div>
+                <button onclick="this.parentElement.remove()" class="ml-4 text-white hover:text-gray-200">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+            `;
+            
+            document.body.appendChild(notificacao);
+            
+            // Remover automaticamente após 5 segundos
+            setTimeout(() => {
+                notificacao.style.opacity = '0';
+                notificacao.style.transition = 'opacity 0.3s';
+                setTimeout(() => notificacao.remove(), 300);
+            }, 5000);
+        }
+
+        // Funções para Boletim Bimestral
+        function abrirModalBoletimBimestral() {
+            document.getElementById('modal-boletim-bimestral').classList.remove('hidden');
+        }
+
+        function fecharModalBoletimBimestral() {
+            document.getElementById('modal-boletim-bimestral').classList.add('hidden');
+        }
+
+        function gerarBoletimBimestral() {
+            const turmaId = document.getElementById('boletim-bimestral-turma').value;
+            const bimestre = document.getElementById('boletim-bimestral-bimestre').value;
+            const ano = document.getElementById('boletim-bimestral-ano').value;
+
+            if (!turmaId || !bimestre || !ano) {
+                alert('Por favor, preencha todos os campos obrigatórios');
+                return;
+            }
+
+            // Obter botão de submit para mostrar loading
+            const submitBtn = document.querySelector('#form-boletim-bimestral button[type="submit"]');
+            const originalText = submitBtn.innerHTML;
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<span class="inline-block animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></span> Gerando...';
+
+            // Preparar dados para envio
+            const formData = new FormData();
+            formData.append('action', 'gerar_bimestral');
+            formData.append('turma_id', turmaId);
+            formData.append('bimestre', bimestre);
+            formData.append('ano_letivo', ano);
+
+            // Fazer requisição AJAX
+            fetch('../../Controllers/academico/BoletimController.php', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Erro HTTP: ' + response.status);
+                }
+                return response.text().then(text => {
+                    if (!text || text.trim() === '') {
+                        throw new Error('Resposta vazia do servidor');
+                    }
+                    try {
+                        return JSON.parse(text);
+                    } catch (e) {
+                        throw new Error('Resposta não é JSON válido: ' + text.substring(0, 200));
+                    }
+                });
+            })
+            .then(data => {
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = originalText;
+                
+                if (data.success) {
+                    mostrarNotificacaoSucesso(data.message || 'Boletins gerados com sucesso!');
+                    fecharModalBoletimBimestral();
+                    // Limpar formulário
+                    document.getElementById('form-boletim-bimestral').reset();
+                } else {
+                    alert('Erro ao gerar boletins: ' + (data.message || 'Erro desconhecido'));
+                }
+            })
+            .catch(error => {
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = originalText;
+                console.error('Erro ao gerar boletins:', error);
+                alert('Erro ao gerar boletins: ' + error.message);
+            });
+        }
+
+        // Funções para Boletim Final
+        function abrirModalBoletimFinal() {
+            document.getElementById('modal-boletim-final').classList.remove('hidden');
+        }
+
+        function fecharModalBoletimFinal() {
+            document.getElementById('modal-boletim-final').classList.add('hidden');
+        }
+
+        function gerarBoletimFinal() {
+            const turmaId = document.getElementById('boletim-final-turma').value;
+            const ano = document.getElementById('boletim-final-ano').value;
+
+            if (!turmaId || !ano) {
+                alert('Por favor, preencha todos os campos obrigatórios');
+                return;
+            }
+
+            // Obter botão de submit para mostrar loading
+            const submitBtn = document.querySelector('#form-boletim-final button[type="submit"]');
+            const originalText = submitBtn.innerHTML;
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<span class="inline-block animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></span> Gerando...';
+
+            // Preparar dados para envio
+            const formData = new FormData();
+            formData.append('action', 'gerar_final');
+            formData.append('turma_id', turmaId);
+            formData.append('ano_letivo', ano);
+
+            // Fazer requisição AJAX
+            fetch('../../Controllers/academico/BoletimController.php', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Erro HTTP: ' + response.status);
+                }
+                return response.text().then(text => {
+                    if (!text || text.trim() === '') {
+                        throw new Error('Resposta vazia do servidor');
+                    }
+                    try {
+                        return JSON.parse(text);
+                    } catch (e) {
+                        throw new Error('Resposta não é JSON válido: ' + text.substring(0, 200));
+                    }
+                });
+            })
+            .then(data => {
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = originalText;
+                
+                if (data.success) {
+                    mostrarNotificacaoSucesso(data.message || 'Boletins finais gerados com sucesso!');
+                    fecharModalBoletimFinal();
+                    // Limpar formulário
+                    document.getElementById('form-boletim-final').reset();
+                } else {
+                    alert('Erro ao gerar boletins: ' + (data.message || 'Erro desconhecido'));
+                }
+            })
+            .catch(error => {
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = originalText;
+                console.error('Erro ao gerar boletins:', error);
+                alert('Erro ao gerar boletins: ' + error.message);
+            });
         }
 
         // Modal Criar Turma

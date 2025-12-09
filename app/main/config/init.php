@@ -20,8 +20,10 @@ function iniciarSessao() {
 // Iniciar sessão se ainda não foi iniciada
 iniciarSessao();
 
-// Incluir configurações
-require_once __DIR__ . '/config.php';
+// Incluir configurações (se existir)
+if (file_exists(__DIR__ . '/config.php')) {
+    require_once __DIR__ . '/config.php';
+}
 
 // Incluir classe de banco de dados
 require_once __DIR__ . '/Database.php';

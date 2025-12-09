@@ -50,17 +50,46 @@ if ($alunoIdReal) {
     }
 }
 
-// Buscar boletins
+// Buscar boletins (sem filtrar por ano para mostrar todos)
 $boletins = [];
 if ($alunoIdReal) {
-    $boletins = $boletimModel->listarPorAluno($alunoIdReal, $anoLetivo);
+    // Buscar todos os boletins do aluno diretamente do banco
+    $sqlBoletins = "SELECT b.*, 
+                    CONCAT(COALESCE(t.serie, ''), ' ', COALESCE(t.letra, ''), ' - ', COALESCE(t.turno, '')) as turma_nome
+                    FROM boletim b
+                    INNER JOIN turma t ON b.turma_id = t.id
+                    WHERE b.aluno_id = :aluno_id
+                    ORDER BY b.ano_letivo DESC, b.bimestre DESC";
+    $stmtBoletins = $conn->prepare($sqlBoletins);
+    $stmtBoletins->bindParam(':aluno_id', $alunoIdReal);
+    $stmtBoletins->execute();
+    $boletins = $stmtBoletins->fetchAll(PDO::FETCH_ASSOC);
 }
 
 // Buscar boletim detalhado se solicitado
 $boletimDetalhado = null;
-if (isset($_GET['bimestre']) && $turmaId) {
+if (isset($_GET['bimestre']) && $alunoIdReal) {
     $bimestre = $_GET['bimestre'];
-    $boletimDetalhado = $boletimModel->buscar($alunoIdReal, $turmaId, $anoLetivo, $bimestre);
+    // Buscar o boletim - usar turma e ano do boletim encontrado, ou usar turma atual
+    $boletimEncontrado = null;
+    foreach ($boletins as $bol) {
+        if ($bol['bimestre'] == $bimestre) {
+            $boletimEncontrado = $bol;
+            break;
+        }
+    }
+    
+    if ($boletimEncontrado) {
+        $boletimDetalhado = $boletimModel->buscar(
+            $alunoIdReal, 
+            $boletimEncontrado['turma_id'], 
+            $boletimEncontrado['ano_letivo'], 
+            $bimestre
+        );
+    } elseif ($turmaId) {
+        // Fallback: tentar com turma atual
+        $boletimDetalhado = $boletimModel->buscar($alunoIdReal, $turmaId, $anoLetivo, $bimestre);
+    }
 }
 ?>
 <!DOCTYPE html>
@@ -206,6 +235,7 @@ if (isset($_GET['bimestre']) && $turmaId) {
             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
                 <?php for ($b = 1; $b <= 4; $b++): 
                     $dadosBimestre = null;
+                    // Buscar qualquer boletim do bimestre, independente de turma ou ano
                     foreach ($boletins as $bol) {
                         if ($bol['bimestre'] == $b) {
                             $dadosBimestre = $bol;
