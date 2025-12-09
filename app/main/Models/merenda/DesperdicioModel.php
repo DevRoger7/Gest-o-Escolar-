@@ -19,29 +19,60 @@ class DesperdicioModel {
     public function registrar($dados) {
         $conn = $this->db->getConnection();
         
-        $sql = "INSERT INTO desperdicio (escola_id, data, turno, produto_id, quantidade, unidade_medida,
-                peso_kg, motivo, motivo_detalhado, observacoes, registrado_por, registrado_em)
-                VALUES (:escola_id, :data, :turno, :produto_id, :quantidade, :unidade_medida,
-                :peso_kg, :motivo, :motivo_detalhado, :observacoes, :registrado_por, NOW())";
-        
-        $stmt = $conn->prepare($sql);
-        $stmt->bindParam(':escola_id', $dados['escola_id']);
-        $stmt->bindParam(':data', $dados['data']);
-        $stmt->bindParam(':turno', $dados['turno'] ?? null);
-        $stmt->bindParam(':produto_id', $dados['produto_id'] ?? null);
-        $stmt->bindParam(':quantidade', $dados['quantidade'] ?? null);
-        $stmt->bindParam(':unidade_medida', $dados['unidade_medida'] ?? null);
-        $stmt->bindParam(':peso_kg', $dados['peso_kg'] ?? null);
-        $stmt->bindParam(':motivo', $dados['motivo'] ?? 'OUTROS');
-        $stmt->bindParam(':motivo_detalhado', $dados['motivo_detalhado'] ?? null);
-        $stmt->bindParam(':observacoes', $dados['observacoes'] ?? null);
-        $stmt->bindParam(':registrado_por', $_SESSION['usuario_id']);
-        
-        if ($stmt->execute()) {
+        try {
+            $stmtChkEscola = $conn->prepare("SELECT id FROM escola WHERE id = :id LIMIT 1");
+            $stmtChkEscola->bindValue(':id', (int)$dados['escola_id'], PDO::PARAM_INT);
+            $stmtChkEscola->execute();
+            if (!$stmtChkEscola->fetch(PDO::FETCH_ASSOC)) {
+                return ['success' => false, 'message' => 'Escola inválida'];
+            }
+            $turno = (isset($dados['turno']) && $dados['turno'] !== '') ? $dados['turno'] : null;
+            $produtoId = (isset($dados['produto_id']) && $dados['produto_id'] !== '') ? (int)$dados['produto_id'] : null;
+            if ($produtoId !== null) {
+                $stmtChkProd = $conn->prepare("SELECT id FROM produto WHERE id = :id LIMIT 1");
+                $stmtChkProd->bindValue(':id', $produtoId, PDO::PARAM_INT);
+                $stmtChkProd->execute();
+                if (!$stmtChkProd->fetch(PDO::FETCH_ASSOC)) {
+                    $produtoId = null;
+                }
+            }
+            $quantidade = (isset($dados['quantidade']) && $dados['quantidade'] !== '') ? $dados['quantidade'] : null;
+            $unidadeMedida = (isset($dados['unidade_medida']) && $dados['unidade_medida'] !== '') ? $dados['unidade_medida'] : null;
+            $pesoKg = (isset($dados['peso_kg']) && $dados['peso_kg'] !== '') ? $dados['peso_kg'] : null;
+            $motivoValido = ['EXCESSO_PREPARO','REJEICAO_ALUNOS','VALIDADE_VENCIDA','PREPARO_INCORRETO','OUTROS'];
+            $motivo = (isset($dados['motivo']) && in_array($dados['motivo'], $motivoValido)) ? $dados['motivo'] : 'OUTROS';
+            $motivoDetalhado = (isset($dados['motivo_detalhado']) && $dados['motivo_detalhado'] !== '') ? $dados['motivo_detalhado'] : null;
+            $observacoes = (isset($dados['observacoes']) && $dados['observacoes'] !== '') ? $dados['observacoes'] : null;
+            $sql = "INSERT INTO desperdicio (escola_id, data, turno, produto_id, quantidade, unidade_medida,
+                    peso_kg, motivo, motivo_detalhado, observacoes, registrado_por, registrado_em)
+                    VALUES (:escola_id, :data, :turno, :produto_id, :quantidade, :unidade_medida,
+                    :peso_kg, :motivo, :motivo_detalhado, :observacoes, :registrado_por, NOW())";
+            $stmt = $conn->prepare($sql);
+            $stmt->bindValue(':escola_id', (int)$dados['escola_id'], PDO::PARAM_INT);
+            $stmt->bindValue(':data', $dados['data']);
+            $stmt->bindValue(':turno', $turno);
+            $stmt->bindValue(':produto_id', $produtoId);
+            $stmt->bindValue(':quantidade', $quantidade);
+            $stmt->bindValue(':unidade_medida', $unidadeMedida);
+            $stmt->bindValue(':peso_kg', $pesoKg);
+            $stmt->bindValue(':motivo', $motivo);
+            $stmt->bindValue(':motivo_detalhado', $motivoDetalhado);
+            $stmt->bindValue(':observacoes', $observacoes);
+            $usuarioId = (isset($_SESSION['usuario_id']) && is_numeric($_SESSION['usuario_id'])) ? (int)$_SESSION['usuario_id'] : null;
+            if ($usuarioId !== null) {
+                $stmtUsu = $conn->prepare("SELECT id FROM usuario WHERE id = :id LIMIT 1");
+                $stmtUsu->bindValue(':id', $usuarioId, PDO::PARAM_INT);
+                $stmtUsu->execute();
+                if (!$stmtUsu->fetch(PDO::FETCH_ASSOC)) {
+                    $usuarioId = null;
+                }
+            }
+            $stmt->bindValue(':registrado_por', $usuarioId);
+            $stmt->execute();
             return ['success' => true, 'id' => $conn->lastInsertId()];
+        } catch (Exception $e) {
+            return ['success' => false, 'message' => $e->getMessage()];
         }
-        
-        return ['success' => false, 'message' => 'Erro ao registrar desperdício'];
     }
     
     /**

@@ -154,7 +154,7 @@ $totalGeral = array_sum(array_column($totaisMes, 'total_custos'));
                                 </svg>
                             </div>
                         </div>
-                        <h3 class="text-2xl font-bold text-gray-800 mb-1">R$ <?= number_format($totalGeral, 2, ',', '.') ?></h3>
+                        <h3 id="total-mes" class="text-2xl font-bold text-gray-800 mb-1">R$ <?= number_format($totalGeral, 2, ',', '.') ?></h3>
                         <p class="text-gray-600 text-sm">Total do Mês</p>
                     </div>
                     <div class="bg-white rounded-2xl p-6 shadow-lg">
@@ -165,7 +165,7 @@ $totalGeral = array_sum(array_column($totaisMes, 'total_custos'));
                                 </svg>
                             </div>
                         </div>
-                        <h3 class="text-2xl font-bold text-gray-800 mb-1"><?= count($custosMes) ?></h3>
+                        <h3 id="total-registros" class="text-2xl font-bold text-gray-800 mb-1"><?= count($custosMes) ?></h3>
                         <p class="text-gray-600 text-sm">Registros do Mês</p>
                     </div>
                     <div class="bg-white rounded-2xl p-6 shadow-lg">
@@ -176,7 +176,7 @@ $totalGeral = array_sum(array_column($totaisMes, 'total_custos'));
                                 </svg>
                             </div>
                         </div>
-                        <h3 class="text-2xl font-bold text-gray-800 mb-1">R$ <?= number_format($totalGeral / max(count($custosMes), 1), 2, ',', '.') ?></h3>
+                        <h3 id="media-registro" class="text-2xl font-bold text-gray-800 mb-1">R$ <?= number_format($totalGeral / max(count($custosMes), 1), 2, ',', '.') ?></h3>
                         <p class="text-gray-600 text-sm">Média por Registro</p>
                     </div>
                 </div>
@@ -339,6 +339,13 @@ $totalGeral = array_sum(array_column($totaisMes, 'total_custos'));
                         
                         if (data.custos.length === 0) {
                             tbody.innerHTML = '<tr><td colspan="5" class="text-center py-12 text-gray-600">Nenhum registro encontrado.</td></tr>';
+                            // Atualiza métricas com zero
+                            const totalMesEl = document.getElementById('total-mes');
+                            const totalRegEl = document.getElementById('total-registros');
+                            const mediaEl = document.getElementById('media-registro');
+                            if (totalMesEl) totalMesEl.textContent = 'R$ 0,00';
+                            if (totalRegEl) totalRegEl.textContent = '0';
+                            if (mediaEl) mediaEl.textContent = 'R$ 0,00';
                             return;
                         }
                         
@@ -346,7 +353,9 @@ $totalGeral = array_sum(array_column($totaisMes, 'total_custos'));
                             const dataFormatada = new Date(custo.data).toLocaleDateString('pt-BR');
                             tbody.innerHTML += `
                                 <tr class="border-b border-gray-100 hover:bg-gray-50">
-                                    <td class="py-3 px-4">${dataFormatada}</td>
+                                    <td class="py-3 px-4">
+                                        ${dataFormatada}
+                                    </td>
                                     <td class="py-3 px-4">${custo.escola_nome || '-'}</td>
                                     <td class="py-3 px-4">
                                         <span class="px-2 py-1 rounded text-xs bg-gray-100 text-gray-800">
@@ -360,6 +369,16 @@ $totalGeral = array_sum(array_column($totaisMes, 'total_custos'));
                                 </tr>
                             `;
                         });
+                        // Atualiza métricas
+                        const total = data.custos.reduce((acc, c) => acc + parseFloat(c.valor_total || 0), 0);
+                        const qtd = data.custos.length;
+                        const media = qtd > 0 ? (total / qtd) : 0;
+                        const totalMesEl = document.getElementById('total-mes');
+                        const totalRegEl = document.getElementById('total-registros');
+                        const mediaEl = document.getElementById('media-registro');
+                        if (totalMesEl) totalMesEl.textContent = 'R$ ' + total.toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+                        if (totalRegEl) totalRegEl.textContent = String(qtd);
+                        if (mediaEl) mediaEl.textContent = 'R$ ' + media.toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2});
                     }
                 })
                 .catch(error => {

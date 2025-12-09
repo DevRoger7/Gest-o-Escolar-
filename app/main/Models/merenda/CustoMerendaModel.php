@@ -19,31 +19,76 @@ class CustoMerendaModel {
     public function registrar($dados) {
         $conn = $this->db->getConnection();
         
-        $sql = "INSERT INTO custo_merenda (escola_id, tipo, descricao, produto_id, fornecedor_id,
-                quantidade, valor_unitario, valor_total, data, mes, ano, observacoes, registrado_por, registrado_em)
-                VALUES (:escola_id, :tipo, :descricao, :produto_id, :fornecedor_id,
-                :quantidade, :valor_unitario, :valor_total, :data, :mes, :ano, :observacoes, :registrado_por, NOW())";
-        
-        $stmt = $conn->prepare($sql);
-        $stmt->bindParam(':escola_id', $dados['escola_id'] ?? null);
-        $stmt->bindParam(':tipo', $dados['tipo'] ?? 'OUTROS');
-        $stmt->bindParam(':descricao', $dados['descricao'] ?? null);
-        $stmt->bindParam(':produto_id', $dados['produto_id'] ?? null);
-        $stmt->bindParam(':fornecedor_id', $dados['fornecedor_id'] ?? null);
-        $stmt->bindParam(':quantidade', $dados['quantidade'] ?? null);
-        $stmt->bindParam(':valor_unitario', $dados['valor_unitario'] ?? null);
-        $stmt->bindParam(':valor_total', $dados['valor_total']);
-        $stmt->bindParam(':data', $dados['data']);
-        $stmt->bindParam(':mes', $dados['mes'] ?? date('n'));
-        $stmt->bindParam(':ano', $dados['ano'] ?? date('Y'));
-        $stmt->bindParam(':observacoes', $dados['observacoes'] ?? null);
-        $stmt->bindParam(':registrado_por', $_SESSION['usuario_id']);
-        
-        if ($stmt->execute()) {
+        try {
+            $escolaId = isset($dados['escola_id']) && $dados['escola_id'] !== '' ? (int)$dados['escola_id'] : null;
+            if ($escolaId !== null) {
+                $stmtChkEscola = $conn->prepare("SELECT id FROM escola WHERE id = :id LIMIT 1");
+                $stmtChkEscola->bindValue(':id', $escolaId, PDO::PARAM_INT);
+                $stmtChkEscola->execute();
+                if (!$stmtChkEscola->fetch(PDO::FETCH_ASSOC)) {
+                    $escolaId = null;
+                }
+            }
+            $produtoId = isset($dados['produto_id']) && $dados['produto_id'] !== '' ? (int)$dados['produto_id'] : null;
+            if ($produtoId !== null) {
+                $stmtChkProd = $conn->prepare("SELECT id FROM produto WHERE id = :id LIMIT 1");
+                $stmtChkProd->bindValue(':id', $produtoId, PDO::PARAM_INT);
+                $stmtChkProd->execute();
+                if (!$stmtChkProd->fetch(PDO::FETCH_ASSOC)) {
+                    $produtoId = null;
+                }
+            }
+            $fornecedorId = isset($dados['fornecedor_id']) && $dados['fornecedor_id'] !== '' ? (int)$dados['fornecedor_id'] : null;
+            if ($fornecedorId !== null) {
+                $stmtChkForn = $conn->prepare("SELECT id FROM fornecedor WHERE id = :id LIMIT 1");
+                $stmtChkForn->bindValue(':id', $fornecedorId, PDO::PARAM_INT);
+                $stmtChkForn->execute();
+                if (!$stmtChkForn->fetch(PDO::FETCH_ASSOC)) {
+                    $fornecedorId = null;
+                }
+            }
+            $tipoValido = ['COMPRA_PRODUTOS','DISTRIBUICAO','PREPARO','DESPERDICIO','OUTROS'];
+            $tipo = (isset($dados['tipo']) && in_array($dados['tipo'], $tipoValido)) ? $dados['tipo'] : 'OUTROS';
+            $descricao = isset($dados['descricao']) && $dados['descricao'] !== '' ? $dados['descricao'] : null;
+            $quantidade = isset($dados['quantidade']) && $dados['quantidade'] !== '' ? $dados['quantidade'] : null;
+            $valorUnitario = isset($dados['valor_unitario']) && $dados['valor_unitario'] !== '' ? $dados['valor_unitario'] : null;
+            $valorTotal = isset($dados['valor_total']) ? $dados['valor_total'] : 0;
+            $data = $dados['data'];
+            $observacoes = isset($dados['observacoes']) && $dados['observacoes'] !== '' ? $dados['observacoes'] : null;
+            $mes = isset($dados['mes']) && $dados['mes'] !== '' ? (int)$dados['mes'] : (int)date('n', strtotime($data));
+            $ano = isset($dados['ano']) && $dados['ano'] !== '' ? (int)$dados['ano'] : (int)date('Y', strtotime($data));
+            $usuarioId = (isset($_SESSION['usuario_id']) && is_numeric($_SESSION['usuario_id'])) ? (int)$_SESSION['usuario_id'] : null;
+            if ($usuarioId !== null) {
+                $stmtUsu = $conn->prepare("SELECT id FROM usuario WHERE id = :id LIMIT 1");
+                $stmtUsu->bindValue(':id', $usuarioId, PDO::PARAM_INT);
+                $stmtUsu->execute();
+                if (!$stmtUsu->fetch(PDO::FETCH_ASSOC)) {
+                    $usuarioId = null;
+                }
+            }
+            $sql = "INSERT INTO custo_merenda (escola_id, tipo, descricao, produto_id, fornecedor_id,
+                    quantidade, valor_unitario, valor_total, data, mes, ano, observacoes, registrado_por, registrado_em)
+                    VALUES (:escola_id, :tipo, :descricao, :produto_id, :fornecedor_id,
+                    :quantidade, :valor_unitario, :valor_total, :data, :mes, :ano, :observacoes, :registrado_por, NOW())";
+            $stmt = $conn->prepare($sql);
+            $stmt->bindValue(':escola_id', $escolaId);
+            $stmt->bindValue(':tipo', $tipo);
+            $stmt->bindValue(':descricao', $descricao);
+            $stmt->bindValue(':produto_id', $produtoId);
+            $stmt->bindValue(':fornecedor_id', $fornecedorId);
+            $stmt->bindValue(':quantidade', $quantidade);
+            $stmt->bindValue(':valor_unitario', $valorUnitario);
+            $stmt->bindValue(':valor_total', $valorTotal);
+            $stmt->bindValue(':data', $data);
+            $stmt->bindValue(':mes', $mes, PDO::PARAM_INT);
+            $stmt->bindValue(':ano', $ano, PDO::PARAM_INT);
+            $stmt->bindValue(':observacoes', $observacoes);
+            $stmt->bindValue(':registrado_por', $usuarioId);
+            $stmt->execute();
             return ['success' => true, 'id' => $conn->lastInsertId()];
+        } catch (Exception $e) {
+            return ['success' => false, 'message' => $e->getMessage()];
         }
-        
-        return ['success' => false, 'message' => 'Erro ao registrar custo'];
     }
     
     /**
@@ -71,14 +116,20 @@ class CustoMerendaModel {
             $params[':tipo'] = $filtros['tipo'];
         }
         
-        if (!empty($filtros['mes'])) {
-            $sql .= " AND c.mes = :mes";
-            $params[':mes'] = $filtros['mes'];
-        }
-        
-        if (!empty($filtros['ano'])) {
-            $sql .= " AND c.ano = :ano";
-            $params[':ano'] = $filtros['ano'];
+        // Preferir filtro por intervalo de data quando mes/ano são informados,
+        // pois registros antigos podem ter mes NULL, mas data sempre existe.
+        if (!empty($filtros['mes']) && !empty($filtros['ano'])) {
+            $inicio = date('Y-m-01', strtotime(sprintf('%04d-%02d-01', (int)$filtros['ano'], (int)$filtros['mes'])));
+            $fim = date('Y-m-t', strtotime($inicio));
+            $sql .= " AND c.data BETWEEN :data_inicio AND :data_fim";
+            $params[':data_inicio'] = $inicio;
+            $params[':data_fim'] = $fim;
+        } elseif (!empty($filtros['ano'])) {
+            $inicio = sprintf('%04d-01-01', (int)$filtros['ano']);
+            $fim = sprintf('%04d-12-31', (int)$filtros['ano']);
+            $sql .= " AND c.data BETWEEN :data_inicio AND :data_fim";
+            $params[':data_inicio'] = $inicio;
+            $params[':data_fim'] = $fim;
         }
         
         if (!empty($filtros['data_inicio'])) {
@@ -122,14 +173,18 @@ class CustoMerendaModel {
             $params[':escola_id'] = $escolaId;
         }
         
-        if ($mes) {
-            $sql .= " AND mes = :mes";
-            $params[':mes'] = $mes;
-        }
-        
-        if ($ano) {
-            $sql .= " AND ano = :ano";
-            $params[':ano'] = $ano;
+        if ($mes && $ano) {
+            $inicio = date('Y-m-01', strtotime(sprintf('%04d-%02d-01', (int)$ano, (int)$mes)));
+            $fim = date('Y-m-t', strtotime($inicio));
+            $sql .= " AND data BETWEEN :data_inicio AND :data_fim";
+            $params[':data_inicio'] = $inicio;
+            $params[':data_fim'] = $fim;
+        } elseif ($ano) {
+            $inicio = sprintf('%04d-01-01', (int)$ano);
+            $fim = sprintf('%04d-12-31', (int)$ano);
+            $sql .= " AND data BETWEEN :data_inicio AND :data_fim";
+            $params[':data_inicio'] = $inicio;
+            $params[':data_fim'] = $fim;
         }
         
         $sql .= " GROUP BY tipo";
