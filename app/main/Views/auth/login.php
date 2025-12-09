@@ -297,11 +297,11 @@ $nomeSistemaCurto = getNomeSistemaCurto();
         </script>
         <?php endif; ?>
         
-        <?php if(isset($_GET['erro']) && $_GET['erro'] == '1'): ?>
-        <div class="mb-4 bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-lg text-sm">
-            <span>CPF ou senha incorretos. Tente novamente.</span>
-        </div>
-        <?php endif; ?>
+                <?php if(isset($_GET['erro']) && $_GET['erro'] == '1'): ?>
+                <div class="mb-4 bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-lg text-sm">
+                    <span>CPF/Email ou senha incorretos. Tente novamente.</span>
+                </div>
+                <?php endif; ?>
         <div id="errorMessage" class="error-message">
             <div class="flex items-center">
                 <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -322,17 +322,16 @@ $nomeSistemaCurto = getNomeSistemaCurto();
 
         <!-- Formulário -->
         <form id="loginForm" action="../../Controllers/autenticacao/controllerLogin.php" method="post" class="space-y-5">
-            <!-- Campo CPF -->
+            <!-- Campo CPF ou Email -->
             <div>
-                <label class="block text-sm font-medium text-gray-700 mb-2">CPF</label>
+                <label class="block text-sm font-medium text-gray-700 mb-2">CPF ou Email</label>
                 <input 
                     type="text" 
                     id="cpfMobile" 
                     name="cpf" 
-                    placeholder="000.000.000-00" 
+                    placeholder="000.000.000-00 ou seu@email.com" 
                     class="w-full px-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:border-primary-green focus:ring-1 focus:ring-primary-green transition-all duration-200 bg-white"
-                    maxlength="14"
-                    oninput="formatCPF(this)"
+                    oninput="handleLoginInput(this)"
                     required
                 >
             </div>
@@ -432,7 +431,7 @@ $nomeSistemaCurto = getNomeSistemaCurto();
                 
                 <?php if(isset($_GET['erro']) && $_GET['erro'] == '1'): ?>
                 <div class="mb-4 bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-lg text-sm">
-                    <span>CPF ou senha incorretos. Tente novamente.</span>
+                    <span>CPF/Email ou senha incorretos. Tente novamente.</span>
                 </div>
                 <?php endif; ?>
                 <div id="errorMessageDesktop" class="error-message">
@@ -455,8 +454,8 @@ $nomeSistemaCurto = getNomeSistemaCurto();
 
                 <form id="loginFormDesktop" action="../../Controllers/autenticacao/controllerLogin.php" method="post" class="space-y-6">
                     <div>
-                        <label class="block text-sm font-semibold text-slate-700 mb-2">CPF</label>
-                        <input type="text" required name="cpf" id="cpfDesktop" class="w-full px-4 py-3 border border-slate-200 rounded-xl focus:border-forest-500 focus:ring-2 focus:ring-forest-100 focus:outline-none" placeholder="000.000.000-00" maxlength="14" oninput="formatCPF(this)">
+                        <label class="block text-sm font-semibold text-slate-700 mb-2">CPF ou Email</label>
+                        <input type="text" required name="cpf" id="cpfDesktop" class="w-full px-4 py-3 border border-slate-200 rounded-xl focus:border-forest-500 focus:ring-2 focus:ring-forest-100 focus:outline-none" placeholder="000.000.000-00 ou seu@email.com" oninput="handleLoginInput(this)">
                     </div>
                     
                     <div>
@@ -559,19 +558,39 @@ $nomeSistemaCurto = getNomeSistemaCurto();
             }
         }
 
-        // Função para formatar CPF
-        function formatCPF(input) {
-            // Remove tudo que não é dígito
-            let value = input.value.replace(/\D/g, '');
+        // Função para formatar CPF ou aceitar email
+        function handleLoginInput(input) {
+            let value = input.value;
             
-            // Aplica a máscara do CPF
-            if (value.length <= 11) {
-                value = value.replace(/(\d{3})(\d)/, '$1.$2');
-                value = value.replace(/(\d{3})(\d)/, '$1.$2');
-                value = value.replace(/(\d{3})(\d{1,2})$/, '$1-$2');
+            // Verificar se contém @ ou se começa com letras (indicando email)
+            const containsAt = value.includes('@');
+            const startsWithLetter = /^[a-zA-Z]/.test(value);
+            
+            if (containsAt || startsWithLetter) {
+                // Se contém @ ou começa com letra, é email - permite todos os caracteres
+                input.maxLength = 255;
+                // Não faz nada, deixa o valor como está
+                return;
+            } else {
+                // Se não contém @ e não começa com letra, trata como CPF
+                input.maxLength = 14;
+                // Remove tudo que não é dígito
+                value = value.replace(/\D/g, '');
+                
+                // Aplica a máscara do CPF apenas se tiver números
+                if (value.length > 0 && value.length <= 11) {
+                    value = value.replace(/(\d{3})(\d)/, '$1.$2');
+                    value = value.replace(/(\d{3})(\d)/, '$1.$2');
+                    value = value.replace(/(\d{3})(\d{1,2})$/, '$1-$2');
+                }
+                
+                input.value = value;
             }
-            
-            input.value = value;
+        }
+        
+        // Função para formatar CPF (mantida para compatibilidade)
+        function formatCPF(input) {
+            handleLoginInput(input);
         }
 
         // Show/hide messages

@@ -104,7 +104,20 @@ class FornecedorModel {
         $contato = $dados['contato'] ?? null;
         $tipoFornecedor = $dados['tipo_fornecedor'] ?? 'ALIMENTOS';
         $observacoes = $dados['observacoes'] ?? null;
-        $criadoPor = (isset($_SESSION['usuario_id']) && is_numeric($_SESSION['usuario_id'])) ? (int)$_SESSION['usuario_id'] : null;
+        
+        // Validar se o usuario_id existe na tabela usuario antes de usar
+        $criadoPor = null;
+        if (isset($_SESSION['usuario_id']) && is_numeric($_SESSION['usuario_id'])) {
+            $usuarioId = (int)$_SESSION['usuario_id'];
+            // Verificar se o usuário existe na tabela
+            $sqlCheck = "SELECT id FROM usuario WHERE id = :id LIMIT 1";
+            $stmtCheck = $conn->prepare($sqlCheck);
+            $stmtCheck->bindParam(':id', $usuarioId, PDO::PARAM_INT);
+            $stmtCheck->execute();
+            if ($stmtCheck->fetch()) {
+                $criadoPor = $usuarioId;
+            }
+        }
 
         $stmt->bindParam(':nome', $nome);
         $stmt->bindParam(':razao_social', $razaoSocial);

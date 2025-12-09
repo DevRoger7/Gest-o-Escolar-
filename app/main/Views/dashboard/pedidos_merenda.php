@@ -239,6 +239,165 @@ $pedidosPendentes = $pedidoModel->listar(['status' => 'ENVIADO']);
         </div>
     </main>
     
+    <!-- Modal Ver Detalhes -->
+    <div id="modal-detalhes" class="fixed inset-0 bg-white z-[60] hidden flex flex-col">
+        <div class="bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between sticky top-0 z-10">
+            <h3 class="text-2xl font-bold text-gray-900">Detalhes do Pedido</h3>
+            <button onclick="fecharModalDetalhes()" class="text-gray-400 hover:text-gray-600 transition-colors">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                </svg>
+            </button>
+        </div>
+        
+        <div class="flex-1 overflow-y-auto p-6">
+            <div class="max-w-7xl mx-auto space-y-6">
+                <!-- Informações Gerais -->
+                <div class="bg-gray-50 rounded-lg p-4">
+                    <h4 class="text-lg font-semibold text-gray-900 mb-4">Informações Gerais</h4>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-600 mb-1">ID do Pedido</label>
+                            <p class="text-gray-900 font-semibold" id="detalhes-pedido-id">-</p>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-600 mb-1">Escola</label>
+                            <p class="text-gray-900" id="detalhes-escola">-</p>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-600 mb-1">Mês</label>
+                            <p class="text-gray-900" id="detalhes-mes">-</p>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-600 mb-1">Status</label>
+                            <span id="detalhes-status" class="px-3 py-1 rounded-full text-xs font-medium">-</span>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-600 mb-1">Data de Envio</label>
+                            <p class="text-gray-900" id="detalhes-data-envio">-</p>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-600 mb-1">Data de Aprovação</label>
+                            <p class="text-gray-900" id="detalhes-data-aprovacao">-</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Itens do Pedido -->
+                <div>
+                    <h4 class="text-lg font-semibold text-gray-900 mb-4">Itens do Pedido</h4>
+                    <div class="overflow-x-auto">
+                        <table class="w-full border-collapse">
+                            <thead>
+                                <tr class="bg-gray-100">
+                                    <th class="py-3 px-4 text-left text-sm font-semibold text-gray-700">#</th>
+                                    <th class="py-3 px-4 text-left text-sm font-semibold text-gray-700">Produto</th>
+                                    <th class="py-3 px-4 text-right text-sm font-semibold text-gray-700">Quantidade</th>
+                                    <th class="py-3 px-4 text-left text-sm font-semibold text-gray-700">Unidade</th>
+                                </tr>
+                            </thead>
+                            <tbody id="detalhes-itens-tbody">
+                                <tr>
+                                    <td colspan="4" class="py-4 text-center text-gray-500">Carregando...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                
+                <!-- Observações e Motivo -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-600 mb-2">Observações</label>
+                        <div class="bg-gray-50 rounded-lg p-3 min-h-[80px]">
+                            <p class="text-gray-900 text-sm" id="detalhes-observacoes">-</p>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-600 mb-2">Motivo da Rejeição</label>
+                        <div class="bg-gray-50 rounded-lg p-3 min-h-[80px]">
+                            <p class="text-gray-900 text-sm" id="detalhes-motivo-rejeicao">-</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Botão Fechar -->
+                <div class="flex justify-end pt-4 border-t border-gray-200">
+                    <button onclick="fecharModalDetalhes()" class="px-6 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg font-medium transition-colors">
+                        Fechar
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Modal Aprovar Pedido -->
+    <div id="modal-aprovar" class="fixed inset-0 bg-black bg-opacity-50 z-[60] hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl p-6 max-w-md w-full mx-4">
+            <div class="flex items-center space-x-3 mb-4">
+                <div class="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
+                    <svg class="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                    </svg>
+                </div>
+                <div>
+                    <h3 class="text-xl font-bold text-gray-900">Aprovar Pedido</h3>
+                    <p class="text-sm text-gray-600">Confirme a aprovação do pedido</p>
+                </div>
+            </div>
+            
+            <form id="form-aprovar" class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Observações (opcional)</label>
+                    <textarea id="aprovar-observacoes" rows="4" placeholder="Adicione observações sobre a aprovação..." class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"></textarea>
+                </div>
+                
+                <div class="flex space-x-3 pt-4">
+                    <button type="button" onclick="fecharModalAprovar()" class="flex-1 px-4 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg font-medium transition-colors">
+                        Cancelar
+                    </button>
+                    <button type="button" onclick="salvarAprovacao()" class="flex-1 px-4 py-2 text-white bg-green-600 hover:bg-green-700 rounded-lg font-medium transition-colors">
+                        Aprovar Pedido
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <!-- Modal Rejeitar Pedido -->
+    <div id="modal-rejeitar" class="fixed inset-0 bg-black bg-opacity-50 z-[60] hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl p-6 max-w-md w-full mx-4">
+            <div class="flex items-center space-x-3 mb-4">
+                <div class="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center">
+                    <svg class="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                    </svg>
+                </div>
+                <div>
+                    <h3 class="text-xl font-bold text-gray-900">Rejeitar Pedido</h3>
+                    <p class="text-sm text-gray-600">Informe o motivo da rejeição</p>
+                </div>
+            </div>
+            
+            <form id="form-rejeitar" class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Motivo da Rejeição *</label>
+                    <textarea id="rejeitar-motivo" rows="4" placeholder="Descreva o motivo da rejeição..." required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent"></textarea>
+                    <p class="text-xs text-gray-500 mt-1">Este campo é obrigatório</p>
+                </div>
+                
+                <div class="flex space-x-3 pt-4">
+                    <button type="button" onclick="fecharModalRejeitar()" class="flex-1 px-4 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg font-medium transition-colors">
+                        Cancelar
+                    </button>
+                    <button type="button" onclick="salvarRejeicao()" class="flex-1 px-4 py-2 text-white bg-red-600 hover:bg-red-700 rounded-lg font-medium transition-colors">
+                        Rejeitar Pedido
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+    
     <!-- Logout Modal -->
     <div id="logoutModal" class="fixed inset-0 bg-black bg-opacity-50 z-[60] hidden items-center justify-center p-4" style="display: none;">
         <div class="bg-white rounded-2xl p-6 max-w-md w-full mx-4 shadow-2xl">
@@ -359,6 +518,8 @@ $pedidosPendentes = $pedidoModel->listar(['status' => 'ENVIADO']);
                 });
         }
 
+        let pedidoIdAtual = null;
+
         function verDetalhesPedido(id) {
             fetch('?acao=buscar_pedido&id=' + id)
                 .then(response => response.json())
@@ -368,16 +529,72 @@ $pedidosPendentes = $pedidoModel->listar(['status' => 'ENVIADO']);
                         const meses = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
                         const mesNome = meses[pedido.mes - 1] || pedido.mes;
                         
-                        let itensHtml = '';
+                        // Preencher informações do pedido
+                        document.getElementById('detalhes-pedido-id').textContent = pedido.id;
+                        document.getElementById('detalhes-escola').textContent = pedido.escola_nome || '-';
+                        document.getElementById('detalhes-mes').textContent = mesNome;
+                        document.getElementById('detalhes-status').textContent = pedido.status || 'ENVIADO';
+                        document.getElementById('detalhes-status').className = pedido.status === 'APROVADO' ? 'px-3 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800' :
+                            (pedido.status === 'REJEITADO' ? 'px-3 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800' : 'px-3 py-1 rounded-full text-xs font-medium bg-orange-100 text-orange-800');
+                        
+                        let dataEnvio = '-';
+                        if (pedido.data_envio) {
+                            try {
+                                dataEnvio = new Date(pedido.data_envio).toLocaleString('pt-BR');
+                            } catch (e) {
+                                dataEnvio = pedido.data_envio;
+                            }
+                        } else if (pedido.data_criacao) {
+                            try {
+                                dataEnvio = new Date(pedido.data_criacao).toLocaleString('pt-BR');
+                            } catch (e) {
+                                dataEnvio = pedido.data_criacao;
+                            }
+                        }
+                        document.getElementById('detalhes-data-envio').textContent = dataEnvio;
+                        
+                        let dataAprovacao = '-';
+                        if (pedido.data_aprovacao) {
+                            try {
+                                dataAprovacao = new Date(pedido.data_aprovacao).toLocaleString('pt-BR');
+                            } catch (e) {
+                                dataAprovacao = pedido.data_aprovacao;
+                            }
+                        }
+                        document.getElementById('detalhes-data-aprovacao').textContent = dataAprovacao;
+                        
+                        const observacoes = pedido.observacoes || 'Nenhuma observação';
+                        document.getElementById('detalhes-observacoes').textContent = observacoes;
+                        
+                        const motivoRejeicao = pedido.motivo_rejeicao || 'N/A';
+                        document.getElementById('detalhes-motivo-rejeicao').textContent = motivoRejeicao;
+                        
+                        // Preencher tabela de itens
+                        const tbody = document.getElementById('detalhes-itens-tbody');
+                        tbody.innerHTML = '';
+                        
                         if (pedido.itens && pedido.itens.length > 0) {
-                            itensHtml = pedido.itens.map(item => 
-                                `- ${item.produto_nome}: ${item.quantidade_solicitada} ${item.unidade_medida || ''}`
-                            ).join('\n');
+                            pedido.itens.forEach((item, index) => {
+                                const tr = document.createElement('tr');
+                                tr.className = 'border-b border-gray-100 hover:bg-gray-50';
+                                tr.innerHTML = `
+                                    <td class="py-3 px-4 text-center">${index + 1}</td>
+                                    <td class="py-3 px-4">${item.produto_nome || '-'}</td>
+                                    <td class="py-3 px-4 text-right">${item.quantidade_solicitada || '0'}</td>
+                                    <td class="py-3 px-4">${item.unidade_medida || '-'}</td>
+                                `;
+                                tbody.appendChild(tr);
+                            });
                         } else {
-                            itensHtml = 'Nenhum item';
+                            tbody.innerHTML = '<tr><td colspan="4" class="py-4 text-center text-gray-500">Nenhum item encontrado</td></tr>';
                         }
                         
-                        alert(`Pedido #${pedido.id}\n\nEscola: ${pedido.escola_nome}\nMês: ${mesNome}\nStatus: ${pedido.status || 'ENVIADO'}\n\nItens:\n${itensHtml}`);
+                        // Mostrar modal
+                        const modal = document.getElementById('modal-detalhes');
+                        modal.classList.remove('hidden');
+                        modal.style.display = 'flex';
+                    } else {
+                        alert('Erro ao buscar detalhes do pedido.');
                     }
                 })
                 .catch(error => {
@@ -386,15 +603,41 @@ $pedidosPendentes = $pedidoModel->listar(['status' => 'ENVIADO']);
                 });
         }
 
+        function fecharModalDetalhes() {
+            const modal = document.getElementById('modal-detalhes');
+            modal.classList.add('hidden');
+            modal.style.display = 'none';
+        }
+
         function aprovarPedido(id) {
-            if (!confirm('Deseja aprovar este pedido?')) return;
+            pedidoIdAtual = id;
+            const modal = document.getElementById('modal-aprovar');
+            modal.classList.remove('hidden');
+            modal.style.display = 'flex';
+            document.getElementById('form-aprovar').reset();
+        }
+
+        function fecharModalAprovar() {
+            const modal = document.getElementById('modal-aprovar');
+            modal.classList.add('hidden');
+            modal.style.display = 'none';
+            pedidoIdAtual = null;
+        }
+
+        function salvarAprovacao() {
+            if (!pedidoIdAtual) return;
             
-            const observacoes = prompt('Observações (opcional):') || null;
+            const observacoes = document.getElementById('aprovar-observacoes').value;
             
             const formData = new FormData();
             formData.append('acao', 'aprovar_pedido');
-            formData.append('pedido_id', id);
-            formData.append('observacoes', observacoes);
+            formData.append('pedido_id', pedidoIdAtual);
+            formData.append('observacoes', observacoes || null);
+            
+            const btn = event.target;
+            const originalText = btn.innerHTML;
+            btn.disabled = true;
+            btn.innerHTML = '<span class="inline-block animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></span> Aprovando...';
             
             fetch('', {
                 method: 'POST',
@@ -402,27 +645,59 @@ $pedidosPendentes = $pedidoModel->listar(['status' => 'ENVIADO']);
             })
             .then(response => response.json())
             .then(data => {
+                btn.disabled = false;
+                btn.innerHTML = originalText;
+                
                 if (data.success) {
                     alert('Pedido aprovado com sucesso!');
+                    fecharModalAprovar();
                     filtrarPedidos();
                 } else {
                     alert('Erro ao aprovar pedido.');
                 }
             })
             .catch(error => {
+                btn.disabled = false;
+                btn.innerHTML = originalText;
                 console.error('Erro:', error);
                 alert('Erro ao aprovar pedido.');
             });
         }
 
         function rejeitarPedido(id) {
-            const motivo = prompt('Motivo da rejeição:');
-            if (!motivo) return;
+            pedidoIdAtual = id;
+            const modal = document.getElementById('modal-rejeitar');
+            modal.classList.remove('hidden');
+            modal.style.display = 'flex';
+            document.getElementById('form-rejeitar').reset();
+        }
+
+        function fecharModalRejeitar() {
+            const modal = document.getElementById('modal-rejeitar');
+            modal.classList.add('hidden');
+            modal.style.display = 'none';
+            pedidoIdAtual = null;
+        }
+
+        function salvarRejeicao() {
+            if (!pedidoIdAtual) return;
+            
+            const motivo = document.getElementById('rejeitar-motivo').value;
+            
+            if (!motivo || motivo.trim() === '') {
+                alert('Por favor, informe o motivo da rejeição.');
+                return;
+            }
             
             const formData = new FormData();
             formData.append('acao', 'rejeitar_pedido');
-            formData.append('pedido_id', id);
+            formData.append('pedido_id', pedidoIdAtual);
             formData.append('motivo_rejeicao', motivo);
+            
+            const btn = event.target;
+            const originalText = btn.innerHTML;
+            btn.disabled = true;
+            btn.innerHTML = '<span class="inline-block animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></span> Rejeitando...';
             
             fetch('', {
                 method: 'POST',
@@ -430,14 +705,20 @@ $pedidosPendentes = $pedidoModel->listar(['status' => 'ENVIADO']);
             })
             .then(response => response.json())
             .then(data => {
+                btn.disabled = false;
+                btn.innerHTML = originalText;
+                
                 if (data.success) {
                     alert('Pedido rejeitado.');
+                    fecharModalRejeitar();
                     filtrarPedidos();
                 } else {
                     alert('Erro ao rejeitar pedido.');
                 }
             })
             .catch(error => {
+                btn.disabled = false;
+                btn.innerHTML = originalText;
                 console.error('Erro:', error);
                 alert('Erro ao rejeitar pedido.');
             });

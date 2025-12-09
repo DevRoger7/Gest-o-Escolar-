@@ -4,6 +4,11 @@
  * SIGAE - Sistema de Gestão e Alimentação Escolar
  */
 
+// Iniciar sessão se não estiver iniciada
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
+
 require_once(__DIR__ . '/../../config/Database.php');
 
 class EntregaModel {
@@ -35,7 +40,21 @@ class EntregaModel {
             $transportadora = $dados['transportadora'] ?? null;
             $notaFiscal = $dados['nota_fiscal'] ?? null;
             $observacoes = $dados['observacoes'] ?? null;
-            $registradoPor = (isset($_SESSION['usuario_id']) && is_numeric($_SESSION['usuario_id'])) ? (int)$_SESSION['usuario_id'] : null;
+            
+            // Validar se o usuario_id existe na tabela usuario antes de usar
+            $registradoPor = null;
+            if (isset($_SESSION['usuario_id']) && is_numeric($_SESSION['usuario_id'])) {
+                $usuarioId = (int)$_SESSION['usuario_id'];
+                // Verificar se o usuário existe na tabela
+                $sqlCheck = "SELECT id FROM usuario WHERE id = :id LIMIT 1";
+                $stmtCheck = $conn->prepare($sqlCheck);
+                $stmtCheck->bindParam(':id', $usuarioId, PDO::PARAM_INT);
+                $stmtCheck->execute();
+                if ($stmtCheck->fetch()) {
+                    $registradoPor = $usuarioId;
+                }
+            }
+            
             $stmt->bindParam(':pedido_cesta_id', $pedidoCestaId);
             $stmt->bindParam(':escola_id', $escolaId);
             $stmt->bindParam(':fornecedor_id', $fornecedorId);
@@ -54,10 +73,17 @@ class EntregaModel {
                     $sqlItem = "INSERT INTO entrega_item (entrega_id, produto_id, quantidade_solicitada, quantidade_entregue)
                                VALUES (:entrega_id, :produto_id, :quantidade_solicitada, :quantidade_entregue)";
                     $stmtItem = $conn->prepare($sqlItem);
-                    $stmtItem->bindParam(':entrega_id', $entregaId);
-                    $stmtItem->bindParam(':produto_id', $item['produto_id']);
-                    $stmtItem->bindParam(':quantidade_solicitada', $item['quantidade_solicitada']);
-                    $stmtItem->bindParam(':quantidade_entregue', $item['quantidade_entregue'] ?? $item['quantidade_solicitada']);
+                    
+                    // Criar variáveis explícitas para bindParam (precisa ser por referência)
+                    $itemEntregaId = $entregaId;
+                    $itemProdutoId = $item['produto_id'];
+                    $itemQuantidadeSolicitada = $item['quantidade_solicitada'];
+                    $itemQuantidadeEntregue = $item['quantidade_entregue'] ?? $item['quantidade_solicitada'];
+                    
+                    $stmtItem->bindParam(':entrega_id', $itemEntregaId);
+                    $stmtItem->bindParam(':produto_id', $itemProdutoId);
+                    $stmtItem->bindParam(':quantidade_solicitada', $itemQuantidadeSolicitada);
+                    $stmtItem->bindParam(':quantidade_entregue', $itemQuantidadeEntregue);
                     $stmtItem->execute();
                 }
             }
@@ -83,7 +109,21 @@ class EntregaModel {
         
         $stmt = $conn->prepare($sql);
         $dataEntrega = $dados['data_entrega'] ?? date('Y-m-d');
-        $recebidoPor = (isset($_SESSION['usuario_id']) && is_numeric($_SESSION['usuario_id'])) ? (int)$_SESSION['usuario_id'] : null;
+        
+        // Validar se o usuario_id existe na tabela usuario antes de usar
+        $recebidoPor = null;
+        if (isset($_SESSION['usuario_id']) && is_numeric($_SESSION['usuario_id'])) {
+            $usuarioId = (int)$_SESSION['usuario_id'];
+            // Verificar se o usuário existe na tabela
+            $sqlCheck = "SELECT id FROM usuario WHERE id = :id LIMIT 1";
+            $stmtCheck = $conn->prepare($sqlCheck);
+            $stmtCheck->bindParam(':id', $usuarioId, PDO::PARAM_INT);
+            $stmtCheck->execute();
+            if ($stmtCheck->fetch()) {
+                $recebidoPor = $usuarioId;
+            }
+        }
+        
         $observacoes = $dados['observacoes'] ?? null;
         $idParam = $id;
         $stmt->bindParam(':data_entrega', $dataEntrega);
