@@ -17,23 +17,16 @@ $db = Database::getInstance();
 $conn = $db->getConnection();
 $custoModel = new CustoMerendaModel();
 
-// Buscar escolas
-$sqlEscolas = "SELECT id, nome FROM escola WHERE ativo = 1 ORDER BY nome ASC";
-$stmtEscolas = $conn->prepare($sqlEscolas);
-$stmtEscolas->execute();
-$escolas = $stmtEscolas->fetchAll(PDO::FETCH_ASSOC);
-
 if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['acao'])) {
     header('Content-Type: application/json');
     
     if ($_GET['acao'] === 'buscar_custos') {
         $filtros = [];
-        if (!empty($_GET['escola_id'])) $filtros['escola_id'] = $_GET['escola_id'];
         if (!empty($_GET['mes'])) $filtros['mes'] = $_GET['mes'];
         if (!empty($_GET['ano'])) $filtros['ano'] = $_GET['ano'];
         
         $custos = $custoModel->listar($filtros);
-        $totais = $custoModel->calcularTotal($filtros['escola_id'] ?? null, $filtros['mes'] ?? null, $filtros['ano'] ?? null);
+        $totais = $custoModel->calcularTotal(null, $filtros['mes'] ?? null, $filtros['ano'] ?? null);
         
         echo json_encode(['success' => true, 'custos' => $custos, 'totais' => $totais]);
         exit;
@@ -49,7 +42,7 @@ $totalGeral = array_sum(array_column($totaisMes, 'total_custos'));
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Relatórios Financeiros - SIGEA</title>
+    <title>Relatórios Financeiros - Merenda Escolar - SIGEA</title>
     <link rel="icon" href="https://upload.wikimedia.org/wikipedia/commons/thumb/1/19/Bras%C3%A3o_de_Maranguape.png/250px-Bras%C3%A3o_de_Maranguape.png" type="image/png">
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="global-theme.css">
@@ -84,7 +77,7 @@ $totalGeral = array_sum(array_column($totaisMes, 'total_custos'));
                         </svg>
                     </button>
                     <div class="flex-1 text-center lg:text-left">
-                        <h1 class="text-xl font-semibold text-gray-800">Relatórios Financeiros</h1>
+                        <h1 class="text-xl font-semibold text-gray-800">Relatórios Financeiros - Merenda Escolar</h1>
                     </div>
                     <div class="flex items-center space-x-4">
                         <!-- School Info (Desktop Only) -->
@@ -117,8 +110,12 @@ $totalGeral = array_sum(array_column($totaisMes, 'total_custos'));
         <div class="p-8">
             <div class="max-w-7xl mx-auto">
                 <div class="mb-6">
-                    <h2 class="text-2xl font-bold text-gray-900">Relatórios Financeiros</h2>
-                    <p class="text-gray-600 mt-1">Acompanhe os custos e despesas do sistema</p>
+                    <h2 class="text-2xl font-bold text-gray-900">Relatórios Financeiros - Merenda Escolar</h2>
+                    <p class="text-gray-600 mt-1">
+                        Acompanhe os custos da merenda escolar. <strong>Compras são centralizadas</strong> (sem escola específica) 
+                        e os produtos são <strong>distribuídos gratuitamente</strong> para as escolas. 
+                        Os custos por escola referem-se apenas a preparo, desperdício e outros custos locais.
+                    </p>
                 </div>
                 
                 <!-- Cards de Resumo -->
@@ -162,16 +159,7 @@ $totalGeral = array_sum(array_column($totaisMes, 'total_custos'));
                 
                 <!-- Filtros -->
                 <div class="bg-white rounded-2xl p-6 shadow-lg mb-6">
-                    <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-2">Escola</label>
-                            <select id="filtro-escola" class="w-full px-4 py-2 border border-gray-300 rounded-lg" onchange="buscarRelatorio()">
-                                <option value="">Todas as escolas</option>
-                                <?php foreach ($escolas as $escola): ?>
-                                    <option value="<?= $escola['id'] ?>"><?= htmlspecialchars($escola['nome']) ?></option>
-                                <?php endforeach; ?>
-                            </select>
-                        </div>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-2">Mês</label>
                             <select id="filtro-mes" class="w-full px-4 py-2 border border-gray-300 rounded-lg" onchange="buscarRelatorio()">
@@ -206,7 +194,7 @@ $totalGeral = array_sum(array_column($totaisMes, 'total_custos'));
                             <thead>
                                 <tr class="border-b border-gray-200">
                                     <th class="text-left py-3 px-4 font-semibold text-gray-700">Data</th>
-                                    <th class="text-left py-3 px-4 font-semibold text-gray-700">Escola</th>
+                                    <th class="text-left py-3 px-4 font-semibold text-gray-700">Escola / Origem</th>
                                     <th class="text-left py-3 px-4 font-semibold text-gray-700">Tipo</th>
                                     <th class="text-left py-3 px-4 font-semibold text-gray-700">Descrição</th>
                                     <th class="text-right py-3 px-4 font-semibold text-gray-700">Valor Total</th>
@@ -220,12 +208,22 @@ $totalGeral = array_sum(array_column($totaisMes, 'total_custos'));
                                         </td>
                                     </tr>
                                 <?php else: ?>
-                                    <?php foreach ($custosMes as $custo): ?>
+                                    <?php foreach ($custosMes as $custo): 
+                                        $escolaNome = $custo['escola_nome'] ?? ($custo['escola_id'] === null ? 'Compra Centralizada' : '-');
+                                        $tipoClass = ($custo['tipo'] === 'COMPRA_PRODUTOS' && $custo['escola_id'] === null) 
+                                            ? 'bg-blue-100 text-blue-800' 
+                                            : 'bg-gray-100 text-gray-800';
+                                    ?>
                                         <tr class="border-b border-gray-100 hover:bg-gray-50">
                                             <td class="py-3 px-4"><?= date('d/m/Y', strtotime($custo['data'])) ?></td>
-                                            <td class="py-3 px-4"><?= htmlspecialchars($custo['escola_nome'] ?? '-') ?></td>
                                             <td class="py-3 px-4">
-                                                <span class="px-2 py-1 rounded text-xs bg-gray-100 text-gray-800">
+                                                <?= htmlspecialchars($escolaNome) ?>
+                                                <?php if ($custo['escola_id'] === null): ?>
+                                                    <span class="ml-2 text-xs text-blue-600">(Central)</span>
+                                                <?php endif; ?>
+                                            </td>
+                                            <td class="py-3 px-4">
+                                                <span class="px-2 py-1 rounded text-xs <?= $tipoClass ?>">
                                                     <?= htmlspecialchars($custo['tipo'] ?? 'OUTROS') ?>
                                                 </span>
                                             </td>
@@ -299,12 +297,10 @@ $totalGeral = array_sum(array_column($totaisMes, 'total_custos'));
         };
 
         function buscarRelatorio() {
-            const escolaId = document.getElementById('filtro-escola').value;
             const mes = document.getElementById('filtro-mes').value;
             const ano = document.getElementById('filtro-ano').value;
             
             let url = '?acao=buscar_custos';
-            if (escolaId) url += '&escola_id=' + escolaId;
             if (mes) url += '&mes=' + mes;
             if (ano) url += '&ano=' + ano;
             
@@ -322,12 +318,19 @@ $totalGeral = array_sum(array_column($totaisMes, 'total_custos'));
                         
                         data.custos.forEach(custo => {
                             const dataFormatada = new Date(custo.data).toLocaleDateString('pt-BR');
+                            const escolaNome = custo.escola_nome || (custo.escola_id === null ? 'Compra Centralizada' : '-');
+                            const tipoClass = custo.tipo === 'COMPRA_PRODUTOS' && custo.escola_id === null 
+                                ? 'bg-blue-100 text-blue-800' 
+                                : 'bg-gray-100 text-gray-800';
                             tbody.innerHTML += `
                                 <tr class="border-b border-gray-100 hover:bg-gray-50">
                                     <td class="py-3 px-4">${dataFormatada}</td>
-                                    <td class="py-3 px-4">${custo.escola_nome || '-'}</td>
                                     <td class="py-3 px-4">
-                                        <span class="px-2 py-1 rounded text-xs bg-gray-100 text-gray-800">
+                                        ${escolaNome}
+                                        ${custo.escola_id === null ? '<span class="ml-2 text-xs text-blue-600">(Central)</span>' : ''}
+                                    </td>
+                                    <td class="py-3 px-4">
+                                        <span class="px-2 py-1 rounded text-xs ${tipoClass}">
                                             ${custo.tipo || 'OUTROS'}
                                         </span>
                                     </td>

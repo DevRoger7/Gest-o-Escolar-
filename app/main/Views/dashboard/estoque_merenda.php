@@ -1,4 +1,7 @@
 <?php
+// Iniciar output buffering para evitar output antes do JSON
+ob_start();
+
 require_once('../../Models/sessao/sessions.php');
 require_once('../../config/permissions_helper.php');
 require_once('../../config/Database.php');
@@ -30,41 +33,242 @@ $produtos = $stmtProdutos->fetchAll(PDO::FETCH_ASSOC);
 
 // Processar requisições AJAX
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao'])) {
-    header('Content-Type: application/json');
+    // Limpar qualquer output anterior (incluindo warnings/notices)
+    while (ob_get_level()) {
+        ob_end_clean();
+    }
+    ob_start();
+    
+    // Desabilitar exibição de erros para não quebrar o JSON
+    error_reporting(E_ALL);
+    ini_set('display_errors', 0);
+    ini_set('log_errors', 1);
+    
+    header('Content-Type: application/json; charset=utf-8');
     
     if ($_POST['acao'] === 'registrar_entrada') {
         try {
             $conn->beginTransaction();
             
+            // Buscar ou criar produto
+            $produtoNome = trim($_POST['produto_nome'] ?? '');
+            $produtoId = $_POST['produto_id'] ?? null;
+            
+            if (empty($produtoNome)) {
+                throw new Exception('Nome do produto é obrigatório.');
+            }
+            
+            // Se não tem ID, buscar pelo nome
+            if (empty($produtoId)) {
+                $sqlBuscar = "SELECT id FROM produto WHERE LOWER(nome) = LOWER(:nome) AND ativo = 1 LIMIT 1";
+                $stmtBuscar = $conn->prepare($sqlBuscar);
+                $stmtBuscar->bindParam(':nome', $produtoNome);
+                $stmtBuscar->execute();
+                $produtoExistente = $stmtBuscar->fetch(PDO::FETCH_ASSOC);
+                
+                if ($produtoExistente) {
+                    $produtoId = $produtoExistente['id'];
+                } else {
+                    // Criar novo produto
+                    $codigo = strtoupper(substr(preg_replace('/[^a-zA-Z0-9]/', '', $produtoNome), 0, 3)) . date('YmdHis');
+                    $sqlNovoProduto = "INSERT INTO produto (codigo, nome, unidade_medida, estoque_minimo, ativo) 
+                                      VALUES (:codigo, :nome, 'UN', 0, 1)";
+                    $stmtNovoProduto = $conn->prepare($sqlNovoProduto);
+                    $stmtNovoProduto->bindParam(':codigo', $codigo);
+                    $stmtNovoProduto->bindParam(':nome', $produtoNome);
+                    $stmtNovoProduto->execute();
+                    $produtoId = $conn->lastInsertId();
+                }
+            }
+            
+            // Inserir entrada no estoque
             $sql = "INSERT INTO estoque_central (produto_id, quantidade, lote, fornecedor_id, nota_fiscal, 
                     valor_unitario, valor_total, validade, criado_em)
                     VALUES (:produto_id, :quantidade, :lote, :fornecedor_id, :nota_fiscal, 
                     :valor_unitario, :valor_total, :validade, NOW())";
             
+            // Preparar variáveis para bindParam (precisa ser por referência)
+            $quantidade = $_POST['quantidade'] ?? 0;
+            $lote = $_POST['lote'] ?? null;
+            $fornecedorId = !empty($_POST['fornecedor_id']) ? $_POST['fornecedor_id'] : null;
+            $notaFiscal = $_POST['nota_fiscal'] ?? null;
+            $valorUnitario = $_POST['valor_unitario'] ?? null;
+            $valorTotal = $quantidade * ($valorUnitario ?? 0);
+            $validade = !empty($_POST['validade']) ? $_POST['validade'] : null;
+            
             $stmt = $conn->prepare($sql);
-            $stmt->bindParam(':produto_id', $_POST['produto_id']);
-            $stmt->bindParam(':quantidade', $_POST['quantidade']);
-            $stmt->bindParam(':lote', $_POST['lote'] ?? null);
-            $stmt->bindParam(':fornecedor_id', $_POST['fornecedor_id'] ?? null);
-            $stmt->bindParam(':nota_fiscal', $_POST['nota_fiscal'] ?? null);
-            $stmt->bindParam(':valor_unitario', $_POST['valor_unitario'] ?? null);
-            $valorTotal = ($_POST['quantidade'] ?? 0) * ($_POST['valor_unitario'] ?? 0);
+            $stmt->bindParam(':produto_id', $produtoId);
+            $stmt->bindParam(':quantidade', $quantidade);
+            $stmt->bindParam(':lote', $lote);
+            $stmt->bindParam(':fornecedor_id', $fornecedorId);
+            $stmt->bindParam(':nota_fiscal', $notaFiscal);
+            $stmt->bindParam(':valor_unitario', $valorUnitario);
             $stmt->bindParam(':valor_total', $valorTotal);
-            $stmt->bindParam(':validade', $_POST['validade'] ?? null);
+            $stmt->bindParam(':validade', $validade);
             $stmt->execute();
             
+            // Se houver valor, criar registro em custo_merenda também
+            if ($valorTotal > 0) {
+                // Buscar nome do produto para descrição
+                $sqlProdutoNome = "SELECT nome FROM produto WHERE id = :id";
+                $stmtProdutoNome = $conn->prepare($sqlProdutoNome);
+                $stmtProdutoNome->bindParam(':id', $produtoId);
+                $stmtProdutoNome->execute();
+                $produtoInfo = $stmtProdutoNome->fetch(PDO::FETCH_ASSOC);
+                $descricao = "Entrada de estoque: " . ($produtoInfo['nome'] ?? $produtoNome);
+                if ($lote) {
+                    $descricao .= " - Lote: " . $lote;
+                }
+                if ($notaFiscal) {
+                    $descricao .= " - NF: " . $notaFiscal;
+                }
+                
+                $dataAtual = date('Y-m-d');
+                $mesAtual = date('n');
+                $anoAtual = date('Y');
+                $usuarioId = $_SESSION['usuario_id'] ?? null;
+                
+                $sqlCusto = "INSERT INTO custo_merenda (escola_id, tipo, descricao, produto_id, fornecedor_id,
+                            quantidade, valor_unitario, valor_total, data, mes, ano, observacoes, registrado_por, registrado_em)
+                            VALUES (NULL, 'COMPRA_PRODUTOS', :descricao, :produto_id, :fornecedor_id,
+                            :quantidade, :valor_unitario, :valor_total, :data, :mes, :ano, :observacoes, :registrado_por, NOW())";
+                
+                $observacoes = "Entrada automática do estoque central";
+                if ($validade) {
+                    $observacoes .= " - Validade: " . date('d/m/Y', strtotime($validade));
+                }
+                
+                $stmtCusto = $conn->prepare($sqlCusto);
+                $stmtCusto->bindParam(':descricao', $descricao);
+                $stmtCusto->bindParam(':produto_id', $produtoId);
+                $stmtCusto->bindParam(':fornecedor_id', $fornecedorId);
+                $stmtCusto->bindParam(':quantidade', $quantidade);
+                $stmtCusto->bindParam(':valor_unitario', $valorUnitario);
+                $stmtCusto->bindParam(':valor_total', $valorTotal);
+                $stmtCusto->bindParam(':data', $dataAtual);
+                $stmtCusto->bindParam(':mes', $mesAtual);
+                $stmtCusto->bindParam(':ano', $anoAtual);
+                $stmtCusto->bindParam(':observacoes', $observacoes);
+                $stmtCusto->bindParam(':registrado_por', $usuarioId);
+                $stmtCusto->execute();
+            }
+            
             $conn->commit();
-            echo json_encode(['success' => true, 'id' => $conn->lastInsertId()]);
+            echo json_encode(['success' => true, 'id' => $conn->lastInsertId()], JSON_UNESCAPED_UNICODE);
+            exit;
         } catch (Exception $e) {
             $conn->rollBack();
-            echo json_encode(['success' => false, 'message' => $e->getMessage()]);
+            echo json_encode(['success' => false, 'message' => $e->getMessage()], JSON_UNESCAPED_UNICODE);
+            exit;
+        } catch (Throwable $e) {
+            if (isset($conn) && $conn->inTransaction()) {
+                $conn->rollBack();
+            }
+            echo json_encode(['success' => false, 'message' => 'Erro inesperado: ' . $e->getMessage()], JSON_UNESCAPED_UNICODE);
+            exit;
         }
-        exit;
+    }
+    
+    if ($_POST['acao'] === 'sincronizar_custos') {
+        try {
+            // Buscar todas as entradas do estoque que têm valor mas não têm custo registrado
+            $sql = "SELECT ec.*, p.nome as produto_nome
+                    FROM estoque_central ec
+                    INNER JOIN produto p ON ec.produto_id = p.id
+                    WHERE ec.valor_total > 0
+                    AND NOT EXISTS (
+                        SELECT 1 FROM custo_merenda cm 
+                        WHERE cm.produto_id = ec.produto_id 
+                        AND cm.data = DATE(ec.criado_em)
+                        AND cm.valor_total = ec.valor_total
+                        AND cm.descricao LIKE CONCAT('%', p.nome, '%')
+                    )
+                    ORDER BY ec.criado_em DESC";
+            
+            $stmt = $conn->prepare($sql);
+            $stmt->execute();
+            $entradas = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            
+            $conn->beginTransaction();
+            $sincronizados = 0;
+            $erros = [];
+            
+            foreach ($entradas as $entrada) {
+                try {
+                    $descricao = "Entrada de estoque: " . $entrada['produto_nome'];
+                    if ($entrada['lote']) {
+                        $descricao .= " - Lote: " . $entrada['lote'];
+                    }
+                    if ($entrada['nota_fiscal']) {
+                        $descricao .= " - NF: " . $entrada['nota_fiscal'];
+                    }
+                    
+                    $dataEntrada = date('Y-m-d', strtotime($entrada['criado_em']));
+                    $mes = date('n', strtotime($entrada['criado_em']));
+                    $ano = date('Y', strtotime($entrada['criado_em']));
+                    $usuarioId = $_SESSION['usuario_id'] ?? null;
+                    
+                    $observacoes = "Sincronização automática do estoque central";
+                    if ($entrada['validade']) {
+                        $observacoes .= " - Validade: " . date('d/m/Y', strtotime($entrada['validade']));
+                    }
+                    
+                    $sqlCusto = "INSERT INTO custo_merenda (escola_id, tipo, descricao, produto_id, fornecedor_id,
+                                quantidade, valor_unitario, valor_total, data, mes, ano, observacoes, registrado_por, registrado_em)
+                                VALUES (NULL, 'COMPRA_PRODUTOS', :descricao, :produto_id, :fornecedor_id,
+                                :quantidade, :valor_unitario, :valor_total, :data, :mes, :ano, :observacoes, :registrado_por, NOW())";
+                    
+                    $stmtCusto = $conn->prepare($sqlCusto);
+                    $stmtCusto->bindParam(':descricao', $descricao);
+                    $stmtCusto->bindParam(':produto_id', $entrada['produto_id']);
+                    $stmtCusto->bindParam(':fornecedor_id', $entrada['fornecedor_id']);
+                    $stmtCusto->bindParam(':quantidade', $entrada['quantidade']);
+                    $stmtCusto->bindParam(':valor_unitario', $entrada['valor_unitario']);
+                    $stmtCusto->bindParam(':valor_total', $entrada['valor_total']);
+                    $stmtCusto->bindParam(':data', $dataEntrada);
+                    $stmtCusto->bindParam(':mes', $mes);
+                    $stmtCusto->bindParam(':ano', $ano);
+                    $stmtCusto->bindParam(':observacoes', $observacoes);
+                    $stmtCusto->bindParam(':registrado_por', $usuarioId);
+                    $stmtCusto->execute();
+                    
+                    $sincronizados++;
+                } catch (Exception $e) {
+                    $erros[] = "Erro ao sincronizar entrada ID {$entrada['id']}: " . $e->getMessage();
+                }
+            }
+            
+            $conn->commit();
+            echo json_encode([
+                'success' => true, 
+                'message' => "Sincronização concluída! {$sincronizados} registro(s) criado(s).",
+                'sincronizados' => $sincronizados,
+                'erros' => $erros
+            ], JSON_UNESCAPED_UNICODE);
+            exit;
+        } catch (Exception $e) {
+            if (isset($conn) && $conn->inTransaction()) {
+                $conn->rollBack();
+            }
+            echo json_encode(['success' => false, 'message' => $e->getMessage()], JSON_UNESCAPED_UNICODE);
+            exit;
+        }
     }
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['acao'])) {
-    header('Content-Type: application/json');
+    // Limpar qualquer output anterior (incluindo warnings/notices)
+    while (ob_get_level()) {
+        ob_end_clean();
+    }
+    ob_start();
+    
+    // Desabilitar exibição de erros para não quebrar o JSON
+    error_reporting(E_ALL);
+    ini_set('display_errors', 0);
+    ini_set('log_errors', 1);
+    
+    header('Content-Type: application/json; charset=utf-8');
     
     if ($_GET['acao'] === 'listar_estoque') {
         $sql = "SELECT ec.*, p.nome as produto_nome, p.unidade_medida, p.estoque_minimo, f.nome as fornecedor_nome
@@ -109,7 +313,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['acao'])) {
             $item['total_produto'] = $totais[$item['produto_id']] ?? 0;
         }
         
-        echo json_encode(['success' => true, 'estoque' => $estoque]);
+        echo json_encode(['success' => true, 'estoque' => $estoque], JSON_UNESCAPED_UNICODE);
         exit;
     }
 }
@@ -222,12 +426,20 @@ $estoque = $stmtEstoque->fetchAll(PDO::FETCH_ASSOC);
                         <h2 class="text-2xl font-bold text-gray-900">Estoque Central</h2>
                         <p class="text-gray-600 mt-1">Gerencie entradas e saídas de produtos</p>
                     </div>
-                    <button onclick="abrirModalNovaEntrada()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2 rounded-lg font-medium transition-colors duration-200 flex items-center space-x-2">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
-                        </svg>
-                        <span>Nova Entrada</span>
-                    </button>
+                    <div class="flex space-x-3">
+                        <button onclick="abrirModalNovaEntrada()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2 rounded-lg font-medium transition-colors duration-200 flex items-center space-x-2">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+                            </svg>
+                            <span>Nova Entrada</span>
+                        </button>
+                        <button onclick="sincronizarCustos()" class="bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded-lg font-medium transition-colors duration-200 flex items-center space-x-2" title="Sincronizar entradas antigas do estoque para custos">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+                            </svg>
+                            <span>Sincronizar Custos</span>
+                        </button>
+                    </div>
                 </div>
                 
                 <!-- Filtros -->
@@ -327,14 +539,14 @@ $estoque = $stmtEstoque->fetchAll(PDO::FETCH_ASSOC);
             <div class="max-w-4xl mx-auto">
                 <form id="form-entrada" class="space-y-6">
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
+                        <div class="relative">
                             <label class="block text-sm font-medium text-gray-700 mb-2">Produto *</label>
-                            <select id="entrada-produto-id" required class="w-full px-4 py-2 border border-gray-300 rounded-lg">
-                                <option value="">Selecione um produto</option>
-                                <?php foreach ($produtos as $produto): ?>
-                                    <option value="<?= $produto['id'] ?>"><?= htmlspecialchars($produto['nome']) ?> (<?= $produto['unidade_medida'] ?>)</option>
-                                <?php endforeach; ?>
-                            </select>
+                            <input type="text" id="entrada-produto-nome" required 
+                                   placeholder="Digite o nome do produto..."
+                                   class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                                   autocomplete="off">
+                            <input type="hidden" id="entrada-produto-id" value="">
+                            <div id="sugestoes-produto" class="hidden absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto"></div>
                         </div>
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-2">Quantidade *</label>
@@ -440,16 +652,152 @@ $estoque = $stmtEstoque->fetchAll(PDO::FETCH_ASSOC);
         function abrirModalNovaEntrada() {
             document.getElementById('modal-nova-entrada').classList.remove('hidden');
             document.getElementById('form-entrada').reset();
+            document.getElementById('entrada-produto-id').value = '';
+            document.getElementById('sugestoes-produto').classList.add('hidden');
+            produtoSelecionado = null;
         }
 
         function fecharModalNovaEntrada() {
             document.getElementById('modal-nova-entrada').classList.add('hidden');
         }
 
+        // Variáveis para autocomplete de produtos
+        let produtosDisponiveis = [
+            <?php 
+            foreach ($produtos as $produto): 
+                echo '{id: ' . $produto['id'] . ', nome: "' . htmlspecialchars($produto['nome'], ENT_QUOTES) . '", unidade: "' . htmlspecialchars($produto['unidade_medida'], ENT_QUOTES) . '"},';
+            endforeach; 
+            ?>
+        ];
+        let sugestaoAtivaProduto = -1;
+        let produtoSelecionado = null;
+
+        // Função para buscar produtos
+        function buscarProdutos(termo) {
+            const campoProduto = document.getElementById('entrada-produto-nome');
+            const sugestoes = document.getElementById('sugestoes-produto');
+            const produtoIdInput = document.getElementById('entrada-produto-id');
+            const termoLower = termo.toLowerCase().trim();
+            
+            if (!termoLower) {
+                sugestoes.classList.add('hidden');
+                produtoIdInput.value = '';
+                produtoSelecionado = null;
+                return;
+            }
+            
+            // Filtrar produtos
+            const produtosFiltrados = produtosDisponiveis.filter(p => 
+                p.nome.toLowerCase().includes(termoLower)
+            );
+            
+            if (produtosFiltrados.length === 0) {
+                sugestoes.innerHTML = '<div class="p-3 text-gray-500 text-sm">Nenhum produto encontrado. O produto será criado automaticamente.</div>';
+                sugestoes.classList.remove('hidden');
+                produtoIdInput.value = '';
+                produtoSelecionado = null;
+                return;
+            }
+            
+            // Mostrar sugestões
+            sugestoes.innerHTML = '';
+            produtosFiltrados.forEach((produto, index) => {
+                const item = document.createElement('div');
+                item.className = 'p-3 cursor-pointer hover:bg-gray-100 sugestao-item-produto';
+                item.setAttribute('data-id', produto.id);
+                item.setAttribute('data-nome', produto.nome);
+                item.setAttribute('data-unidade', produto.unidade);
+                item.innerHTML = `<div class="font-medium">${produto.nome}</div><div class="text-sm text-gray-500">${produto.unidade}</div>`;
+                item.addEventListener('click', () => selecionarProduto(produto.id, produto.nome, produto.unidade));
+                sugestoes.appendChild(item);
+            });
+            
+            sugestoes.classList.remove('hidden');
+            sugestaoAtivaProduto = -1;
+        }
+
+        // Função para selecionar produto
+        function selecionarProduto(id, nome, unidade) {
+            document.getElementById('entrada-produto-nome').value = nome;
+            document.getElementById('entrada-produto-id').value = id;
+            document.getElementById('sugestoes-produto').classList.add('hidden');
+            produtoSelecionado = {id: id, nome: nome, unidade: unidade};
+            sugestaoAtivaProduto = -1;
+        }
+
+        // Event listeners para o campo de produto
+        document.addEventListener('DOMContentLoaded', function() {
+            const campoProduto = document.getElementById('entrada-produto-nome');
+            const sugestoes = document.getElementById('sugestoes-produto');
+            
+            if (campoProduto) {
+                campoProduto.addEventListener('input', function(e) {
+                    buscarProdutos(e.target.value);
+                });
+                
+                campoProduto.addEventListener('keydown', function(e) {
+                    const itens = document.querySelectorAll('.sugestao-item-produto');
+                    if (itens.length === 0) return;
+                    
+                    switch(e.key) {
+                        case 'ArrowDown':
+                            e.preventDefault();
+                            sugestaoAtivaProduto = (sugestaoAtivaProduto + 1) % itens.length;
+                            itens[sugestaoAtivaProduto].scrollIntoView({block: 'nearest'});
+                            atualizarDestaqueProduto();
+                            break;
+                        case 'ArrowUp':
+                            e.preventDefault();
+                            sugestaoAtivaProduto = sugestaoAtivaProduto <= 0 ? itens.length - 1 : sugestaoAtivaProduto - 1;
+                            itens[sugestaoAtivaProduto].scrollIntoView({block: 'nearest'});
+                            atualizarDestaqueProduto();
+                            break;
+                        case 'Enter':
+                            e.preventDefault();
+                            if (sugestaoAtivaProduto >= 0 && itens[sugestaoAtivaProduto]) {
+                                itens[sugestaoAtivaProduto].click();
+                            }
+                            break;
+                        case 'Escape':
+                            sugestoes.classList.add('hidden');
+                            sugestaoAtivaProduto = -1;
+                            break;
+                    }
+                });
+                
+                // Fechar sugestões ao clicar fora
+                document.addEventListener('click', function(e) {
+                    if (!campoProduto.contains(e.target) && !sugestoes.contains(e.target)) {
+                        sugestoes.classList.add('hidden');
+                    }
+                });
+            }
+        });
+
+        function atualizarDestaqueProduto() {
+            const itens = document.querySelectorAll('.sugestao-item-produto');
+            itens.forEach((item, index) => {
+                if (index === sugestaoAtivaProduto) {
+                    item.classList.add('bg-indigo-50', 'border-l-4', 'border-indigo-500');
+                } else {
+                    item.classList.remove('bg-indigo-50', 'border-l-4', 'border-indigo-500');
+                }
+            });
+        }
+
         function salvarEntrada() {
+            const produtoNome = document.getElementById('entrada-produto-nome').value.trim();
+            const produtoId = document.getElementById('entrada-produto-id').value;
+            
+            if (!produtoNome) {
+                alert('Por favor, digite o nome do produto.');
+                return;
+            }
+            
             const formData = new FormData();
             formData.append('acao', 'registrar_entrada');
-            formData.append('produto_id', document.getElementById('entrada-produto-id').value);
+            formData.append('produto_nome', produtoNome);
+            formData.append('produto_id', produtoId); // Pode estar vazio se for novo produto
             formData.append('quantidade', document.getElementById('entrada-quantidade').value);
             formData.append('lote', document.getElementById('entrada-lote').value);
             formData.append('fornecedor_id', document.getElementById('entrada-fornecedor-id').value);
@@ -474,6 +822,45 @@ $estoque = $stmtEstoque->fetchAll(PDO::FETCH_ASSOC);
             .catch(error => {
                 console.error('Erro:', error);
                 alert('Erro ao registrar entrada.');
+            });
+        }
+
+        function sincronizarCustos() {
+            if (!confirm('Deseja sincronizar as entradas antigas do estoque para os custos? Isso criará registros de custo para todas as entradas que ainda não foram sincronizadas.')) {
+                return;
+            }
+            
+            const formData = new FormData();
+            formData.append('acao', 'sincronizar_custos');
+            
+            const btn = event.target.closest('button');
+            const originalText = btn.innerHTML;
+            btn.disabled = true;
+            btn.innerHTML = '<span class="inline-block animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></span> Sincronizando...';
+            
+            fetch('', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                btn.disabled = false;
+                btn.innerHTML = originalText;
+                
+                if (data.success) {
+                    alert(data.message || 'Sincronização concluída com sucesso!');
+                    if (data.sincronizados > 0) {
+                        filtrarEstoque();
+                    }
+                } else {
+                    alert('Erro ao sincronizar: ' + (data.message || 'Erro desconhecido'));
+                }
+            })
+            .catch(error => {
+                btn.disabled = false;
+                btn.innerHTML = originalText;
+                console.error('Erro:', error);
+                alert('Erro ao sincronizar custos.');
             });
         }
 
