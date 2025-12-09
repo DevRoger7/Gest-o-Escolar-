@@ -3,7 +3,7 @@
 
 
 Class ModelLogin {
-    public function login($cpf, $senha) {
+    public function login($cpfOuEmail, $senha) {
         // Inicia a sessão se ainda não foi iniciada
         if (session_status() == PHP_SESSION_NONE) {
             // Configura o tempo de vida da sessão para 24 horas
@@ -13,20 +13,32 @@ Class ModelLogin {
             session_start();
         }
         
-        // Remove pontos e hífens do CPF, mantendo apenas números
-        $cpf = preg_replace('/[^0-9]/', '', $cpf);
-        
         require_once("../../config/Database.php");
         $db = Database::getInstance();
         $conn = $db->getConnection();
         
-        // Primeiro, buscar o usuário apenas pelo CPF para obter o hash da senha
-        $sql = "SELECT u.*, p.* FROM usuario u 
-                INNER JOIN pessoa p ON u.pessoa_id = p.id 
-                WHERE p.cpf = ?";
+        // Verificar se é email ou CPF
+        $isEmail = filter_var($cpfOuEmail, FILTER_VALIDATE_EMAIL);
         
-        $stmt = $conn->prepare($sql);
-        $stmt->execute([$cpf]);
+        if ($isEmail) {
+            // Buscar por email
+            $sql = "SELECT u.*, p.* FROM usuario u 
+                    INNER JOIN pessoa p ON u.pessoa_id = p.id 
+                    WHERE p.email = ?";
+            $stmt = $conn->prepare($sql);
+            $stmt->execute([$cpfOuEmail]);
+        } else {
+            // Remove pontos e hífens do CPF, mantendo apenas números
+            $cpf = preg_replace('/[^0-9]/', '', $cpfOuEmail);
+            
+            // Buscar por CPF
+            $sql = "SELECT u.*, p.* FROM usuario u 
+                    INNER JOIN pessoa p ON u.pessoa_id = p.id 
+                    WHERE p.cpf = ?";
+            $stmt = $conn->prepare($sql);
+            $stmt->execute([$cpf]);
+        }
+        
         $resultado = $stmt->fetch(PDO::FETCH_ASSOC);
         
         // Verificar se o usuário existe e se a senha está correta usando password_verify
