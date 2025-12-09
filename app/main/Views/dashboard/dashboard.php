@@ -338,6 +338,29 @@ if (!defined('BASE_URL')) {
     <script src="theme-manager.js"></script>
 
     <script>
+        // Forçar modo claro para GESTAO
+        <?php if (isset($_SESSION['tipo']) && $_SESSION['tipo'] === 'GESTAO'): ?>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Forçar tema claro para gestor
+            document.documentElement.setAttribute('data-theme', 'light');
+            if (window.themeManager) {
+                window.themeManager.setTheme('light');
+            }
+            // Remover tema escuro do localStorage se existir
+            try {
+                const settings = JSON.parse(localStorage.getItem('accessibilitySettings') || '{}');
+                settings.theme = 'light';
+                localStorage.setItem('accessibilitySettings', JSON.stringify(settings));
+            } catch (e) {
+                console.warn('Erro ao salvar tema claro:', e);
+            }
+        });
+        // Também aplicar imediatamente se o DOM já estiver pronto
+        if (document.readyState !== 'loading') {
+            document.documentElement.setAttribute('data-theme', 'light');
+        }
+        <?php endif; ?>
+        
         console.log('toggleSidebar já definida:', typeof window.toggleSidebar);
 
         // Funções do modal de logout - Definidas no início para garantir disponibilidade
@@ -975,6 +998,36 @@ if (!defined('BASE_URL')) {
         }
 
         /* Acessibilidade - Tema Escuro */
+        /* Forçar modo claro para GESTAO - sempre branco */
+        <?php if (isset($_SESSION['tipo']) && $_SESSION['tipo'] === 'GESTAO'): ?>
+        body {
+            background: #f9fafb !important;
+            color: #111827 !important;
+        }
+        .bg-white {
+            background: #ffffff !important;
+            color: #111827 !important;
+        }
+        .bg-gray-50 {
+            background: #f9fafb !important;
+        }
+        .bg-gray-100 {
+            background: #f3f4f6 !important;
+        }
+        .text-gray-800, .text-gray-900 {
+            color: #111827 !important;
+        }
+        .text-gray-600 {
+            color: #4b5563 !important;
+        }
+        .text-gray-500 {
+            color: #6b7280 !important;
+        }
+        .border-gray-200, .border-gray-300 {
+            border-color: #e5e7eb !important;
+        }
+        <?php endif; ?>
+        
         [data-theme="dark"] {
             --bg-primary: #0a0a0a;
             --bg-secondary: #1a1a1a;
@@ -998,6 +1051,39 @@ if (!defined('BASE_URL')) {
             --error: #f87171;
             --info: #60a5fa;
         }
+        
+        /* Desabilitar modo escuro para GESTAO mesmo se data-theme="dark" */
+        <?php if (isset($_SESSION['tipo']) && $_SESSION['tipo'] === 'GESTAO'): ?>
+        [data-theme="dark"] body {
+            background: #f9fafb !important;
+            color: #111827 !important;
+        }
+        [data-theme="dark"] .bg-white {
+            background: #ffffff !important;
+            color: #111827 !important;
+            border-color: #e5e7eb !important;
+        }
+        [data-theme="dark"] .bg-gray-50 {
+            background: #f9fafb !important;
+        }
+        [data-theme="dark"] .bg-gray-100 {
+            background: #f3f4f6 !important;
+        }
+        [data-theme="dark"] .text-gray-800,
+        [data-theme="dark"] .text-gray-900 {
+            color: #111827 !important;
+        }
+        [data-theme="dark"] .text-gray-600 {
+            color: #4b5563 !important;
+        }
+        [data-theme="dark"] .text-gray-500 {
+            color: #6b7280 !important;
+        }
+        [data-theme="dark"] .border-gray-200,
+        [data-theme="dark"] .border-gray-300 {
+            border-color: #e5e7eb !important;
+        }
+        <?php endif; ?>
 
         [data-theme="dark"] body {
             background: linear-gradient(135deg, var(--bg-primary) 0%, var(--bg-secondary) 100%);
@@ -1917,6 +2003,8 @@ if (!defined('BASE_URL')) {
         <?php include('components/sidebar_adm.php'); ?>
     <?php } elseif (isset($_SESSION['tipo']) && strtoupper($_SESSION['tipo']) === 'NUTRICIONISTA') { ?>
         <?php include('components/sidebar_nutricionista.php'); ?>
+    <?php } elseif (eResponsavel()) { ?>
+        <?php include('components/sidebar_responsavel.php'); ?>
     <?php } else { ?>
     <aside id="sidebar" class="fixed left-0 top-0 h-full w-64 bg-white shadow-lg sidebar-transition z-50 lg:translate-x-0 sidebar-mobile">
         <!-- Logo e Header -->
@@ -2985,6 +3073,9 @@ if (!defined('BASE_URL')) {
                         // ADM não renderiza interface específica - usa apenas o dashboard principal
                         return;
                         break;
+                    case 'responsavel':
+                        renderResponsavelInterface();
+                        break;
                     default:
                         renderDefaultInterface();
                         break;
@@ -2994,6 +3085,12 @@ if (!defined('BASE_URL')) {
             // === INTERFACE DO ALUNO ===
             function renderAlunoInterface() {
                 // Interface do aluno removida - apenas o dashboard principal será exibido
+                return;
+            }
+            
+            // === INTERFACE DO RESPONSÁVEL ===
+            function renderResponsavelInterface() {
+                // Interface do responsável será renderizada no dashboard principal com seletor de aluno
                 return;
             }
 

@@ -7,6 +7,7 @@ require_once('../../Models/academico/NotaModel.php');
 require_once('../../Models/academico/FrequenciaModel.php');
 require_once('../../Models/dashboard/DashboardStats.php');
 require_once('../../Models/pessoas/FuncionarioModel.php');
+require_once('../../Models/pessoas/ResponsavelModel.php');
 
 $session = new sessions();
 $session->autenticar_session();
@@ -23,6 +24,7 @@ require_once('../../config/Database.php');
 $turmaModel = new TurmaModel();
 $alunoModel = new AlunoModel();
 $funcionarioModel = new FuncionarioModel();
+$responsavelModel = new ResponsavelModel();
 $stats = new DashboardStats();
 
 // Processar ações
@@ -333,6 +335,115 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $tipoMensagem = 'error';
             }
             break;
+            
+        case 'criar_responsavel':
+            header('Content-Type: application/json');
+            try {
+                $dados = [
+                    'nome' => trim($_POST['nome'] ?? ''),
+                    'cpf' => preg_replace('/[^0-9]/', '', $_POST['cpf'] ?? ''),
+                    'data_nascimento' => !empty($_POST['data_nascimento']) ? $_POST['data_nascimento'] : null,
+                    'sexo' => $_POST['sexo'] ?? null,
+                    'email' => !empty($_POST['email']) ? trim($_POST['email']) : null,
+                    'telefone' => !empty($_POST['telefone']) ? preg_replace('/[^0-9]/', '', $_POST['telefone']) : null,
+                    'senha' => $_POST['senha'] ?? ''
+                ];
+                
+                if (empty($dados['nome']) || empty($dados['cpf'])) {
+                    throw new Exception('Nome e CPF são obrigatórios');
+                }
+                
+                if (strlen($dados['cpf']) !== 11) {
+                    throw new Exception('CPF deve conter 11 dígitos');
+                }
+                
+                if (empty($dados['senha']) || strlen($dados['senha']) < 6) {
+                    throw new Exception('A senha é obrigatória e deve ter no mínimo 6 caracteres');
+                }
+                
+                // Validar que alunos foram selecionados (obrigatório)
+                $alunosJson = $_POST['alunos_ids'] ?? '[]';
+                $alunos = json_decode($alunosJson, true);
+                $parentesco = $_POST['parentesco'] ?? '';
+                
+                if (empty($parentesco)) {
+                    throw new Exception('É obrigatório selecionar o parentesco');
+                }
+                
+                if (empty($alunos) || !is_array($alunos) || count($alunos) === 0) {
+                    throw new Exception('É obrigatório associar pelo menos um aluno ao responsável');
+                }
+                
+                $resultado = $responsavelModel->criar($dados);
+                
+                if ($resultado['success']) {
+                    // Associar alunos (obrigatório)
+                    $associacao = $responsavelModel->associarAlunos($resultado['pessoa_id'], $alunos, $parentesco);
+                    if (!$associacao['success']) {
+                        // Responsável foi criado, mas associação falhou - isso é um erro crítico
+                        throw new Exception('Responsável criado, mas houve erro ao associar alunos: ' . ($associacao['message'] ?? 'Erro desconhecido'));
+                    }
+                    
+                    echo json_encode($resultado);
+                } else {
+                    echo json_encode(['success' => false, 'message' => $resultado['message'] ?? 'Erro ao criar responsável']);
+                }
+            } catch (Exception $e) {
+                error_log("Erro ao criar responsável (gestao_escolar.php): " . $e->getMessage());
+                error_log("Stack trace: " . $e->getTraceAsString());
+                echo json_encode(['success' => false, 'message' => $e->getMessage()]);
+            }
+            exit;
+            
+        case 'excluir_responsavel':
+            header('Content-Type: application/json');
+            try {
+                $responsavelId = $_POST['responsavel_id'] ?? null;
+                
+                if (!$responsavelId) {
+                    throw new Exception('ID do responsável não informado');
+                }
+                
+                $resultado = $responsavelModel->excluir($responsavelId);
+                
+                if ($resultado['success']) {
+                    echo json_encode(['success' => true, 'message' => 'Responsável excluído com sucesso']);
+                } else {
+                    echo json_encode(['success' => false, 'message' => $resultado['message'] ?? 'Erro ao excluir responsável']);
+                }
+            } catch (Exception $e) {
+                error_log("Erro ao excluir responsável: " . $e->getMessage());
+                echo json_encode(['success' => false, 'message' => $e->getMessage()]);
+            }
+            exit;
+            
+        case 'associar_alunos':
+            header('Content-Type: application/json');
+            try {
+                $responsavelId = $_POST['responsavel_id'] ?? null;
+                $parentesco = $_POST['parentesco'] ?? 'OUTRO';
+                $alunosJson = $_POST['alunos'] ?? '[]';
+                $alunos = json_decode($alunosJson, true);
+                
+                if (!$responsavelId) {
+                    throw new Exception('ID do responsável não informado');
+                }
+                
+                if (empty($alunos) || !is_array($alunos)) {
+                    throw new Exception('Nenhum aluno selecionado');
+                }
+                
+                $resultado = $responsavelModel->associarAlunos($responsavelId, $alunos, $parentesco);
+                
+                if ($resultado['success']) {
+                    echo json_encode(['success' => true, 'message' => 'Alunos associados com sucesso']);
+                } else {
+                    echo json_encode(['success' => false, 'message' => $resultado['message'] ?? 'Erro ao associar alunos']);
+                }
+            } catch (Exception $e) {
+                echo json_encode(['success' => false, 'message' => $e->getMessage()]);
+            }
+            exit;
             
         case 'cadastrar_funcionario':
             $resultado = $funcionarioModel->criar([
@@ -921,6 +1032,50 @@ if (!empty($_GET['acao']) && $_GET['acao'] === 'buscar_professor' && !empty($_GE
 }
 
 // Buscar detalhes de acompanhamento do aluno
+if (!empty($_GET['acao']) && $_GET['acao'] === 'listar_responsaveis') {
+    header('Content-Type: application/json');
+    try {
+        $filtros = [
+            'busca' => $_GET['busca'] ?? '',
+            'ativo' => 1
+        ];
+        $responsaveis = $responsavelModel->listar($filtros);
+        echo json_encode(['success' => true, 'responsaveis' => $responsaveis]);
+    } catch (Exception $e) {
+        echo json_encode(['success' => false, 'message' => $e->getMessage()]);
+    }
+    exit;
+}
+
+if (!empty($_GET['acao']) && $_GET['acao'] === 'buscar_alunos' && !empty($_GET['busca'])) {
+    header('Content-Type: application/json');
+    try {
+        $busca = trim($_GET['busca']);
+        $db = Database::getInstance();
+        $conn = $db->getConnection();
+        
+        $sql = "SELECT a.id, p.nome, a.matricula, e.nome as escola_nome
+                FROM aluno a
+                INNER JOIN pessoa p ON a.pessoa_id = p.id
+                LEFT JOIN escola e ON a.escola_id = e.id
+                WHERE a.ativo = 1 
+                AND (p.nome LIKE :busca OR a.matricula LIKE :busca OR p.cpf LIKE :busca)
+                ORDER BY p.nome ASC
+                LIMIT 20";
+        
+        $stmt = $conn->prepare($sql);
+        $buscaParam = "%{$busca}%";
+        $stmt->bindParam(':busca', $buscaParam);
+        $stmt->execute();
+        $alunos = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        
+        echo json_encode(['success' => true, 'alunos' => $alunos]);
+    } catch (Exception $e) {
+        echo json_encode(['success' => false, 'message' => $e->getMessage()]);
+    }
+    exit;
+}
+
 if (!empty($_GET['acao']) && $_GET['acao'] === 'buscar_aluno_acompanhamento' && !empty($_GET['aluno_id']) && !empty($_GET['turma_id'])) {
     header('Content-Type: application/json');
     
@@ -1027,17 +1182,42 @@ if (!defined('BASE_URL')) {
         .sidebar-transition { transition: all 0.3s ease-in-out; }
         .content-transition { transition: margin-left 0.3s ease-in-out; }
         .menu-item.active {
-            background: linear-gradient(90deg, rgba(220, 38, 38, 0.12) 0%, rgba(220, 38, 38, 0.06) 100%);
-            border-right: 3px solid #dc2626;
+            background: linear-gradient(90deg, rgba(45, 90, 39, 0.12) 0%, rgba(45, 90, 39, 0.06) 100%);
+            border-right: 3px solid #2D5A27;
         }
         .menu-item:hover {
-            background: linear-gradient(90deg, rgba(220, 38, 38, 0.08) 0%, rgba(220, 38, 38, 0.04) 100%);
+            background: linear-gradient(90deg, rgba(45, 90, 39, 0.08) 0%, rgba(45, 90, 39, 0.04) 100%);
             transform: translateX(4px);
         }
         .mobile-menu-overlay { transition: opacity 0.3s ease-in-out; }
         @media (max-width: 1023px) {
             .sidebar-mobile { transform: translateX(-100%); }
             .sidebar-mobile.open { transform: translateX(0); }
+        }
+        
+        @keyframes bounce-in {
+            0% {
+                transform: scale(0.3);
+                opacity: 0;
+            }
+            50% {
+                transform: scale(1.05);
+            }
+            70% {
+                transform: scale(0.9);
+            }
+            100% {
+                transform: scale(1);
+                opacity: 1;
+            }
+        }
+        
+        .modal-sucesso-icon {
+            animation: bounce-in 0.6s ease-out;
+        }
+        
+        .modal-sucesso-content {
+            transition: transform 0.2s ease-out;
         }
     </style>
 </head>
@@ -1050,7 +1230,7 @@ if (!defined('BASE_URL')) {
         <?php include('components/sidebar_adm.php'); ?>
     <?php } else { ?>
         <!-- Sidebar padrão para GESTAO -->
-        <aside id="sidebar" class="fixed left-0 top-0 h-full w-64 bg-white shadow-lg sidebar-transition z-50 lg:translate-x-0 sidebar-mobile">
+        <aside id="sidebar" class="fixed left-0 top-0 h-full w-64 bg-white shadow-lg sidebar-transition z-50 lg:translate-x-0 sidebar-mobile flex flex-col">
             <div class="p-6 border-b border-gray-200">
                 <div class="flex items-center space-x-3">
                     <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/1/19/Bras%C3%A3o_de_Maranguape.png/250px-Bras%C3%A3o_de_Maranguape.png" alt="Brasão de Maranguape" class="w-10 h-10 object-contain">
@@ -1084,10 +1264,10 @@ if (!defined('BASE_URL')) {
                     </div>
                 </div>
             </div>
-            <nav class="p-4 overflow-y-auto" style="max-height: calc(100vh - 200px);">
+            <nav class="p-4 overflow-y-auto flex-1" style="max-height: calc(100vh - 200px);">
                 <ul class="space-y-2">
                     <li>
-                        <a href="dashboard.php" class="menu-item flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700">
+                        <a href="dashboard.php" class="menu-item flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700 <?= basename($_SERVER['PHP_SELF']) === 'dashboard.php' ? 'active' : '' ?>">
                             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"></path>
                             </svg>
@@ -1095,23 +1275,25 @@ if (!defined('BASE_URL')) {
                         </a>
                     </li>
                     <li>
-                        <a href="gestao_escolar.php" class="menu-item active flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700">
+                        <a href="gestao_escolar.php" class="menu-item flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700 <?= basename($_SERVER['PHP_SELF']) === 'gestao_escolar.php' ? 'active' : '' ?>">
                             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"></path>
                             </svg>
                             <span>Gestão Escolar</span>
                         </a>
                     </li>
-                    <li>
-                        <button onclick="window.confirmLogout()" class="menu-item w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700">
-                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path>
-                            </svg>
-                            <span>Sair</span>
-                        </button>
-                    </li>
                 </ul>
             </nav>
+            
+            <!-- Logout Button -->
+            <div class="absolute bottom-0 left-0 right-0 p-4 border-t border-gray-200 bg-white">
+                <button onclick="window.confirmLogout()" class="w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-red-600 hover:bg-red-50 transition-colors">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path>
+                    </svg>
+                    <span>Sair</span>
+                </button>
+            </div>
         </aside>
     <?php } ?>
     
@@ -1185,6 +1367,9 @@ if (!defined('BASE_URL')) {
                 </button>
                 <button onclick="mostrarAba('cadastros')" id="tab-cadastros" class="tab-button py-4 px-1 border-b-2 border-transparent font-medium text-sm text-gray-500 hover:text-gray-700 hover:border-gray-300">
                     Cadastros
+                </button>
+                <button onclick="mostrarAba('responsaveis')" id="tab-responsaveis" class="tab-button py-4 px-1 border-b-2 border-transparent font-medium text-sm text-gray-500 hover:text-gray-700 hover:border-gray-300">
+                    Responsáveis
                 </button>
             </nav>
         </div>
@@ -1884,6 +2069,272 @@ if (!defined('BASE_URL')) {
                         </svg>
                         Cadastrar Funcionário
                     </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- ABA: RESPONSÁVEIS -->
+        <div id="conteudo-responsaveis" class="aba-conteudo hidden">
+            <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+                <div class="flex justify-between items-center mb-6">
+                    <h2 class="text-xl font-bold text-gray-800">Gerenciamento de Responsáveis</h2>
+                    <button onclick="abrirModalCriarResponsavel()" class="bg-primary-green text-white px-4 py-2 rounded-lg hover:bg-secondary-green transition-colors">
+                        + Novo Responsável
+                    </button>
+                </div>
+
+                <!-- Filtros -->
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Buscar</label>
+                        <input type="text" id="busca-responsavel" placeholder="Nome, CPF ou email..." 
+                               class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-green focus:border-transparent"
+                               onkeyup="filtrarResponsaveis()">
+                    </div>
+                </div>
+
+                <!-- Lista de Responsáveis -->
+                <div class="overflow-x-auto">
+                    <table class="min-w-full divide-y divide-gray-200">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Nome</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">CPF</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Telefone</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Alunos</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody id="lista-responsaveis" class="bg-white divide-y divide-gray-200">
+                            <tr>
+                                <td colspan="6" class="px-6 py-4 text-center text-gray-500">Carregando...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Criar Responsável -->
+    <div id="modal-criar-responsavel" class="hidden fixed inset-0 bg-white overflow-y-auto h-full w-full z-50">
+        <div class="w-full h-full flex flex-col">
+            <!-- Header -->
+            <div class="flex justify-between items-center p-6 border-b border-gray-200 bg-primary-green text-white sticky top-0 z-10 shadow-md">
+                <div>
+                    <h3 class="text-2xl font-bold">Novo Responsável</h3>
+                    <p class="text-green-100 text-sm mt-1">Preencha os dados para criar um novo responsável</p>
+                </div>
+                <button onclick="fecharModalCriarResponsavel()" class="text-white hover:text-gray-200 transition-colors p-2 hover:bg-green-700 rounded-lg">
+                    <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+            </div>
+            
+            <!-- Content -->
+            <div class="flex-1 p-6 overflow-y-auto bg-gray-50">
+                <div class="max-w-4xl mx-auto">
+                    <form id="form-criar-responsavel" class="bg-white rounded-lg shadow-sm border border-gray-200 p-8" onsubmit="event.preventDefault(); return false;">
+                        <div class="space-y-6">
+                            <!-- Dados Pessoais -->
+                            <div>
+                                <h4 class="text-lg font-semibold text-gray-900 mb-4 pb-2 border-b border-gray-200">Dados Pessoais</h4>
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-2">
+                                            Nome Completo <span class="text-red-500">*</span>
+                                        </label>
+                                        <input type="text" id="responsavel-nome" required 
+                                               class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-green focus:border-primary-green transition-colors">
+                                    </div>
+                                    
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-2">
+                                            CPF <span class="text-red-500">*</span>
+                                        </label>
+                                        <input type="text" id="responsavel-cpf" required maxlength="14" 
+                                               placeholder="000.000.000-00"
+                                               class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-green focus:border-primary-green transition-colors"
+                                               oninput="this.value = this.value.replace(/\D/g, '').replace(/(\d{3})(\d)/, '$1.$2').replace(/(\d{3})(\d)/, '$1.$2').replace(/(\d{3})(\d{1,2})$/, '$1-$2')">
+                                    </div>
+                                    
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-2">Data de Nascimento</label>
+                                        <input type="date" id="responsavel-data-nascimento" 
+                                               class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-green focus:border-primary-green transition-colors">
+                                    </div>
+                                    
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-2">Sexo</label>
+                                        <select id="responsavel-sexo" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-green focus:border-primary-green transition-colors">
+                                            <option value="">Selecione...</option>
+                                            <option value="M">Masculino</option>
+                                            <option value="F">Feminino</option>
+                                        </select>
+                                    </div>
+                                    
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-2">E-mail</label>
+                                        <input type="email" id="responsavel-email" 
+                                               class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-green focus:border-primary-green transition-colors">
+                                    </div>
+                                    
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-2">Telefone</label>
+                                        <input type="text" id="responsavel-telefone" maxlength="15" 
+                                               placeholder="(85) 99999-9999"
+                                               class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-green focus:border-primary-green transition-colors"
+                                               oninput="this.value = this.value.replace(/\D/g, '').replace(/(\d{2})(\d)/, '($1) $2').replace(/(\d{5})(\d)/, '$1-$2')">
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Acesso ao Sistema -->
+                            <div>
+                                <h4 class="text-lg font-semibold text-gray-900 mb-4 pb-2 border-b border-gray-200">Acesso ao Sistema</h4>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">
+                                        Senha <span class="text-red-500">*</span>
+                                    </label>
+                                    <input type="password" id="responsavel-senha" required minlength="6"
+                                           class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-green focus:border-primary-green transition-colors"
+                                           placeholder="Digite a senha para acesso ao sistema">
+                                    <p class="text-xs text-gray-500 mt-1">A senha deve ter no mínimo 6 caracteres</p>
+                                </div>
+                            </div>
+                            
+                            <!-- Associação de Alunos -->
+                            <div>
+                                <h4 class="text-lg font-semibold text-gray-900 mb-4 pb-2 border-b border-gray-200">
+                                    Associar Alunos <span class="text-red-500">*</span>
+                                </h4>
+                                <p class="text-sm text-gray-600 mb-4">É obrigatório associar pelo menos um aluno a este responsável.</p>
+                                
+                                <div class="mb-4">
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">
+                                        Parentesco <span class="text-red-500">*</span>
+                                    </label>
+                                    <select id="responsavel-parentesco" required class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-green focus:border-primary-green">
+                                        <option value="">Selecione...</option>
+                                        <option value="PAI">Pai</option>
+                                        <option value="MAE">Mãe</option>
+                                        <option value="AVO">Avô/Avó</option>
+                                        <option value="TIO">Tio/Tia</option>
+                                        <option value="OUTRO">Outro</option>
+                                    </select>
+                                </div>
+                                
+                                <div class="mb-4">
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">Buscar Aluno</label>
+                                    <input type="text" id="busca-aluno-criar" placeholder="Nome, matrícula ou CPF..." 
+                                           class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-green focus:border-primary-green"
+                                           onkeyup="buscarAlunosParaCriar()">
+                                </div>
+                                
+                                <div class="mb-4">
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">Alunos Disponíveis</label>
+                                    <div id="lista-alunos-criar" class="border border-gray-300 rounded-lg max-h-64 overflow-y-auto bg-gray-50">
+                                        <div class="p-4 text-center text-gray-500">Digite para buscar alunos...</div>
+                                    </div>
+                                </div>
+                                
+                                <div class="mb-4">
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">Alunos Selecionados</label>
+                                    <div id="alunos-selecionados-criar" class="border border-gray-300 rounded-lg p-4 min-h-20 bg-gray-50">
+                                        <p class="text-gray-500 text-sm">Nenhum aluno selecionado</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Botões de Ação -->
+                        <div class="flex justify-end space-x-3 pt-8 mt-8 border-t border-gray-200">
+                            <button type="button" onclick="fecharModalCriarResponsavel()" 
+                                    class="px-6 py-3 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 font-medium transition-colors">
+                                Cancelar
+                            </button>
+                            <button type="button" onclick="salvarResponsavel()" 
+                                    class="px-6 py-3 bg-primary-green text-white rounded-lg hover:bg-green-700 font-medium transition-colors shadow-md hover:shadow-lg">
+                                <svg class="w-5 h-5 inline mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+                                </svg>
+                                Criar Responsável
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Associar Alunos -->
+    <div id="modal-associar-alunos" class="hidden fixed inset-0 bg-white overflow-y-auto h-full w-full z-50">
+        <div class="w-full h-full flex flex-col">
+            <!-- Header -->
+            <div class="flex justify-between items-center p-6 border-b border-gray-200 bg-primary-green text-white sticky top-0 z-10 shadow-md">
+                <div>
+                    <h3 class="text-2xl font-bold">Associar Alunos</h3>
+                    <p class="text-green-100 text-sm mt-1" id="responsavel-nome-associar"></p>
+                </div>
+                <button onclick="fecharModalAssociarAlunos()" class="text-white hover:text-gray-200 transition-colors p-2 hover:bg-green-700 rounded-lg">
+                    <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+            </div>
+            
+            <!-- Content -->
+            <div class="flex-1 p-6 overflow-y-auto bg-gray-50">
+                <div class="max-w-4xl mx-auto">
+                    <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-8">
+                        <input type="hidden" id="responsavel-id-associar">
+                        
+                        <div class="mb-6">
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Parentesco</label>
+                            <select id="parentesco-associar" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-green focus:border-primary-green">
+                                <option value="PAI">Pai</option>
+                                <option value="MAE">Mãe</option>
+                                <option value="AVO">Avô/Avó</option>
+                                <option value="TIO">Tio/Tia</option>
+                                <option value="OUTRO">Outro</option>
+                            </select>
+                        </div>
+
+                        <div class="mb-6">
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Buscar Aluno</label>
+                            <input type="text" id="busca-aluno-associar" placeholder="Nome, matrícula ou CPF..." 
+                                   class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-green focus:border-primary-green"
+                                   onkeyup="buscarAlunosParaAssociar()">
+                        </div>
+
+                        <div class="mb-6">
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Alunos Disponíveis</label>
+                            <div id="lista-alunos-associar" class="border border-gray-300 rounded-lg max-h-96 overflow-y-auto">
+                                <div class="p-4 text-center text-gray-500">Digite para buscar alunos...</div>
+                            </div>
+                        </div>
+
+                        <div class="mb-6">
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Alunos Selecionados</label>
+                            <div id="alunos-selecionados" class="border border-gray-300 rounded-lg p-4 min-h-20">
+                                <p class="text-gray-500 text-sm">Nenhum aluno selecionado</p>
+                            </div>
+                        </div>
+                        
+                        <!-- Botões de Ação -->
+                        <div class="flex justify-end space-x-3 pt-4 border-t border-gray-200">
+                            <button type="button" onclick="fecharModalAssociarAlunos()" 
+                                    class="px-6 py-3 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 font-medium transition-colors">
+                                Cancelar
+                            </button>
+                            <button type="button" onclick="salvarAssociacao()" 
+                                    class="px-6 py-3 bg-primary-green text-white rounded-lg hover:bg-green-700 font-medium transition-colors shadow-md hover:shadow-lg">
+                                Associar Alunos
+                            </button>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -2770,6 +3221,11 @@ if (!defined('BASE_URL')) {
             const tab = document.getElementById('tab-' + aba);
             tab.classList.remove('border-transparent', 'text-gray-500');
             tab.classList.add('border-primary-green', 'text-primary-green');
+            
+            // Carregar dados específicos da aba
+            if (aba === 'responsaveis') {
+                carregarResponsaveis();
+            }
         }
 
         // Modal Criar Turma
@@ -3702,6 +4158,24 @@ if (!defined('BASE_URL')) {
         </div>
     </main>
     
+    <!-- Modal de Sucesso -->
+    <div id="modal-sucesso" class="fixed inset-0 bg-black bg-opacity-50 z-[80] hidden items-center justify-center p-4">
+        <div class="bg-white rounded-lg p-6 max-w-md w-full mx-4 shadow-2xl modal-sucesso-content scale-95">
+            <div class="text-center">
+                <div class="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-green-100 mb-4 modal-sucesso-icon">
+                    <svg class="h-8 w-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                    </svg>
+                </div>
+                <h3 class="text-lg font-semibold text-gray-900 mb-2">Sucesso!</h3>
+                <div id="modal-sucesso-mensagem" class="text-sm text-gray-600 mb-6 whitespace-pre-line"></div>
+                <button onclick="fecharModalSucesso()" class="w-full px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium transition-colors">
+                    OK
+                </button>
+            </div>
+        </div>
+    </div>
+    
     <!-- Modal de Logout -->
     <div id="logoutModal" class="fixed inset-0 bg-black bg-opacity-50 z-[60] hidden items-center justify-center p-4" style="display: none;">
         <div class="bg-white rounded-2xl p-6 max-w-md w-full mx-4 shadow-2xl">
@@ -3728,6 +4202,41 @@ if (!defined('BASE_URL')) {
     </div>
     
     <script>
+        // Funções para modal de sucesso
+        function mostrarModalSucesso(mensagem) {
+            const modal = document.getElementById('modal-sucesso');
+            const mensagemElement = document.getElementById('modal-sucesso-mensagem');
+            if (modal && mensagemElement) {
+                mensagemElement.textContent = mensagem;
+                modal.classList.remove('hidden');
+                modal.style.display = 'flex';
+                
+                // Animação de entrada
+                setTimeout(() => {
+                    const modalContent = modal.querySelector('.modal-sucesso-content');
+                    if (modalContent) {
+                        modalContent.classList.remove('scale-95');
+                        modalContent.classList.add('scale-100');
+                    }
+                }, 10);
+            }
+        }
+        
+        function fecharModalSucesso() {
+            const modal = document.getElementById('modal-sucesso');
+            if (modal) {
+                const modalContent = modal.querySelector('.modal-sucesso-content');
+                if (modalContent) {
+                    modalContent.classList.remove('scale-100');
+                    modalContent.classList.add('scale-95');
+                }
+                setTimeout(() => {
+                    modal.classList.add('hidden');
+                    modal.style.display = 'none';
+                }, 200);
+            }
+        }
+        
         // Funções para sidebar e logout
         window.toggleSidebar = function() {
             const sidebar = document.getElementById('sidebar');
@@ -3767,6 +4276,431 @@ if (!defined('BASE_URL')) {
                 });
             }
         });
+        // ========== FUNÇÕES DE RESPONSÁVEIS ==========
+        
+        let alunosSelecionados = [];
+        let alunosSelecionadosCriar = [];
+        
+        // Carregar lista de responsáveis
+        function carregarResponsaveis() {
+            fetch('?acao=listar_responsaveis')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        renderizarResponsaveis(data.responsaveis);
+                    } else {
+                        document.getElementById('lista-responsaveis').innerHTML = 
+                            '<tr><td colspan="6" class="px-6 py-4 text-center text-red-500">Erro ao carregar responsáveis</td></tr>';
+                    }
+                })
+                .catch(error => {
+                    console.error('Erro:', error);
+                    document.getElementById('lista-responsaveis').innerHTML = 
+                        '<tr><td colspan="6" class="px-6 py-4 text-center text-red-500">Erro ao carregar responsáveis</td></tr>';
+                });
+        }
+        
+        function renderizarResponsaveis(responsaveis) {
+            const tbody = document.getElementById('lista-responsaveis');
+            
+            if (!responsaveis || responsaveis.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="6" class="px-6 py-4 text-center text-gray-500">Nenhum responsável cadastrado</td></tr>';
+                return;
+            }
+            
+            tbody.innerHTML = responsaveis.map(resp => `
+                <tr class="hover:bg-gray-50">
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <div class="text-sm font-medium text-gray-900">${resp.nome || ''}</div>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <div class="text-sm text-gray-500">${resp.cpf ? resp.cpf.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4') : '-'}</div>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <div class="text-sm text-gray-500">${resp.email || '-'}</div>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <div class="text-sm text-gray-500">${resp.telefone || '-'}</div>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <div class="text-sm text-gray-500">${resp.total_alunos || 0} aluno(s)</div>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                        <button onclick="abrirModalAssociarAlunos(${resp.id}, '${resp.nome || ''}')" 
+                                class="text-primary-green hover:text-green-700 mr-3">
+                            Associar Alunos
+                        </button>
+                        <button onclick="excluirResponsavel(${resp.id}, '${(resp.nome || '').replace(/'/g, "\\'")}')" 
+                                class="text-red-600 hover:text-red-700">
+                            Excluir
+                        </button>
+                    </td>
+                </tr>
+            `).join('');
+        }
+        
+        function filtrarResponsaveis() {
+            const busca = document.getElementById('busca-responsavel').value.toLowerCase();
+            const linhas = document.querySelectorAll('#lista-responsaveis tr');
+            
+            linhas.forEach(linha => {
+                const texto = linha.textContent.toLowerCase();
+                linha.style.display = texto.includes(busca) ? '' : 'none';
+            });
+        }
+        
+        function excluirResponsavel(id, nome) {
+            if (!confirm(`Tem certeza que deseja excluir o responsável "${nome}"?\n\nEsta ação irá desativar o responsável e todas as suas associações com alunos.`)) {
+                return;
+            }
+            
+            const formData = new FormData();
+            formData.append('acao', 'excluir_responsavel');
+            formData.append('responsavel_id', id);
+            
+            fetch('gestao_escolar.php', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    mostrarModalSucesso('Responsável excluído com sucesso!');
+                    carregarResponsaveis();
+                } else {
+                    alert('Erro: ' + (data.message || 'Erro ao excluir responsável'));
+                }
+            })
+            .catch(error => {
+                console.error('Erro:', error);
+                alert('Erro ao excluir responsável');
+            });
+        }
+        
+        function abrirModalCriarResponsavel() {
+            document.getElementById('modal-criar-responsavel').classList.remove('hidden');
+            document.getElementById('form-criar-responsavel').reset();
+            alunosSelecionadosCriar = [];
+            atualizarAlunosSelecionadosCriar();
+            document.getElementById('busca-aluno-criar').value = '';
+            document.getElementById('lista-alunos-criar').innerHTML = '<div class="p-4 text-center text-gray-500">Digite para buscar alunos...</div>';
+        }
+        
+        function fecharModalCriarResponsavel() {
+            document.getElementById('modal-criar-responsavel').classList.add('hidden');
+        }
+        
+        function buscarAlunosParaCriar() {
+            const busca = document.getElementById('busca-aluno-criar').value.trim();
+            
+            if (busca.length < 2) {
+                document.getElementById('lista-alunos-criar').innerHTML = 
+                    '<div class="p-4 text-center text-gray-500">Digite pelo menos 2 caracteres...</div>';
+                return;
+            }
+            
+            fetch(`?acao=buscar_alunos&busca=${encodeURIComponent(busca)}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success && data.alunos) {
+                        renderizarAlunosParaCriar(data.alunos);
+                    } else {
+                        document.getElementById('lista-alunos-criar').innerHTML = 
+                            '<div class="p-4 text-center text-gray-500">Nenhum aluno encontrado</div>';
+                    }
+                })
+                .catch(error => {
+                    console.error('Erro:', error);
+                    document.getElementById('lista-alunos-criar').innerHTML = 
+                        '<div class="p-4 text-center text-red-500">Erro ao buscar alunos</div>';
+                });
+        }
+        
+        function renderizarAlunosParaCriar(alunos) {
+            const container = document.getElementById('lista-alunos-criar');
+            
+            if (!alunos || alunos.length === 0) {
+                container.innerHTML = '<div class="p-4 text-center text-gray-500">Nenhum aluno encontrado</div>';
+                return;
+            }
+            
+            container.innerHTML = alunos.map(aluno => {
+                const jaSelecionado = alunosSelecionadosCriar.find(a => a.id === aluno.id);
+                return `
+                    <div class="p-3 border-b border-gray-200 hover:bg-gray-100 flex items-center justify-between bg-white">
+                        <div>
+                            <div class="font-medium text-gray-900">${aluno.nome || ''}</div>
+                            <div class="text-sm text-gray-500">
+                                ${aluno.matricula ? 'Matrícula: ' + aluno.matricula : ''} 
+                                ${aluno.escola_nome ? ' | ' + aluno.escola_nome : ''}
+                            </div>
+                        </div>
+                        <button type="button" onclick="event.preventDefault(); event.stopPropagation(); ${jaSelecionado ? 'removerAlunoSelecionadoCriar' : 'adicionarAlunoSelecionadoCriar'}(${aluno.id}, '${(aluno.nome || '').replace(/'/g, "\\'")}', '${aluno.matricula || ''}')" 
+                                class="px-4 py-2 ${jaSelecionado ? 'bg-red-100 text-red-700 hover:bg-red-200' : 'bg-primary-green text-white hover:bg-green-700'} rounded-lg text-sm font-medium transition-colors">
+                            ${jaSelecionado ? 'Remover' : 'Adicionar'}
+                        </button>
+                    </div>
+                `;
+            }).join('');
+        }
+        
+        function adicionarAlunoSelecionadoCriar(id, nome, matricula) {
+            if (!alunosSelecionadosCriar.find(a => a.id === id)) {
+                alunosSelecionadosCriar.push({ id, nome, matricula });
+                atualizarAlunosSelecionadosCriar();
+                buscarAlunosParaCriar(); // Atualizar lista
+            }
+        }
+        
+        function removerAlunoSelecionadoCriar(id) {
+            alunosSelecionadosCriar = alunosSelecionadosCriar.filter(a => a.id !== id);
+            atualizarAlunosSelecionadosCriar();
+            buscarAlunosParaCriar(); // Atualizar lista
+        }
+        
+        function atualizarAlunosSelecionadosCriar() {
+            const container = document.getElementById('alunos-selecionados-criar');
+            
+            if (alunosSelecionadosCriar.length === 0) {
+                container.innerHTML = '<p class="text-gray-500 text-sm">Nenhum aluno selecionado</p>';
+                return;
+            }
+            
+            container.innerHTML = alunosSelecionadosCriar.map(aluno => `
+                <div class="inline-flex items-center bg-primary-green text-white px-3 py-1 rounded-full mr-2 mb-2">
+                    <span class="text-sm">${aluno.nome} ${aluno.matricula ? '(' + aluno.matricula + ')' : ''}</span>
+                    <button type="button" onclick="event.preventDefault(); event.stopPropagation(); removerAlunoSelecionadoCriar(${aluno.id})" class="ml-2 hover:text-red-200">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                        </svg>
+                    </button>
+                </div>
+            `).join('');
+        }
+        
+        function salvarResponsavel() {
+            const dados = {
+                nome: document.getElementById('responsavel-nome').value,
+                cpf: document.getElementById('responsavel-cpf').value.replace(/\D/g, ''),
+                data_nascimento: document.getElementById('responsavel-data-nascimento').value || null,
+                sexo: document.getElementById('responsavel-sexo').value || null,
+                email: document.getElementById('responsavel-email').value || null,
+                telefone: document.getElementById('responsavel-telefone').value.replace(/\D/g, '') || null,
+                senha: document.getElementById('responsavel-senha').value
+            };
+            
+            if (!dados.nome || !dados.cpf) {
+                alert('Nome e CPF são obrigatórios');
+                return;
+            }
+            
+            if (dados.cpf.length !== 11) {
+                alert('CPF deve conter 11 dígitos');
+                return;
+            }
+            
+            if (!dados.senha || dados.senha.length < 6) {
+                alert('A senha é obrigatória e deve ter no mínimo 6 caracteres');
+                return;
+            }
+            
+            const parentesco = document.getElementById('responsavel-parentesco').value;
+            const alunosIds = alunosSelecionadosCriar.map(a => a.id);
+            
+            // Validar parentesco obrigatório
+            if (!parentesco) {
+                alert('É obrigatório selecionar o parentesco');
+                return;
+            }
+            
+            // Validar que pelo menos um aluno foi selecionado
+            if (alunosIds.length === 0) {
+                alert('É obrigatório associar pelo menos um aluno ao responsável');
+                return;
+            }
+            
+            const formData = new FormData();
+            formData.append('acao', 'criar_responsavel');
+            Object.keys(dados).forEach(key => {
+                formData.append(key, dados[key]);
+            });
+            
+            // Sempre incluir alunos (agora é obrigatório)
+            formData.append('associar_alunos', '1');
+            formData.append('alunos_ids', JSON.stringify(alunosIds));
+            formData.append('parentesco', parentesco);
+            
+            fetch('gestao_escolar.php', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Erro na resposta do servidor: ' + response.status);
+                }
+                return response.text();
+            })
+            .then(text => {
+                try {
+                    const data = JSON.parse(text);
+                    if (data.success) {
+                        let mensagem = `Responsável criado com sucesso!\n\nUsuário: ${data.username}\n\n${alunosIds.length} aluno(s) associado(s) com sucesso!\n\nAnote essas informações!`;
+                        mostrarModalSucesso(mensagem);
+                        fecharModalCriarResponsavel();
+                        carregarResponsaveis();
+                    } else {
+                        alert('Erro: ' + (data.message || 'Erro ao criar responsável'));
+                    }
+                } catch (e) {
+                    console.error('Erro ao parsear JSON:', e);
+                    console.error('Resposta do servidor:', text);
+                    alert('Erro ao processar resposta do servidor. Verifique o console para mais detalhes.');
+                }
+            })
+            .catch(error => {
+                console.error('Erro:', error);
+                alert('Erro ao criar responsável: ' + error.message);
+            });
+        }
+        
+        function abrirModalAssociarAlunos(responsavelId, responsavelNome) {
+            document.getElementById('modal-associar-alunos').classList.remove('hidden');
+            document.getElementById('responsavel-id-associar').value = responsavelId;
+            document.getElementById('responsavel-nome-associar').textContent = `Responsável: ${responsavelNome}`;
+            alunosSelecionados = [];
+            atualizarAlunosSelecionados();
+            document.getElementById('busca-aluno-associar').value = '';
+            document.getElementById('lista-alunos-associar').innerHTML = '<div class="p-4 text-center text-gray-500">Digite para buscar alunos...</div>';
+        }
+        
+        function fecharModalAssociarAlunos() {
+            document.getElementById('modal-associar-alunos').classList.add('hidden');
+            alunosSelecionados = [];
+        }
+        
+        function buscarAlunosParaAssociar() {
+            const busca = document.getElementById('busca-aluno-associar').value.trim();
+            
+            if (busca.length < 2) {
+                document.getElementById('lista-alunos-associar').innerHTML = 
+                    '<div class="p-4 text-center text-gray-500">Digite pelo menos 2 caracteres...</div>';
+                return;
+            }
+            
+            fetch(`?acao=buscar_alunos&busca=${encodeURIComponent(busca)}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success && data.alunos) {
+                        renderizarAlunosParaAssociar(data.alunos);
+                    } else {
+                        document.getElementById('lista-alunos-associar').innerHTML = 
+                            '<div class="p-4 text-center text-gray-500">Nenhum aluno encontrado</div>';
+                    }
+                })
+                .catch(error => {
+                    console.error('Erro:', error);
+                    document.getElementById('lista-alunos-associar').innerHTML = 
+                        '<div class="p-4 text-center text-red-500">Erro ao buscar alunos</div>';
+                });
+        }
+        
+        function renderizarAlunosParaAssociar(alunos) {
+            const container = document.getElementById('lista-alunos-associar');
+            
+            if (!alunos || alunos.length === 0) {
+                container.innerHTML = '<div class="p-4 text-center text-gray-500">Nenhum aluno encontrado</div>';
+                return;
+            }
+            
+            container.innerHTML = alunos.map(aluno => {
+                const jaSelecionado = alunosSelecionados.find(a => a.id === aluno.id);
+                return `
+                    <div class="p-3 border-b border-gray-200 hover:bg-gray-50 flex items-center justify-between">
+                        <div>
+                            <div class="font-medium text-gray-900">${aluno.nome || ''}</div>
+                            <div class="text-sm text-gray-500">
+                                ${aluno.matricula ? 'Matrícula: ' + aluno.matricula : ''} 
+                                ${aluno.escola_nome ? ' | ' + aluno.escola_nome : ''}
+                            </div>
+                        </div>
+                        <button onclick="${jaSelecionado ? 'removerAlunoSelecionado' : 'adicionarAlunoSelecionado'}(${aluno.id}, '${(aluno.nome || '').replace(/'/g, "\\'")}', '${aluno.matricula || ''}')" 
+                                class="px-4 py-2 ${jaSelecionado ? 'bg-red-100 text-red-700 hover:bg-red-200' : 'bg-primary-green text-white hover:bg-green-700'} rounded-lg text-sm font-medium transition-colors">
+                            ${jaSelecionado ? 'Remover' : 'Adicionar'}
+                        </button>
+                    </div>
+                `;
+            }).join('');
+        }
+        
+        function adicionarAlunoSelecionado(id, nome, matricula) {
+            if (!alunosSelecionados.find(a => a.id === id)) {
+                alunosSelecionados.push({ id, nome, matricula });
+                atualizarAlunosSelecionados();
+                buscarAlunosParaAssociar(); // Atualizar lista
+            }
+        }
+        
+        function removerAlunoSelecionado(id) {
+            alunosSelecionados = alunosSelecionados.filter(a => a.id !== id);
+            atualizarAlunosSelecionados();
+            buscarAlunosParaAssociar(); // Atualizar lista
+        }
+        
+        function atualizarAlunosSelecionados() {
+            const container = document.getElementById('alunos-selecionados');
+            
+            if (alunosSelecionados.length === 0) {
+                container.innerHTML = '<p class="text-gray-500 text-sm">Nenhum aluno selecionado</p>';
+                return;
+            }
+            
+            container.innerHTML = alunosSelecionados.map(aluno => `
+                <div class="inline-flex items-center bg-primary-green text-white px-3 py-1 rounded-full mr-2 mb-2">
+                    <span class="text-sm">${aluno.nome} ${aluno.matricula ? '(' + aluno.matricula + ')' : ''}</span>
+                    <button onclick="removerAlunoSelecionado(${aluno.id})" class="ml-2 hover:text-red-200">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                        </svg>
+                    </button>
+                </div>
+            `).join('');
+        }
+        
+        function salvarAssociacao() {
+            const responsavelId = document.getElementById('responsavel-id-associar').value;
+            const parentesco = document.getElementById('parentesco-associar').value;
+            
+            if (alunosSelecionados.length === 0) {
+                alert('Selecione pelo menos um aluno');
+                return;
+            }
+            
+            const formData = new FormData();
+            formData.append('acao', 'associar_alunos');
+            formData.append('responsavel_id', responsavelId);
+            formData.append('parentesco', parentesco);
+            formData.append('alunos', JSON.stringify(alunosSelecionados.map(a => a.id)));
+            
+            fetch('gestao_escolar.php', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert('Alunos associados com sucesso!');
+                    fecharModalAssociarAlunos();
+                    carregarResponsaveis();
+                } else {
+                    alert('Erro: ' + (data.message || 'Erro ao associar alunos'));
+                }
+            })
+            .catch(error => {
+                console.error('Erro:', error);
+                alert('Erro ao associar alunos');
+            });
+        }
+        
     </script>
 </body>
 </html>

@@ -134,25 +134,35 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['acao'])) {
     }
     
     if ($_GET['acao'] === 'listar_observacoes' && !empty($_GET['turma_id']) && !empty($_GET['disciplina_id'])) {
-        $turmaId = $_GET['turma_id'];
-        $disciplinaId = $_GET['disciplina_id'];
-        
-        $sql = "SELECT od.*, p.nome as aluno_nome, a.matricula, d.nome as disciplina_nome
-                FROM observacao_desempenho od
-                INNER JOIN aluno a ON od.aluno_id = a.id
-                INNER JOIN pessoa p ON a.pessoa_id = p.id
-                LEFT JOIN disciplina d ON od.disciplina_id = d.id
-                WHERE od.turma_id = :turma_id 
-                AND od.disciplina_id = :disciplina_id
-                AND od.professor_id = :professor_id
-                ORDER BY od.data DESC, od.criado_em DESC";
-        $stmt = $conn->prepare($sql);
-        $stmt->bindParam(':turma_id', $turmaId);
-        $stmt->bindParam(':disciplina_id', $disciplinaId);
-        $stmt->bindParam(':professor_id', $professorId);
-        $stmt->execute();
-        $observacoes = $stmt->fetchAll(PDO::FETCH_ASSOC);
-        echo json_encode(['success' => true, 'observacoes' => $observacoes]);
+        try {
+            if (!$professorId) {
+                echo json_encode(['success' => false, 'message' => 'Professor não identificado']);
+                exit;
+            }
+            
+            $turmaId = $_GET['turma_id'];
+            $disciplinaId = $_GET['disciplina_id'];
+            
+            $sql = "SELECT od.*, p.nome as aluno_nome, COALESCE(a.matricula, '') as matricula, d.nome as disciplina_nome
+                    FROM observacao_desempenho od
+                    INNER JOIN aluno a ON od.aluno_id = a.id
+                    INNER JOIN pessoa p ON a.pessoa_id = p.id
+                    LEFT JOIN disciplina d ON od.disciplina_id = d.id
+                    WHERE od.turma_id = :turma_id 
+                    AND od.disciplina_id = :disciplina_id
+                    AND od.professor_id = :professor_id
+                    ORDER BY od.data DESC, od.criado_em DESC";
+            $stmt = $conn->prepare($sql);
+            $stmt->bindParam(':turma_id', $turmaId);
+            $stmt->bindParam(':disciplina_id', $disciplinaId);
+            $stmt->bindParam(':professor_id', $professorId);
+            $stmt->execute();
+            $observacoes = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            echo json_encode(['success' => true, 'observacoes' => $observacoes]);
+        } catch (Exception $e) {
+            error_log("Erro ao listar observações: " . $e->getMessage());
+            echo json_encode(['success' => false, 'message' => 'Erro ao buscar observações: ' . $e->getMessage()]);
+        }
         exit;
     }
 }
@@ -572,9 +582,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['acao'])) {
             lista.innerHTML = '<div class="text-center py-8"><div class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div><p class="mt-2 text-gray-600">Carregando...</p></div>';
             
             fetch('?acao=listar_observacoes&turma_id=' + turmaId + '&disciplina_id=' + disciplinaId)
-                .then(response => response.json())
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Erro na resposta do servidor: ' + response.status);
+                    }
+                    return response.json();
+                })
                 .then(data => {
-                    if (data.success && data.observacoes && data.observacoes.length > 0) {
+                    if (data.success) {
+                        if (data.observacoes && data.observacoes.length > 0) {
                         lista.innerHTML = '';
                         data.observacoes.forEach(obs => {
                             const tipoColors = {
@@ -619,13 +635,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['acao'])) {
                             `;
                             lista.appendChild(div);
                         });
+                        } else {
+                            lista.innerHTML = '<div class="text-center py-12"><p class="text-gray-600">Nenhuma observação cadastrada para esta turma/disciplina.</p></div>';
+                        }
                     } else {
-                        lista.innerHTML = '<div class="text-center py-12"><p class="text-gray-600">Nenhuma observação cadastrada para esta turma/disciplina.</p></div>';
+                        lista.innerHTML = '<div class="text-center py-12"><p class="text-red-600">' + (data.message || 'Erro ao carregar observações') + '</p></div>';
                     }
                 })
                 .catch(error => {
                     console.error('Erro ao carregar observações:', error);
-                    lista.innerHTML = '<div class="text-center py-12"><p class="text-red-600">Erro ao carregar observações.</p></div>';
+                    lista.innerHTML = '<div class="text-center py-12"><p class="text-red-600">Erro ao carregar observações. Verifique o console para mais detalhes.</p></div>';
                 });
             
             // Scroll para o container
