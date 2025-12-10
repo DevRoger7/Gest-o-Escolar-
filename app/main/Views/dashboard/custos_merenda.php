@@ -17,7 +17,141 @@ $db = Database::getInstance();
 $conn = $db->getConnection();
 $custoModel = new CustoMerendaModel();
 
+// Buscar fornecedores
+$sqlFornecedores = "SELECT id, nome FROM fornecedor WHERE ativo = 1 ORDER BY nome ASC";
+$stmtFornecedores = $conn->prepare($sqlFornecedores);
+$stmtFornecedores->execute();
+$fornecedores = $stmtFornecedores->fetchAll(PDO::FETCH_ASSOC);
+
+// Buscar produtos
+$sqlProdutos = "SELECT id, nome, unidade_medida, estoque_minimo FROM produto WHERE ativo = 1 ORDER BY nome ASC";
+$stmtProdutos = $conn->prepare($sqlProdutos);
+$stmtProdutos->execute();
+$produtos = $stmtProdutos->fetchAll(PDO::FETCH_ASSOC);
+
 // Processar requisições AJAX
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao'])) {
+    header('Content-Type: application/json; charset=utf-8');
+    
+    if ($_POST['acao'] === 'registrar_entrada') {
+        try {
+            $conn->beginTransaction();
+            
+            // Buscar ou criar produto
+            $produtoNome = trim($_POST['produto_nome'] ?? '');
+            $produtoId = $_POST['produto_id'] ?? null;
+            
+            if (empty($produtoNome)) {
+                throw new Exception('Nome do produto é obrigatório.');
+            }
+            
+            // Se não tem ID, buscar pelo nome
+            if (empty($produtoId)) {
+                $sqlBuscar = "SELECT id FROM produto WHERE LOWER(nome) = LOWER(:nome) AND ativo = 1 LIMIT 1";
+                $stmtBuscar = $conn->prepare($sqlBuscar);
+                $stmtBuscar->bindParam(':nome', $produtoNome);
+                $stmtBuscar->execute();
+                $produtoExistente = $stmtBuscar->fetch(PDO::FETCH_ASSOC);
+                
+                if ($produtoExistente) {
+                    $produtoId = $produtoExistente['id'];
+                } else {
+                    // Criar novo produto
+                    $codigo = strtoupper(substr(preg_replace('/[^a-zA-Z0-9]/', '', $produtoNome), 0, 3)) . date('YmdHis');
+                    $sqlNovoProduto = "INSERT INTO produto (codigo, nome, unidade_medida, estoque_minimo, ativo) 
+                                      VALUES (:codigo, :nome, 'UN', 0, 1)";
+                    $stmtNovoProduto = $conn->prepare($sqlNovoProduto);
+                    $stmtNovoProduto->bindParam(':codigo', $codigo);
+                    $stmtNovoProduto->bindParam(':nome', $produtoNome);
+                    $stmtNovoProduto->execute();
+                    $produtoId = $conn->lastInsertId();
+                }
+            }
+            
+            // Preparar variáveis
+            $quantidade = $_POST['quantidade'] ?? 0;
+            $lote = $_POST['lote'] ?? null;
+            $fornecedorId = !empty($_POST['fornecedor_id']) ? $_POST['fornecedor_id'] : null;
+            $notaFiscal = $_POST['nota_fiscal'] ?? null;
+            $valorUnitario = !empty($_POST['valor_unitario']) ? floatval($_POST['valor_unitario']) : null;
+            $valorTotal = ($valorUnitario !== null && $quantidade > 0) ? ($quantidade * $valorUnitario) : null;
+            $validade = !empty($_POST['validade']) ? $_POST['validade'] : null;
+            
+            // 1. REGISTRAR NO ESTOQUE CENTRAL (SEM VALORES - apenas dados do produto)
+            $sqlEstoque = "INSERT INTO estoque_central (produto_id, quantidade, lote, fornecedor_id, nota_fiscal, 
+                          valor_unitario, valor_total, validade, criado_em)
+                          VALUES (:produto_id, :quantidade, :lote, :fornecedor_id, :nota_fiscal, 
+                          NULL, NULL, :validade, NOW())";
+            
+            $stmtEstoque = $conn->prepare($sqlEstoque);
+            $stmtEstoque->bindParam(':produto_id', $produtoId);
+            $stmtEstoque->bindParam(':quantidade', $quantidade);
+            $stmtEstoque->bindParam(':lote', $lote);
+            $stmtEstoque->bindParam(':fornecedor_id', $fornecedorId);
+            $stmtEstoque->bindParam(':nota_fiscal', $notaFiscal);
+            $stmtEstoque->bindParam(':validade', $validade);
+            $stmtEstoque->execute();
+            
+            // 2. REGISTRAR EM CUSTOS (COM VALORES - separado do estoque)
+            if ($valorUnitario !== null && $valorUnitario > 0 && $quantidade > 0) {
+                $sqlProdutoNome = "SELECT nome FROM produto WHERE id = :id";
+                $stmtProdutoNome = $conn->prepare($sqlProdutoNome);
+                $stmtProdutoNome->bindParam(':id', $produtoId);
+                $stmtProdutoNome->execute();
+                $produtoInfo = $stmtProdutoNome->fetch(PDO::FETCH_ASSOC);
+                
+                $descricao = "Entrada de estoque: " . ($produtoInfo['nome'] ?? $produtoNome);
+                if ($lote) {
+                    $descricao .= " - Lote: " . $lote;
+                }
+                if ($notaFiscal) {
+                    $descricao .= " - NF: " . $notaFiscal;
+                }
+                
+                $dataAtual = date('Y-m-d');
+                $mesAtual = date('n');
+                $anoAtual = date('Y');
+                $usuarioId = $_SESSION['usuario_id'] ?? null;
+                
+                $sqlCusto = "INSERT INTO custo_merenda (escola_id, tipo, descricao, produto_id, fornecedor_id,
+                            quantidade, valor_unitario, valor_total, data, mes, ano, observacoes, registrado_por, registrado_em)
+                            VALUES (NULL, 'COMPRA_PRODUTOS', :descricao, :produto_id, :fornecedor_id,
+                            :quantidade, :valor_unitario, :valor_total, :data, :mes, :ano, :observacoes, :registrado_por, NOW())";
+                
+                $observacoes = "Entrada de produto no estoque central";
+                if ($validade) {
+                    $observacoes .= " - Validade: " . date('d/m/Y', strtotime($validade));
+                }
+                if ($notaFiscal) {
+                    $observacoes .= " - Nota Fiscal: " . $notaFiscal;
+                }
+                
+                $stmtCusto = $conn->prepare($sqlCusto);
+                $stmtCusto->bindParam(':descricao', $descricao);
+                $stmtCusto->bindParam(':produto_id', $produtoId);
+                $stmtCusto->bindParam(':fornecedor_id', $fornecedorId);
+                $stmtCusto->bindParam(':quantidade', $quantidade);
+                $stmtCusto->bindParam(':valor_unitario', $valorUnitario);
+                $stmtCusto->bindParam(':valor_total', $valorTotal);
+                $stmtCusto->bindParam(':data', $dataAtual);
+                $stmtCusto->bindParam(':mes', $mesAtual);
+                $stmtCusto->bindParam(':ano', $anoAtual);
+                $stmtCusto->bindParam(':observacoes', $observacoes);
+                $stmtCusto->bindParam(':registrado_por', $usuarioId);
+                $stmtCusto->execute();
+            }
+            
+            $conn->commit();
+            echo json_encode(['success' => true, 'id' => $conn->lastInsertId()], JSON_UNESCAPED_UNICODE);
+            exit;
+        } catch (Exception $e) {
+            $conn->rollBack();
+            echo json_encode(['success' => false, 'message' => $e->getMessage()], JSON_UNESCAPED_UNICODE);
+            exit;
+        }
+    }
+}
+
 if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['acao'])) {
     header('Content-Type: application/json');
     
@@ -201,9 +335,15 @@ $totalGeral = array_sum(array_column($totaisMes, 'total_custos'));
                                 <?php endfor; ?>
                             </select>
                         </div>
-                        <div class="flex items-end">
-                            <button onclick="filtrarCustos()" class="w-full bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-lg font-medium">
+                        <div class="flex items-end space-x-3">
+                            <button onclick="filtrarCustos()" class="flex-1 bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-lg font-medium">
                                 Filtrar
+                            </button>
+                            <button onclick="abrirModalNovaEntrada()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2 rounded-lg font-medium transition-colors duration-200 flex items-center space-x-2">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+                                </svg>
+                                <span>Nova Entrada</span>
                             </button>
                         </div>
                     </div>
@@ -394,7 +534,200 @@ $totalGeral = array_sum(array_column($totaisMes, 'total_custos'));
                     console.error('Erro ao filtrar custos:', error);
                 });
         }
+        
+        function abrirModalNovaEntrada() {
+            document.getElementById('modal-nova-entrada').classList.remove('hidden');
+            document.getElementById('form-entrada').reset();
+            document.getElementById('entrada-produto-id').value = '';
+            document.getElementById('sugestoes-produto').classList.add('hidden');
+            produtoSelecionado = null;
+        }
+
+        function fecharModalNovaEntrada() {
+            document.getElementById('modal-nova-entrada').classList.add('hidden');
+        }
+
+        // Variáveis para autocomplete de produtos
+        let produtosDisponiveis = [
+            <?php 
+            foreach ($produtos as $produto): 
+                echo '{id: ' . $produto['id'] . ', nome: "' . htmlspecialchars($produto['nome'], ENT_QUOTES) . '", unidade: "' . htmlspecialchars($produto['unidade_medida'], ENT_QUOTES) . '"},';
+            endforeach; 
+            ?>
+        ];
+        let sugestaoAtivaProduto = -1;
+        let produtoSelecionado = null;
+
+        // Função para buscar produtos
+        function buscarProdutos(termo) {
+            const campoProduto = document.getElementById('entrada-produto-nome');
+            const sugestoes = document.getElementById('sugestoes-produto');
+            const produtoIdInput = document.getElementById('entrada-produto-id');
+            const termoLower = termo.toLowerCase().trim();
+            
+            if (!termoLower) {
+                sugestoes.classList.add('hidden');
+                produtoIdInput.value = '';
+                produtoSelecionado = null;
+                return;
+            }
+            
+            const produtosFiltrados = produtosDisponiveis.filter(p => 
+                p.nome.toLowerCase().includes(termoLower)
+            );
+            
+            if (produtosFiltrados.length === 0) {
+                sugestoes.innerHTML = '<div class="p-3 text-gray-500 text-sm">Nenhum produto encontrado. O produto será criado automaticamente.</div>';
+                sugestoes.classList.remove('hidden');
+                produtoIdInput.value = '';
+                produtoSelecionado = null;
+                return;
+            }
+            
+            sugestoes.innerHTML = '';
+            produtosFiltrados.forEach((produto, index) => {
+                const item = document.createElement('div');
+                item.className = 'p-3 cursor-pointer hover:bg-gray-100 sugestao-item-produto';
+                item.setAttribute('data-id', produto.id);
+                item.setAttribute('data-nome', produto.nome);
+                item.setAttribute('data-unidade', produto.unidade);
+                item.innerHTML = `<div class="font-medium">${produto.nome}</div><div class="text-sm text-gray-500">${produto.unidade}</div>`;
+                item.addEventListener('click', () => selecionarProduto(produto.id, produto.nome, produto.unidade));
+                sugestoes.appendChild(item);
+            });
+            
+            sugestoes.classList.remove('hidden');
+            sugestaoAtivaProduto = -1;
+        }
+
+        function selecionarProduto(id, nome, unidade) {
+            document.getElementById('entrada-produto-nome').value = nome;
+            document.getElementById('entrada-produto-id').value = id;
+            document.getElementById('sugestoes-produto').classList.add('hidden');
+            produtoSelecionado = {id: id, nome: nome, unidade: unidade};
+            sugestaoAtivaProduto = -1;
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            const campoProduto = document.getElementById('entrada-produto-nome');
+            const sugestoes = document.getElementById('sugestoes-produto');
+            
+            if (campoProduto) {
+                campoProduto.addEventListener('input', function() {
+                    buscarProdutos(this.value);
+                });
+                
+                document.addEventListener('click', function(e) {
+                    if (!campoProduto.contains(e.target) && !sugestoes.contains(e.target)) {
+                        sugestoes.classList.add('hidden');
+                    }
+                });
+            }
+        });
+
+        function salvarEntrada() {
+            const formData = new FormData();
+            formData.append('acao', 'registrar_entrada');
+            formData.append('produto_nome', document.getElementById('entrada-produto-nome').value);
+            formData.append('produto_id', document.getElementById('entrada-produto-id').value);
+            formData.append('quantidade', document.getElementById('entrada-quantidade').value);
+            formData.append('lote', document.getElementById('entrada-lote').value);
+            formData.append('fornecedor_id', document.getElementById('entrada-fornecedor-id').value);
+            formData.append('nota_fiscal', document.getElementById('entrada-nota-fiscal').value);
+            formData.append('valor_unitario', document.getElementById('entrada-valor-unitario').value);
+            formData.append('validade', document.getElementById('entrada-validade').value);
+            
+            fetch('', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert('Entrada registrada com sucesso!');
+                    fecharModalNovaEntrada();
+                    filtrarCustos(); // Recarregar lista de custos
+                } else {
+                    alert('Erro: ' + (data.message || 'Erro ao registrar entrada'));
+                }
+            })
+            .catch(error => {
+                console.error('Erro:', error);
+                alert('Erro ao processar requisição');
+            });
+        }
     </script>
+    
+    <!-- Modal Nova Entrada -->
+    <div id="modal-nova-entrada" class="fixed inset-0 bg-white z-[60] hidden flex flex-col">
+        <div class="bg-indigo-600 text-white p-6 flex items-center justify-between shadow-lg">
+            <h3 class="text-2xl font-bold">Nova Entrada de Estoque</h3>
+            <button onclick="fecharModalNovaEntrada()" class="text-white hover:text-gray-200 transition-colors">
+                <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                </svg>
+            </button>
+        </div>
+        
+        <div class="flex-1 overflow-y-auto p-6">
+            <div class="max-w-4xl mx-auto">
+                <form id="form-entrada" class="space-y-6">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div class="relative">
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Produto *</label>
+                            <input type="text" id="entrada-produto-nome" required 
+                                   placeholder="Digite o nome do produto..."
+                                   class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                                   autocomplete="off">
+                            <input type="hidden" id="entrada-produto-id" value="">
+                            <div id="sugestoes-produto" class="hidden absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto"></div>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Quantidade *</label>
+                            <input type="number" step="0.001" min="0" id="entrada-quantidade" required class="w-full px-4 py-2 border border-gray-300 rounded-lg">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Lote</label>
+                            <input type="text" id="entrada-lote" class="w-full px-4 py-2 border border-gray-300 rounded-lg">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Fornecedor</label>
+                            <select id="entrada-fornecedor-id" class="w-full px-4 py-2 border border-gray-300 rounded-lg">
+                                <option value="">Selecione um fornecedor</option>
+                                <?php foreach ($fornecedores as $fornecedor): ?>
+                                    <option value="<?= $fornecedor['id'] ?>"><?= htmlspecialchars($fornecedor['nome']) ?></option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Nota Fiscal</label>
+                            <input type="text" id="entrada-nota-fiscal" class="w-full px-4 py-2 border border-gray-300 rounded-lg">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Valor Unitário (R$)</label>
+                            <input type="number" step="0.01" min="0" id="entrada-valor-unitario" class="w-full px-4 py-2 border border-gray-300 rounded-lg">
+                            <p class="text-xs text-gray-500 mt-1">O valor será registrado automaticamente em custos quando informado</p>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Validade</label>
+                            <input type="date" id="entrada-validade" class="w-full px-4 py-2 border border-gray-300 rounded-lg">
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+        
+        <div class="bg-gray-50 border-t border-gray-200 p-6">
+            <div class="max-w-4xl mx-auto flex space-x-3">
+                <button onclick="fecharModalNovaEntrada()" class="flex-1 px-6 py-3 text-gray-700 bg-white border border-gray-300 hover:bg-gray-50 rounded-lg font-medium transition-colors">
+                    Cancelar
+                </button>
+                <button onclick="salvarEntrada()" class="flex-1 px-6 py-3 text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg font-medium transition-colors">
+                    Salvar Entrada
+                </button>
+            </div>
+        </div>
+    </div>
 </body>
 </html>
 

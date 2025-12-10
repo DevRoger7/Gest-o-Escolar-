@@ -81,40 +81,42 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao'])) {
                 }
             }
             
-            // Inserir entrada no estoque
-            $sql = "INSERT INTO estoque_central (produto_id, quantidade, lote, fornecedor_id, nota_fiscal, 
-                    valor_unitario, valor_total, validade, criado_em)
-                    VALUES (:produto_id, :quantidade, :lote, :fornecedor_id, :nota_fiscal, 
-                    :valor_unitario, :valor_total, :validade, NOW())";
-            
-            // Preparar variáveis para bindParam (precisa ser por referência)
+            // Preparar variáveis
             $quantidade = $_POST['quantidade'] ?? 0;
             $lote = $_POST['lote'] ?? null;
             $fornecedorId = !empty($_POST['fornecedor_id']) ? $_POST['fornecedor_id'] : null;
             $notaFiscal = $_POST['nota_fiscal'] ?? null;
-            $valorUnitario = $_POST['valor_unitario'] ?? null;
-            $valorTotal = $quantidade * ($valorUnitario ?? 0);
+            $valorUnitario = !empty($_POST['valor_unitario']) ? floatval($_POST['valor_unitario']) : null;
+            $valorTotal = ($valorUnitario !== null && $quantidade > 0) ? ($quantidade * $valorUnitario) : null;
             $validade = !empty($_POST['validade']) ? $_POST['validade'] : null;
             
-            $stmt = $conn->prepare($sql);
-            $stmt->bindParam(':produto_id', $produtoId);
-            $stmt->bindParam(':quantidade', $quantidade);
-            $stmt->bindParam(':lote', $lote);
-            $stmt->bindParam(':fornecedor_id', $fornecedorId);
-            $stmt->bindParam(':nota_fiscal', $notaFiscal);
-            $stmt->bindParam(':valor_unitario', $valorUnitario);
-            $stmt->bindParam(':valor_total', $valorTotal);
-            $stmt->bindParam(':validade', $validade);
-            $stmt->execute();
+            // 1. REGISTRAR NO ESTOQUE CENTRAL (SEM VALORES - apenas dados do produto)
+            // O estoque central armazena apenas informações físicas do produto
+            $sqlEstoque = "INSERT INTO estoque_central (produto_id, quantidade, lote, fornecedor_id, nota_fiscal, 
+                          valor_unitario, valor_total, validade, criado_em)
+                          VALUES (:produto_id, :quantidade, :lote, :fornecedor_id, :nota_fiscal, 
+                          NULL, NULL, :validade, NOW())";
             
-            // Se houver valor, criar registro em custo_merenda também
-            if ($valorTotal > 0) {
+            $stmtEstoque = $conn->prepare($sqlEstoque);
+            $stmtEstoque->bindParam(':produto_id', $produtoId);
+            $stmtEstoque->bindParam(':quantidade', $quantidade);
+            $stmtEstoque->bindParam(':lote', $lote);
+            $stmtEstoque->bindParam(':fornecedor_id', $fornecedorId);
+            $stmtEstoque->bindParam(':nota_fiscal', $notaFiscal);
+            $stmtEstoque->bindParam(':validade', $validade);
+            $stmtEstoque->execute();
+            $estoqueId = $conn->lastInsertId();
+            
+            // 2. REGISTRAR EM CUSTOS (COM VALORES - separado do estoque)
+            // Os custos são registrados separadamente quando há valor unitário informado
+            if ($valorUnitario !== null && $valorUnitario > 0 && $quantidade > 0) {
                 // Buscar nome do produto para descrição
                 $sqlProdutoNome = "SELECT nome FROM produto WHERE id = :id";
                 $stmtProdutoNome = $conn->prepare($sqlProdutoNome);
                 $stmtProdutoNome->bindParam(':id', $produtoId);
                 $stmtProdutoNome->execute();
                 $produtoInfo = $stmtProdutoNome->fetch(PDO::FETCH_ASSOC);
+                
                 $descricao = "Entrada de estoque: " . ($produtoInfo['nome'] ?? $produtoNome);
                 if ($lote) {
                     $descricao .= " - Lote: " . $lote;
@@ -133,9 +135,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao'])) {
                             VALUES (NULL, 'COMPRA_PRODUTOS', :descricao, :produto_id, :fornecedor_id,
                             :quantidade, :valor_unitario, :valor_total, :data, :mes, :ano, :observacoes, :registrado_por, NOW())";
                 
-                $observacoes = "Entrada automática do estoque central";
+                $observacoes = "Entrada de produto no estoque central";
                 if ($validade) {
                     $observacoes .= " - Validade: " . date('d/m/Y', strtotime($validade));
+                }
+                if ($notaFiscal) {
+                    $observacoes .= " - Nota Fiscal: " . $notaFiscal;
                 }
                 
                 $stmtCusto = $conn->prepare($sqlCusto);
@@ -171,11 +176,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao'])) {
     
     if ($_POST['acao'] === 'sincronizar_custos') {
         try {
-            // Buscar todas as entradas do estoque que têm valor mas não têm custo registrado
+            // IMPORTANTE: Esta função sincroniza apenas entradas ANTIGAS que ainda têm valores no estoque_central
+            // Entradas novas já são registradas automaticamente em custos quando há valor_unitario informado
+            // Buscar entradas antigas do estoque que têm valor mas não têm custo registrado
             $sql = "SELECT ec.*, p.nome as produto_nome
                     FROM estoque_central ec
                     INNER JOIN produto p ON ec.produto_id = p.id
-                    WHERE ec.valor_total > 0
+                    WHERE ec.valor_total IS NOT NULL 
+                    AND ec.valor_total > 0
                     AND NOT EXISTS (
                         SELECT 1 FROM custo_merenda cm 
                         WHERE cm.produto_id = ec.produto_id 
@@ -427,12 +435,6 @@ $estoque = $stmtEstoque->fetchAll(PDO::FETCH_ASSOC);
                         <p class="text-gray-600 mt-1">Gerencie entradas e saídas de produtos</p>
                     </div>
                     <div class="flex space-x-3">
-                        <button onclick="abrirModalNovaEntrada()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2 rounded-lg font-medium transition-colors duration-200 flex items-center space-x-2">
-                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
-                            </svg>
-                            <span>Nova Entrada</span>
-                        </button>
                         <button onclick="sincronizarCustos()" class="bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded-lg font-medium transition-colors duration-200 flex items-center space-x-2" title="Sincronizar entradas antigas do estoque para custos">
                             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
@@ -485,7 +487,7 @@ $estoque = $stmtEstoque->fetchAll(PDO::FETCH_ASSOC);
                                     <th class="text-left py-3 px-4 font-semibold text-gray-700">Lote</th>
                                     <th class="text-left py-3 px-4 font-semibold text-gray-700">Fornecedor</th>
                                     <th class="text-left py-3 px-4 font-semibold text-gray-700">Validade</th>
-                                    <th class="text-right py-3 px-4 font-semibold text-gray-700">Valor Total</th>
+                                    <th class="text-left py-3 px-4 font-semibold text-gray-700">Data de Entrada</th>
                                 </tr>
                             </thead>
                             <tbody id="lista-estoque">
@@ -510,8 +512,8 @@ $estoque = $stmtEstoque->fetchAll(PDO::FETCH_ASSOC);
                                             <td class="py-3 px-4 text-sm text-gray-600">
                                                 <?= $item['validade'] ? date('d/m/Y', strtotime($item['validade'])) : '-' ?>
                                             </td>
-                                            <td class="py-3 px-4 text-right font-medium">
-                                                R$ <?= number_format($item['valor_total'] ?? 0, 2, ',', '.') ?>
+                                            <td class="py-3 px-4 text-sm text-gray-600">
+                                                <?= $item['criado_em'] ? date('d/m/Y', strtotime($item['criado_em'])) : '-' ?>
                                             </td>
                                         </tr>
                                     <?php endforeach; ?>
@@ -572,6 +574,7 @@ $estoque = $stmtEstoque->fetchAll(PDO::FETCH_ASSOC);
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-2">Valor Unitário (R$)</label>
                             <input type="number" step="0.01" min="0" id="entrada-valor-unitario" class="w-full px-4 py-2 border border-gray-300 rounded-lg">
+                            <p class="text-xs text-gray-500 mt-1">O valor será registrado automaticamente em custos quando informado</p>
                         </div>
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-2">Validade</label>
@@ -886,6 +889,7 @@ $estoque = $stmtEstoque->fetchAll(PDO::FETCH_ASSOC);
                         
                         data.estoque.forEach(item => {
                             const validade = item.validade ? new Date(item.validade).toLocaleDateString('pt-BR') : '-';
+                            const dataEntrada = item.criado_em ? new Date(item.criado_em).toLocaleDateString('pt-BR') : '-';
                             tbody.innerHTML += `
                                 <tr class="border-b border-gray-100 hover:bg-gray-50">
                                     <td class="py-3 px-4">
@@ -898,9 +902,7 @@ $estoque = $stmtEstoque->fetchAll(PDO::FETCH_ASSOC);
                                     <td class="py-3 px-4 text-sm text-gray-600">${item.lote || '-'}</td>
                                     <td class="py-3 px-4 text-sm text-gray-600">${item.fornecedor_nome || '-'}</td>
                                     <td class="py-3 px-4 text-sm text-gray-600">${validade}</td>
-                                    <td class="py-3 px-4 text-right font-medium">
-                                        R$ ${parseFloat(item.valor_total || 0).toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}
-                                    </td>
+                                    <td class="py-3 px-4 text-sm text-gray-600">${dataEntrada}</td>
                                 </tr>
                             `;
                         });
