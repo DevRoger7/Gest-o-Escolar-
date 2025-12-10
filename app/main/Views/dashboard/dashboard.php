@@ -108,6 +108,75 @@ if (!defined('BASE_URL')) {
     define('BASE_URL', 'http://localhost/GitHub/Gest-o-Escolar-');
 }
 
+// Buscar escola do gestor logado (para mostrar links de cardápio e desperdício)
+$escolaGestorId = null;
+$escolaGestor = null;
+if (isset($_SESSION['tipo']) && strtoupper($_SESSION['tipo']) === 'GESTAO') {
+    $usuarioId = $_SESSION['usuario_id'] ?? null;
+    error_log("DEBUG DASHBOARD - usuario_id: " . ($usuarioId ?? 'NULL'));
+    
+    if ($usuarioId) {
+        try {
+            // Query mais simples - buscar a última lotação do gestor (sem filtro de fim)
+            $sqlGestor = "SELECT gl.escola_id, e.nome as escola_nome, gl.responsavel, gl.fim, gl.inicio, gl.id
+                          FROM gestor g
+                          INNER JOIN usuario u ON g.pessoa_id = u.pessoa_id
+                          INNER JOIN gestor_lotacao gl ON g.id = gl.gestor_id
+                          INNER JOIN escola e ON gl.escola_id = e.id
+                          WHERE u.id = :usuario_id AND g.ativo = 1
+                          ORDER BY gl.id DESC
+                          LIMIT 1";
+            $stmtGestor = $conn->prepare($sqlGestor);
+            $stmtGestor->bindParam(':usuario_id', $usuarioId);
+            $stmtGestor->execute();
+            $gestorEscola = $stmtGestor->fetch(PDO::FETCH_ASSOC);
+            error_log("DEBUG DASHBOARD - Query resultado: " . json_encode($gestorEscola));
+            
+            if ($gestorEscola) {
+                // Verificar se a lotação está ativa (fim é NULL, vazio, ou data futura)
+                $fimLotacao = $gestorEscola['fim'];
+                $lotacaoAtiva = ($fimLotacao === null || $fimLotacao === '' || $fimLotacao === '0000-00-00' || 
+                                (is_string($fimLotacao) && strtotime($fimLotacao) >= strtotime('today')));
+                
+                error_log("DEBUG DASHBOARD - Fim lotação: " . var_export($fimLotacao, true) . ", Ativa: " . ($lotacaoAtiva ? 'SIM' : 'NÃO'));
+                
+                // Usar a escola mesmo se a lotação estiver inativa (pode ser que o campo fim esteja preenchido incorretamente)
+                // Mas priorizar lotações ativas
+                if ($lotacaoAtiva || empty($fimLotacao)) {
+                    $escolaGestorId = (int)$gestorEscola['escola_id'];
+                    $escolaGestor = $gestorEscola['escola_nome'];
+                    error_log("DEBUG DASHBOARD - Escola encontrada: ID=" . $escolaGestorId . ", Nome=" . $escolaGestor);
+                } else {
+                    // Mesmo se inativa, usar se for a única lotação
+                    $escolaGestorId = (int)$gestorEscola['escola_id'];
+                    $escolaGestor = $gestorEscola['escola_nome'];
+                    error_log("DEBUG DASHBOARD - Escola encontrada (lotação inativa mas usando mesmo): ID=" . $escolaGestorId . ", Nome=" . $escolaGestor);
+                }
+            } else {
+                // Verificar se existe gestor mas sem lotação
+                $sqlCheckGestor = "SELECT g.id, g.ativo
+                                   FROM gestor g
+                                   INNER JOIN usuario u ON g.pessoa_id = u.pessoa_id
+                                   WHERE u.id = :usuario_id";
+                $stmtCheck = $conn->prepare($sqlCheckGestor);
+                $stmtCheck->bindParam(':usuario_id', $usuarioId);
+                $stmtCheck->execute();
+                $checkGestor = $stmtCheck->fetch(PDO::FETCH_ASSOC);
+                error_log("DEBUG DASHBOARD - Gestor existe mas sem lotação: " . json_encode($checkGestor));
+                
+                error_log("DEBUG DASHBOARD - Nenhuma escola encontrada para o gestor");
+            }
+        } catch (Exception $e) {
+            error_log("DEBUG DASHBOARD - Erro ao buscar escola do gestor: " . $e->getMessage());
+            error_log("DEBUG DASHBOARD - Stack trace: " . $e->getTraceAsString());
+        }
+    } else {
+        error_log("DEBUG DASHBOARD - usuario_id é NULL");
+    }
+} else {
+    error_log("DEBUG DASHBOARD - Tipo de usuário não é GESTAO: " . ($_SESSION['tipo'] ?? 'NULL'));
+}
+
 // Código de busca de dados do professor removido - agora está nas páginas separadas
 
 // Código de processamento AJAX do professor removido - agora está nas páginas separadas
@@ -2094,6 +2163,24 @@ if (!defined('BASE_URL')) {
                         <span>Gestão Escolar</span>
                     </a>
                 </li>
+                <?php if ($escolaGestorId): ?>
+                <li>
+                    <a href="gestao_escolar.php?aba=cardapio" class="menu-item flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"></path>
+                        </svg>
+                        <span>Cardápio</span>
+                    </a>
+                </li>
+                <li>
+                    <a href="gestao_escolar.php?acao=abrir_desperdicio" class="menu-item flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                        </svg>
+                        <span>Registrar Desperdício</span>
+                    </a>
+                </li>
+                <?php endif; ?>
                 <?php } ?>
                 <?php if ($_SESSION['tipo'] === 'ADM' || $_SESSION['tipo'] === 'GESTAO') { ?>
                 <?php } ?>
@@ -2282,6 +2369,58 @@ if (!defined('BASE_URL')) {
                                 <div class="text-right px-4 py-2">
                                     <p class="text-sm font-medium text-gray-800">Secretaria Municipal da Educação</p>
                                     <p class="text-xs text-gray-500">Órgão Central</p>
+                                </div>
+                            <?php } elseif ($_SESSION['tipo'] === 'GESTAO') { ?>
+                                <!-- Para GESTAO, mostrar nome da escola -->
+                                <div class="bg-primary-green text-white px-4 py-2 rounded-lg shadow-sm">
+                                    <div class="flex items-center space-x-2">
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path>
+                                        </svg>
+                                        <span class="text-sm font-semibold">
+                                            <?php 
+                                            if (!empty($escolaGestor)) {
+                                                echo htmlspecialchars($escolaGestor);
+                                            } else {
+                                                // Fallback: tentar buscar diretamente no header
+                                                $usuarioIdHeader = $_SESSION['usuario_id'] ?? null;
+                                                if ($usuarioIdHeader) {
+                                                    try {
+                                                        $sqlHeader = "SELECT e.nome as escola_nome
+                                                                      FROM gestor g
+                                                                      INNER JOIN usuario u ON g.pessoa_id = u.pessoa_id
+                                                                      INNER JOIN gestor_lotacao gl ON g.id = gl.gestor_id
+                                                                      INNER JOIN escola e ON gl.escola_id = e.id
+                                                                      WHERE u.id = :usuario_id AND g.ativo = 1
+                                                                      ORDER BY 
+                                                                        CASE WHEN gl.fim IS NULL OR gl.fim = '' OR gl.fim = '0000-00-00' THEN 0 ELSE 1 END,
+                                                                        gl.responsavel DESC, 
+                                                                        gl.inicio DESC,
+                                                                        gl.id DESC
+                                                                      LIMIT 1";
+                                                        $stmtHeader = $conn->prepare($sqlHeader);
+                                                        $stmtHeader->bindParam(':usuario_id', $usuarioIdHeader);
+                                                        $stmtHeader->execute();
+                                                        $resultHeader = $stmtHeader->fetch(PDO::FETCH_ASSOC);
+                                                        if ($resultHeader && !empty($resultHeader['escola_nome'])) {
+                                                            echo htmlspecialchars($resultHeader['escola_nome']);
+                                                            error_log("DEBUG DASHBOARD HEADER - Escola encontrada: " . $resultHeader['escola_nome']);
+                                                        } else {
+                                                            echo 'Escola não encontrada';
+                                                            error_log("DEBUG DASHBOARD HEADER - Nenhuma escola encontrada para usuario_id: " . $usuarioIdHeader);
+                                                        }
+                                                    } catch (Exception $e) {
+                                                        echo 'Erro ao buscar escola';
+                                                        error_log("DEBUG DASHBOARD HEADER - Erro: " . $e->getMessage());
+                                                    }
+                                                } else {
+                                                    echo 'Escola Municipal';
+                                                    error_log("DEBUG DASHBOARD HEADER - usuario_id é NULL");
+                                                }
+                                            }
+                                            ?>
+                                        </span>
+                                    </div>
                                 </div>
                             <?php } else { ?>
                                 <!-- Para outros usuários, card verde com ícone -->

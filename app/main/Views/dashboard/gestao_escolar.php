@@ -8,6 +8,8 @@ require_once('../../Models/academico/FrequenciaModel.php');
 require_once('../../Models/dashboard/DashboardStats.php');
 require_once('../../Models/pessoas/FuncionarioModel.php');
 require_once('../../Models/pessoas/ResponsavelModel.php');
+require_once('../../Models/merenda/DesperdicioModel.php');
+require_once('../../Models/merenda/CardapioModel.php');
 
 $session = new sessions();
 $session->autenticar_session();
@@ -26,6 +28,129 @@ $alunoModel = new AlunoModel();
 $funcionarioModel = new FuncionarioModel();
 $responsavelModel = new ResponsavelModel();
 $stats = new DashboardStats();
+$desperdicioModel = new DesperdicioModel();
+$cardapioModel = new CardapioModel();
+
+// Buscar escola do gestor logado
+$db = Database::getInstance();
+$conn = $db->getConnection();
+$escolaGestor = null;
+$escolaGestorId = null;
+
+// Log inicial
+error_log("DEBUG GESTOR INICIAL - Tipo: " . ($_SESSION['tipo'] ?? 'NULL') . ", usuario_id: " . ($_SESSION['usuario_id'] ?? 'NULL'));
+
+if (isset($_SESSION['tipo']) && strtoupper($_SESSION['tipo']) === 'GESTAO') {
+    $usuarioId = $_SESSION['usuario_id'] ?? null;
+    error_log("DEBUG GESTOR - usuario_id: " . ($usuarioId ?? 'NULL'));
+    
+    if ($usuarioId) {
+        try {
+            // Log: Verificar se existe gestor para este usuario
+            $sqlCheckGestor = "SELECT g.id as gestor_id, g.pessoa_id, g.ativo
+                               FROM gestor g
+                               INNER JOIN usuario u ON g.pessoa_id = u.pessoa_id
+                               WHERE u.id = :usuario_id";
+            $stmtCheck = $conn->prepare($sqlCheckGestor);
+            $stmtCheck->bindParam(':usuario_id', $usuarioId);
+            $stmtCheck->execute();
+            $checkGestor = $stmtCheck->fetch(PDO::FETCH_ASSOC);
+            error_log("DEBUG GESTOR - Check gestor: " . json_encode($checkGestor));
+            
+            // Buscar gestor através do usuario_id
+            // Query simplificada - buscar qualquer lotação recente, priorizando as sem data de fim
+            $sqlGestor = "SELECT g.id as gestor_id, gl.escola_id, e.nome as escola_nome, gl.responsavel, gl.fim, gl.inicio
+                          FROM gestor g
+                          INNER JOIN usuario u ON g.pessoa_id = u.pessoa_id
+                          INNER JOIN gestor_lotacao gl ON g.id = gl.gestor_id
+                          INNER JOIN escola e ON gl.escola_id = e.id
+                          WHERE u.id = :usuario_id AND g.ativo = 1
+                          ORDER BY 
+                            CASE WHEN gl.fim IS NULL OR gl.fim = '' OR gl.fim = '0000-00-00' THEN 0 ELSE 1 END,
+                            gl.responsavel DESC, 
+                            gl.inicio DESC,
+                            gl.id DESC
+                          LIMIT 1";
+            $stmtGestor = $conn->prepare($sqlGestor);
+            $stmtGestor->bindParam(':usuario_id', $usuarioId);
+            $stmtGestor->execute();
+            $gestorEscola = $stmtGestor->fetch(PDO::FETCH_ASSOC);
+            error_log("DEBUG GESTOR - Query 1 resultado: " . json_encode($gestorEscola));
+            
+            if ($gestorEscola) {
+                $escolaGestorId = (int)$gestorEscola['escola_id'];
+                $escolaGestor = $gestorEscola['escola_nome'];
+                error_log("DEBUG GESTOR - Escola encontrada (Query 1): ID=" . $escolaGestorId . ", Nome=" . $escolaGestor);
+            } else {
+                // Tentar buscar sem a condição de fim (caso o campo esteja com valor diferente)
+                $sqlGestor2 = "SELECT g.id as gestor_id, gl.escola_id, e.nome as escola_nome, gl.responsavel, gl.fim, gl.inicio
+                               FROM gestor g
+                               INNER JOIN usuario u ON g.pessoa_id = u.pessoa_id
+                               INNER JOIN gestor_lotacao gl ON g.id = gl.gestor_id
+                               INNER JOIN escola e ON gl.escola_id = e.id
+                               WHERE u.id = :usuario_id AND g.ativo = 1
+                               ORDER BY gl.responsavel DESC, gl.inicio DESC, gl.id DESC
+                               LIMIT 1";
+                $stmtGestor2 = $conn->prepare($sqlGestor2);
+                $stmtGestor2->bindParam(':usuario_id', $usuarioId);
+                $stmtGestor2->execute();
+                $gestorEscola2 = $stmtGestor2->fetch(PDO::FETCH_ASSOC);
+                error_log("DEBUG GESTOR - Query 2 resultado: " . json_encode($gestorEscola2));
+                
+                if ($gestorEscola2) {
+                    // Verificar se a lotação está realmente ativa (fim é NULL ou data futura)
+                    $fimLotacao = $gestorEscola2['fim'];
+                    $lotacaoAtiva = ($fimLotacao === null || $fimLotacao === '' || $fimLotacao === '0000-00-00' || strtotime($fimLotacao) >= strtotime('today'));
+                    error_log("DEBUG GESTOR - Fim lotação: " . var_export($fimLotacao, true) . ", Ativa: " . ($lotacaoAtiva ? 'SIM' : 'NÃO'));
+                    
+                    if ($lotacaoAtiva) {
+                        $escolaGestorId = (int)$gestorEscola2['escola_id'];
+                        $escolaGestor = $gestorEscola2['escola_nome'];
+                        error_log("DEBUG GESTOR - Escola encontrada (Query 2): ID=" . $escolaGestorId . ", Nome=" . $escolaGestor);
+                    } else {
+                        $escolaGestorId = null;
+                        $escolaGestor = null;
+                        error_log("DEBUG GESTOR - Lotação encontrada mas não está ativa (fim: " . var_export($fimLotacao, true) . ")");
+                    }
+                } else {
+                    // Verificar se existe lotação mesmo que inativa
+                    $sqlCheckLotacao = "SELECT gl.*, e.nome as escola_nome
+                                        FROM gestor g
+                                        INNER JOIN usuario u ON g.pessoa_id = u.pessoa_id
+                                        INNER JOIN gestor_lotacao gl ON g.id = gl.gestor_id
+                                        INNER JOIN escola e ON gl.escola_id = e.id
+                                        WHERE u.id = :usuario_id
+                                        ORDER BY gl.id DESC
+                                        LIMIT 5";
+                    $stmtCheckLot = $conn->prepare($sqlCheckLotacao);
+                    $stmtCheckLot->bindParam(':usuario_id', $usuarioId);
+                    $stmtCheckLot->execute();
+                    $todasLotacoes = $stmtCheckLot->fetchAll(PDO::FETCH_ASSOC);
+                    error_log("DEBUG GESTOR - Todas as lotações encontradas: " . json_encode($todasLotacoes));
+                    
+                    $escolaGestorId = null;
+                    $escolaGestor = null;
+                    error_log("DEBUG GESTOR - Nenhuma escola encontrada para o gestor");
+                }
+            }
+        } catch (Exception $e) {
+            error_log("DEBUG GESTOR - Erro ao buscar escola do gestor: " . $e->getMessage());
+            error_log("DEBUG GESTOR - Stack trace: " . $e->getTraceAsString());
+            $escolaGestorId = null;
+            $escolaGestor = null;
+        }
+    } else {
+        error_log("DEBUG GESTOR - usuario_id é NULL");
+    }
+} else {
+    error_log("DEBUG GESTOR - Tipo de usuário não é GESTAO: " . ($_SESSION['tipo'] ?? 'NULL'));
+}
+
+// Buscar produtos para o modal de desperdício
+$sqlProdutos = "SELECT id, nome, unidade_medida FROM produto WHERE ativo = 1 ORDER BY nome ASC";
+$stmtProdutos = $conn->prepare($sqlProdutos);
+$stmtProdutos->execute();
+$produtos = $stmtProdutos->fetchAll(PDO::FETCH_ASSOC);
 
 // Processar ações
 $mensagem = '';
@@ -36,8 +161,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     
     switch ($acao) {
         case 'criar_turma':
+            $escolaIdTurma = $_POST['escola_id'] ?? null;
+            
+            // Validar permissão: gestor só pode criar turmas na sua escola
+            if ($_SESSION['tipo'] === 'GESTAO' && $escolaGestorId && $escolaIdTurma != $escolaGestorId) {
+                $mensagem = 'Você não tem permissão para criar turmas nesta escola.';
+                $tipoMensagem = 'error';
+                break;
+            }
+            
             $resultado = $turmaModel->criar([
-                'escola_id' => $_POST['escola_id'] ?? null,
+                'escola_id' => $escolaIdTurma,
                 'serie_id' => $_POST['serie_id'] ?? null,
                 'ano_letivo' => $_POST['ano_letivo'] ?? date('Y'),
                 'serie' => $_POST['serie'] ?? '',
@@ -59,8 +193,29 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         case 'editar_turma':
             $turmaId = $_POST['turma_id'] ?? null;
             if ($turmaId) {
+                // Validar permissão: gestor só pode editar turmas da sua escola
+                if ($_SESSION['tipo'] === 'GESTAO' && $escolaGestorId) {
+                    $turma = $turmaModel->buscarPorId($turmaId);
+                    if (!$turma || $turma['escola_id'] != $escolaGestorId) {
+                        $mensagem = 'Você não tem permissão para editar esta turma.';
+                        $tipoMensagem = 'error';
+                        break;
+                    }
+                    // Forçar escola_id para a escola do gestor
+                    $_POST['escola_id'] = $escolaGestorId;
+                }
+                
+                $escolaIdTurma = $_POST['escola_id'] ?? null;
+                
+                // Validar se gestor está tentando mudar para outra escola
+                if ($_SESSION['tipo'] === 'GESTAO' && $escolaGestorId && $escolaIdTurma != $escolaGestorId) {
+                    $mensagem = 'Você não tem permissão para alterar a escola desta turma.';
+                    $tipoMensagem = 'error';
+                    break;
+                }
+                
                 $resultado = $turmaModel->atualizar($turmaId, [
-                    'escola_id' => $_POST['escola_id'] ?? null,
+                    'escola_id' => $escolaIdTurma,
                     'serie_id' => $_POST['serie_id'] ?? null,
                     'ano_letivo' => $_POST['ano_letivo'] ?? date('Y'),
                     'serie' => $_POST['serie'] ?? '',
@@ -518,6 +673,58 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $tipoMensagem = 'error';
             }
             break;
+            
+        case 'registrar_desperdicio':
+            if ($_SESSION['tipo'] === 'GESTAO' && $escolaGestorId) {
+                try {
+                    $motivo = $_POST['motivo'] ?? 'OUTROS';
+                    
+                    // Validar se observação foi preenchida quando motivo é OUTROS
+                    if ($motivo === 'OUTROS') {
+                        $observacoesOutros = trim($_POST['observacoes_outros'] ?? '');
+                        if (empty($observacoesOutros)) {
+                            $mensagem = 'Por favor, descreva o motivo do desperdício quando selecionar "Outro".';
+                            $tipoMensagem = 'error';
+                            break;
+                        }
+                    }
+                    
+                    $dados = [
+                        'escola_id' => $escolaGestorId, // Usar escola do gestor logado
+                        'data' => $_POST['data'] ?? date('Y-m-d'),
+                        'turno' => $_POST['turno'] ?? null,
+                        'produto_id' => $_POST['produto_id'] ?? null,
+                        'quantidade' => $_POST['quantidade'] ?? null,
+                        'unidade_medida' => $_POST['unidade_medida'] ?? null,
+                        'peso_kg' => $_POST['peso_kg'] ?? null,
+                        'motivo' => $motivo,
+                        'motivo_detalhado' => $_POST['motivo_detalhado'] ?? null,
+                        'observacoes' => $_POST['observacoes'] ?? null
+                    ];
+                    
+                    // Se o motivo for OUTROS, usar o campo observações como motivo detalhado
+                    if ($dados['motivo'] === 'OUTROS' && !empty($_POST['observacoes_outros'])) {
+                        $dados['motivo_detalhado'] = $_POST['observacoes_outros'];
+                    }
+                    
+                    $resultado = $desperdicioModel->registrar($dados);
+                    
+                    if ($resultado['success']) {
+                        $mensagem = 'Desperdício registrado com sucesso!';
+                        $tipoMensagem = 'success';
+                    } else {
+                        $mensagem = $resultado['message'] ?? 'Erro ao registrar desperdício.';
+                        $tipoMensagem = 'error';
+                    }
+                } catch (Exception $e) {
+                    $mensagem = 'Erro ao registrar desperdício: ' . $e->getMessage();
+                    $tipoMensagem = 'error';
+                }
+            } else {
+                $mensagem = 'Acesso não autorizado ou escola não encontrada.';
+                $tipoMensagem = 'error';
+            }
+            break;
     }
 }
 
@@ -526,6 +733,16 @@ if (!empty($_GET['acao']) && $_GET['acao'] === 'buscar_turmas' && !empty($_GET['
     header('Content-Type: application/json');
     
     $escolaId = $_GET['escola_id'];
+    
+    // Validar permissão: gestor só pode ver turmas da sua escola
+    if ($_SESSION['tipo'] === 'GESTAO' && $escolaGestorId && $escolaId != $escolaGestorId) {
+        echo json_encode([
+            'success' => false,
+            'message' => 'Você não tem permissão para visualizar turmas desta escola.'
+        ]);
+        exit;
+    }
+    
     $turmas = $turmaModel->listar(['escola_id' => $escolaId, 'ativo' => 1]);
     
     echo json_encode([
@@ -617,12 +834,21 @@ if (!empty($_GET['acao']) && $_GET['acao'] === 'buscar_alunos' && !empty($_GET['
             LEFT JOIN aluno_turma at ON at.aluno_id = a.id AND at.fim IS NULL
             LEFT JOIN turma t ON at.turma_id = t.id
             WHERE a.ativo = 1 
-            AND (p.nome LIKE :termo OR p.cpf LIKE :termo OR a.matricula LIKE :termo)
-            ORDER BY p.nome ASC
+            AND (p.nome LIKE :termo OR p.cpf LIKE :termo OR a.matricula LIKE :termo)";
+    
+    // Filtrar por escola do gestor se necessário
+    if ($_SESSION['tipo'] === 'GESTAO' && $escolaGestorId) {
+        $sql .= " AND (a.escola_id = :escola_id OR t.escola_id = :escola_id)";
+    }
+    
+    $sql .= " ORDER BY p.nome ASC
             LIMIT 20";
     
     $stmt = $conn->prepare($sql);
     $stmt->bindParam(':termo', $termo);
+    if ($_SESSION['tipo'] === 'GESTAO' && $escolaGestorId) {
+        $stmt->bindParam(':escola_id', $escolaGestorId);
+    }
     $stmt->execute();
     $alunos = $stmt->fetchAll(PDO::FETCH_ASSOC);
     
@@ -633,19 +859,71 @@ if (!empty($_GET['acao']) && $_GET['acao'] === 'buscar_alunos' && !empty($_GET['
     exit;
 }
 
+// Buscar cardápios da escola (AJAX)
+if (!empty($_GET['acao']) && $_GET['acao'] === 'buscar_cardapios' && !empty($_GET['escola_id'])) {
+    header('Content-Type: application/json');
+    
+    if ($_SESSION['tipo'] === 'GESTAO' && $escolaGestorId && $_GET['escola_id'] == $escolaGestorId) {
+        $filtros = [
+            'escola_id' => $escolaGestorId,
+            'mes' => $_GET['mes'] ?? null,
+            'ano' => $_GET['ano'] ?? null,
+            'status' => $_GET['status'] ?? null
+        ];
+        
+        $cardapios = $cardapioModel->listar($filtros);
+        echo json_encode(['success' => true, 'cardapios' => $cardapios]);
+    } else {
+        echo json_encode(['success' => false, 'message' => 'Acesso não autorizado']);
+    }
+    exit;
+}
+
+// Buscar detalhes de um cardápio (AJAX)
+if (!empty($_GET['acao']) && $_GET['acao'] === 'buscar_cardapio' && !empty($_GET['id'])) {
+    header('Content-Type: application/json');
+    
+    if ($_SESSION['tipo'] === 'GESTAO' && $escolaGestorId) {
+        $cardapio = $cardapioModel->buscarPorId($_GET['id']);
+        
+        // Verificar se o cardápio pertence à escola do gestor
+        if ($cardapio && $cardapio['escola_id'] == $escolaGestorId) {
+            echo json_encode(['success' => true, 'cardapio' => $cardapio]);
+        } else {
+            echo json_encode(['success' => false, 'message' => 'Cardápio não encontrado ou acesso não autorizado']);
+        }
+    } else {
+        echo json_encode(['success' => false, 'message' => 'Acesso não autorizado']);
+    }
+    exit;
+}
+
 // Buscar dados
 $db = Database::getInstance();
 $conn = $db->getConnection();
 
 // Buscar escolas (filtrar pela escola do gestor se necessário)
-$sqlEscolas = "SELECT id, nome FROM escola WHERE ativo = 1 ORDER BY nome ASC";
+$isGestorComEscola = isset($_SESSION['tipo']) && strtoupper($_SESSION['tipo']) === 'GESTAO' && !empty($escolaGestorId) && $escolaGestorId > 0;
+$sqlEscolas = "SELECT id, nome FROM escola WHERE ativo = 1";
+if ($isGestorComEscola) {
+    // Gestor só vê sua escola
+    $sqlEscolas .= " AND id = :escola_id";
+}
+$sqlEscolas .= " ORDER BY nome ASC";
 $stmtEscolas = $conn->prepare($sqlEscolas);
+if ($isGestorComEscola) {
+    $stmtEscolas->bindParam(':escola_id', $escolaGestorId, PDO::PARAM_INT);
+}
 $stmtEscolas->execute();
 $escolas = $stmtEscolas->fetchAll(PDO::FETCH_ASSOC);
 
 // Buscar turmas
 $filtrosTurma = ['ativo' => 1];
-if (!empty($_GET['escola_id'])) {
+// Se for gestor, forçar filtro pela escola dele
+if ($_SESSION['tipo'] === 'GESTAO' && $escolaGestorId) {
+    $filtrosTurma['escola_id'] = $escolaGestorId;
+} elseif (!empty($_GET['escola_id'])) {
+    // Admin pode filtrar por escola específica
     $filtrosTurma['escola_id'] = $_GET['escola_id'];
 }
 if (!empty($_GET['ano_letivo'])) {
@@ -701,7 +979,14 @@ function buscarProfessoresComAtribuicoes($escolaId = null) {
     return $stmt->fetchAll(PDO::FETCH_ASSOC);
 }
 
-$professoresComAtribuicoes = buscarProfessoresComAtribuicoes(!empty($_GET['escola_id']) ? $_GET['escola_id'] : null);
+// Filtrar professores pela escola do gestor se necessário
+$escolaIdProfessores = null;
+if ($_SESSION['tipo'] === 'GESTAO' && $escolaGestorId) {
+    $escolaIdProfessores = $escolaGestorId;
+} elseif (!empty($_GET['escola_id'])) {
+    $escolaIdProfessores = $_GET['escola_id'];
+}
+$professoresComAtribuicoes = buscarProfessoresComAtribuicoes($escolaIdProfessores);
 
 // Função para buscar dados de acompanhamento acadêmico
 function buscarAcompanhamentoAcademico($turmaId = null, $escolaId = null) {
@@ -807,8 +1092,15 @@ function buscarEstatisticasAcompanhamento($turmaId = null, $escolaId = null) {
 }
 
 $filtroTurmaAcompanhamento = !empty($_GET['turma_acompanhamento']) ? $_GET['turma_acompanhamento'] : null;
-$acompanhamentoDados = buscarAcompanhamentoAcademico($filtroTurmaAcompanhamento, !empty($_GET['escola_id']) ? $_GET['escola_id'] : null);
-$estatisticasAcompanhamento = buscarEstatisticasAcompanhamento($filtroTurmaAcompanhamento, !empty($_GET['escola_id']) ? $_GET['escola_id'] : null);
+// Filtrar acompanhamento acadêmico pela escola do gestor se necessário
+$escolaIdAcompanhamento = null;
+if ($_SESSION['tipo'] === 'GESTAO' && $escolaGestorId) {
+    $escolaIdAcompanhamento = $escolaGestorId;
+} elseif (!empty($_GET['escola_id'])) {
+    $escolaIdAcompanhamento = $_GET['escola_id'];
+}
+$acompanhamentoDados = buscarAcompanhamentoAcademico($filtroTurmaAcompanhamento, $escolaIdAcompanhamento);
+$estatisticasAcompanhamento = buscarEstatisticasAcompanhamento($filtroTurmaAcompanhamento, $escolaIdAcompanhamento);
 
 // Função para buscar lançamentos pendentes de validação
 function buscarLancamentosPendentes($tipoRegistro = null, $escolaId = null) {
@@ -951,9 +1243,16 @@ function contarLancamentosPendentes($escolaId = null) {
     ];
 }
 
+// Filtrar lançamentos pendentes pela escola do gestor se necessário
+$escolaIdLancamentos = null;
+if ($_SESSION['tipo'] === 'GESTAO' && $escolaGestorId) {
+    $escolaIdLancamentos = $escolaGestorId;
+} elseif (!empty($_GET['escola_id'])) {
+    $escolaIdLancamentos = $_GET['escola_id'];
+}
 $filtroTipoValidacao = !empty($_GET['tipo_validacao']) ? $_GET['tipo_validacao'] : null;
-$lancamentosPendentes = buscarLancamentosPendentes($filtroTipoValidacao, !empty($_GET['escola_id']) ? $_GET['escola_id'] : null);
-$contadoresValidacao = contarLancamentosPendentes(!empty($_GET['escola_id']) ? $_GET['escola_id'] : null);
+$lancamentosPendentes = buscarLancamentosPendentes($filtroTipoValidacao, $escolaIdLancamentos);
+$contadoresValidacao = contarLancamentosPendentes($escolaIdLancamentos);
 
 // Processar requisições AJAX
 if (!empty($_GET['acao']) && $_GET['acao'] === 'buscar_turma' && !empty($_GET['id'])) {
@@ -963,6 +1262,15 @@ if (!empty($_GET['acao']) && $_GET['acao'] === 'buscar_turma' && !empty($_GET['i
     $turma = $turmaModel->buscarPorId($turmaId);
     
     if ($turma) {
+        // Validar permissão: gestor só pode ver turmas da sua escola
+        if ($_SESSION['tipo'] === 'GESTAO' && $escolaGestorId && $turma['escola_id'] != $escolaGestorId) {
+            echo json_encode([
+                'success' => false,
+                'message' => 'Você não tem permissão para visualizar esta turma.'
+            ]);
+            exit;
+        }
+        
         $alunos = $turmaModel->buscarAlunos($turmaId);
         $professores = $turmaModel->buscarProfessores($turmaId);
         
@@ -1004,18 +1312,37 @@ if (!empty($_GET['acao']) && $_GET['acao'] === 'buscar_professor' && !empty($_GE
                             d.nome as disciplina,
                             tp.regime,
                             DATE_FORMAT(tp.inicio, '%d/%m/%Y') as inicio,
-                            e.nome as escola_nome
+                            e.nome as escola_nome,
+                            t.escola_id
                           FROM turma_professor tp
                           INNER JOIN turma t ON tp.turma_id = t.id
                           INNER JOIN disciplina d ON tp.disciplina_id = d.id
                           INNER JOIN escola e ON t.escola_id = e.id
-                          WHERE tp.professor_id = :professor_id AND tp.fim IS NULL
-                          ORDER BY t.serie, t.letra, d.nome";
+                          WHERE tp.professor_id = :professor_id AND tp.fim IS NULL";
+        
+        // Filtrar por escola do gestor se necessário
+        if ($_SESSION['tipo'] === 'GESTAO' && $escolaGestorId) {
+            $sqlAtribuicoes .= " AND t.escola_id = :escola_id";
+        }
+        
+        $sqlAtribuicoes .= " ORDER BY t.serie, t.letra, d.nome";
         
         $stmtAtrib = $conn->prepare($sqlAtribuicoes);
         $stmtAtrib->bindParam(':professor_id', $professorId);
+        if ($_SESSION['tipo'] === 'GESTAO' && $escolaGestorId) {
+            $stmtAtrib->bindParam(':escola_id', $escolaGestorId);
+        }
         $stmtAtrib->execute();
         $atribuicoes = $stmtAtrib->fetchAll(PDO::FETCH_ASSOC);
+        
+        // Se for gestor e o professor não tiver atribuições na escola dele, negar acesso
+        if ($_SESSION['tipo'] === 'GESTAO' && $escolaGestorId && empty($atribuicoes)) {
+            echo json_encode([
+                'success' => false,
+                'message' => 'Você não tem permissão para visualizar este professor.'
+            ]);
+            exit;
+        }
         
         echo json_encode([
             'success' => true,
@@ -1297,6 +1624,24 @@ if (!defined('BASE_URL')) {
                             <span>Gestão Escolar</span>
                         </a>
                     </li>
+                    <?php if ($_SESSION['tipo'] === 'GESTAO' && $escolaGestorId): ?>
+                    <li>
+                        <a href="gestao_escolar.php?aba=cardapio" class="menu-item flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700 <?= (basename($_SERVER['PHP_SELF']) === 'gestao_escolar.php' && isset($_GET['aba']) && $_GET['aba'] === 'cardapio') ? 'active' : '' ?>">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"></path>
+                            </svg>
+                            <span>Cardápio</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="gestao_escolar.php?acao=abrir_desperdicio" class="menu-item flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                            </svg>
+                            <span>Registrar Desperdício</span>
+                        </a>
+                    </li>
+                    <?php endif; ?>
                 </ul>
             </nav>
             
@@ -1326,6 +1671,14 @@ if (!defined('BASE_URL')) {
                         <h1 class="text-xl font-semibold text-gray-800">Gestão Escolar</h1>
                     </div>
                     <div class="flex items-center space-x-4">
+                        <?php if ($_SESSION['tipo'] === 'GESTAO' && $escolaGestorId): ?>
+                            <button onclick="abrirModalRegistrarDesperdicio()" class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg font-medium transition-colors duration-200 flex items-center space-x-2">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                                </svg>
+                                <span class="hidden sm:inline">Registrar Desperdício</span>
+                            </button>
+                        <?php endif; ?>
                         <!-- School Info (Desktop Only) -->
                         <div class="hidden lg:block">
                             <?php if ($_SESSION['tipo'] === 'ADM') { ?>
@@ -1333,6 +1686,54 @@ if (!defined('BASE_URL')) {
                                 <div class="text-right px-4 py-2">
                                     <p class="text-sm font-medium text-gray-800">Secretaria Municipal da Educação</p>
                                     <p class="text-xs text-gray-500">Órgão Central</p>
+                                </div>
+                            <?php } elseif ($_SESSION['tipo'] === 'GESTAO') { ?>
+                                <!-- Para GESTAO, mostrar nome da escola -->
+                                <div class="bg-primary-green text-white px-4 py-2 rounded-lg shadow-sm">
+                                    <div class="flex items-center space-x-2">
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path>
+                                        </svg>
+                                        <span class="text-sm font-semibold">
+                                            <?php 
+                                            if (!empty($escolaGestor)) {
+                                                echo htmlspecialchars($escolaGestor);
+                                            } else {
+                                                // Debug: tentar buscar diretamente
+                                                $usuarioIdDebug = $_SESSION['usuario_id'] ?? null;
+                                                if ($usuarioIdDebug) {
+                                                    try {
+                                                        $sqlDebug = "SELECT e.nome as escola_nome
+                                                                     FROM gestor g
+                                                                     INNER JOIN usuario u ON g.pessoa_id = u.pessoa_id
+                                                                     INNER JOIN gestor_lotacao gl ON g.id = gl.gestor_id
+                                                                     INNER JOIN escola e ON gl.escola_id = e.id
+                                                                     WHERE u.id = :usuario_id AND g.ativo = 1
+                                                                     ORDER BY gl.id DESC
+                                                                     LIMIT 1";
+                                                        $stmtDebug = $conn->prepare($sqlDebug);
+                                                        $stmtDebug->bindParam(':usuario_id', $usuarioIdDebug);
+                                                        $stmtDebug->execute();
+                                                        $resultDebug = $stmtDebug->fetch(PDO::FETCH_ASSOC);
+                                                        if ($resultDebug && !empty($resultDebug['escola_nome'])) {
+                                                            echo htmlspecialchars($resultDebug['escola_nome']);
+                                                            error_log("DEBUG HEADER - Escola encontrada diretamente: " . $resultDebug['escola_nome']);
+                                                        } else {
+                                                            echo 'Escola não encontrada';
+                                                            error_log("DEBUG HEADER - Nenhuma escola encontrada para usuario_id: " . $usuarioIdDebug);
+                                                        }
+                                                    } catch (Exception $e) {
+                                                        echo 'Erro ao buscar escola';
+                                                        error_log("DEBUG HEADER - Erro: " . $e->getMessage());
+                                                    }
+                                                } else {
+                                                    echo 'Escola Municipal';
+                                                    error_log("DEBUG HEADER - usuario_id é NULL");
+                                                }
+                                            }
+                                            ?>
+                                        </span>
+                                    </div>
                                 </div>
                             <?php } else { ?>
                                 <!-- Para outros usuários, card verde com ícone -->
@@ -1389,6 +1790,11 @@ if (!defined('BASE_URL')) {
                 <button onclick="mostrarAba('relatorios')" id="tab-relatorios" class="tab-button py-4 px-1 border-b-2 border-transparent font-medium text-sm text-gray-500 hover:text-gray-700 hover:border-gray-300">
                     Relatórios
                 </button>
+                <?php if ($_SESSION['tipo'] === 'GESTAO' && $escolaGestorId): ?>
+                <button onclick="mostrarAba('cardapio')" id="tab-cardapio" class="tab-button py-4 px-1 border-b-2 border-transparent font-medium text-sm text-gray-500 hover:text-gray-700 hover:border-gray-300">
+                    Cardápio
+                </button>
+                <?php endif; ?>
             </nav>
         </div>
 
@@ -1405,18 +1811,20 @@ if (!defined('BASE_URL')) {
                 </div>
 
                 <!-- Filtros -->
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                    <?php 
+                    // Verificar se é gestor com escola associada
+                    $isGestorComEscola = isset($_SESSION['tipo']) && strtoupper($_SESSION['tipo']) === 'GESTAO' && !empty($escolaGestorId) && $escolaGestorId > 0;
+                    if ($isGestorComEscola): 
+                    ?>
+                    <!-- Gestor só vê sua escola - campo informativo -->
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-2">Escola</label>
-                        <select id="filtro-escola" onchange="filtrarTurmas()" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-green focus:border-transparent">
-                            <option value="">Todas as escolas</option>
-                            <?php foreach ($escolas as $escola): ?>
-                                <option value="<?= $escola['id'] ?>" <?= (!empty($_GET['escola_id']) && $_GET['escola_id'] == $escola['id']) ? 'selected' : '' ?>>
-                                    <?= htmlspecialchars($escola['nome']) ?>
-                                </option>
-                            <?php endforeach; ?>
-                        </select>
+                        <input type="hidden" id="filtro-escola" value="<?= $escolaGestorId ?>">
+                        <input type="text" value="<?= htmlspecialchars($escolaGestor ?? 'Escola não encontrada') ?>" disabled 
+                               class="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-100 text-gray-700 cursor-not-allowed">
                     </div>
+                    <?php endif; ?>
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-2">Ano Letivo</label>
                         <select id="filtro-ano" onchange="filtrarTurmas()" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-green focus:border-transparent">
@@ -2541,14 +2949,20 @@ if (!defined('BASE_URL')) {
                                         <label class="block text-sm font-medium text-gray-700 mb-2">
                                             Escola <span class="text-red-500">*</span>
                                         </label>
-                                        <select name="escola_id" required 
-                                                class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-green focus:border-primary-green transition-colors">
-                                            <option value="">Selecione uma escola...</option>
-                        <?php foreach ($escolas as $escola): ?>
-                            <option value="<?= $escola['id'] ?>"><?= htmlspecialchars($escola['nome']) ?></option>
-                        <?php endforeach; ?>
-                    </select>
-                </div>
+                                        <?php if ($_SESSION['tipo'] === 'GESTAO' && $escolaGestorId): ?>
+                                            <input type="hidden" name="escola_id" value="<?= $escolaGestorId ?>">
+                                            <input type="text" value="<?= htmlspecialchars($escolaGestor) ?>" disabled 
+                                                   class="w-full px-4 py-3 border border-gray-300 rounded-lg bg-gray-100 text-gray-700">
+                                        <?php else: ?>
+                                            <select name="escola_id" required 
+                                                    class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-green focus:border-primary-green transition-colors">
+                                                <option value="">Selecione uma escola...</option>
+                                                <?php foreach ($escolas as $escola): ?>
+                                                    <option value="<?= $escola['id'] ?>"><?= htmlspecialchars($escola['nome']) ?></option>
+                                                <?php endforeach; ?>
+                                            </select>
+                                        <?php endif; ?>
+                                    </div>
                                     
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-2">Série</label>
@@ -2700,12 +3114,18 @@ if (!defined('BASE_URL')) {
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                             <div>
                                 <label class="block text-sm font-medium text-gray-700 mb-2">Escola *</label>
-                                <select name="escola_id" id="editar-escola-id" required class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-green focus:border-transparent">
-                                    <option value="">Selecione...</option>
-                                    <?php foreach ($escolas as $escola): ?>
-                                        <option value="<?= $escola['id'] ?>"><?= htmlspecialchars($escola['nome']) ?></option>
-                                    <?php endforeach; ?>
-                                </select>
+                                <?php if ($_SESSION['tipo'] === 'GESTAO' && $escolaGestorId): ?>
+                                    <input type="hidden" name="escola_id" id="editar-escola-id" value="<?= $escolaGestorId ?>">
+                                    <input type="text" value="<?= htmlspecialchars($escolaGestor) ?>" disabled 
+                                           class="w-full px-4 py-3 border border-gray-300 rounded-lg bg-gray-100 text-gray-700">
+                                <?php else: ?>
+                                    <select name="escola_id" id="editar-escola-id" required class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-green focus:border-transparent">
+                                        <option value="">Selecione...</option>
+                                        <?php foreach ($escolas as $escola): ?>
+                                            <option value="<?= $escola['id'] ?>"><?= htmlspecialchars($escola['nome']) ?></option>
+                                        <?php endforeach; ?>
+                                    </select>
+                                <?php endif; ?>
                             </div>
                             <div>
                                 <label class="block text-sm font-medium text-gray-700 mb-2">Série</label>
@@ -3370,6 +3790,61 @@ if (!defined('BASE_URL')) {
                 </div>
             </div>
         </div>
+
+        <?php if ($_SESSION['tipo'] === 'GESTAO' && $escolaGestorId): ?>
+        <!-- ABA: CARDÁPIO -->
+        <div id="conteudo-cardapio" class="aba-conteudo hidden">
+            <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+                <div class="flex justify-between items-center mb-6">
+                    <div>
+                        <h2 class="text-xl font-bold text-gray-800">Cardápio da Escola</h2>
+                        <p class="text-sm text-gray-600 mt-1">Visualize o cardápio da sua escola</p>
+                    </div>
+                </div>
+
+                <!-- Filtros -->
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Mês</label>
+                        <select id="filtro-mes-cardapio" class="w-full px-4 py-2 border border-gray-300 rounded-lg" onchange="carregarCardapios()">
+                            <option value="">Todos</option>
+                            <option value="1">Janeiro</option>
+                            <option value="2">Fevereiro</option>
+                            <option value="3">Março</option>
+                            <option value="4">Abril</option>
+                            <option value="5">Maio</option>
+                            <option value="6">Junho</option>
+                            <option value="7">Julho</option>
+                            <option value="8">Agosto</option>
+                            <option value="9">Setembro</option>
+                            <option value="10">Outubro</option>
+                            <option value="11">Novembro</option>
+                            <option value="12">Dezembro</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Ano</label>
+                        <input type="number" id="filtro-ano-cardapio" value="<?= date('Y') ?>" class="w-full px-4 py-2 border border-gray-300 rounded-lg" onchange="carregarCardapios()">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Status</label>
+                        <select id="filtro-status-cardapio" class="w-full px-4 py-2 border border-gray-300 rounded-lg" onchange="carregarCardapios()">
+                            <option value="">Todos</option>
+                            <option value="RASCUNHO">Rascunho</option>
+                            <option value="ENVIADO">Enviado</option>
+                            <option value="APROVADO">Aprovado</option>
+                            <option value="REJEITADO">Rejeitado</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Lista de Cardápios -->
+                <div id="lista-cardapios" class="space-y-4">
+                    <div class="text-center py-8 text-gray-500">Carregando cardápios...</div>
+                </div>
+            </div>
+        </div>
+        <?php endif; ?>
     </div>
 
     <script>
@@ -5053,6 +5528,437 @@ if (!defined('BASE_URL')) {
         }
         
     </script>
+    
+    <?php if ($_SESSION['tipo'] === 'GESTAO' && $escolaGestorId): ?>
+    <script>
+        // Funções para modal de desperdício
+        function abrirModalRegistrarDesperdicio() {
+            const modal = document.getElementById('modalRegistrarDesperdicio');
+            if (modal) {
+                modal.style.display = 'flex';
+                modal.classList.remove('hidden');
+                document.getElementById('formDesperdicio').reset();
+                document.getElementById('desperdicio-data').value = new Date().toISOString().split('T')[0];
+                document.getElementById('desperdicio-escola-id').value = '<?= $escolaGestorId ?>';
+                document.getElementById('desperdicio-escola-id').disabled = true;
+                document.getElementById('alertaErroDesperdicio').classList.add('hidden');
+                document.getElementById('alertaSucessoDesperdicio').classList.add('hidden');
+                document.getElementById('observacao-desperdicio-container').classList.add('hidden');
+            }
+        }
+        
+        function fecharModalRegistrarDesperdicio() {
+            const modal = document.getElementById('modalRegistrarDesperdicio');
+            if (modal) {
+                modal.style.display = 'none';
+                modal.classList.add('hidden');
+            }
+        }
+        
+        function toggleObservacaoDesperdicio() {
+            const motivo = document.getElementById('desperdicio-motivo').value;
+            const container = document.getElementById('observacao-desperdicio-container');
+            const input = document.getElementById('desperdicio-observacoes-outros');
+            
+            if (motivo === 'OUTROS') {
+                container.classList.remove('hidden');
+                input.required = true;
+            } else {
+                container.classList.add('hidden');
+                input.required = false;
+                input.value = '';
+            }
+        }
+        
+        async function salvarDesperdicio() {
+            const alertaErro = document.getElementById('alertaErroDesperdicio');
+            const alertaSucesso = document.getElementById('alertaSucessoDesperdicio');
+            const motivo = document.getElementById('desperdicio-motivo').value;
+            
+            // Validar observação se motivo for OUTROS
+            if (motivo === 'OUTROS') {
+                const observacaoOutros = document.getElementById('desperdicio-observacoes-outros').value.trim();
+                if (!observacaoOutros) {
+                    alertaErro.textContent = 'Por favor, descreva o motivo do desperdício quando selecionar "Outro".';
+                    alertaErro.classList.remove('hidden');
+                    return;
+                }
+            }
+            
+            const formData = new FormData();
+            formData.append('acao', 'registrar_desperdicio');
+            formData.append('escola_id', '<?= $escolaGestorId ?>');
+            formData.append('data', document.getElementById('desperdicio-data').value);
+            formData.append('turno', document.getElementById('desperdicio-turno').value);
+            formData.append('produto_id', document.getElementById('desperdicio-produto-id').value);
+            formData.append('quantidade', document.getElementById('desperdicio-quantidade').value);
+            
+            const produtoSelect = document.getElementById('desperdicio-produto-id');
+            const produtoOption = produtoSelect.options[produtoSelect.selectedIndex];
+            if (produtoOption) {
+                formData.append('unidade_medida', produtoOption.getAttribute('data-unidade') || '');
+            }
+            
+            formData.append('peso_kg', document.getElementById('desperdicio-peso').value);
+            formData.append('motivo', motivo);
+            
+            // Se motivo for OUTROS, usar observação como motivo_detalhado
+            if (motivo === 'OUTROS') {
+                formData.append('observacoes_outros', document.getElementById('desperdicio-observacoes-outros').value);
+                formData.append('motivo_detalhado', document.getElementById('desperdicio-observacoes-outros').value);
+            } else {
+                formData.append('motivo_detalhado', '');
+            }
+            
+            formData.append('observacoes', document.getElementById('desperdicio-observacoes').value);
+            
+            alertaErro.classList.add('hidden');
+            alertaSucesso.classList.add('hidden');
+            
+            try {
+                const response = await fetch('', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const data = await response.text();
+                let result;
+                try {
+                    result = JSON.parse(data);
+                } catch (e) {
+                    // Se não for JSON, pode ser HTML de erro
+                    console.error('Resposta não é JSON:', data);
+                    alertaErro.textContent = 'Erro ao processar resposta do servidor.';
+                    alertaErro.classList.remove('hidden');
+                    return;
+                }
+                
+                if (result.success || <?= $tipoMensagem === 'success' ? 'true' : 'false' ?>) {
+                    alertaSucesso.textContent = 'Desperdício registrado com sucesso!';
+                    alertaSucesso.classList.remove('hidden');
+                    
+                    setTimeout(() => {
+                        fecharModalRegistrarDesperdicio();
+                        location.reload();
+                    }, 1500);
+                } else {
+                    alertaErro.textContent = result.message || 'Erro ao registrar desperdício.';
+                    alertaErro.classList.remove('hidden');
+                }
+            } catch (error) {
+                console.error('Erro:', error);
+                alertaErro.textContent = 'Erro ao processar requisição. Por favor, tente novamente.';
+                alertaErro.classList.remove('hidden');
+            }
+        }
+        
+    </script>
+    <?php endif; ?>
+    
+    <?php if ($_SESSION['tipo'] === 'GESTAO' && $escolaGestorId): ?>
+    <script>
+        // Função para carregar cardápios
+        function carregarCardapios() {
+            const mes = document.getElementById('filtro-mes-cardapio').value;
+            const ano = document.getElementById('filtro-ano-cardapio').value || new Date().getFullYear();
+            const status = document.getElementById('filtro-status-cardapio').value;
+            
+            const lista = document.getElementById('lista-cardapios');
+            lista.innerHTML = '<div class="text-center py-8 text-gray-500">Carregando...</div>';
+            
+            let url = `?acao=buscar_cardapios&escola_id=<?= $escolaGestorId ?>`;
+            if (mes) url += `&mes=${mes}`;
+            if (ano) url += `&ano=${ano}`;
+            if (status) url += `&status=${status}`;
+            
+            fetch(url)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success && data.cardapios && data.cardapios.length > 0) {
+                        renderizarCardapios(data.cardapios);
+                    } else {
+                        lista.innerHTML = '<div class="text-center py-8 text-gray-500">Nenhum cardápio encontrado</div>';
+                    }
+                })
+                .catch(error => {
+                    console.error('Erro:', error);
+                    lista.innerHTML = '<div class="text-center py-8 text-red-500">Erro ao carregar cardápios</div>';
+                });
+        }
+        
+        function renderizarCardapios(cardapios) {
+            const lista = document.getElementById('lista-cardapios');
+            const meses = ['', 'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
+            
+            lista.innerHTML = cardapios.map(cardapio => {
+                const statusClass = {
+                    'RASCUNHO': 'bg-yellow-100 text-yellow-800',
+                    'ENVIADO': 'bg-blue-100 text-blue-800',
+                    'APROVADO': 'bg-green-100 text-green-800',
+                    'REJEITADO': 'bg-red-100 text-red-800'
+                }[cardapio.status] || 'bg-gray-100 text-gray-800';
+                
+                return `
+                    <div class="bg-white border border-gray-200 rounded-lg p-6 hover:shadow-md transition-shadow">
+                        <div class="flex justify-between items-start">
+                            <div>
+                                <h3 class="text-lg font-semibold text-gray-900">${meses[cardapio.mes] || cardapio.mes}/${cardapio.ano}</h3>
+                                <p class="text-sm text-gray-600 mt-1">${cardapio.escola_nome || 'Escola'}</p>
+                                <p class="text-xs text-gray-500 mt-1">Criado por: ${cardapio.criado_por_nome || 'N/A'}</p>
+                            </div>
+                            <div class="flex items-center space-x-3">
+                                <span class="px-3 py-1 rounded-full text-xs font-medium ${statusClass}">
+                                    ${cardapio.status || 'RASCUNHO'}
+                                </span>
+                                <button onclick="verDetalhesCardapio(${cardapio.id})" class="text-primary-green hover:text-green-700 font-medium text-sm">
+                                    Ver Detalhes
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+        
+        function verDetalhesCardapio(id) {
+            fetch(`?acao=buscar_cardapio&id=${id}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success && data.cardapio) {
+                        mostrarModalDetalhesCardapio(data.cardapio);
+                    } else {
+                        alert('Erro ao carregar detalhes do cardápio');
+                    }
+                })
+                .catch(error => {
+                    console.error('Erro:', error);
+                    alert('Erro ao carregar detalhes do cardápio');
+                });
+        }
+        
+        function mostrarModalDetalhesCardapio(cardapio) {
+            const meses = ['', 'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
+            const statusClass = {
+                'RASCUNHO': 'bg-yellow-100 text-yellow-800',
+                'ENVIADO': 'bg-blue-100 text-blue-800',
+                'APROVADO': 'bg-green-100 text-green-800',
+                'REJEITADO': 'bg-red-100 text-red-800'
+            }[cardapio.status] || 'bg-gray-100 text-gray-800';
+            
+            const itensHtml = cardapio.itens && cardapio.itens.length > 0 
+                ? cardapio.itens.map(item => `
+                    <tr class="border-b border-gray-200">
+                        <td class="px-4 py-3">${item.produto_nome || '-'}</td>
+                        <td class="px-4 py-3">${item.quantidade || '-'} ${item.unidade_medida || ''}</td>
+                        <td class="px-4 py-3">${item.observacoes || '-'}</td>
+                    </tr>
+                `).join('')
+                : '<tr><td colspan="3" class="px-4 py-3 text-center text-gray-500">Nenhum item cadastrado</td></tr>';
+            
+            const modalHtml = `
+                <div id="modalDetalhesCardapio" class="fixed inset-0 bg-black bg-opacity-50 z-[70] flex items-center justify-center p-4">
+                    <div class="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+                        <div class="bg-primary-green text-white p-6 flex justify-between items-center sticky top-0">
+                            <h3 class="text-2xl font-bold">Detalhes do Cardápio</h3>
+                            <button onclick="fecharModalDetalhesCardapio()" class="text-white hover:text-gray-200">
+                                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                                </svg>
+                            </button>
+                        </div>
+                        <div class="p-6">
+                            <div class="mb-6">
+                                <div class="grid grid-cols-2 gap-4 mb-4">
+                                    <div>
+                                        <label class="text-sm font-medium text-gray-700">Período</label>
+                                        <p class="text-gray-900">${meses[cardapio.mes] || cardapio.mes}/${cardapio.ano}</p>
+                                    </div>
+                                    <div>
+                                        <label class="text-sm font-medium text-gray-700">Status</label>
+                                        <span class="px-3 py-1 rounded-full text-xs font-medium ${statusClass}">
+                                            ${cardapio.status || 'RASCUNHO'}
+                                        </span>
+                                    </div>
+                                    <div>
+                                        <label class="text-sm font-medium text-gray-700">Escola</label>
+                                        <p class="text-gray-900">${cardapio.escola_nome || '-'}</p>
+                                    </div>
+                                    <div>
+                                        <label class="text-sm font-medium text-gray-700">Criado por</label>
+                                        <p class="text-gray-900">${cardapio.criado_por_nome || 'N/A'}</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div>
+                                <h4 class="text-lg font-semibold mb-4">Itens do Cardápio</h4>
+                                <table class="w-full">
+                                    <thead class="bg-gray-50">
+                                        <tr>
+                                            <th class="px-4 py-3 text-left text-sm font-medium text-gray-700">Produto</th>
+                                            <th class="px-4 py-3 text-left text-sm font-medium text-gray-700">Quantidade</th>
+                                            <th class="px-4 py-3 text-left text-sm font-medium text-gray-700">Observações</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        ${itensHtml}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                        <div class="bg-gray-50 p-6 flex justify-end">
+                            <button onclick="fecharModalDetalhesCardapio()" class="px-6 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700">
+                                Fechar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            document.body.insertAdjacentHTML('beforeend', modalHtml);
+        }
+        
+        function fecharModalDetalhesCardapio() {
+            const modal = document.getElementById('modalDetalhesCardapio');
+            if (modal) {
+                modal.remove();
+            }
+        }
+        
+        // Carregar cardápios ao mostrar a aba
+        const originalMostrarAba = mostrarAba;
+        mostrarAba = function(aba) {
+            originalMostrarAba(aba);
+            if (aba === 'cardapio') {
+                carregarCardapios();
+            }
+        };
+        
+        // Verificar se deve abrir aba de cardápio ou modal de desperdício ao carregar a página
+        window.addEventListener('load', function() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const aba = urlParams.get('aba');
+            const acao = urlParams.get('acao');
+            
+            if (aba === 'cardapio') {
+                setTimeout(() => {
+                    if (typeof mostrarAba === 'function') {
+                        mostrarAba('cardapio');
+                    }
+                }, 200);
+            }
+            
+            if (acao === 'abrir_desperdicio') {
+                setTimeout(() => {
+                    if (typeof abrirModalRegistrarDesperdicio === 'function') {
+                        abrirModalRegistrarDesperdicio();
+                    } else {
+                        // Se a função ainda não estiver disponível, tentar novamente
+                        setTimeout(() => {
+                            if (typeof abrirModalRegistrarDesperdicio === 'function') {
+                                abrirModalRegistrarDesperdicio();
+                            }
+                        }, 500);
+                    }
+                }, 300);
+            }
+        });
+    </script>
+    <?php endif; ?>
+    
+    <?php if ($_SESSION['tipo'] === 'GESTAO' && $escolaGestorId): ?>
+    <!-- Modal Registrar Desperdício -->
+    <div id="modalRegistrarDesperdicio" class="fixed inset-0 bg-black bg-opacity-50 z-[60] hidden items-center justify-center" style="display: none;">
+        <div class="bg-white w-full max-w-4xl max-h-[90vh] overflow-y-auto rounded-2xl shadow-2xl m-4">
+            <div class="bg-red-600 text-white p-6 flex items-center justify-between sticky top-0 z-10">
+                <h3 class="text-2xl font-bold">Registrar Desperdício da Escola</h3>
+                <button onclick="fecharModalRegistrarDesperdicio()" class="text-white hover:text-gray-200 transition-colors p-2 hover:bg-red-700 rounded-lg">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+            </div>
+            
+            <div class="p-6">
+                <form id="formDesperdicio" class="space-y-6">
+                    <div id="alertaErroDesperdicio" class="hidden bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-lg"></div>
+                    <div id="alertaSucessoDesperdicio" class="hidden bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded-lg"></div>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Escola *</label>
+                            <select id="desperdicio-escola-id" required disabled class="w-full px-4 py-2 border border-gray-300 rounded-lg bg-gray-100 focus:ring-2 focus:ring-red-500 focus:border-transparent">
+                                <option value="<?= $escolaGestorId ?>"><?= htmlspecialchars($escolaGestor) ?></option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Data *</label>
+                            <input type="date" id="desperdicio-data" value="<?= date('Y-m-d') ?>" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Produto</label>
+                            <select id="desperdicio-produto-id" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent">
+                                <option value="">Selecione um produto</option>
+                                <?php foreach ($produtos as $produto): ?>
+                                    <option value="<?= $produto['id'] ?>" data-unidade="<?= htmlspecialchars($produto['unidade_medida']) ?>">
+                                        <?= htmlspecialchars($produto['nome']) ?> (<?= htmlspecialchars($produto['unidade_medida']) ?>)
+                                    </option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Turno</label>
+                            <select id="desperdicio-turno" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent">
+                                <option value="">Selecione</option>
+                                <option value="MANHA">Manhã</option>
+                                <option value="TARDE">Tarde</option>
+                                <option value="NOITE">Noite</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Quantidade</label>
+                            <input type="number" step="0.001" min="0" id="desperdicio-quantidade" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Peso (kg) *</label>
+                            <input type="number" step="0.01" min="0" id="desperdicio-peso" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Motivo *</label>
+                            <select id="desperdicio-motivo" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent" onchange="toggleObservacaoDesperdicio()">
+                                <option value="EXCESSO_PREPARO">Excesso de Preparo</option>
+                                <option value="REJEICAO_ALUNOS">Rejeição dos Alunos</option>
+                                <option value="VALIDADE_VENCIDA">Validade Vencida</option>
+                                <option value="PREPARO_INCORRETO">Preparo Incorreto</option>
+                                <option value="OUTROS">Outro</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div id="observacao-desperdicio-container" class="hidden">
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Observação (Motivo "Outro") *</label>
+                        <textarea id="desperdicio-observacoes-outros" rows="3" placeholder="Descreva o motivo do desperdício..." required
+                                  class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent"></textarea>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Observações Adicionais</label>
+                        <textarea id="desperdicio-observacoes" rows="3" placeholder="Observações adicionais sobre o desperdício..."
+                                  class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent"></textarea>
+                    </div>
+                </form>
+            </div>
+            
+            <div class="bg-gray-50 border-t border-gray-200 p-6 sticky bottom-0">
+                <div class="flex space-x-3">
+                    <button onclick="fecharModalRegistrarDesperdicio()" class="flex-1 px-6 py-3 text-gray-700 bg-white border border-gray-300 hover:bg-gray-50 rounded-lg font-medium transition-colors">
+                        Cancelar
+                    </button>
+                    <button onclick="salvarDesperdicio()" class="flex-1 px-6 py-3 text-white bg-red-600 hover:bg-red-700 rounded-lg font-medium transition-colors">
+                        Salvar Registro
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <?php endif; ?>
 </body>
 </html>
 

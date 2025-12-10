@@ -73,6 +73,8 @@ class AlunoModel {
         
         $sql = "SELECT a.*, 
                        p.nome, p.cpf, p.email, p.telefone, p.data_nascimento, p.sexo,
+                       p.nome_social, p.cor,
+                       p.endereco, p.numero, p.complemento, p.bairro, p.cidade, p.estado, p.cep,
                        e.nome as escola_nome, 
                        pes_resp.nome as responsavel_nome
                 FROM aluno a
@@ -106,8 +108,35 @@ class AlunoModel {
             }
             
             // 1. Criar pessoa
-            $sqlPessoa = "INSERT INTO pessoa (cpf, nome, data_nascimento, sexo, email, telefone, tipo, criado_por)
-                         VALUES (:cpf, :nome, :data_nascimento, :sexo, :email, :telefone, 'ALUNO', :criado_por)";
+            // Verificar se os campos nome_social e cor existem na tabela
+            $camposExtras = '';
+            $valoresExtras = '';
+            $paramsExtras = [];
+            
+            try {
+                $stmtCheck = $conn->query("SHOW COLUMNS FROM pessoa LIKE 'nome_social'");
+                $temNomeSocial = $stmtCheck->rowCount() > 0;
+                
+                $stmtCheck = $conn->query("SHOW COLUMNS FROM pessoa LIKE 'cor'");
+                $temCor = $stmtCheck->rowCount() > 0;
+            } catch (Exception $e) {
+                $temNomeSocial = false;
+                $temCor = false;
+            }
+            
+            if ($temNomeSocial) {
+                $camposExtras .= ', nome_social';
+                $valoresExtras .= ', :nome_social';
+            }
+            if ($temCor) {
+                $camposExtras .= ', cor';
+                $valoresExtras .= ', :cor';
+            }
+            
+            $sqlPessoa = "INSERT INTO pessoa (cpf, nome, data_nascimento, sexo, email, telefone, 
+                         endereco, numero, complemento, bairro, cidade, estado, cep{$camposExtras}, tipo, criado_por)
+                         VALUES (:cpf, :nome, :data_nascimento, :sexo, :email, :telefone,
+                         :endereco, :numero, :complemento, :bairro, :cidade, :estado, :cep{$valoresExtras}, 'ALUNO', :criado_por)";
             $stmtPessoa = $conn->prepare($sqlPessoa);
             $stmtPessoa->bindParam(':cpf', $dados['cpf']);
             $stmtPessoa->bindParam(':nome', $dados['nome']);
@@ -115,6 +144,28 @@ class AlunoModel {
             $stmtPessoa->bindParam(':sexo', $dados['sexo']);
             $stmtPessoa->bindParam(':email', $dados['email']);
             $stmtPessoa->bindParam(':telefone', $dados['telefone']);
+            $endereco = isset($dados['endereco']) && !empty($dados['endereco']) ? $dados['endereco'] : null;
+            $numero = isset($dados['numero']) && !empty($dados['numero']) ? $dados['numero'] : null;
+            $complemento = isset($dados['complemento']) && !empty($dados['complemento']) ? $dados['complemento'] : null;
+            $bairro = isset($dados['bairro']) && !empty($dados['bairro']) ? $dados['bairro'] : null;
+            $cidade = isset($dados['cidade']) && !empty($dados['cidade']) ? $dados['cidade'] : null;
+            $estado = isset($dados['estado']) && !empty($dados['estado']) ? $dados['estado'] : 'CE';
+            $cep = isset($dados['cep']) && !empty($dados['cep']) ? $dados['cep'] : null;
+            $stmtPessoa->bindParam(':endereco', $endereco);
+            $stmtPessoa->bindParam(':numero', $numero);
+            $stmtPessoa->bindParam(':complemento', $complemento);
+            $stmtPessoa->bindParam(':bairro', $bairro);
+            $stmtPessoa->bindParam(':cidade', $cidade);
+            $stmtPessoa->bindParam(':estado', $estado);
+            $stmtPessoa->bindParam(':cep', $cep);
+            if ($temNomeSocial) {
+                $nomeSocial = isset($dados['nome_social']) && !empty($dados['nome_social']) ? $dados['nome_social'] : null;
+                $stmtPessoa->bindParam(':nome_social', $nomeSocial);
+            }
+            if ($temCor) {
+                $cor = isset($dados['cor']) && !empty($dados['cor']) ? $dados['cor'] : null;
+                $stmtPessoa->bindParam(':cor', $cor);
+            }
             $stmtPessoa->bindParam(':criado_por', $_SESSION['usuario_id']);
             $stmtPessoa->execute();
             
@@ -179,8 +230,30 @@ class AlunoModel {
             }
             
             // 1. Atualizar pessoa
+            // Verificar se os campos nome_social e cor existem na tabela
+            $camposExtras = '';
+            try {
+                $stmtCheck = $conn->query("SHOW COLUMNS FROM pessoa LIKE 'nome_social'");
+                $temNomeSocial = $stmtCheck->rowCount() > 0;
+                
+                $stmtCheck = $conn->query("SHOW COLUMNS FROM pessoa LIKE 'cor'");
+                $temCor = $stmtCheck->rowCount() > 0;
+            } catch (Exception $e) {
+                $temNomeSocial = false;
+                $temCor = false;
+            }
+            
+            if ($temNomeSocial) {
+                $camposExtras .= ', nome_social = :nome_social';
+            }
+            if ($temCor) {
+                $camposExtras .= ', cor = :cor';
+            }
+            
             $sqlPessoa = "UPDATE pessoa SET nome = :nome, data_nascimento = :data_nascimento, 
-                          sexo = :sexo, email = :email, telefone = :telefone
+                          sexo = :sexo, email = :email, telefone = :telefone,
+                          endereco = :endereco, numero = :numero, complemento = :complemento,
+                          bairro = :bairro, cidade = :cidade, estado = :estado, cep = :cep{$camposExtras}
                           WHERE id = :pessoa_id";
             $stmtPessoa = $conn->prepare($sqlPessoa);
             $stmtPessoa->bindValue(':nome', $dados['nome']);
@@ -188,6 +261,20 @@ class AlunoModel {
             $stmtPessoa->bindValue(':sexo', isset($dados['sexo']) ? $dados['sexo'] : null, isset($dados['sexo']) ? PDO::PARAM_STR : PDO::PARAM_NULL);
             $stmtPessoa->bindValue(':email', isset($dados['email']) ? $dados['email'] : null, isset($dados['email']) ? PDO::PARAM_STR : PDO::PARAM_NULL);
             $stmtPessoa->bindValue(':telefone', isset($dados['telefone']) ? $dados['telefone'] : null, isset($dados['telefone']) ? PDO::PARAM_STR : PDO::PARAM_NULL);
+            $stmtPessoa->bindValue(':endereco', isset($dados['endereco']) && !empty($dados['endereco']) ? $dados['endereco'] : null, isset($dados['endereco']) && !empty($dados['endereco']) ? PDO::PARAM_STR : PDO::PARAM_NULL);
+            $stmtPessoa->bindValue(':numero', isset($dados['numero']) && !empty($dados['numero']) ? $dados['numero'] : null, isset($dados['numero']) && !empty($dados['numero']) ? PDO::PARAM_STR : PDO::PARAM_NULL);
+            $stmtPessoa->bindValue(':complemento', isset($dados['complemento']) && !empty($dados['complemento']) ? $dados['complemento'] : null, isset($dados['complemento']) && !empty($dados['complemento']) ? PDO::PARAM_STR : PDO::PARAM_NULL);
+            $stmtPessoa->bindValue(':bairro', isset($dados['bairro']) && !empty($dados['bairro']) ? $dados['bairro'] : null, isset($dados['bairro']) && !empty($dados['bairro']) ? PDO::PARAM_STR : PDO::PARAM_NULL);
+            $stmtPessoa->bindValue(':cidade', isset($dados['cidade']) && !empty($dados['cidade']) ? $dados['cidade'] : null, isset($dados['cidade']) && !empty($dados['cidade']) ? PDO::PARAM_STR : PDO::PARAM_NULL);
+            $estado = isset($dados['estado']) && !empty($dados['estado']) ? $dados['estado'] : 'CE';
+            $stmtPessoa->bindValue(':estado', $estado);
+            $stmtPessoa->bindValue(':cep', isset($dados['cep']) && !empty($dados['cep']) ? $dados['cep'] : null, isset($dados['cep']) && !empty($dados['cep']) ? PDO::PARAM_STR : PDO::PARAM_NULL);
+            if ($temNomeSocial) {
+                $stmtPessoa->bindValue(':nome_social', isset($dados['nome_social']) && !empty($dados['nome_social']) ? $dados['nome_social'] : null, isset($dados['nome_social']) && !empty($dados['nome_social']) ? PDO::PARAM_STR : PDO::PARAM_NULL);
+            }
+            if ($temCor) {
+                $stmtPessoa->bindValue(':cor', isset($dados['cor']) && !empty($dados['cor']) ? $dados['cor'] : null, isset($dados['cor']) && !empty($dados['cor']) ? PDO::PARAM_STR : PDO::PARAM_NULL);
+            }
             $stmtPessoa->bindValue(':pessoa_id', $pessoaId);
             $stmtPessoa->execute();
             
