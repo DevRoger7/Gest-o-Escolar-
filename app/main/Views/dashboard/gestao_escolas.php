@@ -1,6 +1,7 @@
 <?php
 require_once('../../Models/sessao/sessions.php');
 require_once('../../config/permissions_helper.php');
+require_once('../../Models/academico/ProgramaModel.php');
 
 $session = new sessions();
 $session->autenticar_session();
@@ -228,7 +229,9 @@ function cadastrarEscola($dados)
         $conn->beginTransaction();
 
         // Montar endereço completo
-        $endereco = trim($dados['logradouro'] . ', ' . $dados['numero']);
+        $logradouro = $dados['logradouro'] ?? '';
+        $numero = $dados['numero'] ?? '';
+        $endereco = trim($logradouro . (!empty($numero) ? ', ' . $numero : ''));
         if (!empty($dados['complemento'])) {
             $endereco .= ', ' . $dados['complemento'];
         }
@@ -299,52 +302,74 @@ function cadastrarEscola($dados)
         $stmt->execute();
         $escolaId = $conn->lastInsertId();
 
-        // Se um gestor (usuario) foi selecionado, criar a lotação mapeando para a tabela gestor
+        // Se um gestor foi selecionado, criar a lotação
         if (!empty($dados['gestor_id'])) {
-            // Primeiro, localizar o gestor.id correspondente ao usuario.id informado
-            // Alguns bancos usam nomes no singular/plural. Tentamos encontrar a relação adequada.
-            // 1) Tentar via tabela gestor com coluna usuario_id
-            $gestorId = null;
-            try {
-                $stmt = $conn->prepare("SELECT id FROM gestor WHERE usuario_id = :usuario_id LIMIT 1");
-                $stmt->bindParam(':usuario_id', $dados['gestor_id']);
-                $stmt->execute();
-                $row = $stmt->fetch(PDO::FETCH_ASSOC);
-                if ($row) {
-                    $gestorId = (int)$row['id'];
-                }
-            } catch (PDOException $e) {
-                // Se a tabela/coluna não existir, ignorar e tentar outro caminho
-            }
-
-            // 2) Caso não ache, tentar via ligação por pessoa: gestor.pessoa_id -> usuario.pessoa_id
-            if ($gestorId === null) {
-                try {
-                    $stmt = $conn->prepare("SELECT g.id 
-                                            FROM gestor g 
-                                            INNER JOIN usuario u ON u.pessoa_id = g.pessoa_id 
-                                            WHERE u.id = :usuario_id 
-                                            LIMIT 1");
-                    $stmt->bindParam(':usuario_id', $dados['gestor_id']);
-                    $stmt->execute();
-                    $row = $stmt->fetch(PDO::FETCH_ASSOC);
-                    if ($row) {
-                        $gestorId = (int)$row['id'];
-                    }
-                } catch (PDOException $e) {
-                    // Ignorar e continuar para mensagem de erro amigável
-                }
-            }
-
-            if ($gestorId === null) {
+            // O gestor_id já vem como ID do gestor diretamente (não precisa converter de usuario_id)
+            $gestorId = (int)$dados['gestor_id'];
+            
+            // Verificar se o gestor existe e está ativo
+            $stmt = $conn->prepare("SELECT id FROM gestor WHERE id = :gestor_id AND ativo = 1 LIMIT 1");
+            $stmt->bindParam(':gestor_id', $gestorId, PDO::PARAM_INT);
+            $stmt->execute();
+            $gestorExiste = $stmt->fetch(PDO::FETCH_ASSOC);
+            
+            if (!$gestorExiste) {
                 throw new PDOException('Gestor selecionado não possui cadastro válido em gestor.');
             }
 
+            // Criar a lotação do gestor na escola
             $stmt = $conn->prepare("INSERT INTO gestor_lotacao (gestor_id, escola_id, inicio, responsavel) 
                                     VALUES (:gestor_id, :escola_id, CURDATE(), 1)");
-            $stmt->bindParam(':gestor_id', $gestorId);
-            $stmt->bindParam(':escola_id', $escolaId);
+            $stmt->bindParam(':gestor_id', $gestorId, PDO::PARAM_INT);
+            $stmt->bindParam(':escola_id', $escolaId, PDO::PARAM_INT);
             $stmt->execute();
+        }
+
+        // Se programas foram selecionados, criar as relações na tabela escola_programa
+        if (!empty($dados['programas']) && is_array($dados['programas'])) {
+            // Verificar se a tabela escola_programa existe
+            $stmtCheckTable = $conn->query("SHOW TABLES LIKE 'escola_programa'");
+            $tabelaExiste = $stmtCheckTable->rowCount() > 0;
+            
+            if ($tabelaExiste) {
+                // Verificar quais colunas existem na tabela
+                $stmtCols = $conn->query("SHOW COLUMNS FROM escola_programa");
+                $colunas = $stmtCols->fetchAll(PDO::FETCH_COLUMN);
+                $temColunaAtivo = in_array('ativo', $colunas);
+                
+                // Montar o INSERT baseado nas colunas disponíveis
+                if ($temColunaAtivo) {
+                    $stmt = $conn->prepare("INSERT INTO escola_programa (escola_id, programa_id, ativo) 
+                                            VALUES (:escola_id, :programa_id, 1)");
+                } else {
+                    $stmt = $conn->prepare("INSERT INTO escola_programa (escola_id, programa_id) 
+                                            VALUES (:escola_id, :programa_id)");
+                }
+                
+                foreach ($dados['programas'] as $programaId) {
+                    $programaId = (int)$programaId;
+                    if ($programaId > 0) {
+                        // Verificar se o programa existe e está ativo
+                        $stmtCheck = $conn->prepare("SELECT id FROM programa WHERE id = :programa_id AND ativo = 1 LIMIT 1");
+                        $stmtCheck->bindParam(':programa_id', $programaId, PDO::PARAM_INT);
+                        $stmtCheck->execute();
+                        $programaExiste = $stmtCheck->fetch(PDO::FETCH_ASSOC);
+                        
+                        if ($programaExiste) {
+                            try {
+                                $stmt->bindParam(':escola_id', $escolaId, PDO::PARAM_INT);
+                                $stmt->bindParam(':programa_id', $programaId, PDO::PARAM_INT);
+                                $stmt->execute();
+                            } catch (PDOException $e) {
+                                // Ignorar erro de duplicata (UNIQUE constraint)
+                                if ($e->getCode() != 23000) {
+                                    throw $e;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
         }
 
         $conn->commit();
@@ -417,54 +442,29 @@ function atualizarEscola($id, $dados)
         // Gerenciar lotação do gestor
         // Primeiro, remover lotação atual (se houver)
         $stmt = $conn->prepare("DELETE FROM gestor_lotacao WHERE escola_id = :escola_id AND responsavel = 1");
-        $stmt->bindParam(':escola_id', $id);
+        $stmt->bindParam(':escola_id', $id, PDO::PARAM_INT);
         $stmt->execute();
 
         // Se um novo gestor foi selecionado, criar a lotação
         if (!empty($dados['gestor_id'])) {
-            // Localizar o gestor.id correspondente ao usuario.id informado
-            $gestorId = null;
-
-            // 1) Tentar via tabela gestor com coluna usuario_id
-            try {
-                $stmt = $conn->prepare("SELECT id FROM gestor WHERE usuario_id = :usuario_id LIMIT 1");
-                $stmt->bindParam(':usuario_id', $dados['gestor_id']);
-                $stmt->execute();
-                $row = $stmt->fetch(PDO::FETCH_ASSOC);
-                if ($row) {
-                    $gestorId = (int)$row['id'];
-                }
-            } catch (PDOException $e) {
-                // Se a tabela/coluna não existir, ignorar e tentar outro caminho
-            }
-
-            // 2) Caso não ache, tentar via ligação por pessoa: gestor.pessoa_id -> usuario.pessoa_id
-            if ($gestorId === null) {
-                try {
-                    $stmt = $conn->prepare("SELECT g.id 
-                                            FROM gestor g 
-                                            INNER JOIN usuario u ON u.pessoa_id = g.pessoa_id 
-                                            WHERE u.id = :usuario_id 
-                                            LIMIT 1");
-                    $stmt->bindParam(':usuario_id', $dados['gestor_id']);
-                    $stmt->execute();
-                    $row = $stmt->fetch(PDO::FETCH_ASSOC);
-                    if ($row) {
-                        $gestorId = (int)$row['id'];
-                    }
-                } catch (PDOException $e) {
-                    // Ignorar e continuar para mensagem de erro amigável
-                }
-            }
-
-            if ($gestorId === null) {
+            // O gestor_id já vem como ID do gestor diretamente (não precisa converter de usuario_id)
+            $gestorId = (int)$dados['gestor_id'];
+            
+            // Verificar se o gestor existe e está ativo
+            $stmt = $conn->prepare("SELECT id FROM gestor WHERE id = :gestor_id AND ativo = 1 LIMIT 1");
+            $stmt->bindParam(':gestor_id', $gestorId, PDO::PARAM_INT);
+            $stmt->execute();
+            $gestorExiste = $stmt->fetch(PDO::FETCH_ASSOC);
+            
+            if (!$gestorExiste) {
                 throw new PDOException('Gestor selecionado não possui cadastro válido em gestor.');
             }
 
+            // Criar a lotação do gestor na escola
             $stmt = $conn->prepare("INSERT INTO gestor_lotacao (gestor_id, escola_id, inicio, responsavel) 
                                     VALUES (:gestor_id, :escola_id, CURDATE(), 1)");
-            $stmt->bindParam(':gestor_id', $gestorId);
-            $stmt->bindParam(':escola_id', $id);
+            $stmt->bindParam(':gestor_id', $gestorId, PDO::PARAM_INT);
+            $stmt->bindParam(':escola_id', $id, PDO::PARAM_INT);
             $stmt->execute();
         }
 
@@ -506,19 +506,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (isset($_POST['acao'])) {
         // Cadastrar nova escola
         if ($_POST['acao'] === 'cadastrar') {
-            // Montar endereço completo
-            $endereco = trim(($_POST['logradouro'] ?? '') . ', ' . ($_POST['numero'] ?? ''));
-            if (!empty($_POST['complemento'])) {
-                $endereco .= ', ' . $_POST['complemento'];
-            }
-            if (!empty($_POST['bairro'])) {
-                $endereco .= ', ' . $_POST['bairro'];
-            }
-            
             $dados = [
                 'nome' => $_POST['nome'] ?? '',
-                'endereco' => $endereco,
-                'telefone' => $_POST['telefone_fixo'] ?? $_POST['telefone_movel'] ?? '',
+                'logradouro' => $_POST['logradouro'] ?? '',
+                'numero' => $_POST['numero'] ?? '',
+                'complemento' => $_POST['complemento'] ?? '',
+                'bairro' => $_POST['bairro'] ?? '',
+                'telefone_fixo' => $_POST['telefone_fixo'] ?? '',
+                'telefone_movel' => $_POST['telefone_movel'] ?? '',
                 'email' => $_POST['email'] ?? '',
                 'municipio' => $_POST['municipio'] ?? 'MARANGUAPE',
                 'cep' => $_POST['cep'] ?? '',
@@ -528,7 +523,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 'gestor_id' => $_POST['gestor_id'] ?? null,
                 'inep' => $_POST['inep'] ?? '',
                 'tipo_escola' => $_POST['tipo_escola'] ?? 'NORMAL',
-                'cnpj' => $_POST['cnpj'] ?? ''
+                'cnpj' => $_POST['cnpj'] ?? '',
+                'programas' => $_POST['programas'] ?? []
             ];
 
             $resultado = cadastrarEscola($dados);
@@ -1802,6 +1798,36 @@ if ($_SESSION['tipo'] === 'ADM') {
                                         <input type="text" id="gestor_criterio_acesso" name="gestor_criterio_acesso" readonly class="w-full px-4 py-3 border border-gray-300 rounded-lg bg-gray-50 text-gray-600 cursor-not-allowed" placeholder="Selecione um gestor acima">
                                     </div>
                                 </div>
+                            </div>
+                        </div>
+                        <!-- Seção: Programas Educacionais -->
+                        <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                            <h3 class="text-lg font-semibold text-gray-900 mb-4">Programas Educacionais</h3>
+                            <p class="text-sm text-gray-600 mb-4">Selecione os programas educacionais dos quais esta escola faz parte:</p>
+                            
+                            <div class="space-y-3 max-h-60 overflow-y-auto border border-gray-200 rounded-lg p-4 bg-gray-50" id="lista-programas-escola">
+                                <?php
+                                $programaModel = new ProgramaModel();
+                                $programas = $programaModel->listar(['ativo' => 1]);
+                                
+                                if (empty($programas)): ?>
+                                    <p class="text-sm text-gray-500 text-center py-4">Nenhum programa disponível. Crie programas na seção "Gestão de Programas".</p>
+                                <?php else: ?>
+                                    <?php foreach ($programas as $programa): ?>
+                                        <label class="flex items-center space-x-3 p-3 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 cursor-pointer transition-colors">
+                                            <input type="checkbox" 
+                                                   name="programas[]" 
+                                                   value="<?= $programa['id'] ?>" 
+                                                   class="w-4 h-4 text-primary-green border-gray-300 rounded focus:ring-primary-green">
+                                            <div class="flex-1">
+                                                <div class="font-medium text-gray-900"><?= htmlspecialchars($programa['nome']) ?></div>
+                                                <?php if (!empty($programa['descricao'])): ?>
+                                                    <div class="text-sm text-gray-600"><?= htmlspecialchars($programa['descricao']) ?></div>
+                                                <?php endif; ?>
+                                            </div>
+                                        </label>
+                                    <?php endforeach; ?>
+                                <?php endif; ?>
                             </div>
                         </div>
                         <div class="flex justify-end space-x-3 pt-4">
