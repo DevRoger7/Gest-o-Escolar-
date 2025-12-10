@@ -176,9 +176,9 @@ $nomeSistema = getNomeSistemaCurto();
                 </a>
             </li>
             
-            <!-- Relatórios -->
+            <!-- Visualização -->
             <li class="pt-4">
-                <p class="px-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Relatórios</p>
+                <p class="px-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Visualização</p>
             </li>
             <li>
                 <a href="relatorios_gerais_adm.php" class="menu-item flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700 <?= $currentPage === 'relatorios_gerais_adm.php' ? 'active' : '' ?>">
