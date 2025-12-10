@@ -236,28 +236,32 @@ function cadastrarEscola($dados)
             $endereco .= ', ' . $dados['bairro'];
         }
 
-        // Montar observações com dados do gestor
+        // Montar observações com dados do gestor (se houver gestor_id, buscar dados do gestor)
         $obs = '';
-        if (!empty($dados['gestor_nome'])) {
-            $obs .= "Gestor: " . $dados['gestor_nome'];
-        }
-        if (!empty($dados['gestor_cpf'])) {
-            $obs .= " | CPF: " . $dados['gestor_cpf'];
-        }
-        if (!empty($dados['gestor_cargo'])) {
-            $obs .= " | Cargo: " . $dados['gestor_cargo'];
-        }
-        if (!empty($dados['gestor_email'])) {
-            $obs .= " | Email: " . $dados['gestor_email'];
-        }
-        if (!empty($dados['gestor_inep'])) {
-            $obs .= " | INEP Gestor: " . $dados['gestor_inep'];
-        }
-        if (!empty($dados['gestor_tipo_acesso'])) {
-            $obs .= " | Tipo Acesso: " . $dados['gestor_tipo_acesso'];
-        }
-        if (!empty($dados['gestor_criterio_acesso'])) {
-            $obs .= " | Critério: " . $dados['gestor_criterio_acesso'];
+        if (!empty($dados['gestor_id'])) {
+            // Buscar dados do gestor no banco
+            $db = Database::getInstance();
+            $conn = $db->getConnection();
+            $stmt = $conn->prepare("SELECT g.id, p.nome, p.cpf, p.email, g.cargo 
+                                    FROM gestor g 
+                                    INNER JOIN pessoa p ON g.pessoa_id = p.id 
+                                    WHERE g.id = :gestor_id");
+            $stmt->bindParam(':gestor_id', $dados['gestor_id']);
+            $stmt->execute();
+            $gestor = $stmt->fetch(PDO::FETCH_ASSOC);
+            
+            if ($gestor) {
+                $obs .= "Gestor: " . $gestor['nome'];
+                if (!empty($gestor['cpf'])) {
+                    $obs .= " | CPF: " . $gestor['cpf'];
+                }
+                if (!empty($gestor['cargo'])) {
+                    $obs .= " | Cargo: " . $gestor['cargo'];
+                }
+                if (!empty($gestor['email'])) {
+                    $obs .= " | Email: " . $gestor['email'];
+                }
+            }
         }
         if (!empty($dados['inep'])) {
             $obs .= " | INEP Escola: " . $dados['inep'];
@@ -265,23 +269,32 @@ function cadastrarEscola($dados)
         if (!empty($dados['tipo_escola'])) {
             $obs .= " | Tipo: " . $dados['tipo_escola'];
         }
+        if (!empty($dados['cnpj'])) {
+            $obs .= " | CNPJ: " . $dados['cnpj'];
+        }
 
         // Gerar código único se não fornecido
         $codigo = !empty($dados['codigo']) ? $dados['codigo'] : 'ESC' . date('YmdHis');
 
         // Inserir escola
-        $stmt = $conn->prepare("INSERT INTO escola (nome, endereco, telefone, email, municipio, cep, qtd_salas, obs, codigo) 
-                                VALUES (:nome, :endereco, :telefone, :email, :municipio, :cep, :qtd_salas, :obs, :codigo)");
+        $cnpj = !empty($dados['cnpj']) ? $dados['cnpj'] : null;
+        $stmt = $conn->prepare("INSERT INTO escola (nome, endereco, telefone, email, municipio, cep, qtd_salas, obs, codigo, cnpj) 
+                                VALUES (:nome, :endereco, :telefone, :email, :municipio, :cep, :qtd_salas, :obs, :codigo, :cnpj)");
 
+        $telefone = $dados['telefone_fixo'] ?? $dados['telefone_movel'] ?? '';
+        $municipio = $dados['municipio'] ?? 'MARANGUAPE';
+        $qtdSalas = $dados['qtd_salas'] ?? 0;
+        
         $stmt->bindParam(':nome', $dados['nome']);
         $stmt->bindParam(':endereco', $endereco);
-        $stmt->bindParam(':telefone', $dados['telefone_fixo'] ?? $dados['telefone_movel']);
+        $stmt->bindParam(':telefone', $telefone);
         $stmt->bindParam(':email', $dados['email']);
-        $stmt->bindParam(':municipio', $dados['municipio'] ?? 'MARANGUAPE');
+        $stmt->bindParam(':municipio', $municipio);
         $stmt->bindParam(':cep', $dados['cep']);
-        $stmt->bindParam(':qtd_salas', $dados['qtd_salas'] ?? 0);
+        $stmt->bindParam(':qtd_salas', $qtdSalas, PDO::PARAM_INT);
         $stmt->bindParam(':obs', $obs);
         $stmt->bindParam(':codigo', $codigo);
+        $stmt->bindParam(':cnpj', $cnpj);
 
         $stmt->execute();
         $escolaId = $conn->lastInsertId();
@@ -373,6 +386,7 @@ function atualizarEscola($id, $dados)
         $conn->beginTransaction();
 
         // Atualizar dados da escola
+        $cnpj = !empty($dados['cnpj']) ? $dados['cnpj'] : null;
         $stmt = $conn->prepare("UPDATE escola SET 
                                 nome = :nome, 
                                 endereco = :endereco, 
@@ -382,7 +396,8 @@ function atualizarEscola($id, $dados)
                                 cep = :cep, 
                                 qtd_salas = :qtd_salas, 
                                 obs = :obs, 
-                                codigo = :codigo 
+                                codigo = :codigo,
+                                cnpj = :cnpj 
                                 WHERE id = :id");
 
         $stmt->bindParam(':id', $id);
@@ -395,6 +410,7 @@ function atualizarEscola($id, $dados)
         $stmt->bindParam(':qtd_salas', $dados['qtd_salas']);
         $stmt->bindParam(':obs', $dados['obs']);
         $stmt->bindParam(':codigo', $dados['codigo']);
+        $stmt->bindParam(':cnpj', $cnpj);
 
         $stmt->execute();
 
@@ -490,17 +506,29 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (isset($_POST['acao'])) {
         // Cadastrar nova escola
         if ($_POST['acao'] === 'cadastrar') {
+            // Montar endereço completo
+            $endereco = trim(($_POST['logradouro'] ?? '') . ', ' . ($_POST['numero'] ?? ''));
+            if (!empty($_POST['complemento'])) {
+                $endereco .= ', ' . $_POST['complemento'];
+            }
+            if (!empty($_POST['bairro'])) {
+                $endereco .= ', ' . $_POST['bairro'];
+            }
+            
             $dados = [
                 'nome' => $_POST['nome'] ?? '',
-                'endereco' => $_POST['endereco'] ?? '',
-                'telefone' => $_POST['telefone'] ?? '',
+                'endereco' => $endereco,
+                'telefone' => $_POST['telefone_fixo'] ?? $_POST['telefone_movel'] ?? '',
                 'email' => $_POST['email'] ?? '',
-                'municipio' => $_POST['municipio'] ?? '',
+                'municipio' => $_POST['municipio'] ?? 'MARANGUAPE',
                 'cep' => $_POST['cep'] ?? '',
                 'qtd_salas' => $_POST['qtd_salas'] ?? null,
-                'obs' => $_POST['obs'] ?? '',
+                'obs' => '',
                 'codigo' => $_POST['codigo'] ?? '',
-                'gestor_id' => $_POST['gestor_id'] ?? null
+                'gestor_id' => $_POST['gestor_id'] ?? null,
+                'inep' => $_POST['inep'] ?? '',
+                'tipo_escola' => $_POST['tipo_escola'] ?? 'NORMAL',
+                'cnpj' => $_POST['cnpj'] ?? ''
             ];
 
             $resultado = cadastrarEscola($dados);
@@ -532,7 +560,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 'qtd_salas' => $_POST['qtd_salas'] ?? null,
                 'obs' => $obs,
                 'codigo' => $_POST['codigo'] ?? '',
-                'gestor_id' => $_POST['gestor_id'] ?? null
+                'gestor_id' => $_POST['gestor_id'] ?? null,
+                'cnpj' => $_POST['cnpj'] ?? ''
             ];
 
             $resultado = atualizarEscola($_POST['id'], $dados);
@@ -681,10 +710,6 @@ $escolas = listarEscolas($busca);
         }
         
         /* Estilos para botões de salvar */
-        button[type="submit"]:not(:disabled) {
-            /* Animação removida */
-        }
-        
         button[type="submit"]:disabled {
             animation: none;
             box-shadow: none;
@@ -1631,6 +1656,13 @@ if ($_SESSION['tipo'] === 'ADM') {
                                     <label for="codigo" class="block text-sm font-medium text-gray-700 mb-2">Código da Escola</label>
                                     <input type="text" id="codigo" name="codigo" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-green focus:border-transparent transition-colors" placeholder="Deixe vazio para gerar automaticamente">
                                 </div>
+                                <div>
+                                    <label for="cnpj" class="block text-sm font-medium text-gray-700 mb-2">CNPJ</label>
+                                    <input type="text" id="cnpj" name="cnpj" maxlength="18" 
+                                           oninput="formatarCNPJ(this)" 
+                                           class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-green focus:border-transparent transition-colors" 
+                                           placeholder="00.000.000/0000-00">
+                                </div>
                             </div>
                         </div>
                         <!-- Seção: Classificação -->
@@ -1640,7 +1672,7 @@ if ($_SESSION['tipo'] === 'ADM') {
                                 <div>
                                     <label for="tipo_escola" class="block text-sm font-medium text-gray-700 mb-2">Tipo de Escola *</label>
                                     <select id="tipo_escola" name="tipo_escola" required class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-green focus:border-transparent transition-colors">
-                                        <option value="NORMAL">NORMAL</option>
+                                        <option value="NORMAL">REGULAR</option>
                                         <option value="ESPECIAL">ESPECIAL</option>
                                         <option value="INDIGENA">INDÍGENA</option>
                                         <option value="QUILOMBOLA">QUILOMBOLA</option>
@@ -1659,7 +1691,12 @@ if ($_SESSION['tipo'] === 'ADM') {
                             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                                 <div>
                                     <label for="cep" class="block text-sm font-medium text-gray-700 mb-2">CEP</label>
-                                    <input type="text" id="cep" name="cep" maxlength="9" onkeyup="formatarCEPCadastro(this)" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-green focus:border-transparent transition-colors" placeholder="67.030-180">
+                                    <input type="text" id="cep" name="cep" maxlength="9" 
+                                           oninput="formatarCEPCadastro(this)" 
+                                           onblur="buscarCEPCadastro(this.value)"
+                                           class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-green focus:border-transparent transition-colors" 
+                                           placeholder="67.030-180">
+                                    <div id="resultadoCEPCadastro" class="mt-2 text-sm hidden"></div>
                                 </div>
                                 <div class="md:col-span-2">
                                     <label for="logradouro" class="block text-sm font-medium text-gray-700 mb-2">Logradouro</label>
@@ -1704,44 +1741,66 @@ if ($_SESSION['tipo'] === 'ADM') {
                         <!-- Seção: Dados do Gestor -->
                         <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
                             <h3 class="text-lg font-semibold text-gray-900 mb-4">Dados do Gestor</h3>
-                            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div class="space-y-6">
+                                <!-- Campo de Busca do Gestor -->
                                 <div>
-                                    <label for="gestor_cpf" class="block text-sm font-medium text-gray-700 mb-2">CPF do Gestor</label>
-                                    <input type="text" id="gestor_cpf" name="gestor_cpf" maxlength="14" onkeyup="formatarCPF(this)" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-green focus:border-transparent transition-colors" placeholder="845.558.662-15">
+                                    <label for="buscar_gestor_cadastro" class="block text-sm font-medium text-gray-700 mb-2">
+                                        Buscar Gestor <span class="text-red-500">*</span>
+                                    </label>
+                                    <div class="relative">
+                                        <input type="text" id="buscar_gestor_cadastro" 
+                                               class="w-full px-4 py-3 pl-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-green focus:border-transparent transition-colors" 
+                                               placeholder="Digite o nome ou CPF do gestor..."
+                                               autocomplete="off"
+                                               oninput="buscarGestorCadastro(this.value)"
+                                               onfocus="mostrarSugestoesGestorCadastro()"
+                                               onblur="esconderSugestoesGestorCadastro()"
+                                               onkeydown="navegarSugestoesGestorCadastro(event)">
+                                        <svg class="w-5 h-5 text-gray-400 absolute left-3 top-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                                        </svg>
+                                        <!-- Lista de sugestões -->
+                                        <div id="sugestoes_gestor_cadastro" class="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto hidden">
+                                            <!-- Sugestões serão inseridas aqui -->
+                                        </div>
+                                    </div>
+                                    <input type="hidden" id="gestor_id" name="gestor_id">
                                 </div>
-                                <div>
-                                    <label for="gestor_nome" class="block text-sm font-medium text-gray-700 mb-2">Nome do Gestor</label>
-                                    <input type="text" id="gestor_nome" name="gestor_nome" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-green focus:border-transparent transition-colors" placeholder="JOSE LUIZ SOUZA">
-                                </div>
-                                <div>
-                                    <label for="gestor_email" class="block text-sm font-medium text-gray-700 mb-2">E-mail do Gestor</label>
-                                    <input type="email" id="gestor_email" name="gestor_email" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-green focus:border-transparent transition-colors" placeholder="gestor@escola.com.br">
-                                </div>
-                                <div>
-                                    <label for="gestor_inep" class="block text-sm font-medium text-gray-700 mb-2">INEP do Gestor</label>
-                                    <input type="text" id="gestor_inep" name="gestor_inep" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-green focus:border-transparent transition-colors" placeholder="Código INEP do gestor">
-                                </div>
-                                <div>
-                                    <label for="gestor_cargo" class="block text-sm font-medium text-gray-700 mb-2">Cargo</label>
-                                    <select id="gestor_cargo" name="gestor_cargo" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-green focus:border-transparent transition-colors">
-                                        <option value="OUTRO_CARGO">OUTRO CARGO</option>
-                                        <option value="DIRETOR">DIRETOR</option>
-                                        <option value="VICE_DIRETOR">VICE-DIRETOR</option>
-                                        <option value="COORDENADOR">COORDENADOR</option>
-                                    </select>
-                                </div>
-                                <div>
-                                    <label for="gestor_tipo_acesso" class="block text-sm font-medium text-gray-700 mb-2">Tipo de Acesso</label>
-                                    <select id="gestor_tipo_acesso" name="gestor_tipo_acesso" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-green focus:border-transparent transition-colors">
-                                        <option value="OUTROS">OUTROS</option>
-                                        <option value="CONCURSO">CONCURSO</option>
-                                        <option value="PROVIMENTO">PROVIMENTO</option>
-                                        <option value="NOMEACAO">NOMEAÇÃO</option>
-                                    </select>
-                                </div>
-                                <div class="md:col-span-2">
-                                    <label for="gestor_criterio_acesso" class="block text-sm font-medium text-gray-700 mb-2">Critério de Acesso</label>
-                                    <input type="text" id="gestor_criterio_acesso" name="gestor_criterio_acesso" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-green focus:border-transparent transition-colors" placeholder="Descreva o critério de acesso ao cargo">
+                                
+                                <!-- Campos de Dados do Gestor (Readonly) -->
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    <div>
+                                        <label for="gestor_cpf" class="block text-sm font-medium text-gray-700 mb-2">CPF do Gestor</label>
+                                        <input type="text" id="gestor_cpf" name="gestor_cpf" readonly class="w-full px-4 py-3 border border-gray-300 rounded-lg bg-gray-50 text-gray-600 cursor-not-allowed" placeholder="Selecione um gestor acima">
+                                    </div>
+                                    <div>
+                                        <label for="gestor_nome" class="block text-sm font-medium text-gray-700 mb-2">Nome do Gestor</label>
+                                        <input type="text" id="gestor_nome" name="gestor_nome" readonly class="w-full px-4 py-3 border border-gray-300 rounded-lg bg-gray-50 text-gray-600 cursor-not-allowed" placeholder="Selecione um gestor acima">
+                                    </div>
+                                    <div>
+                                        <label for="gestor_email" class="block text-sm font-medium text-gray-700 mb-2">E-mail do Gestor</label>
+                                        <input type="email" id="gestor_email" name="gestor_email" readonly class="w-full px-4 py-3 border border-gray-300 rounded-lg bg-gray-50 text-gray-600 cursor-not-allowed" placeholder="Selecione um gestor acima">
+                                    </div>
+                                    <div>
+                                        <label for="gestor_telefone" class="block text-sm font-medium text-gray-700 mb-2">Telefone do Gestor</label>
+                                        <input type="text" id="gestor_telefone" name="gestor_telefone" readonly class="w-full px-4 py-3 border border-gray-300 rounded-lg bg-gray-50 text-gray-600 cursor-not-allowed" placeholder="Selecione um gestor acima">
+                                    </div>
+                                    <div>
+                                        <label for="gestor_inep" class="block text-sm font-medium text-gray-700 mb-2">INEP do Gestor</label>
+                                        <input type="text" id="gestor_inep" name="gestor_inep" readonly class="w-full px-4 py-3 border border-gray-300 rounded-lg bg-gray-50 text-gray-600 cursor-not-allowed" placeholder="Selecione um gestor acima">
+                                    </div>
+                                    <div>
+                                        <label for="gestor_cargo" class="block text-sm font-medium text-gray-700 mb-2">Cargo</label>
+                                        <input type="text" id="gestor_cargo" name="gestor_cargo" readonly class="w-full px-4 py-3 border border-gray-300 rounded-lg bg-gray-50 text-gray-600 cursor-not-allowed" placeholder="Selecione um gestor acima">
+                                    </div>
+                                    <div>
+                                        <label for="gestor_tipo_acesso" class="block text-sm font-medium text-gray-700 mb-2">Tipo de Acesso</label>
+                                        <input type="text" id="gestor_tipo_acesso" name="gestor_tipo_acesso" readonly class="w-full px-4 py-3 border border-gray-300 rounded-lg bg-gray-50 text-gray-600 cursor-not-allowed" placeholder="Selecione um gestor acima">
+                                    </div>
+                                    <div>
+                                        <label for="gestor_criterio_acesso" class="block text-sm font-medium text-gray-700 mb-2">Critério de Acesso</label>
+                                        <input type="text" id="gestor_criterio_acesso" name="gestor_criterio_acesso" readonly class="w-full px-4 py-3 border border-gray-300 rounded-lg bg-gray-50 text-gray-600 cursor-not-allowed" placeholder="Selecione um gestor acima">
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -2242,6 +2301,15 @@ if ($_SESSION['tipo'] === 'ADM') {
                                                class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-green focus:border-transparent transition-colors"
                                                placeholder="Código da escola">
                                     </div>
+                                    <div>
+                                        <label for="edit_cnpj" class="block text-sm font-medium text-gray-700 mb-2">
+                                            CNPJ
+                                        </label>
+                                        <input type="text" id="edit_cnpj" name="cnpj" maxlength="18" 
+                                               oninput="formatarCNPJ(this)"
+                                               class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-green focus:border-transparent transition-colors"
+                                               placeholder="00.000.000/0000-00">
+                                    </div>
                                 </div>
                             </div>
 
@@ -2284,9 +2352,12 @@ if ($_SESSION['tipo'] === 'ADM') {
                                         <label for="edit_cep" class="block text-sm font-medium text-gray-700 mb-2">
                                             CEP
                                         </label>
-                                        <input type="text" id="edit_cep" name="cep" maxlength="9" onkeyup="formatarCEP(this)"
+                                        <input type="text" id="edit_cep" name="cep" maxlength="9" 
+                                               oninput="formatarCEPEdicao(this)"
+                                               onblur="buscarCEPEdicao(this.value)"
                                                class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-green focus:border-transparent transition-colors"
                                                placeholder="67.030-180">
+                                        <div id="resultadoCEPEdicao" class="mt-2 text-sm hidden"></div>
                                     </div>
                                     
                                     <div class="md:col-span-2">
@@ -2861,6 +2932,7 @@ if ($_SESSION['tipo'] === 'ADM') {
                     document.getElementById('edit_cep').value = escola.cep || '';
                     document.getElementById('edit_qtd_salas').value = escola.qtd_salas || '';
                     document.getElementById('edit_codigo').value = escola.codigo || '';
+                    document.getElementById('edit_cnpj').value = escola.cnpj || '';
                     
                     // Preencher campos padrão
                     document.getElementById('edit_nome_curto').value = '';
@@ -3368,19 +3440,32 @@ if ($_SESSION['tipo'] === 'ADM') {
             return [];
         }
 
-        // Funções de CEP
-        function formatarCEP(input) {
+        // Funções de CEP para edição
+        function formatarCEPEdicao(input) {
             let valor = input.value.replace(/\D/g, '');
-            valor = valor.replace(/(\d{5})(\d)/, '$1-$2');
+            // Limitar a 8 dígitos
+            if (valor.length > 8) {
+                valor = valor.substring(0, 8);
+            }
+            // Aplicar máscara: 00000-000
+            if (valor.length > 5) {
+                valor = valor.replace(/(\d{5})(\d{0,3})/, '$1-$2');
+            }
             input.value = valor;
+            
+            // Se o CEP tiver 9 caracteres (8 dígitos + hífen), buscar automaticamente
+            if (input.value.length === 9) {
+                buscarCEPEdicao(input.value);
+            }
         }
 
-        async function buscarCEP(cep) {
-            const cepInput = document.getElementById('edit_cep');
-            const resultadoCEP = document.getElementById('resultadoCEP');
+        async function buscarCEPEdicao(cep) {
+            const resultadoCEP = document.getElementById('resultadoCEPEdicao');
             
-            if (!cep || cep.length < 8) {
-                resultadoCEP.classList.add('hidden');
+            if (!cep) {
+                if (resultadoCEP) {
+                    resultadoCEP.classList.add('hidden');
+                }
                 return;
             }
 
@@ -3388,34 +3473,59 @@ if ($_SESSION['tipo'] === 'ADM') {
             const cepLimpo = cep.replace(/\D/g, '');
             
             if (cepLimpo.length !== 8) {
-                resultadoCEP.innerHTML = '<span class="text-red-600">CEP deve ter 8 dígitos</span>';
-                resultadoCEP.classList.remove('hidden');
+                if (resultadoCEP) {
+                    resultadoCEP.innerHTML = '<span class="text-red-600">CEP deve ter 8 dígitos</span>';
+                    resultadoCEP.classList.remove('hidden');
+                }
                 return;
             }
 
             try {
-                resultadoCEP.innerHTML = '<span class="text-blue-600">Buscando...</span>';
-                resultadoCEP.classList.remove('hidden');
+                if (resultadoCEP) {
+                    resultadoCEP.innerHTML = '<span class="text-blue-600">Buscando CEP...</span>';
+                    resultadoCEP.classList.remove('hidden');
+                }
 
                 const response = await fetch(`https://viacep.com.br/ws/${cepLimpo}/json/`);
                 const data = await response.json();
 
                 if (data.erro) {
-                    resultadoCEP.innerHTML = '<span class="text-red-600">CEP não encontrado</span>';
+                    if (resultadoCEP) {
+                        resultadoCEP.innerHTML = '<span class="text-red-600">CEP não encontrado</span>';
+                    }
                 } else {
                     // Preencher campos automaticamente
-                    document.getElementById('edit_endereco').value = `${data.logradouro}, ${data.bairro}`;
-                    document.getElementById('edit_municipio').value = data.localidade;
+                    const logradouroField = document.getElementById('edit_logradouro');
+                    const bairroField = document.getElementById('edit_bairro');
                     
-                    resultadoCEP.innerHTML = `
-                        <span class="text-green-600">
-                            <strong>${data.logradouro}</strong><br>
-                            ${data.bairro} - ${data.localidade}/${data.uf}
-                        </span>
-                    `;
+                    if (logradouroField) {
+                        logradouroField.value = data.logradouro || '';
+                    }
+                    if (bairroField) {
+                        bairroField.value = data.bairro || '';
+                    }
+                    
+                    if (resultadoCEP) {
+                        resultadoCEP.innerHTML = `
+                            <span class="text-green-600">
+                                <svg class="w-4 h-4 inline mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                                </svg>
+                                Endereço preenchido: ${data.logradouro || ''} - ${data.bairro || ''}, ${data.localidade || ''}/${data.uf || ''}
+                            </span>
+                        `;
+                        // Ocultar mensagem após 5 segundos
+                        setTimeout(() => {
+                            if (resultadoCEP) {
+                                resultadoCEP.classList.add('hidden');
+                            }
+                        }, 5000);
+                    }
                 }
             } catch (error) {
-                resultadoCEP.innerHTML = '<span class="text-red-600">Erro ao buscar CEP</span>';
+                if (resultadoCEP) {
+                    resultadoCEP.innerHTML = '<span class="text-red-600">Erro ao buscar CEP. Tente novamente.</span>';
+                }
                 console.error('Erro na busca do CEP:', error);
             }
         }
@@ -3423,8 +3533,20 @@ if ($_SESSION['tipo'] === 'ADM') {
         // Funções de CEP para o formulário de cadastro
         function formatarCEPCadastro(input) {
             let valor = input.value.replace(/\D/g, '');
-            valor = valor.replace(/(\d{5})(\d)/, '$1-$2');
+            // Limitar a 8 dígitos
+            if (valor.length > 8) {
+                valor = valor.substring(0, 8);
+            }
+            // Aplicar máscara: 00000-000
+            if (valor.length > 5) {
+                valor = valor.replace(/(\d{5})(\d{0,3})/, '$1-$2');
+            }
             input.value = valor;
+            
+            // Se o CEP tiver 9 caracteres (8 dígitos + hífen), buscar automaticamente
+            if (input.value.length === 9) {
+                buscarCEPCadastro(input.value);
+            }
         }
 
         // Máscaras para os campos do gestor
@@ -3434,6 +3556,26 @@ if ($_SESSION['tipo'] === 'ADM') {
             valor = valor.replace(/(\d{3})(\d)/, '$1.$2');
             valor = valor.replace(/(\d{3})(\d{1,2})$/, '$1-$2');
             input.value = valor;
+        }
+
+        function formatarCNPJ(input) {
+            let valor = input.value.replace(/\D/g, '');
+            // Limitar a 14 dígitos
+            if (valor.length > 14) {
+                valor = valor.substring(0, 14);
+            }
+            // Aplicar máscara: 00.000.000/0000-00
+            if (valor.length <= 2) {
+                input.value = valor;
+            } else if (valor.length <= 5) {
+                input.value = valor.replace(/(\d{2})(\d+)/, '$1.$2');
+            } else if (valor.length <= 8) {
+                input.value = valor.replace(/(\d{2})(\d{3})(\d+)/, '$1.$2.$3');
+            } else if (valor.length <= 12) {
+                input.value = valor.replace(/(\d{2})(\d{3})(\d{3})(\d+)/, '$1.$2.$3/$4');
+            } else {
+                input.value = valor.replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/, '$1.$2.$3/$4-$5');
+            }
         }
 
         function formatarTelefone(input) {
@@ -3449,11 +3591,12 @@ if ($_SESSION['tipo'] === 'ADM') {
         }
 
         async function buscarCEPCadastro(cep) {
-            const cepInput = document.getElementById('cep');
             const resultadoCEP = document.getElementById('resultadoCEPCadastro');
             
-            if (!cep || cep.length < 8) {
-                resultadoCEP.classList.add('hidden');
+            if (!cep) {
+                if (resultadoCEP) {
+                    resultadoCEP.classList.add('hidden');
+                }
                 return;
             }
 
@@ -3461,44 +3604,243 @@ if ($_SESSION['tipo'] === 'ADM') {
             const cepLimpo = cep.replace(/\D/g, '');
             
             if (cepLimpo.length !== 8) {
-                resultadoCEP.innerHTML = '<span class="text-red-600">CEP deve ter 8 dígitos</span>';
-                resultadoCEP.classList.remove('hidden');
+                if (resultadoCEP) {
+                    resultadoCEP.innerHTML = '<span class="text-red-600">CEP deve ter 8 dígitos</span>';
+                    resultadoCEP.classList.remove('hidden');
+                }
                 return;
             }
 
             try {
-                resultadoCEP.innerHTML = '<span class="text-blue-600">Buscando...</span>';
-                resultadoCEP.classList.remove('hidden');
+                if (resultadoCEP) {
+                    resultadoCEP.innerHTML = '<span class="text-blue-600">Buscando CEP...</span>';
+                    resultadoCEP.classList.remove('hidden');
+                }
 
                 const response = await fetch(`https://viacep.com.br/ws/${cepLimpo}/json/`);
                 const data = await response.json();
 
                 if (data.erro) {
-                    resultadoCEP.innerHTML = '<span class="text-red-600">CEP não encontrado</span>';
+                    if (resultadoCEP) {
+                        resultadoCEP.innerHTML = '<span class="text-red-600">CEP não encontrado</span>';
+                    }
                 } else {
                     // Preencher campos automaticamente
-                    document.getElementById('logradouro').value = data.logradouro || '';
-                    document.getElementById('bairro').value = data.bairro || '';
+                    const logradouroField = document.getElementById('logradouro');
+                    const bairroField = document.getElementById('bairro');
                     
-                    resultadoCEP.innerHTML = `
-                        <span class="text-green-600">
-                            <svg class="w-4 h-4 inline mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
-                            </svg>
-                            Endereço preenchido automaticamente
-                        </span>
-                    `;
+                    if (logradouroField) {
+                        logradouroField.value = data.logradouro || '';
+                    }
+                    if (bairroField) {
+                        bairroField.value = data.bairro || '';
+                    }
+                    
+                    if (resultadoCEP) {
+                        resultadoCEP.innerHTML = `
+                            <span class="text-green-600">
+                                <svg class="w-4 h-4 inline mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                                </svg>
+                                Endereço preenchido automaticamente: ${data.logradouro || ''} - ${data.bairro || ''}, ${data.localidade || ''}/${data.uf || ''}
+                            </span>
+                        `;
+                        // Ocultar mensagem após 5 segundos
+                        setTimeout(() => {
+                            if (resultadoCEP) {
+                                resultadoCEP.classList.add('hidden');
+                            }
+                        }, 5000);
+                    }
                 }
             } catch (error) {
-                resultadoCEP.innerHTML = '<span class="text-red-600">Erro ao buscar CEP</span>';
+                if (resultadoCEP) {
+                    resultadoCEP.innerHTML = '<span class="text-red-600">Erro ao buscar CEP. Tente novamente.</span>';
+                }
                 console.error('Erro na busca do CEP:', error);
             }
+        }
+
+        // ===== FUNÇÕES PARA BUSCA E SELEÇÃO DE GESTOR NO CADASTRO =====
+        let sugestaoAtivaGestorCadastro = -1;
+
+        function buscarGestorCadastro(termo) {
+            const sugestoes = document.getElementById('sugestoes_gestor_cadastro');
+            const termoLower = termo.toLowerCase().trim();
+            
+            // Limpar seleção anterior
+            document.getElementById('gestor_id').value = '';
+            limparCamposGestor();
+            
+            if (termo.length < 2) {
+                sugestoes.classList.add('hidden');
+                return;
+            }
+            
+            fetch(`../../Controllers/gestao/GestorController.php?busca=${encodeURIComponent(termo)}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status && data.gestores && data.gestores.length > 0) {
+                        let htmlSugestoes = '';
+                        data.gestores.forEach((gestor, index) => {
+                            const nomeGestor = gestor.nome || '';
+                            const termoRegex = new RegExp(`(${termo.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
+                            const nomeDestacado = nomeGestor.replace(termoRegex, '<span style="color: #059669; font-weight: bold;">$1</span>');
+                            
+                            htmlSugestoes += `
+                                <div class="sugestao-item px-4 py-2 cursor-pointer hover:bg-gray-50 border-b border-gray-100 last:border-b-0 transition-all duration-200" 
+                                     data-index="${index}" 
+                                     data-id="${gestor.gestor_id}" 
+                                     data-nome="${nomeGestor}"
+                                     onclick="selecionarGestorCadastro('${gestor.gestor_id}')">
+                                    <div class="font-medium text-gray-900">${nomeDestacado}</div>
+                                    <div class="text-sm text-gray-500">${gestor.email || 'Sem e-mail'} ${gestor.cpf ? '| CPF: ' + gestor.cpf : ''}</div>
+                                </div>
+                            `;
+                        });
+                        sugestoes.innerHTML = htmlSugestoes;
+                        sugestoes.classList.remove('hidden');
+                        sugestaoAtivaGestorCadastro = -1;
+                    } else {
+                        sugestoes.innerHTML = '<div class="p-3 text-sm text-gray-500 text-center">Nenhum gestor encontrado</div>';
+                        sugestoes.classList.remove('hidden');
+                    }
+                })
+                .catch(error => {
+                    console.error('Erro ao buscar gestores:', error);
+                    sugestoes.innerHTML = '<div class="p-3 text-sm text-red-500 text-center">Erro ao buscar gestores</div>';
+                    sugestoes.classList.remove('hidden');
+                });
+        }
+
+        function selecionarGestorCadastro(gestorId) {
+            document.getElementById('gestor_id').value = gestorId;
+            document.getElementById('sugestoes_gestor_cadastro').classList.add('hidden');
+            
+            // Buscar dados completos do gestor
+            fetch(`../../Controllers/gestao/GestorController.php?acao=buscar_por_id&gestor_id=${gestorId}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status && data.gestor) {
+                        preencherCamposGestor(data.gestor);
+                    } else {
+                        alert('Erro ao carregar dados do gestor.');
+                    }
+                })
+                .catch(error => {
+                    console.error('Erro ao buscar dados do gestor:', error);
+                    alert('Erro ao carregar dados do gestor.');
+                });
+        }
+
+        function preencherCamposGestor(gestor) {
+            // Preencher campos com dados do gestor ou "Não informado"
+            document.getElementById('gestor_cpf').value = gestor.cpf ? formatarCPFTexto(gestor.cpf) : 'Não informado';
+            document.getElementById('gestor_nome').value = gestor.nome || 'Não informado';
+            document.getElementById('gestor_email').value = gestor.email || 'Não informado';
+            document.getElementById('gestor_telefone').value = gestor.telefone ? formatarTelefoneTexto(gestor.telefone) : 'Não informado';
+            document.getElementById('gestor_inep').value = 'Não informado';
+            document.getElementById('gestor_cargo').value = gestor.cargo || 'Não informado';
+            document.getElementById('gestor_tipo_acesso').value = 'Não informado';
+            document.getElementById('gestor_criterio_acesso').value = 'Não informado';
+            
+            // Atualizar campo de busca com o nome do gestor
+            document.getElementById('buscar_gestor_cadastro').value = gestor.nome || '';
+        }
+
+        function limparCamposGestor() {
+            document.getElementById('gestor_cpf').value = '';
+            document.getElementById('gestor_nome').value = '';
+            document.getElementById('gestor_email').value = '';
+            document.getElementById('gestor_telefone').value = '';
+            document.getElementById('gestor_inep').value = '';
+            document.getElementById('gestor_cargo').value = '';
+            document.getElementById('gestor_tipo_acesso').value = '';
+            document.getElementById('gestor_criterio_acesso').value = '';
+        }
+
+        function formatarCPFTexto(cpf) {
+            if (!cpf) return '';
+            const cpfLimpo = cpf.replace(/\D/g, '');
+            if (cpfLimpo.length === 11) {
+                return cpfLimpo.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4');
+            }
+            return cpf;
+        }
+
+        function formatarTelefoneTexto(telefone) {
+            if (!telefone) return '';
+            const telLimpo = telefone.replace(/\D/g, '');
+            if (telLimpo.length === 11) {
+                return telLimpo.replace(/(\d{2})(\d{5})(\d{4})/, '($1) $2-$3');
+            } else if (telLimpo.length === 10) {
+                return telLimpo.replace(/(\d{2})(\d{4})(\d{4})/, '($1) $2-$3');
+            }
+            return telefone;
+        }
+
+        function mostrarSugestoesGestorCadastro() {
+            const termo = document.getElementById('buscar_gestor_cadastro').value;
+            if (termo.length >= 2) {
+                buscarGestorCadastro(termo);
+            }
+        }
+
+        function esconderSugestoesGestorCadastro() {
+            setTimeout(() => {
+                document.getElementById('sugestoes_gestor_cadastro').classList.add('hidden');
+            }, 200);
+        }
+
+        function navegarSugestoesGestorCadastro(event) {
+            const sugestoes = document.getElementById('sugestoes_gestor_cadastro');
+            const itens = sugestoes.querySelectorAll('.sugestao-item');
+            
+            if (itens.length === 0) return;
+            
+            switch(event.key) {
+                case 'ArrowDown':
+                    event.preventDefault();
+                    sugestaoAtivaGestorCadastro = Math.min(sugestaoAtivaGestorCadastro + 1, itens.length - 1);
+                    atualizarDestaqueGestorCadastro();
+                    break;
+                case 'ArrowUp':
+                    event.preventDefault();
+                    sugestaoAtivaGestorCadastro = Math.max(sugestaoAtivaGestorCadastro - 1, -1);
+                    atualizarDestaqueGestorCadastro();
+                    break;
+                case 'Enter':
+                    event.preventDefault();
+                    if (sugestaoAtivaGestorCadastro >= 0 && sugestaoAtivaGestorCadastro < itens.length) {
+                        const item = itens[sugestaoAtivaGestorCadastro];
+                        const id = item.getAttribute('data-id');
+                        selecionarGestorCadastro(id);
+                    }
+                    break;
+                case 'Escape':
+                    sugestoes.classList.add('hidden');
+                    sugestaoAtivaGestorCadastro = -1;
+                    break;
+            }
+        }
+
+        function atualizarDestaqueGestorCadastro() {
+            const itens = document.querySelectorAll('#sugestoes_gestor_cadastro .sugestao-item');
+            itens.forEach((item, index) => {
+                if (index === sugestaoAtivaGestorCadastro) {
+                    item.classList.add('bg-gray-100');
+                    item.classList.remove('hover:bg-gray-50');
+                } else {
+                    item.classList.remove('bg-gray-100');
+                    item.classList.add('hover:bg-gray-50');
+                }
+            });
         }
 
         // Event listener para o formulário de cadastro
         document.addEventListener('DOMContentLoaded', function() {
             const formCadastro = document.querySelector('form[method="POST"]');
-            if (formCadastro) {
+            if (formCadastro && formCadastro.querySelector('input[name="acao"][value="cadastrar"]')) {
                 formCadastro.addEventListener('submit', function(e) {
                     // Validar se um gestor foi selecionado
                     const gestorIdField = document.getElementById('gestor_id');
@@ -3507,7 +3849,7 @@ if ($_SESSION['tipo'] === 'ADM') {
                         if (!gestorId) {
                             e.preventDefault();
                             alert('Por favor, selecione um gestor para a escola.');
-                            const gestorSearchField = document.getElementById('gestor_search');
+                            const gestorSearchField = document.getElementById('buscar_gestor_cadastro');
                             if (gestorSearchField) gestorSearchField.focus();
                             return false;
                         }
@@ -3570,6 +3912,7 @@ if ($_SESSION['tipo'] === 'ADM') {
                     formData.append('qtd_salas', document.getElementById('edit_qtd_salas').value);
                     formData.append('obs', '');
                     formData.append('codigo', document.getElementById('edit_codigo').value);
+                    formData.append('cnpj', document.getElementById('edit_cnpj').value);
                     
                     const gestorIdField = document.getElementById('edit_gestor_id');
                     formData.append('gestor_id', gestorIdField ? gestorIdField.value || '' : '');
