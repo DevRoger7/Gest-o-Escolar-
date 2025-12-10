@@ -2,46 +2,23 @@
 
 $mensagem = '';
 $tipoMensagem = '';
-$credenciaisValidadas = false;
-$usuarioId = null;
+$tokenGerado = false;
+$resetUrl = '';
 
-// Processar verificação de credenciais
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao']) && $_POST['acao'] === 'verificar') {
+// Processar solicitação de token
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao']) && $_POST['acao'] === 'solicitar_token') {
     require_once('../../Controllers/autenticacao/RecuperarSenhaController.php');
     $controller = new RecuperarSenhaController();
-    $resultado = $controller->verificarCredenciais($_POST['cpf'], $_POST['email'] ?? '');
+    $resultado = $controller->solicitarToken($_POST['cpf'], $_POST['email'] ?? '');
     
     if ($resultado['status']) {
         $mensagem = $resultado['mensagem'];
         $tipoMensagem = 'success';
-        $credenciaisValidadas = true;
-        $usuarioId = $resultado['usuario_id'];
+        $tokenGerado = true;
+        $resetUrl = $resultado['reset_url'] ?? '';
     } else {
         $mensagem = $resultado['mensagem'];
         $tipoMensagem = 'error';
-    }
-}
-
-// Processar mudança de senha direta
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao']) && $_POST['acao'] === 'redefinir') {
-    require_once('../../Controllers/autenticacao/RecuperarSenhaController.php');
-    $controller = new RecuperarSenhaController();
-    $resultado = $controller->redefinirSenhaDireta(
-        $_POST['usuario_id'] ?? null,
-        $_POST['nova_senha'] ?? '',
-        $_POST['confirmar_senha'] ?? ''
-    );
-    
-    if ($resultado['status']) {
-        $mensagem = $resultado['mensagem'];
-        $tipoMensagem = 'success';
-        $credenciaisValidadas = false; // Resetar para mostrar formulário de login
-    } else {
-        $mensagem = $resultado['mensagem'];
-        $tipoMensagem = 'error';
-        // Manter credenciais validadas para tentar novamente
-        $credenciaisValidadas = true;
-        $usuarioId = $_POST['usuario_id'] ?? null;
     }
 }
 ?>
@@ -125,15 +102,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao']) && $_POST['ac
             </div>
         <?php endif; ?>
 
-        <!-- Formulário de Verificação ou Redefinição -->
+        <!-- Formulário de Solicitação de Token -->
         <div class="bg-white rounded-xl shadow-lg p-6 border border-gray-200">
-            <?php if (!$credenciaisValidadas): ?>
-                <!-- Formulário de Verificação -->
+            <?php if (!$tokenGerado): ?>
+                <!-- Formulário de Solicitação -->
                 <h2 class="text-xl font-bold text-gray-800 mb-2">Recuperar Senha</h2>
-                <p class="text-gray-600 text-sm mb-6">Informe seu CPF e e-mail para verificar sua identidade</p>
+                <p class="text-gray-600 text-sm mb-6">Informe seu CPF e e-mail para receber o link de recuperação</p>
                 
                 <form method="POST" action="" class="space-y-5">
-                    <input type="hidden" name="acao" value="verificar">
+                    <input type="hidden" name="acao" value="solicitar_token">
                 
                 <!-- Campo CPF -->
                 <div>
@@ -168,78 +145,38 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao']) && $_POST['ac
                         type="submit" 
                         class="w-full bg-primary-green text-white font-semibold py-3 px-6 rounded-lg hover:bg-secondary-green transition-all duration-200"
                     >
-                        Verificar Credenciais
+                        Solicitar Link de Recuperação
                     </button>
                 </form>
             <?php else: ?>
-                <!-- Formulário de Redefinição de Senha -->
-                <h2 class="text-xl font-bold text-gray-800 mb-2">Definir Nova Senha</h2>
-                <p class="text-gray-600 text-sm mb-6">Digite sua nova senha abaixo</p>
-                
-                <form method="POST" action="" class="space-y-5">
-                    <input type="hidden" name="acao" value="redefinir">
-                    <input type="hidden" name="usuario_id" value="<?= htmlspecialchars($usuarioId) ?>">
+                <!-- Token Gerado - Mostrar Link -->
+                <div class="text-center">
+                    <div class="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <svg class="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                        </svg>
+                    </div>
+                    <h2 class="text-xl font-bold text-gray-800 mb-2">Link Gerado!</h2>
+                    <p class="text-gray-600 text-sm mb-4">Clique no link abaixo para redefinir sua senha:</p>
                     
-                    <!-- Nova Senha -->
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-2">Nova Senha *</label>
-                        <div class="relative">
-                            <input 
-                                type="password" 
-                                name="nova_senha" 
-                                id="novaSenhaMobile"
-                                placeholder="Digite sua nova senha" 
-                                class="w-full px-4 py-3 pr-12 border border-gray-200 rounded-lg focus:outline-none focus:border-primary-green focus:ring-1 focus:ring-primary-green transition-all duration-200 bg-white"
-                                required
-                                minlength="6"
-                            >
-                            <button 
-                                type="button" 
-                                onclick="togglePassword('novaSenhaMobile', 'eyeNovaMobile')"
-                                class="absolute inset-y-0 right-0 pr-4 flex items-center text-gray-400 hover:text-primary-green transition-colors duration-200"
-                            >
-                                <svg id="eyeNovaMobile" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
-                                </svg>
-                            </button>
-                        </div>
+                    <div class="bg-gray-50 border border-gray-200 rounded-lg p-4 mb-4">
+                        <a href="<?= htmlspecialchars($resetUrl) ?>" 
+                           class="text-primary-green hover:text-secondary-green break-all text-sm font-medium">
+                            <?= htmlspecialchars($resetUrl) ?>
+                        </a>
                     </div>
-
-                    <!-- Confirmar Senha -->
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-2">Confirmar Senha *</label>
-                        <div class="relative">
-                            <input 
-                                type="password" 
-                                name="confirmar_senha" 
-                                id="confirmarSenhaMobile"
-                                placeholder="Confirme sua nova senha" 
-                                class="w-full px-4 py-3 pr-12 border border-gray-200 rounded-lg focus:outline-none focus:border-primary-green focus:ring-1 focus:ring-primary-green transition-all duration-200 bg-white"
-                                required
-                                minlength="6"
-                            >
-                            <button 
-                                type="button" 
-                                onclick="togglePassword('confirmarSenhaMobile', 'eyeConfirmarMobile')"
-                                class="absolute inset-y-0 right-0 pr-4 flex items-center text-gray-400 hover:text-primary-green transition-colors duration-200"
-                            >
-                                <svg id="eyeConfirmarMobile" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
-                                </svg>
-                            </button>
-                        </div>
-                    </div>
-
-                    <!-- Botão -->
+                    
+                    <p class="text-xs text-gray-500 mb-4">
+                        O link expira em 24 horas. Se não conseguir clicar, copie e cole o link acima no seu navegador.
+                    </p>
+                    
                     <button 
-                        type="submit" 
-                        class="w-full bg-primary-green text-white font-semibold py-3 px-6 rounded-lg hover:bg-secondary-green transition-all duration-200"
+                        onclick="copiarLink()" 
+                        class="w-full bg-gray-100 text-gray-700 font-semibold py-2 px-4 rounded-lg hover:bg-gray-200 transition-all duration-200 mb-2"
                     >
-                        Redefinir Senha
+                        Copiar Link
                     </button>
-                </form>
+                </div>
             <?php endif; ?>
 
             <!-- Link para voltar -->
@@ -288,10 +225,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao']) && $_POST['ac
                     </div>
                 <?php endif; ?>
 
-                <?php if (!$credenciaisValidadas): ?>
-                    <!-- Formulário de Verificação -->
+                <?php if (!$tokenGerado): ?>
+                    <!-- Formulário de Solicitação -->
                     <form method="POST" action="" class="space-y-6">
-                        <input type="hidden" name="acao" value="verificar">
+                        <input type="hidden" name="acao" value="solicitar_token">
                         
                         <div>
                             <label class="block text-sm font-semibold text-slate-700 mb-2">CPF *</label>
@@ -323,72 +260,38 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao']) && $_POST['ac
                             type="submit" 
                             class="w-full bg-forest-600 text-white py-3 px-4 rounded-xl font-semibold hover:bg-forest-700 hover:shadow-lg transition-all"
                         >
-                            Verificar Credenciais
+                            Solicitar Link de Recuperação
                         </button>
                     </form>
                 <?php else: ?>
-                    <!-- Formulário de Redefinição de Senha -->
-                    <form method="POST" action="" class="space-y-6">
-                        <input type="hidden" name="acao" value="redefinir">
-                        <input type="hidden" name="usuario_id" value="<?= htmlspecialchars($usuarioId) ?>">
+                    <!-- Token Gerado - Mostrar Link -->
+                    <div class="text-center">
+                        <div class="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                            <svg class="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                            </svg>
+                        </div>
+                        <h2 class="text-2xl font-bold text-slate-900 mb-2">Link Gerado!</h2>
+                        <p class="text-slate-600 mb-4">Clique no link abaixo para redefinir sua senha:</p>
                         
-                        <div>
-                            <label class="block text-sm font-semibold text-slate-700 mb-2">Nova Senha *</label>
-                            <div class="relative">
-                                <input 
-                                    type="password" 
-                                    required 
-                                    name="nova_senha" 
-                                    id="novaSenhaDesktop" 
-                                    class="w-full px-4 py-3 pr-12 border border-slate-200 rounded-xl focus:border-forest-500 focus:ring-2 focus:ring-forest-100 focus:outline-none" 
-                                    placeholder="Digite sua nova senha"
-                                    minlength="6"
-                                >
-                                <button 
-                                    type="button" 
-                                    onclick="togglePassword('novaSenhaDesktop', 'eyeNovaDesktop')"
-                                    class="absolute right-3 top-1/2 transform -translate-y-1/2 text-slate-400 hover:text-slate-600"
-                                >
-                                    <svg id="eyeNovaDesktop" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
-                                    </svg>
-                                </button>
-                            </div>
+                        <div class="bg-gray-50 border border-gray-200 rounded-xl p-4 mb-4">
+                            <a href="<?= htmlspecialchars($resetUrl) ?>" 
+                               class="text-forest-600 hover:text-forest-700 break-all text-sm font-medium">
+                                <?= htmlspecialchars($resetUrl) ?>
+                            </a>
                         </div>
                         
-                        <div>
-                            <label class="block text-sm font-semibold text-slate-700 mb-2">Confirmar Senha *</label>
-                            <div class="relative">
-                                <input 
-                                    type="password" 
-                                    required 
-                                    name="confirmar_senha" 
-                                    id="confirmarSenhaDesktop" 
-                                    class="w-full px-4 py-3 pr-12 border border-slate-200 rounded-xl focus:border-forest-500 focus:ring-2 focus:ring-forest-100 focus:outline-none" 
-                                    placeholder="Confirme sua nova senha"
-                                    minlength="6"
-                                >
-                                <button 
-                                    type="button" 
-                                    onclick="togglePassword('confirmarSenhaDesktop', 'eyeConfirmarDesktop')"
-                                    class="absolute right-3 top-1/2 transform -translate-y-1/2 text-slate-400 hover:text-slate-600"
-                                >
-                                    <svg id="eyeConfirmarDesktop" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
-                                    </svg>
-                                </button>
-                            </div>
-                        </div>
-
+                        <p class="text-xs text-slate-500 mb-4">
+                            O link expira em 24 horas. Se não conseguir clicar, copie e cole o link acima no seu navegador.
+                        </p>
+                        
                         <button 
-                            type="submit" 
-                            class="w-full bg-forest-600 text-white py-3 px-4 rounded-xl font-semibold hover:bg-forest-700 hover:shadow-lg transition-all"
+                            onclick="copiarLink()" 
+                            class="w-full bg-gray-100 text-slate-700 font-semibold py-2 px-4 rounded-xl hover:bg-gray-200 transition-all mb-2"
                         >
-                            Redefinir Senha
+                            Copiar Link
                         </button>
-                    </form>
+                    </div>
                 <?php endif; ?>
 
                 <!-- Link para voltar -->
@@ -439,25 +342,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao']) && $_POST['ac
             }
         }
         
-        // Validação de senhas iguais
-        document.querySelectorAll('form').forEach(form => {
-            form.addEventListener('submit', function(e) {
-                const novaSenha = form.querySelector('input[name="nova_senha"]')?.value;
-                const confirmarSenha = form.querySelector('input[name="confirmar_senha"]')?.value;
-                
-                if (novaSenha && confirmarSenha && novaSenha !== confirmarSenha) {
-                    e.preventDefault();
-                    alert('As senhas não coincidem!');
-                    return false;
-                }
-                
-                if (novaSenha && novaSenha.length < 6) {
-                    e.preventDefault();
-                    alert('A senha deve ter no mínimo 6 caracteres!');
-                    return false;
-                }
-            });
-        });
+        // Função para copiar link
+        function copiarLink() {
+            const resetUrl = '<?= htmlspecialchars($resetUrl ?? '', ENT_QUOTES, 'UTF-8') ?>';
+            if (resetUrl) {
+                navigator.clipboard.writeText(resetUrl).then(function() {
+                    alert('Link copiado para a área de transferência!');
+                }, function() {
+                    // Fallback para navegadores antigos
+                    const textarea = document.createElement('textarea');
+                    textarea.value = resetUrl;
+                    document.body.appendChild(textarea);
+                    textarea.select();
+                    document.execCommand('copy');
+                    document.body.removeChild(textarea);
+                    alert('Link copiado para a área de transferência!');
+                });
+            }
+        }
     </script>
 </body>
 </html>

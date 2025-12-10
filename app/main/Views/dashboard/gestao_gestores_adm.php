@@ -22,6 +22,7 @@ $stmtEscolas = $conn->prepare($sqlEscolas);
 $stmtEscolas->execute();
 $escolas = $stmtEscolas->fetchAll(PDO::FETCH_ASSOC);
 
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao'])) {
     header('Content-Type: application/json');
     
@@ -99,8 +100,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao'])) {
             $telefoneVal = !empty($telefone) ? $telefone : null;
             $criadoPor = $_SESSION['usuario_id'];
             
-            $sqlPessoa = "INSERT INTO pessoa (cpf, nome, data_nascimento, sexo, email, telefone, tipo, criado_por)
-                         VALUES (:cpf, :nome, :data_nascimento, :sexo, :email, :telefone, 'GESTOR', :criado_por)";
+            // Preparar dados de endereço
+            $endereco = !empty($_POST['endereco']) ? trim($_POST['endereco']) : null;
+            $numero = !empty($_POST['numero']) ? trim($_POST['numero']) : null;
+            $complemento = !empty($_POST['complemento']) ? trim($_POST['complemento']) : null;
+            $bairro = !empty($_POST['bairro']) ? trim($_POST['bairro']) : null;
+            $cidade = !empty($_POST['cidade']) ? trim($_POST['cidade']) : null;
+            $estado = 'CE'; // Sempre Ceará (Maranguape/CE)
+            $cep = !empty($_POST['cep']) ? preg_replace('/[^0-9]/', '', $_POST['cep']) : null;
+            $nomeSocial = !empty($_POST['nome_social']) ? trim($_POST['nome_social']) : null;
+            $cor = !empty($_POST['cor']) ? $_POST['cor'] : null;
+            
+            $sqlPessoa = "INSERT INTO pessoa (cpf, nome, data_nascimento, sexo, email, telefone, 
+                         nome_social, cor, endereco, numero, complemento, bairro, cidade, estado, cep, tipo, criado_por)
+                         VALUES (:cpf, :nome, :data_nascimento, :sexo, :email, :telefone,
+                         :nome_social, :cor, :endereco, :numero, :complemento, :bairro, :cidade, :estado, :cep, 'GESTOR', :criado_por)";
             $stmtPessoa = $conn->prepare($sqlPessoa);
             $stmtPessoa->bindParam(':cpf', $cpf);
             $stmtPessoa->bindParam(':nome', $nome);
@@ -108,25 +122,79 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao'])) {
             $stmtPessoa->bindParam(':sexo', $sexo);
             $stmtPessoa->bindParam(':email', $email);
             $stmtPessoa->bindParam(':telefone', $telefoneVal);
+            $stmtPessoa->bindParam(':nome_social', $nomeSocial);
+            $stmtPessoa->bindParam(':cor', $cor);
+            $stmtPessoa->bindParam(':endereco', $endereco);
+            $stmtPessoa->bindParam(':numero', $numero);
+            $stmtPessoa->bindParam(':complemento', $complemento);
+            $stmtPessoa->bindParam(':bairro', $bairro);
+            $stmtPessoa->bindParam(':cidade', $cidade);
+            $stmtPessoa->bindParam(':estado', $estado);
+            $stmtPessoa->bindParam(':cep', $cep);
             $stmtPessoa->bindParam(':criado_por', $criadoPor);
             $stmtPessoa->execute();
             $pessoaId = $conn->lastInsertId();
             
             // 2. Criar gestor
             $cargo = trim($_POST['cargo'] ?? '');
-            $formacao = !empty($_POST['formacao']) ? trim($_POST['formacao']) : null;
+            
+            // Processar múltiplas formações
+            $formacoes = [];
+            if (!empty($_POST['formacoes']) && is_array($_POST['formacoes'])) {
+                foreach ($_POST['formacoes'] as $form) {
+                    $form = trim($form);
+                    if (!empty($form)) {
+                        $formacoes[] = $form;
+                    }
+                }
+            }
+            $formacao = !empty($formacoes) ? json_encode($formacoes, JSON_UNESCAPED_UNICODE) : null;
+            
+            // Processar múltiplas especializações
+            $especializacoes = [];
+            if (!empty($_POST['especializacoes']) && is_array($_POST['especializacoes'])) {
+                foreach ($_POST['especializacoes'] as $esp) {
+                    $esp = trim($esp);
+                    if (!empty($esp)) {
+                        $especializacoes[] = $esp;
+                    }
+                }
+            }
+            $especializacao = !empty($especializacoes) ? json_encode($especializacoes, JSON_UNESCAPED_UNICODE) : null;
+            
             $registroProfissional = !empty($_POST['registro_profissional']) ? trim($_POST['registro_profissional']) : null;
             $observacoes = !empty($_POST['observacoes']) ? trim($_POST['observacoes']) : null;
             
-            $sqlGestor = "INSERT INTO gestor (pessoa_id, cargo, formacao, registro_profissional, observacoes, ativo, criado_por)
-                         VALUES (:pessoa_id, :cargo, :formacao, :registro_profissional, :observacoes, 1, :criado_por)";
-            $stmtGestor = $conn->prepare($sqlGestor);
-            $stmtGestor->bindParam(':pessoa_id', $pessoaId);
-            $stmtGestor->bindParam(':cargo', $cargo);
-            $stmtGestor->bindParam(':formacao', $formacao);
-            $stmtGestor->bindParam(':registro_profissional', $registroProfissional);
-            $stmtGestor->bindParam(':observacoes', $observacoes);
-            $stmtGestor->bindParam(':criado_por', $criadoPor);
+            // Verificar se a tabela gestor tem campo especializacao
+            try {
+                $stmtCheck = $conn->query("SHOW COLUMNS FROM gestor LIKE 'especializacao'");
+                $temEspecializacao = $stmtCheck->rowCount() > 0;
+            } catch (Exception $e) {
+                $temEspecializacao = false;
+            }
+            
+            if ($temEspecializacao) {
+                $sqlGestor = "INSERT INTO gestor (pessoa_id, cargo, formacao, especializacao, registro_profissional, observacoes, ativo, criado_por)
+                             VALUES (:pessoa_id, :cargo, :formacao, :especializacao, :registro_profissional, :observacoes, 1, :criado_por)";
+                $stmtGestor = $conn->prepare($sqlGestor);
+                $stmtGestor->bindParam(':pessoa_id', $pessoaId);
+                $stmtGestor->bindParam(':cargo', $cargo);
+                $stmtGestor->bindParam(':formacao', $formacao);
+                $stmtGestor->bindParam(':especializacao', $especializacao);
+                $stmtGestor->bindParam(':registro_profissional', $registroProfissional);
+                $stmtGestor->bindParam(':observacoes', $observacoes);
+                $stmtGestor->bindParam(':criado_por', $criadoPor);
+            } else {
+                $sqlGestor = "INSERT INTO gestor (pessoa_id, cargo, formacao, registro_profissional, observacoes, ativo, criado_por)
+                             VALUES (:pessoa_id, :cargo, :formacao, :registro_profissional, :observacoes, 1, :criado_por)";
+                $stmtGestor = $conn->prepare($sqlGestor);
+                $stmtGestor->bindParam(':pessoa_id', $pessoaId);
+                $stmtGestor->bindParam(':cargo', $cargo);
+                $stmtGestor->bindParam(':formacao', $formacao);
+                $stmtGestor->bindParam(':registro_profissional', $registroProfissional);
+                $stmtGestor->bindParam(':observacoes', $observacoes);
+                $stmtGestor->bindParam(':criado_por', $criadoPor);
+            }
             $stmtGestor->execute();
             $gestorId = $conn->lastInsertId();
             
@@ -186,7 +254,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao'])) {
             }
             
             // Buscar gestor existente
-            $sqlGestor = "SELECT g.*, p.* FROM gestor g INNER JOIN pessoa p ON g.pessoa_id = p.id WHERE g.id = :id";
+            $sqlGestor = "SELECT g.*, p.*, p.id as pessoa_id, p.endereco, p.numero, p.complemento, 
+                         p.bairro, p.cidade, p.estado, p.cep
+                         FROM gestor g INNER JOIN pessoa p ON g.pessoa_id = p.id WHERE g.id = :id";
             $stmtGestor = $conn->prepare($sqlGestor);
             $stmtGestor->bindParam(':id', $gestorId);
             $stmtGestor->execute();
@@ -241,8 +311,41 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao'])) {
             $telefoneUpdate = !empty($telefone) ? $telefone : null;
             $pessoaId = $gestor['pessoa_id'];
             
+            // Preparar dados de endereço
+            $endereco = !empty($_POST['endereco']) ? trim($_POST['endereco']) : null;
+            $numero = !empty($_POST['numero']) ? trim($_POST['numero']) : null;
+            $complemento = !empty($_POST['complemento']) ? trim($_POST['complemento']) : null;
+            $bairro = !empty($_POST['bairro']) ? trim($_POST['bairro']) : null;
+            $cidade = !empty($_POST['cidade']) ? trim($_POST['cidade']) : null;
+            $estado = 'CE'; // Sempre Ceará (Maranguape/CE)
+            $cep = !empty($_POST['cep']) ? preg_replace('/[^0-9]/', '', $_POST['cep']) : null;
+            $nomeSocial = !empty($_POST['nome_social']) ? trim($_POST['nome_social']) : null;
+            $cor = !empty($_POST['cor']) ? $_POST['cor'] : null;
+            
+            // Verificar se os campos nome_social e cor existem na tabela
+            try {
+                $stmtCheck = $conn->query("SHOW COLUMNS FROM pessoa LIKE 'nome_social'");
+                $temNomeSocial = $stmtCheck->rowCount() > 0;
+                
+                $stmtCheck = $conn->query("SHOW COLUMNS FROM pessoa LIKE 'cor'");
+                $temCor = $stmtCheck->rowCount() > 0;
+            } catch (Exception $e) {
+                $temNomeSocial = false;
+                $temCor = false;
+            }
+            
+            $camposExtras = '';
+            if ($temNomeSocial) {
+                $camposExtras .= ', nome_social = :nome_social';
+            }
+            if ($temCor) {
+                $camposExtras .= ', cor = :cor';
+            }
+            
             $sqlPessoa = "UPDATE pessoa SET nome = :nome, data_nascimento = :data_nascimento, 
-                          sexo = :sexo, email = :email, telefone = :telefone
+                          sexo = :sexo, email = :email, telefone = :telefone,
+                          endereco = :endereco, numero = :numero, complemento = :complemento,
+                          bairro = :bairro, cidade = :cidade, estado = :estado, cep = :cep{$camposExtras}
                           WHERE id = :pessoa_id";
             $stmtPessoa = $conn->prepare($sqlPessoa);
             $stmtPessoa->bindParam(':nome', $nomeUpdate);
@@ -250,6 +353,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao'])) {
             $stmtPessoa->bindParam(':sexo', $sexoUpdate);
             $stmtPessoa->bindParam(':email', $emailUpdate);
             $stmtPessoa->bindParam(':telefone', $telefoneUpdate);
+            $stmtPessoa->bindParam(':endereco', $endereco);
+            $stmtPessoa->bindParam(':numero', $numero);
+            $stmtPessoa->bindParam(':complemento', $complemento);
+            $stmtPessoa->bindParam(':bairro', $bairro);
+            $stmtPessoa->bindParam(':cidade', $cidade);
+            $stmtPessoa->bindParam(':estado', $estado);
+            $stmtPessoa->bindParam(':cep', $cep);
+            if ($temNomeSocial) {
+                $stmtPessoa->bindParam(':nome_social', $nomeSocial);
+            }
+            if ($temCor) {
+                $stmtPessoa->bindParam(':cor', $cor);
+            }
             $stmtPessoa->bindParam(':pessoa_id', $pessoaId);
             $stmtPessoa->execute();
             
@@ -264,21 +380,68 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao'])) {
             
             // 2. Atualizar gestor
             $cargoUpdate = trim($_POST['cargo'] ?? '');
-            $formacaoUpdate = !empty($_POST['formacao']) ? trim($_POST['formacao']) : null;
+            
+            // Processar múltiplas formações
+            $formacoes = [];
+            if (!empty($_POST['formacoes']) && is_array($_POST['formacoes'])) {
+                foreach ($_POST['formacoes'] as $form) {
+                    $form = trim($form);
+                    if (!empty($form)) {
+                        $formacoes[] = $form;
+                    }
+                }
+            }
+            $formacaoUpdate = !empty($formacoes) ? json_encode($formacoes, JSON_UNESCAPED_UNICODE) : null;
+            
+            // Processar múltiplas especializações
+            $especializacoes = [];
+            if (!empty($_POST['especializacoes']) && is_array($_POST['especializacoes'])) {
+                foreach ($_POST['especializacoes'] as $esp) {
+                    $esp = trim($esp);
+                    if (!empty($esp)) {
+                        $especializacoes[] = $esp;
+                    }
+                }
+            }
+            $especializacaoUpdate = !empty($especializacoes) ? json_encode($especializacoes, JSON_UNESCAPED_UNICODE) : null;
+            
             $registroProfissionalUpdate = !empty($_POST['registro_profissional']) ? trim($_POST['registro_profissional']) : null;
             $observacoesUpdate = !empty($_POST['observacoes']) ? trim($_POST['observacoes']) : null;
             $ativoUpdate = isset($_POST['ativo']) ? (int)$_POST['ativo'] : 1;
             
-            $sqlGestorUpdate = "UPDATE gestor SET cargo = :cargo, formacao = :formacao, 
-                               registro_profissional = :registro_profissional, observacoes = :observacoes, ativo = :ativo
-                               WHERE id = :id";
-            $stmtGestorUpdate = $conn->prepare($sqlGestorUpdate);
-            $stmtGestorUpdate->bindParam(':cargo', $cargoUpdate);
-            $stmtGestorUpdate->bindParam(':formacao', $formacaoUpdate);
-            $stmtGestorUpdate->bindParam(':registro_profissional', $registroProfissionalUpdate);
-            $stmtGestorUpdate->bindParam(':observacoes', $observacoesUpdate);
-            $stmtGestorUpdate->bindParam(':ativo', $ativoUpdate);
-            $stmtGestorUpdate->bindParam(':id', $gestorId);
+            // Verificar se a tabela gestor tem campo especializacao
+            try {
+                $stmtCheck = $conn->query("SHOW COLUMNS FROM gestor LIKE 'especializacao'");
+                $temEspecializacao = $stmtCheck->rowCount() > 0;
+            } catch (Exception $e) {
+                $temEspecializacao = false;
+            }
+            
+            if ($temEspecializacao) {
+                $sqlGestorUpdate = "UPDATE gestor SET cargo = :cargo, formacao = :formacao, 
+                                   especializacao = :especializacao, registro_profissional = :registro_profissional, 
+                                   observacoes = :observacoes, ativo = :ativo
+                                   WHERE id = :id";
+                $stmtGestorUpdate = $conn->prepare($sqlGestorUpdate);
+                $stmtGestorUpdate->bindParam(':cargo', $cargoUpdate);
+                $stmtGestorUpdate->bindParam(':formacao', $formacaoUpdate);
+                $stmtGestorUpdate->bindParam(':especializacao', $especializacaoUpdate);
+                $stmtGestorUpdate->bindParam(':registro_profissional', $registroProfissionalUpdate);
+                $stmtGestorUpdate->bindParam(':observacoes', $observacoesUpdate);
+                $stmtGestorUpdate->bindParam(':ativo', $ativoUpdate);
+                $stmtGestorUpdate->bindParam(':id', $gestorId);
+            } else {
+                $sqlGestorUpdate = "UPDATE gestor SET cargo = :cargo, formacao = :formacao, 
+                                   registro_profissional = :registro_profissional, observacoes = :observacoes, ativo = :ativo
+                                   WHERE id = :id";
+                $stmtGestorUpdate = $conn->prepare($sqlGestorUpdate);
+                $stmtGestorUpdate->bindParam(':cargo', $cargoUpdate);
+                $stmtGestorUpdate->bindParam(':formacao', $formacaoUpdate);
+                $stmtGestorUpdate->bindParam(':registro_profissional', $registroProfissionalUpdate);
+                $stmtGestorUpdate->bindParam(':observacoes', $observacoesUpdate);
+                $stmtGestorUpdate->bindParam(':ativo', $ativoUpdate);
+                $stmtGestorUpdate->bindParam(':id', $gestorId);
+            }
             $stmtGestorUpdate->execute();
             
             // 3. Atualizar senha se fornecida
@@ -725,6 +888,76 @@ $gestores = $stmtGestores->fetchAll(PDO::FETCH_ASSOC);
                                        class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                                        oninput="formatarTelefone(this)">
                             </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Nome Social</label>
+                                <input type="text" name="nome_social" id="editar_nome_social"
+                                       placeholder="Nome social (se houver)"
+                                       class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Cor/Raça</label>
+                                <select name="cor" id="editar_cor"
+                                        class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent">
+                                    <option value="">Selecione...</option>
+                                    <option value="BRANCA">Branca</option>
+                                    <option value="PRETA">Preta</option>
+                                    <option value="PARDA">Parda</option>
+                                    <option value="AMARELA">Amarela</option>
+                                    <option value="INDIGENA">Indígena</option>
+                                    <option value="NAO_DECLARADA">Não Declarada</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Endereço -->
+                    <div>
+                        <h3 class="text-lg font-semibold text-gray-800 mb-4 pb-2 border-b border-gray-200">Endereço</h3>
+                        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                            <div class="md:col-span-2 lg:col-span-3">
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Logradouro</label>
+                                <input type="text" name="endereco" id="editar_endereco"
+                                       placeholder="Rua, Avenida, etc."
+                                       class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Número</label>
+                                <input type="text" name="numero" id="editar_numero"
+                                       placeholder="Número"
+                                       class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Complemento</label>
+                                <input type="text" name="complemento" id="editar_complemento"
+                                       placeholder="Apto, Bloco, etc."
+                                       class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Bairro</label>
+                                <input type="text" name="bairro" id="editar_bairro"
+                                       placeholder="Bairro"
+                                       class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Cidade</label>
+                                <input type="text" name="cidade" id="editar_cidade"
+                                       placeholder="Cidade"
+                                       class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Estado</label>
+                                <input type="text" name="estado" id="editar_estado" value="CE" readonly
+                                       class="w-full px-4 py-2 border border-gray-300 rounded-lg bg-gray-50"
+                                       placeholder="Ceará">
+                                <input type="hidden" name="estado" value="CE">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">CEP</label>
+                                <input type="text" name="cep" id="editar_cep" maxlength="9"
+                                       placeholder="00000-000"
+                                       class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                                       oninput="formatarCEP(this)">
+                            </div>
                         </div>
                     </div>
                     
@@ -737,13 +970,32 @@ $gestores = $stmtGestores->fetchAll(PDO::FETCH_ASSOC);
                                 <input type="text" name="cargo" id="editar_cargo" required placeholder="Ex: Diretor, Vice-Diretor, Coordenador"
                                        class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent">
                             </div>
-                            <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-2">Formação</label>
-                                <input type="text" name="formacao" id="editar_formacao" placeholder="Ex: Licenciatura em Pedagogia"
-                                       class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent">
+                            <div class="md:col-span-2 lg:col-span-3">
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Formações</label>
+                                <div id="editar-formacoes-container" class="space-y-2 mb-2">
+                                    <!-- Formações serão adicionadas aqui dinamicamente -->
+                                </div>
+                                <button type="button" onclick="adicionarFormacaoEdicao()" class="text-sm text-indigo-600 hover:text-indigo-700 font-medium flex items-center space-x-1">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+                                    </svg>
+                                    <span>Adicionar Formação</span>
+                                </button>
+                            </div>
+                            <div class="md:col-span-2 lg:col-span-3">
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Especializações</label>
+                                <div id="editar-especializacoes-container" class="space-y-2 mb-2">
+                                    <!-- Especializações serão adicionadas aqui dinamicamente -->
+                                </div>
+                                <button type="button" onclick="adicionarEspecializacaoEdicao()" class="text-sm text-indigo-600 hover:text-indigo-700 font-medium flex items-center space-x-1">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+                                    </svg>
+                                    <span>Adicionar Especialização</span>
+                                </button>
                             </div>
                             <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-2">Registro Profissional</label>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Registro Profissional (Opcional)</label>
                                 <input type="text" name="registro_profissional" id="editar_registro_profissional" placeholder="Ex: CREA, CREF, etc."
                                        class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent">
                             </div>
@@ -917,6 +1169,76 @@ $gestores = $stmtGestores->fetchAll(PDO::FETCH_ASSOC);
                                        class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                                        oninput="formatarTelefone(this)">
                             </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Nome Social</label>
+                                <input type="text" name="nome_social" id="nome_social"
+                                       placeholder="Nome social (se houver)"
+                                       class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Cor/Raça</label>
+                                <select name="cor" id="cor"
+                                        class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent">
+                                    <option value="">Selecione...</option>
+                                    <option value="BRANCA">Branca</option>
+                                    <option value="PRETA">Preta</option>
+                                    <option value="PARDA">Parda</option>
+                                    <option value="AMARELA">Amarela</option>
+                                    <option value="INDIGENA">Indígena</option>
+                                    <option value="NAO_DECLARADA">Não Declarada</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Endereço -->
+                    <div>
+                        <h3 class="text-lg font-semibold text-gray-800 mb-4 pb-2 border-b border-gray-200">Endereço</h3>
+                        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                            <div class="md:col-span-2 lg:col-span-3">
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Logradouro</label>
+                                <input type="text" name="endereco" id="endereco"
+                                       placeholder="Rua, Avenida, etc."
+                                       class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Número</label>
+                                <input type="text" name="numero" id="numero"
+                                       placeholder="Número"
+                                       class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Complemento</label>
+                                <input type="text" name="complemento" id="complemento"
+                                       placeholder="Apto, Bloco, etc."
+                                       class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Bairro</label>
+                                <input type="text" name="bairro" id="bairro"
+                                       placeholder="Bairro"
+                                       class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Cidade</label>
+                                <input type="text" name="cidade" id="cidade"
+                                       placeholder="Cidade"
+                                       class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Estado</label>
+                                <input type="text" name="estado" id="estado" value="CE" readonly
+                                       class="w-full px-4 py-2 border border-gray-300 rounded-lg bg-gray-50"
+                                       placeholder="Ceará">
+                                <input type="hidden" name="estado" value="CE">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">CEP</label>
+                                <input type="text" name="cep" id="cep" maxlength="9"
+                                       placeholder="00000-000"
+                                       class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                                       oninput="formatarCEP(this)">
+                            </div>
                         </div>
                     </div>
                     
@@ -929,13 +1251,32 @@ $gestores = $stmtGestores->fetchAll(PDO::FETCH_ASSOC);
                                 <input type="text" name="cargo" id="cargo" required placeholder="Ex: Diretor, Vice-Diretor, Coordenador"
                                        class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent">
                             </div>
-                            <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-2">Formação</label>
-                                <input type="text" name="formacao" id="formacao" placeholder="Ex: Licenciatura em Pedagogia"
-                                       class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent">
+                            <div class="md:col-span-2 lg:col-span-3">
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Formações</label>
+                                <div id="formacoes-container" class="space-y-2 mb-2">
+                                    <!-- Formações serão adicionadas aqui dinamicamente -->
+                                </div>
+                                <button type="button" onclick="adicionarFormacao()" class="text-sm text-indigo-600 hover:text-indigo-700 font-medium flex items-center space-x-1">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+                                    </svg>
+                                    <span>Adicionar Formação</span>
+                                </button>
+                            </div>
+                            <div class="md:col-span-2 lg:col-span-3">
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Especializações</label>
+                                <div id="especializacoes-container" class="space-y-2 mb-2">
+                                    <!-- Especializações serão adicionadas aqui dinamicamente -->
+                                </div>
+                                <button type="button" onclick="adicionarEspecializacao()" class="text-sm text-indigo-600 hover:text-indigo-700 font-medium flex items-center space-x-1">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+                                    </svg>
+                                    <span>Adicionar Especialização</span>
+                                </button>
                             </div>
                             <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-2">Registro Profissional</label>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Registro Profissional (Opcional)</label>
                                 <input type="text" name="registro_profissional" id="registro_profissional" placeholder="Ex: CREA, CREF, etc."
                                        class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent">
                             </div>
@@ -1232,6 +1573,11 @@ $gestores = $stmtGestores->fetchAll(PDO::FETCH_ASSOC);
                     `;
                 }
                 document.getElementById('responsavel').value = '1';
+                // Limpar containers de formações e especializações
+                document.getElementById('formacoes-container').innerHTML = '';
+                document.getElementById('especializacoes-container').innerHTML = '';
+                formacaoCount = 0;
+                especializacaoCount = 0;
                 // Limpar pesquisa de escola
                 limparPesquisaEscola();
                 // Limpar alertas
@@ -1272,6 +1618,119 @@ $gestores = $stmtGestores->fetchAll(PDO::FETCH_ASSOC);
                 }
             }
             input.value = value;
+        }
+        
+        function formatarCEP(input) {
+            let value = input.value.replace(/\D/g, '');
+            if (value.length > 5) {
+                value = value.slice(0, 5) + '-' + value.slice(5, 8);
+            }
+            input.value = value;
+        }
+        
+        let formacaoCount = 0;
+        let formacaoEdicaoCount = 0;
+        let especializacaoCount = 0;
+        let especializacaoEdicaoCount = 0;
+        
+        function adicionarFormacao() {
+            const container = document.getElementById('formacoes-container');
+            const div = document.createElement('div');
+            div.className = 'flex items-center space-x-2';
+            div.id = `formacao-${formacaoCount}`;
+            div.innerHTML = `
+                <input type="text" name="formacoes[]" placeholder="Ex: Licenciatura em Pedagogia"
+                       class="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent">
+                <button type="button" onclick="removerFormacao(${formacaoCount})" class="text-red-600 hover:text-red-700 p-2">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+            `;
+            container.appendChild(div);
+            formacaoCount++;
+        }
+        
+        function removerFormacao(id) {
+            const elemento = document.getElementById(`formacao-${id}`);
+            if (elemento) {
+                elemento.remove();
+            }
+        }
+        
+        function adicionarFormacaoEdicao() {
+            const container = document.getElementById('editar-formacoes-container');
+            const div = document.createElement('div');
+            div.className = 'flex items-center space-x-2';
+            div.id = `editar-formacao-${formacaoEdicaoCount}`;
+            div.innerHTML = `
+                <input type="text" name="formacoes[]" placeholder="Ex: Licenciatura em Pedagogia"
+                       class="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent">
+                <button type="button" onclick="removerFormacaoEdicao(${formacaoEdicaoCount})" class="text-red-600 hover:text-red-700 p-2">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+            `;
+            container.appendChild(div);
+            formacaoEdicaoCount++;
+        }
+        
+        function removerFormacaoEdicao(id) {
+            const elemento = document.getElementById(`editar-formacao-${id}`);
+            if (elemento) {
+                elemento.remove();
+            }
+        }
+        
+        function adicionarEspecializacao() {
+            const container = document.getElementById('especializacoes-container');
+            const div = document.createElement('div');
+            div.className = 'flex items-center space-x-2';
+            div.id = `especializacao-${especializacaoCount}`;
+            div.innerHTML = `
+                <input type="text" name="especializacoes[]" placeholder="Ex: Gestão Escolar"
+                       class="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent">
+                <button type="button" onclick="removerEspecializacao(${especializacaoCount})" class="text-red-600 hover:text-red-700 p-2">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+            `;
+            container.appendChild(div);
+            especializacaoCount++;
+        }
+        
+        function removerEspecializacao(id) {
+            const elemento = document.getElementById(`especializacao-${id}`);
+            if (elemento) {
+                elemento.remove();
+            }
+        }
+        
+        function adicionarEspecializacaoEdicao() {
+            const container = document.getElementById('editar-especializacoes-container');
+            const div = document.createElement('div');
+            div.className = 'flex items-center space-x-2';
+            div.id = `editar-especializacao-${especializacaoEdicaoCount}`;
+            div.innerHTML = `
+                <input type="text" name="especializacoes[]" placeholder="Ex: Gestão Escolar"
+                       class="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent">
+                <button type="button" onclick="removerEspecializacaoEdicao(${especializacaoEdicaoCount})" class="text-red-600 hover:text-red-700 p-2">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+            `;
+            container.appendChild(div);
+            especializacaoEdicaoCount++;
+        }
+        
+        function removerEspecializacaoEdicao(id) {
+            const elemento = document.getElementById(`editar-especializacao-${id}`);
+            if (elemento) {
+                elemento.remove();
+            }
         }
         
         function atualizarPreviewUsername() {
@@ -1416,11 +1875,125 @@ $gestores = $stmtGestores->fetchAll(PDO::FETCH_ASSOC);
                 document.getElementById('editar_sexo').value = gestor.sexo || '';
                 document.getElementById('editar_email').value = gestor.email || '';
                 document.getElementById('editar_telefone').value = gestor.telefone_formatado || gestor.telefone || '';
+                document.getElementById('editar_nome_social').value = gestor.nome_social || '';
+                document.getElementById('editar_cor').value = gestor.cor || '';
                 document.getElementById('editar_cargo').value = gestor.cargo || '';
-                document.getElementById('editar_formacao').value = gestor.formacao || '';
+                
+                // Carregar formações (JSON)
+                const formacoesContainer = document.getElementById('editar-formacoes-container');
+                formacoesContainer.innerHTML = '';
+                formacaoEdicaoCount = 0;
+                if (gestor.formacao) {
+                    try {
+                        const formacoes = JSON.parse(gestor.formacao);
+                        if (Array.isArray(formacoes)) {
+                            formacoes.forEach(form => {
+                                if (form && form.trim()) {
+                                    const div = document.createElement('div');
+                                    div.className = 'flex items-center space-x-2';
+                                    div.id = `editar-formacao-${formacaoEdicaoCount}`;
+                                    div.innerHTML = `
+                                        <input type="text" name="formacoes[]" value="${form.replace(/"/g, '&quot;')}"
+                                               class="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent">
+                                        <button type="button" onclick="removerFormacaoEdicao(${formacaoEdicaoCount})" class="text-red-600 hover:text-red-700 p-2">
+                                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                                            </svg>
+                                        </button>
+                                    `;
+                                    formacoesContainer.appendChild(div);
+                                    formacaoEdicaoCount++;
+                                }
+                            });
+                        }
+                    } catch (e) {
+                        // Se não for JSON, tratar como string única
+                        if (gestor.formacao.trim()) {
+                            const div = document.createElement('div');
+                            div.className = 'flex items-center space-x-2';
+                            div.id = `editar-formacao-${formacaoEdicaoCount}`;
+                            div.innerHTML = `
+                                <input type="text" name="formacoes[]" value="${gestor.formacao.replace(/"/g, '&quot;')}"
+                                       class="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent">
+                                <button type="button" onclick="removerFormacaoEdicao(${formacaoEdicaoCount})" class="text-red-600 hover:text-red-700 p-2">
+                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                                    </svg>
+                                </button>
+                            `;
+                            formacoesContainer.appendChild(div);
+                            formacaoEdicaoCount++;
+                        }
+                    }
+                }
+                
+                // Carregar especializações (JSON)
+                const especializacoesContainer = document.getElementById('editar-especializacoes-container');
+                especializacoesContainer.innerHTML = '';
+                especializacaoEdicaoCount = 0;
+                if (gestor.especializacao) {
+                    try {
+                        const especializacoes = JSON.parse(gestor.especializacao);
+                        if (Array.isArray(especializacoes)) {
+                            especializacoes.forEach(esp => {
+                                if (esp && esp.trim()) {
+                                    const div = document.createElement('div');
+                                    div.className = 'flex items-center space-x-2';
+                                    div.id = `editar-especializacao-${especializacaoEdicaoCount}`;
+                                    div.innerHTML = `
+                                        <input type="text" name="especializacoes[]" value="${esp.replace(/"/g, '&quot;')}"
+                                               class="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent">
+                                        <button type="button" onclick="removerEspecializacaoEdicao(${especializacaoEdicaoCount})" class="text-red-600 hover:text-red-700 p-2">
+                                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                                            </svg>
+                                        </button>
+                                    `;
+                                    especializacoesContainer.appendChild(div);
+                                    especializacaoEdicaoCount++;
+                                }
+                            });
+                        }
+                    } catch (e) {
+                        // Se não for JSON, tratar como string única
+                        if (gestor.especializacao.trim()) {
+                            const div = document.createElement('div');
+                            div.className = 'flex items-center space-x-2';
+                            div.id = `editar-especializacao-${especializacaoEdicaoCount}`;
+                            div.innerHTML = `
+                                <input type="text" name="especializacoes[]" value="${gestor.especializacao.replace(/"/g, '&quot;')}"
+                                       class="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent">
+                                <button type="button" onclick="removerEspecializacaoEdicao(${especializacaoEdicaoCount})" class="text-red-600 hover:text-red-700 p-2">
+                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                                    </svg>
+                                </button>
+                            `;
+                            especializacoesContainer.appendChild(div);
+                            especializacaoEdicaoCount++;
+                        }
+                    }
+                }
+                
                 document.getElementById('editar_registro_profissional').value = gestor.registro_profissional || '';
                 document.getElementById('editar_observacoes').value = gestor.observacoes || '';
                 document.getElementById('editar_ativo').value = gestor.ativo !== undefined ? gestor.ativo : 1;
+                
+                // Preencher endereço
+                document.getElementById('editar_endereco').value = gestor.endereco || '';
+                document.getElementById('editar_numero').value = gestor.numero || '';
+                document.getElementById('editar_complemento').value = gestor.complemento || '';
+                document.getElementById('editar_bairro').value = gestor.bairro || '';
+                document.getElementById('editar_cidade').value = gestor.cidade || '';
+                document.getElementById('editar_estado').value = gestor.estado || 'CE';
+                if (gestor.cep) {
+                    const cep = gestor.cep.replace(/\D/g, '');
+                    if (cep.length === 8) {
+                        document.getElementById('editar_cep').value = cep.slice(0, 5) + '-' + cep.slice(5);
+                    } else {
+                        document.getElementById('editar_cep').value = gestor.cep;
+                    }
+                }
                 // Preencher escola (pesquisa)
                 if (gestor.escola_id) {
                     const escola = escolas.find(e => e.id == gestor.escola_id);
