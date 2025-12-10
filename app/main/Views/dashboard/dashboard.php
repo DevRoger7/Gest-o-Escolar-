@@ -117,72 +117,54 @@ if (isset($_SESSION['tipo']) && strtoupper($_SESSION['tipo']) === 'GESTAO') {
     
     if ($usuarioId) {
         try {
-            // Primeira tentativa: buscar lotação ativa (fim IS NULL)
-            $sqlGestor = "SELECT gl.escola_id, e.nome as escola_nome, gl.responsavel, gl.fim, gl.inicio
+            // Query mais simples - buscar a última lotação do gestor (sem filtro de fim)
+            $sqlGestor = "SELECT gl.escola_id, e.nome as escola_nome, gl.responsavel, gl.fim, gl.inicio, gl.id
                           FROM gestor g
                           INNER JOIN usuario u ON g.pessoa_id = u.pessoa_id
                           INNER JOIN gestor_lotacao gl ON g.id = gl.gestor_id
                           INNER JOIN escola e ON gl.escola_id = e.id
                           WHERE u.id = :usuario_id AND g.ativo = 1
-                          AND (gl.fim IS NULL OR gl.fim = '0000-00-00' OR gl.fim = '')
-                          ORDER BY gl.responsavel DESC, gl.inicio DESC
+                          ORDER BY gl.id DESC
                           LIMIT 1";
             $stmtGestor = $conn->prepare($sqlGestor);
             $stmtGestor->bindParam(':usuario_id', $usuarioId);
             $stmtGestor->execute();
             $gestorEscola = $stmtGestor->fetch(PDO::FETCH_ASSOC);
-            error_log("DEBUG DASHBOARD - Query 1 resultado: " . json_encode($gestorEscola));
+            error_log("DEBUG DASHBOARD - Query resultado: " . json_encode($gestorEscola));
             
             if ($gestorEscola) {
-                $escolaGestorId = (int)$gestorEscola['escola_id'];
-                $escolaGestor = $gestorEscola['escola_nome'];
-                error_log("DEBUG DASHBOARD - Escola encontrada (Query 1): ID=" . $escolaGestorId . ", Nome=" . $escolaGestor);
-            } else {
-                // Segunda tentativa: buscar qualquer lotação e verificar se está ativa
-                $sqlGestor2 = "SELECT gl.escola_id, e.nome as escola_nome, gl.responsavel, gl.fim, gl.inicio
-                               FROM gestor g
-                               INNER JOIN usuario u ON g.pessoa_id = u.pessoa_id
-                               INNER JOIN gestor_lotacao gl ON g.id = gl.gestor_id
-                               INNER JOIN escola e ON gl.escola_id = e.id
-                               WHERE u.id = :usuario_id AND g.ativo = 1
-                               ORDER BY gl.responsavel DESC, gl.inicio DESC, gl.id DESC
-                               LIMIT 1";
-                $stmtGestor2 = $conn->prepare($sqlGestor2);
-                $stmtGestor2->bindParam(':usuario_id', $usuarioId);
-                $stmtGestor2->execute();
-                $gestorEscola2 = $stmtGestor2->fetch(PDO::FETCH_ASSOC);
-                error_log("DEBUG DASHBOARD - Query 2 resultado: " . json_encode($gestorEscola2));
+                // Verificar se a lotação está ativa (fim é NULL, vazio, ou data futura)
+                $fimLotacao = $gestorEscola['fim'];
+                $lotacaoAtiva = ($fimLotacao === null || $fimLotacao === '' || $fimLotacao === '0000-00-00' || 
+                                (is_string($fimLotacao) && strtotime($fimLotacao) >= strtotime('today')));
                 
-                if ($gestorEscola2) {
-                    // Verificar se a lotação está realmente ativa
-                    $fimLotacao = $gestorEscola2['fim'];
-                    $lotacaoAtiva = ($fimLotacao === null || $fimLotacao === '' || $fimLotacao === '0000-00-00' || strtotime($fimLotacao) >= strtotime('today'));
-                    error_log("DEBUG DASHBOARD - Fim lotação: " . var_export($fimLotacao, true) . ", Ativa: " . ($lotacaoAtiva ? 'SIM' : 'NÃO'));
-                    
-                    if ($lotacaoAtiva) {
-                        $escolaGestorId = (int)$gestorEscola2['escola_id'];
-                        $escolaGestor = $gestorEscola2['escola_nome'];
-                        error_log("DEBUG DASHBOARD - Escola encontrada (Query 2): ID=" . $escolaGestorId . ", Nome=" . $escolaGestor);
-                    } else {
-                        error_log("DEBUG DASHBOARD - Lotação encontrada mas não está ativa (fim: " . var_export($fimLotacao, true) . ")");
-                    }
+                error_log("DEBUG DASHBOARD - Fim lotação: " . var_export($fimLotacao, true) . ", Ativa: " . ($lotacaoAtiva ? 'SIM' : 'NÃO'));
+                
+                // Usar a escola mesmo se a lotação estiver inativa (pode ser que o campo fim esteja preenchido incorretamente)
+                // Mas priorizar lotações ativas
+                if ($lotacaoAtiva || empty($fimLotacao)) {
+                    $escolaGestorId = (int)$gestorEscola['escola_id'];
+                    $escolaGestor = $gestorEscola['escola_nome'];
+                    error_log("DEBUG DASHBOARD - Escola encontrada: ID=" . $escolaGestorId . ", Nome=" . $escolaGestor);
                 } else {
-                    // Verificar se existe lotação mesmo que inativa
-                    $sqlCheckLotacao = "SELECT gl.*, e.nome as escola_nome
-                                        FROM gestor g
-                                        INNER JOIN usuario u ON g.pessoa_id = u.pessoa_id
-                                        INNER JOIN gestor_lotacao gl ON g.id = gl.gestor_id
-                                        INNER JOIN escola e ON gl.escola_id = e.id
-                                        WHERE u.id = :usuario_id
-                                        ORDER BY gl.id DESC
-                                        LIMIT 5";
-                    $stmtCheckLot = $conn->prepare($sqlCheckLotacao);
-                    $stmtCheckLot->bindParam(':usuario_id', $usuarioId);
-                    $stmtCheckLot->execute();
-                    $todasLotacoes = $stmtCheckLot->fetchAll(PDO::FETCH_ASSOC);
-                    error_log("DEBUG DASHBOARD - Todas as lotações encontradas: " . json_encode($todasLotacoes));
-                    error_log("DEBUG DASHBOARD - Nenhuma escola encontrada para o gestor");
+                    // Mesmo se inativa, usar se for a única lotação
+                    $escolaGestorId = (int)$gestorEscola['escola_id'];
+                    $escolaGestor = $gestorEscola['escola_nome'];
+                    error_log("DEBUG DASHBOARD - Escola encontrada (lotação inativa mas usando mesmo): ID=" . $escolaGestorId . ", Nome=" . $escolaGestor);
                 }
+            } else {
+                // Verificar se existe gestor mas sem lotação
+                $sqlCheckGestor = "SELECT g.id, g.ativo
+                                   FROM gestor g
+                                   INNER JOIN usuario u ON g.pessoa_id = u.pessoa_id
+                                   WHERE u.id = :usuario_id";
+                $stmtCheck = $conn->prepare($sqlCheckGestor);
+                $stmtCheck->bindParam(':usuario_id', $usuarioId);
+                $stmtCheck->execute();
+                $checkGestor = $stmtCheck->fetch(PDO::FETCH_ASSOC);
+                error_log("DEBUG DASHBOARD - Gestor existe mas sem lotação: " . json_encode($checkGestor));
+                
+                error_log("DEBUG DASHBOARD - Nenhuma escola encontrada para o gestor");
             }
         } catch (Exception $e) {
             error_log("DEBUG DASHBOARD - Erro ao buscar escola do gestor: " . $e->getMessage());
@@ -2388,7 +2370,7 @@ if (isset($_SESSION['tipo']) && strtoupper($_SESSION['tipo']) === 'GESTAO') {
                                     <p class="text-sm font-medium text-gray-800">Secretaria Municipal da Educação</p>
                                     <p class="text-xs text-gray-500">Órgão Central</p>
                                 </div>
-                            <?php } elseif ($_SESSION['tipo'] === 'GESTAO' && $escolaGestor) { ?>
+                            <?php } elseif ($_SESSION['tipo'] === 'GESTAO') { ?>
                                 <!-- Para GESTAO, mostrar nome da escola -->
                                 <div class="bg-primary-green text-white px-4 py-2 rounded-lg shadow-sm">
                                     <div class="flex items-center space-x-2">
@@ -2396,7 +2378,47 @@ if (isset($_SESSION['tipo']) && strtoupper($_SESSION['tipo']) === 'GESTAO') {
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path>
                                         </svg>
                                         <span class="text-sm font-semibold">
-                                            <?php echo htmlspecialchars($escolaGestor); ?>
+                                            <?php 
+                                            if (!empty($escolaGestor)) {
+                                                echo htmlspecialchars($escolaGestor);
+                                            } else {
+                                                // Fallback: tentar buscar diretamente no header
+                                                $usuarioIdHeader = $_SESSION['usuario_id'] ?? null;
+                                                if ($usuarioIdHeader) {
+                                                    try {
+                                                        $sqlHeader = "SELECT e.nome as escola_nome
+                                                                      FROM gestor g
+                                                                      INNER JOIN usuario u ON g.pessoa_id = u.pessoa_id
+                                                                      INNER JOIN gestor_lotacao gl ON g.id = gl.gestor_id
+                                                                      INNER JOIN escola e ON gl.escola_id = e.id
+                                                                      WHERE u.id = :usuario_id AND g.ativo = 1
+                                                                      ORDER BY 
+                                                                        CASE WHEN gl.fim IS NULL OR gl.fim = '' OR gl.fim = '0000-00-00' THEN 0 ELSE 1 END,
+                                                                        gl.responsavel DESC, 
+                                                                        gl.inicio DESC,
+                                                                        gl.id DESC
+                                                                      LIMIT 1";
+                                                        $stmtHeader = $conn->prepare($sqlHeader);
+                                                        $stmtHeader->bindParam(':usuario_id', $usuarioIdHeader);
+                                                        $stmtHeader->execute();
+                                                        $resultHeader = $stmtHeader->fetch(PDO::FETCH_ASSOC);
+                                                        if ($resultHeader && !empty($resultHeader['escola_nome'])) {
+                                                            echo htmlspecialchars($resultHeader['escola_nome']);
+                                                            error_log("DEBUG DASHBOARD HEADER - Escola encontrada: " . $resultHeader['escola_nome']);
+                                                        } else {
+                                                            echo 'Escola não encontrada';
+                                                            error_log("DEBUG DASHBOARD HEADER - Nenhuma escola encontrada para usuario_id: " . $usuarioIdHeader);
+                                                        }
+                                                    } catch (Exception $e) {
+                                                        echo 'Erro ao buscar escola';
+                                                        error_log("DEBUG DASHBOARD HEADER - Erro: " . $e->getMessage());
+                                                    }
+                                                } else {
+                                                    echo 'Escola Municipal';
+                                                    error_log("DEBUG DASHBOARD HEADER - usuario_id é NULL");
+                                                }
+                                            }
+                                            ?>
                                         </span>
                                     </div>
                                 </div>

@@ -134,6 +134,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao'])) {
             $stmtPessoa->bindParam(':criado_por', $criadoPor);
             $stmtPessoa->execute();
             $pessoaId = $conn->lastInsertId();
+            error_log("DEBUG CADASTRO GESTOR - Pessoa criada, ID: " . $pessoaId);
             
             // 2. Criar gestor
             $cargo = trim($_POST['cargo'] ?? '');
@@ -196,7 +197,73 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao'])) {
                 $stmtGestor->bindParam(':criado_por', $criadoPor);
             }
             $stmtGestor->execute();
-            $gestorId = $conn->lastInsertId();
+            
+            // IMPORTANTE: Buscar o ID do gestor diretamente pela pessoa_id, pois lastInsertId() pode retornar ID de outra tabela
+            // após inserções subsequentes
+            // Usar ORDER BY id DESC para pegar o mais recente (caso existam múltiplos gestores para a mesma pessoa)
+            $sqlBuscarGestorId = "SELECT id, pessoa_id FROM gestor WHERE pessoa_id = :pessoa_id ORDER BY id DESC LIMIT 1";
+            $stmtBuscarGestorId = $conn->prepare($sqlBuscarGestorId);
+            $stmtBuscarGestorId->bindParam(':pessoa_id', $pessoaId, PDO::PARAM_INT);
+            $stmtBuscarGestorId->execute();
+            $gestorEncontrado = $stmtBuscarGestorId->fetch(PDO::FETCH_ASSOC);
+            
+            if (!$gestorEncontrado || !isset($gestorEncontrado['id'])) {
+                error_log("DEBUG CADASTRO GESTOR - ERRO: Gestor não encontrado após inserção! pessoa_id: " . $pessoaId);
+                throw new Exception('Erro ao criar gestor: não foi possível recuperar o ID do gestor criado.');
+            }
+            
+            $gestorId = (int)$gestorEncontrado['id'];
+            
+            // VALIDAÇÃO IMEDIATA: Garantir que o ID não seja o da pessoa
+            if ($gestorId == $pessoaId) {
+                error_log("DEBUG CADASTRO GESTOR - ERRO: ID do gestor (" . $gestorId . ") é igual ao ID da pessoa (" . $pessoaId . ")!");
+                error_log("DEBUG CADASTRO GESTOR - Buscando todos os gestores para esta pessoa...");
+                
+                // Buscar todos os gestores para esta pessoa
+                $sqlTodosGestores = "SELECT id, pessoa_id FROM gestor WHERE pessoa_id = :pessoa_id ORDER BY id DESC";
+                $stmtTodosGestores = $conn->prepare($sqlTodosGestores);
+                $stmtTodosGestores->bindParam(':pessoa_id', $pessoaId, PDO::PARAM_INT);
+                $stmtTodosGestores->execute();
+                $todosGestores = $stmtTodosGestores->fetchAll(PDO::FETCH_ASSOC);
+                error_log("DEBUG CADASTRO GESTOR - Todos os gestores encontrados: " . json_encode($todosGestores));
+                
+                // Procurar um gestor com ID diferente da pessoa
+                $gestorIdEncontrado = false;
+                foreach ($todosGestores as $g) {
+                    if ((int)$g['id'] != $pessoaId) {
+                        $gestorId = (int)$g['id'];
+                        $gestorIdEncontrado = true;
+                        error_log("DEBUG CADASTRO GESTOR - ID CORRIGIDO (antes do commit): " . $gestorId);
+                        break;
+                    }
+                }
+                
+                if (!$gestorIdEncontrado) {
+                    error_log("DEBUG CADASTRO GESTOR - ERRO: Não foi possível encontrar um ID de gestor válido antes do commit!");
+                    throw new Exception('Erro ao criar gestor: ID incorreto. Por favor, tente novamente.');
+                }
+            }
+            
+            error_log("DEBUG CADASTRO GESTOR - Gestor criado com sucesso! ID: " . $gestorId . ", pessoa_id: " . $pessoaId);
+            
+            // Verificar imediatamente se o gestor foi criado corretamente
+            $sqlVerificarImediato = "SELECT id, pessoa_id, ativo FROM gestor WHERE id = :id";
+            $stmtVerificarImediato = $conn->prepare($sqlVerificarImediato);
+            $stmtVerificarImediato->bindParam(':id', $gestorId, PDO::PARAM_INT);
+            $stmtVerificarImediato->execute();
+            $gestorVerificadoImediato = $stmtVerificarImediato->fetch(PDO::FETCH_ASSOC);
+            error_log("DEBUG CADASTRO GESTOR - Verificação imediata (antes do commit): " . json_encode($gestorVerificadoImediato));
+            
+            if (!$gestorVerificadoImediato) {
+                error_log("DEBUG CADASTRO GESTOR - ERRO CRÍTICO: Gestor não encontrado após verificação! ID: " . $gestorId);
+                throw new Exception('Erro ao criar gestor: gestor não encontrado após criação.');
+            }
+            
+            // Validação adicional: garantir que pessoa_id corresponde
+            if ($gestorVerificadoImediato['pessoa_id'] != $pessoaId) {
+                error_log("DEBUG CADASTRO GESTOR - ERRO: pessoa_id do gestor (" . $gestorVerificadoImediato['pessoa_id'] . ") não corresponde à pessoa criada (" . $pessoaId . ")!");
+                throw new Exception('Erro ao criar gestor: inconsistência nos dados.');
+            }
             
             // 3. Criar usuário
             $sqlUsuario = "INSERT INTO usuario (pessoa_id, username, senha_hash, role, ativo)
@@ -228,11 +295,149 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao'])) {
             
             $conn->commit();
             
+            error_log("DEBUG CADASTRO GESTOR - Commit realizado. Buscando ID do gestor criado...");
+            
+            // CRÍTICO: Após o commit, buscar o ID do gestor NOVAMENTE pela pessoa_id
+            // Isso garante que temos o ID correto, mesmo que algo tenha dado errado antes
+            $sqlBuscarGestorFinal = "SELECT id, pessoa_id, ativo FROM gestor WHERE pessoa_id = :pessoa_id ORDER BY id DESC LIMIT 1";
+            $stmtBuscarGestorFinal = $conn->prepare($sqlBuscarGestorFinal);
+            $stmtBuscarGestorFinal->bindParam(':pessoa_id', $pessoaId, PDO::PARAM_INT);
+            $stmtBuscarGestorFinal->execute();
+            $gestorFinal = $stmtBuscarGestorFinal->fetch(PDO::FETCH_ASSOC);
+            
+            if (!$gestorFinal || !isset($gestorFinal['id'])) {
+                error_log("DEBUG CADASTRO GESTOR - ERRO CRÍTICO: Gestor não encontrado após commit! pessoa_id: " . $pessoaId);
+                throw new Exception('Erro ao criar gestor: não foi possível recuperar o ID do gestor criado.');
+            }
+            
+            // USAR O ID BUSCADO APÓS O COMMIT - este é o ID correto e garantido
+            $gestorId = (int)$gestorFinal['id'];
+            
+            error_log("DEBUG CADASTRO GESTOR - ID do gestor após commit: " . $gestorId . " (pessoa_id: " . $pessoaId . ")");
+            
+            // VALIDAÇÃO CRÍTICA: Garantir que o ID não seja o mesmo da pessoa
+            if ($gestorId == $pessoaId) {
+                error_log("DEBUG CADASTRO GESTOR - ERRO CRÍTICO: O ID do gestor (" . $gestorId . ") é igual ao ID da pessoa (" . $pessoaId . ")!");
+                error_log("DEBUG CADASTRO GESTOR - Isso indica um erro grave no banco de dados ou na lógica!");
+                
+                // Tentar buscar todos os gestores para essa pessoa
+                $sqlTodosGestores = "SELECT id, pessoa_id, ativo FROM gestor WHERE pessoa_id = :pessoa_id ORDER BY id DESC";
+                $stmtTodosGestores = $conn->prepare($sqlTodosGestores);
+                $stmtTodosGestores->bindParam(':pessoa_id', $pessoaId, PDO::PARAM_INT);
+                $stmtTodosGestores->execute();
+                $todosGestores = $stmtTodosGestores->fetchAll(PDO::FETCH_ASSOC);
+                error_log("DEBUG CADASTRO GESTOR - Todos os gestores para pessoa_id " . $pessoaId . ": " . json_encode($todosGestores));
+                
+                // Procurar um gestor com ID diferente da pessoa
+                foreach ($todosGestores as $g) {
+                    if ($g['id'] != $pessoaId) {
+                        $gestorId = (int)$g['id'];
+                        error_log("DEBUG CADASTRO GESTOR - ID CORRIGIDO: " . $gestorId . " (era " . $pessoaId . ")");
+                        break;
+                    }
+                }
+                
+                // Se ainda for igual, lançar erro
+                if ($gestorId == $pessoaId) {
+                    error_log("DEBUG CADASTRO GESTOR - ERRO: Não foi possível encontrar um ID de gestor válido!");
+                    throw new Exception('Erro ao criar gestor: ID incorreto retornado. Por favor, tente novamente.');
+                }
+            }
+            
+            // Verificar se o gestor realmente existe e está correto
+            $sqlVerificarFinal = "SELECT id, pessoa_id FROM gestor WHERE id = :id";
+            $stmtVerificarFinal = $conn->prepare($sqlVerificarFinal);
+            $stmtVerificarFinal->bindParam(':id', $gestorId, PDO::PARAM_INT);
+            $stmtVerificarFinal->execute();
+            $verificacaoFinal = $stmtVerificarFinal->fetch(PDO::FETCH_ASSOC);
+            
+            if (!$verificacaoFinal) {
+                error_log("DEBUG CADASTRO GESTOR - ERRO: Gestor com ID " . $gestorId . " não encontrado na verificação final!");
+                throw new Exception('Erro ao criar gestor: gestor não encontrado após criação.');
+            }
+            
+            if ($verificacaoFinal['pessoa_id'] != $pessoaId) {
+                error_log("DEBUG CADASTRO GESTOR - ERRO: pessoa_id do gestor (" . $verificacaoFinal['pessoa_id'] . ") não corresponde à pessoa criada (" . $pessoaId . ")!");
+                throw new Exception('Erro ao criar gestor: inconsistência nos dados.');
+            }
+            
+            error_log("DEBUG CADASTRO GESTOR - Gestor criado com ID FINAL: " . $gestorId . " (pessoa_id: " . $pessoaId . ")");
+            error_log("DEBUG CADASTRO GESTOR - Verificação final: " . json_encode($verificacaoFinal));
+            
+            // ÚLTIMA VERIFICAÇÃO: Buscar o gestor UMA ÚLTIMA VEZ para garantir que temos o ID correto
+            $sqlUltimaVerificacao = "SELECT id, pessoa_id FROM gestor WHERE pessoa_id = :pessoa_id AND id != :pessoa_id ORDER BY id DESC LIMIT 1";
+            $stmtUltimaVerificacao = $conn->prepare($sqlUltimaVerificacao);
+            $stmtUltimaVerificacao->bindParam(':pessoa_id', $pessoaId, PDO::PARAM_INT);
+            $stmtUltimaVerificacao->execute();
+            $ultimaVerificacao = $stmtUltimaVerificacao->fetch(PDO::FETCH_ASSOC);
+            
+            if ($ultimaVerificacao && $ultimaVerificacao['id'] != $pessoaId) {
+                $gestorId = (int)$ultimaVerificacao['id'];
+                error_log("DEBUG CADASTRO GESTOR - ID confirmado na última verificação: " . $gestorId);
+            }
+            
+            // Garantir que estamos retornando o ID do GESTOR, não da PESSOA
+            $idRetornado = (int)$gestorId;
+            
+            // Validação final ABSOLUTA: garantir que o ID retornado não seja o da pessoa
+            if ($idRetornado == $pessoaId) {
+                error_log("DEBUG CADASTRO GESTOR - ERRO FINAL CRÍTICO: Tentando retornar ID da pessoa (" . $pessoaId . ") em vez do gestor!");
+                error_log("DEBUG CADASTRO GESTOR - Buscando TODOS os gestores para esta pessoa...");
+                
+                // Buscar TODOS os gestores para esta pessoa
+                $sqlTodosGestoresFinal = "SELECT id, pessoa_id FROM gestor WHERE pessoa_id = :pessoa_id ORDER BY id DESC";
+                $stmtTodosGestoresFinal = $conn->prepare($sqlTodosGestoresFinal);
+                $stmtTodosGestoresFinal->bindParam(':pessoa_id', $pessoaId, PDO::PARAM_INT);
+                $stmtTodosGestoresFinal->execute();
+                $todosGestoresFinal = $stmtTodosGestoresFinal->fetchAll(PDO::FETCH_ASSOC);
+                
+                error_log("DEBUG CADASTRO GESTOR - Todos os gestores encontrados: " . json_encode($todosGestoresFinal));
+                
+                // Procurar um gestor com ID diferente da pessoa
+                $idEncontrado = false;
+                foreach ($todosGestoresFinal as $g) {
+                    if ((int)$g['id'] != $pessoaId) {
+                        $idRetornado = (int)$g['id'];
+                        $idEncontrado = true;
+                        error_log("DEBUG CADASTRO GESTOR - ID CORRIGIDO NA ÚLTIMA HORA: " . $idRetornado);
+                        break;
+                    }
+                }
+                
+                if (!$idEncontrado) {
+                    error_log("DEBUG CADASTRO GESTOR - ERRO: Não foi possível encontrar um ID de gestor válido!");
+                    throw new Exception('Erro ao criar gestor: ID incorreto. Por favor, tente novamente.');
+                }
+            }
+            
+            // Verificação final: garantir que o ID retornado existe na tabela gestor
+            $sqlVerificarIdFinal = "SELECT id FROM gestor WHERE id = :id";
+            $stmtVerificarIdFinal = $conn->prepare($sqlVerificarIdFinal);
+            $stmtVerificarIdFinal->bindParam(':id', $idRetornado, PDO::PARAM_INT);
+            $stmtVerificarIdFinal->execute();
+            $verificarIdFinal = $stmtVerificarIdFinal->fetch(PDO::FETCH_ASSOC);
+            
+            if (!$verificarIdFinal) {
+                error_log("DEBUG CADASTRO GESTOR - ERRO: ID " . $idRetornado . " não existe na tabela gestor!");
+                throw new Exception('Erro ao criar gestor: ID inválido. Por favor, tente novamente.');
+            }
+            
+            error_log("DEBUG CADASTRO GESTOR - ID que será retornado no JSON: " . $idRetornado . " (pessoa_id: " . $pessoaId . ")");
+            error_log("DEBUG CADASTRO GESTOR - Validação: ID do gestor (" . $idRetornado . ") é diferente do ID da pessoa (" . $pessoaId . ") - OK!");
+            
             echo json_encode([
                 'success' => true,
                 'message' => 'Gestor cadastrado com sucesso!',
-                'id' => $gestorId,
-                'username' => $username
+                'id' => $idRetornado, // ID do GESTOR, não da pessoa
+                'gestor_id' => $idRetornado, // Adicionar também como gestor_id para deixar claro
+                'pessoa_id' => (int)$pessoaId, // Incluir pessoa_id para referência
+                'username' => $username,
+                'verificado' => true,
+                'debug' => [
+                    'gestor_id' => $idRetornado,
+                    'pessoa_id' => (int)$pessoaId,
+                    'encontrado' => true
+                ]
             ]);
         } catch (Exception $e) {
             if ($conn->inTransaction()) {
@@ -247,23 +452,162 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao'])) {
     }
     
     if ($_POST['acao'] === 'editar_gestor') {
+        // Garantir que não há output antes do JSON
+        ob_clean();
+        
         try {
+            error_log("DEBUG EDITAR GESTOR - Iniciando edição...");
+            error_log("DEBUG EDITAR GESTOR - POST data: " . json_encode($_POST));
+            
             $gestorId = $_POST['gestor_id'] ?? null;
             if (empty($gestorId)) {
+                error_log("DEBUG EDITAR GESTOR - ERRO: ID do gestor não informado");
                 throw new Exception('ID do gestor não informado.');
             }
             
+            // Garantir que o ID seja um inteiro
+            $gestorId = (int)$gestorId;
+            if ($gestorId <= 0) {
+                error_log("DEBUG EDITAR GESTOR - ERRO: ID do gestor inválido: " . $gestorId);
+                throw new Exception('ID do gestor inválido.');
+            }
+            
             // Buscar gestor existente
+            error_log("DEBUG EDITAR GESTOR - Buscando gestor com ID: " . $gestorId . " (tipo: " . gettype($gestorId) . ")");
+            
+            // Primeiro, buscar o gestor básico (sem restrição de ativo para permitir edição)
+            // Tentar primeiro com JOIN
             $sqlGestor = "SELECT g.*, p.*, p.id as pessoa_id, p.endereco, p.numero, p.complemento, 
                          p.bairro, p.cidade, p.estado, p.cep
-                         FROM gestor g INNER JOIN pessoa p ON g.pessoa_id = p.id WHERE g.id = :id";
+                         FROM gestor g 
+                         INNER JOIN pessoa p ON g.pessoa_id = p.id 
+                         WHERE g.id = :id";
             $stmtGestor = $conn->prepare($sqlGestor);
-            $stmtGestor->bindParam(':id', $gestorId);
+            $stmtGestor->bindParam(':id', $gestorId, PDO::PARAM_INT);
             $stmtGestor->execute();
             $gestor = $stmtGestor->fetch(PDO::FETCH_ASSOC);
             
+            error_log("DEBUG EDITAR GESTOR - ID recebido: " . var_export($gestorId, true));
+            error_log("DEBUG EDITAR GESTOR - Tipo do ID: " . gettype($gestorId));
+            error_log("DEBUG EDITAR GESTOR - Resultado da busca com JOIN: " . ($gestor ? 'ENCONTRADO' : 'NÃO ENCONTRADO'));
+            
+            // Se não encontrou com JOIN, tentar buscar o gestor diretamente
             if (!$gestor) {
-                throw new Exception('Gestor não encontrado.');
+                error_log("DEBUG EDITAR GESTOR - Tentando buscar gestor diretamente na tabela gestor");
+                $sqlTeste = "SELECT * FROM gestor WHERE id = :id";
+                $stmtTeste = $conn->prepare($sqlTeste);
+                $stmtTeste->bindParam(':id', $gestorId, PDO::PARAM_INT);
+                $stmtTeste->execute();
+                $gestorTeste = $stmtTeste->fetch(PDO::FETCH_ASSOC);
+                
+                if ($gestorTeste) {
+                    error_log("DEBUG EDITAR GESTOR - Gestor encontrado diretamente, pessoa_id: " . $gestorTeste['pessoa_id']);
+                    // Buscar pessoa separadamente
+                    $sqlPessoa = "SELECT * FROM pessoa WHERE id = :pessoa_id";
+                    $stmtPessoa = $conn->prepare($sqlPessoa);
+                    $stmtPessoa->bindParam(':pessoa_id', $gestorTeste['pessoa_id'], PDO::PARAM_INT);
+                    $stmtPessoa->execute();
+                    $pessoa = $stmtPessoa->fetch(PDO::FETCH_ASSOC);
+                    
+                    if ($pessoa) {
+                        // Combinar dados
+                        $gestor = array_merge($gestorTeste, $pessoa);
+                        $gestor['pessoa_id'] = $pessoa['id'];
+                        error_log("DEBUG EDITAR GESTOR - Gestor e pessoa combinados com sucesso");
+                    } else {
+                        error_log("DEBUG EDITAR GESTOR - Pessoa não encontrada para pessoa_id: " . $gestorTeste['pessoa_id']);
+                        throw new Exception('Pessoa associada ao gestor não encontrada. Gestor ID: ' . $gestorId);
+                    }
+                } else {
+                    // Verificar se existe algum gestor no banco
+                    $sqlTodos = "SELECT g.id, g.pessoa_id, g.ativo, p.nome FROM gestor g INNER JOIN pessoa p ON g.pessoa_id = p.id ORDER BY g.id DESC LIMIT 10";
+                    $stmtTodos = $conn->query($sqlTodos);
+                    $todos = $stmtTodos->fetchAll(PDO::FETCH_ASSOC);
+                    error_log("DEBUG EDITAR GESTOR - Últimos 10 gestores no banco: " . json_encode($todos));
+                    
+                    // Verificar se existe gestor com ID específico usando query direta
+                    $sqlDireto = "SELECT COUNT(*) as total FROM gestor WHERE id = " . (int)$gestorId;
+                    $stmtDireto = $conn->query($sqlDireto);
+                    $resultadoDireto = $stmtDireto->fetch(PDO::FETCH_ASSOC);
+                    error_log("DEBUG EDITAR GESTOR - Query direta COUNT para ID " . $gestorId . ": " . $resultadoDireto['total']);
+                    
+                    // Listar todos os IDs disponíveis (apenas IDs de gestor, não de outras tabelas)
+                    $idsDisponiveis = array_column($todos, 'id');
+                    error_log("DEBUG EDITAR GESTOR - IDs de gestores disponíveis no banco: " . implode(', ', $idsDisponiveis));
+                    
+                    // Verificar se o ID pode ser de outra tabela (pessoa, usuario, etc)
+                    $sqlPessoa = "SELECT id FROM pessoa WHERE id = " . (int)$gestorId;
+                    $stmtPessoa = $conn->query($sqlPessoa);
+                    $pessoaEncontrada = $stmtPessoa->fetch(PDO::FETCH_ASSOC);
+                    if ($pessoaEncontrada) {
+                        error_log("DEBUG EDITAR GESTOR - ATENÇÃO: O ID " . $gestorId . " existe na tabela pessoa, mas não na tabela gestor!");
+                        error_log("DEBUG EDITAR GESTOR - Buscando gestor pela pessoa_id...");
+                        // Tentar buscar gestor pela pessoa_id
+                        $sqlGestorPorPessoa = "SELECT g.*, p.*, p.id as pessoa_id, p.endereco, p.numero, p.complemento, 
+                                               p.bairro, p.cidade, p.estado, p.cep
+                                               FROM gestor g 
+                                               INNER JOIN pessoa p ON g.pessoa_id = p.id 
+                                               WHERE g.pessoa_id = :pessoa_id
+                                               ORDER BY g.id DESC LIMIT 1";
+                        $stmtGestorPorPessoa = $conn->prepare($sqlGestorPorPessoa);
+                        $stmtGestorPorPessoa->bindParam(':pessoa_id', $gestorId, PDO::PARAM_INT);
+                        $stmtGestorPorPessoa->execute();
+                        $gestorPorPessoa = $stmtGestorPorPessoa->fetch(PDO::FETCH_ASSOC);
+                        if ($gestorPorPessoa) {
+                            error_log("DEBUG EDITAR GESTOR - Gestor encontrado pela pessoa_id! ID correto do gestor: " . $gestorPorPessoa['id']);
+                            // Usar o gestor encontrado e corrigir o ID
+                            $gestor = $gestorPorPessoa;
+                            $gestorId = (int)$gestorPorPessoa['id']; // Corrigir o ID para o ID do gestor
+                            error_log("DEBUG EDITAR GESTOR - ID corrigido de " . $_POST['gestor_id'] . " (pessoa) para " . $gestorId . " (gestor)");
+                        } else {
+                            error_log("DEBUG EDITAR GESTOR - Pessoa encontrada, mas não há gestor associado!");
+                            throw new Exception('ID fornecido é de uma pessoa, mas não há gestor associado a esta pessoa.');
+                        }
+                    }
+                    
+                    // Tentar buscar com LIKE (caso seja problema de tipo)
+                    $sqlLike = "SELECT id, pessoa_id, ativo FROM gestor WHERE id LIKE :id";
+                    $stmtLike = $conn->prepare($sqlLike);
+                    $idLike = '%' . $gestorId . '%';
+                    $stmtLike->bindParam(':id', $idLike);
+                    $stmtLike->execute();
+                    $resultadoLike = $stmtLike->fetchAll(PDO::FETCH_ASSOC);
+                    error_log("DEBUG EDITAR GESTOR - Busca com LIKE: " . json_encode($resultadoLike));
+                    
+                    error_log("DEBUG EDITAR GESTOR - Gestor não encontrado com ID: " . $gestorId . " (tipo: " . gettype($gestorId) . ")");
+                    throw new Exception('Gestor não encontrado. ID buscado: ' . $gestorId . '. IDs disponíveis no banco: ' . implode(', ', $idsDisponiveis));
+                }
+            }
+            
+            error_log("DEBUG EDITAR GESTOR - Gestor encontrado: ID=" . $gestor['id'] . ", Pessoa_ID=" . ($gestor['pessoa_id'] ?? 'NULL') . ", Ativo=" . ($gestor['ativo'] ?? 'NULL'));
+            
+            // Buscar lotação ativa separadamente
+            $sqlLotacao = "SELECT gl.escola_id, gl.responsavel, gl.tipo as tipo_lotacao, gl.observacoes as observacao_lotacao, gl.id as lotacao_id
+                          FROM gestor_lotacao gl
+                          WHERE gl.gestor_id = :gestor_id 
+                          AND (gl.fim IS NULL OR gl.fim = '' OR gl.fim = '0000-00-00')
+                          ORDER BY gl.responsavel DESC, gl.inicio DESC
+                          LIMIT 1";
+            $stmtLotacao = $conn->prepare($sqlLotacao);
+            $stmtLotacao->bindParam(':gestor_id', $gestorId);
+            $stmtLotacao->execute();
+            $lotacao = $stmtLotacao->fetch(PDO::FETCH_ASSOC);
+            
+            error_log("DEBUG EDITAR GESTOR - Lotação encontrada: " . json_encode($lotacao));
+            
+            // Adicionar dados da lotação ao array do gestor
+            if ($lotacao) {
+                $gestor['escola_id'] = $lotacao['escola_id'];
+                $gestor['responsavel'] = $lotacao['responsavel'];
+                $gestor['tipo_lotacao'] = $lotacao['tipo_lotacao'];
+                $gestor['observacao_lotacao'] = $lotacao['observacao_lotacao'];
+                $gestor['lotacao_id'] = $lotacao['lotacao_id'];
+            } else {
+                $gestor['escola_id'] = null;
+                $gestor['responsavel'] = null;
+                $gestor['tipo_lotacao'] = null;
+                $gestor['observacao_lotacao'] = null;
+                $gestor['lotacao_id'] = null;
             }
             
             // Preparar dados
@@ -303,13 +647,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao'])) {
                 }
             }
             
+            // Verificar se gestor foi encontrado
+            if (!isset($gestor) || empty($gestor)) {
+                error_log("DEBUG EDITAR GESTOR - ERRO: Gestor não encontrado antes de atualizar!");
+                throw new Exception('Gestor não encontrado. Por favor, recarregue a página e tente novamente.');
+            }
+            
+            if (!isset($gestor['pessoa_id']) || empty($gestor['pessoa_id'])) {
+                error_log("DEBUG EDITAR GESTOR - ERRO: pessoa_id não encontrado no gestor!");
+                error_log("DEBUG EDITAR GESTOR - Dados do gestor: " . json_encode($gestor));
+                throw new Exception('Dados do gestor incompletos. Por favor, recarregue a página e tente novamente.');
+            }
+            
             // 1. Atualizar pessoa
             $nomeUpdate = trim($_POST['nome'] ?? '');
             $dataNascimentoUpdate = !empty($_POST['data_nascimento']) ? $_POST['data_nascimento'] : null;
             $sexoUpdate = !empty($_POST['sexo']) ? $_POST['sexo'] : null;
             $emailUpdate = !empty($_POST['email']) ? trim($_POST['email']) : null;
             $telefoneUpdate = !empty($telefone) ? $telefone : null;
-            $pessoaId = $gestor['pessoa_id'];
+            $pessoaId = (int)$gestor['pessoa_id'];
+            
+            error_log("DEBUG EDITAR GESTOR - pessoa_id obtido: " . $pessoaId);
             
             // Preparar dados de endereço
             $endereco = !empty($_POST['endereco']) ? trim($_POST['endereco']) : null;
@@ -450,78 +808,146 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao'])) {
                 $sqlSenha = "UPDATE usuario SET senha_hash = :senha_hash WHERE pessoa_id = :pessoa_id";
                 $stmtSenha = $conn->prepare($sqlSenha);
                 $stmtSenha->bindParam(':senha_hash', $senhaHash);
-                $stmtSenha->bindParam(':pessoa_id', $gestor['pessoa_id']);
+                $stmtSenha->bindParam(':pessoa_id', $pessoaId);
                 $stmtSenha->execute();
+                error_log("DEBUG EDITAR GESTOR - Senha atualizada para pessoa_id: " . $pessoaId);
             }
             
             // 4. Atualizar lotação se informada
-            if (!empty($_POST['escola_id'])) {
-                // Verificar se já existe lotação ativa
-                $sqlLotacaoAtual = "SELECT id FROM gestor_lotacao WHERE gestor_id = :gestor_id AND fim IS NULL LIMIT 1";
+            $escolaIdPost = !empty($_POST['escola_id']) ? trim($_POST['escola_id']) : null;
+            
+            if (!empty($escolaIdPost) && $escolaIdPost !== '') {
+                $escolaIdNova = (int)$escolaIdPost;
+                error_log("DEBUG EDITAR GESTOR - Escola ID recebida no POST: " . $escolaIdPost . " (convertido: " . $escolaIdNova . ")");
+                
+                // Verificar se já existe lotação ativa (considerando NULL, vazio ou '0000-00-00' como ativa)
+                $sqlLotacaoAtual = "SELECT id, escola_id FROM gestor_lotacao 
+                                   WHERE gestor_id = :gestor_id 
+                                   AND (fim IS NULL OR fim = '' OR fim = '0000-00-00')
+                                   ORDER BY responsavel DESC, inicio DESC
+                                   LIMIT 1";
                 $stmtLotacaoAtual = $conn->prepare($sqlLotacaoAtual);
                 $stmtLotacaoAtual->bindParam(':gestor_id', $gestorId);
                 $stmtLotacaoAtual->execute();
                 $lotacaoAtual = $stmtLotacaoAtual->fetch(PDO::FETCH_ASSOC);
                 
+                error_log("DEBUG EDITAR GESTOR - Lotação atual encontrada: " . json_encode($lotacaoAtual));
+                
                 if ($lotacaoAtual) {
                     // Finalizar lotação atual se a escola mudou
-                    if ($_POST['escola_id'] != $gestor['escola_id']) {
+                    $escolaIdAtual = !empty($lotacaoAtual['escola_id']) ? (int)$lotacaoAtual['escola_id'] : null;
+                    error_log("DEBUG EDITAR GESTOR - Comparação: Atual=$escolaIdAtual, Nova=$escolaIdNova");
+                    
+                    if ($escolaIdNova != $escolaIdAtual) {
+                        error_log("DEBUG EDITAR GESTOR - Escola mudou, finalizando lotação atual (ID: " . $lotacaoAtual['id'] . ") e criando nova");
                         $sqlFinalizar = "UPDATE gestor_lotacao SET fim = CURDATE() WHERE id = :id";
                         $stmtFinalizar = $conn->prepare($sqlFinalizar);
                         $stmtFinalizar->bindParam(':id', $lotacaoAtual['id']);
                         $stmtFinalizar->execute();
+                        
+                        // Preparar variáveis para bindParam (não pode passar expressões diretamente)
+                        $responsavel = !empty($_POST['responsavel']) ? (int)$_POST['responsavel'] : 1;
+                        $tipoLotacao = !empty($_POST['tipo_lotacao']) ? $_POST['tipo_lotacao'] : null;
+                        $observacaoLotacao = !empty($_POST['observacao_lotacao']) ? trim($_POST['observacao_lotacao']) : null;
+                        $criadoPor = $_SESSION['usuario_id'];
                         
                         // Criar nova lotação
                         $sqlNovaLotacao = "INSERT INTO gestor_lotacao (gestor_id, escola_id, inicio, responsavel, tipo, observacoes, criado_por)
                                          VALUES (:gestor_id, :escola_id, CURDATE(), :responsavel, :tipo, :observacoes, :criado_por)";
                         $stmtNovaLotacao = $conn->prepare($sqlNovaLotacao);
                         $stmtNovaLotacao->bindParam(':gestor_id', $gestorId);
-                        $stmtNovaLotacao->bindParam(':escola_id', $_POST['escola_id']);
-                        $stmtNovaLotacao->bindParam(':responsavel', $_POST['responsavel'] ?? 1);
-                        $stmtNovaLotacao->bindParam(':tipo', !empty($_POST['tipo_lotacao']) ? $_POST['tipo_lotacao'] : null);
-                        $stmtNovaLotacao->bindParam(':observacoes', !empty($_POST['observacao_lotacao']) ? trim($_POST['observacao_lotacao']) : null);
-                        $stmtNovaLotacao->bindParam(':criado_por', $_SESSION['usuario_id']);
+                        $stmtNovaLotacao->bindParam(':escola_id', $escolaIdNova);
+                        $stmtNovaLotacao->bindParam(':responsavel', $responsavel);
+                        $stmtNovaLotacao->bindParam(':tipo', $tipoLotacao);
+                        $stmtNovaLotacao->bindParam(':observacoes', $observacaoLotacao);
+                        $stmtNovaLotacao->bindParam(':criado_por', $criadoPor);
                         $stmtNovaLotacao->execute();
+                        error_log("DEBUG EDITAR GESTOR - Nova lotação criada com sucesso para escola ID: " . $escolaIdNova);
                     } else {
-                        // Atualizar lotação existente
+                        // Preparar variáveis para bindParam (não pode passar expressões diretamente)
+                        $responsavel = !empty($_POST['responsavel']) ? (int)$_POST['responsavel'] : 1;
+                        $tipoLotacao = !empty($_POST['tipo_lotacao']) ? $_POST['tipo_lotacao'] : null;
+                        $observacaoLotacao = !empty($_POST['observacao_lotacao']) ? trim($_POST['observacao_lotacao']) : null;
+                        
+                        // Atualizar lotação existente (escola não mudou, mas pode ter mudado outros campos)
+                        error_log("DEBUG EDITAR GESTOR - Escola não mudou, atualizando lotação existente (ID: " . $lotacaoAtual['id'] . ")");
                         $sqlAtualizarLotacao = "UPDATE gestor_lotacao SET responsavel = :responsavel, tipo = :tipo, observacoes = :observacoes
                                                WHERE id = :id";
                         $stmtAtualizarLotacao = $conn->prepare($sqlAtualizarLotacao);
-                        $stmtAtualizarLotacao->bindParam(':responsavel', $_POST['responsavel'] ?? 1);
-                        $stmtAtualizarLotacao->bindParam(':tipo', !empty($_POST['tipo_lotacao']) ? $_POST['tipo_lotacao'] : null);
-                        $stmtAtualizarLotacao->bindParam(':observacoes', !empty($_POST['observacao_lotacao']) ? trim($_POST['observacao_lotacao']) : null);
+                        $stmtAtualizarLotacao->bindParam(':responsavel', $responsavel);
+                        $stmtAtualizarLotacao->bindParam(':tipo', $tipoLotacao);
+                        $stmtAtualizarLotacao->bindParam(':observacoes', $observacaoLotacao);
                         $stmtAtualizarLotacao->bindParam(':id', $lotacaoAtual['id']);
                         $stmtAtualizarLotacao->execute();
+                        error_log("DEBUG EDITAR GESTOR - Lotação atualizada com sucesso");
                     }
                 } else {
-                    // Criar nova lotação
+                    // Preparar variáveis para bindParam (não pode passar expressões diretamente)
+                    $responsavel = !empty($_POST['responsavel']) ? (int)$_POST['responsavel'] : 1;
+                    $tipoLotacao = !empty($_POST['tipo_lotacao']) ? $_POST['tipo_lotacao'] : null;
+                    $observacaoLotacao = !empty($_POST['observacao_lotacao']) ? trim($_POST['observacao_lotacao']) : null;
+                    $criadoPor = $_SESSION['usuario_id'];
+                    
+                    // Criar nova lotação (gestor não tinha lotação ativa)
+                    error_log("DEBUG EDITAR GESTOR - Nenhuma lotação ativa encontrada, criando nova para escola ID: " . $escolaIdNova);
                     $sqlNovaLotacao = "INSERT INTO gestor_lotacao (gestor_id, escola_id, inicio, responsavel, tipo, observacoes, criado_por)
                                      VALUES (:gestor_id, :escola_id, CURDATE(), :responsavel, :tipo, :observacoes, :criado_por)";
                     $stmtNovaLotacao = $conn->prepare($sqlNovaLotacao);
                     $stmtNovaLotacao->bindParam(':gestor_id', $gestorId);
-                    $stmtNovaLotacao->bindParam(':escola_id', $_POST['escola_id']);
-                    $stmtNovaLotacao->bindParam(':responsavel', $_POST['responsavel'] ?? 1);
-                    $stmtNovaLotacao->bindParam(':tipo', !empty($_POST['tipo_lotacao']) ? $_POST['tipo_lotacao'] : null);
-                    $stmtNovaLotacao->bindParam(':observacoes', !empty($_POST['observacao_lotacao']) ? trim($_POST['observacao_lotacao']) : null);
-                    $stmtNovaLotacao->bindParam(':criado_por', $_SESSION['usuario_id']);
+                    $stmtNovaLotacao->bindParam(':escola_id', $escolaIdNova);
+                    $stmtNovaLotacao->bindParam(':responsavel', $responsavel);
+                    $stmtNovaLotacao->bindParam(':tipo', $tipoLotacao);
+                    $stmtNovaLotacao->bindParam(':observacoes', $observacaoLotacao);
+                    $stmtNovaLotacao->bindParam(':criado_por', $criadoPor);
                     $stmtNovaLotacao->execute();
+                    error_log("DEBUG EDITAR GESTOR - Nova lotação criada (sem lotação anterior)");
                 }
+            } else {
+                error_log("DEBUG EDITAR GESTOR - escola_id não informado no POST ou vazio, mantendo lotação existente");
+                // Se não foi informada escola_id, manter a lotação existente
             }
             
             $conn->commit();
             
-            echo json_encode([
+            error_log("DEBUG EDITAR GESTOR - Commit realizado com sucesso");
+            
+            $response = [
                 'success' => true,
                 'message' => 'Gestor atualizado com sucesso!'
-            ]);
+            ];
+            
+            error_log("DEBUG EDITAR GESTOR - Resposta JSON: " . json_encode($response));
+            echo json_encode($response);
+            
         } catch (Exception $e) {
+            error_log("DEBUG EDITAR GESTOR - ERRO: " . $e->getMessage());
+            error_log("DEBUG EDITAR GESTOR - Stack trace: " . $e->getTraceAsString());
+            
             if ($conn->inTransaction()) {
                 $conn->rollBack();
             }
-            echo json_encode([
+            
+            $response = [
                 'success' => false,
                 'message' => $e->getMessage()
-            ]);
+            ];
+            
+            error_log("DEBUG EDITAR GESTOR - Resposta de erro JSON: " . json_encode($response));
+            echo json_encode($response);
+        } catch (Error $e) {
+            error_log("DEBUG EDITAR GESTOR - ERRO FATAL: " . $e->getMessage());
+            error_log("DEBUG EDITAR GESTOR - Stack trace: " . $e->getTraceAsString());
+            
+            if ($conn->inTransaction()) {
+                $conn->rollBack();
+            }
+            
+            $response = [
+                'success' => false,
+                'message' => 'Erro interno do servidor: ' . $e->getMessage()
+            ];
+            
+            echo json_encode($response);
         }
         exit;
     }
@@ -545,7 +971,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao'])) {
             }
             
             // Verificar se o gestor tem lotações ativas
-            $sqlLotacoes = "SELECT COUNT(*) as total FROM gestor_lotacao WHERE gestor_id = :gestor_id AND fim IS NULL";
+            $sqlLotacoes = "SELECT COUNT(*) as total FROM gestor_lotacao 
+                           WHERE gestor_id = :gestor_id 
+                           AND (fim IS NULL OR fim = '' OR fim = '0000-00-00')";
             $stmtLotacoes = $conn->prepare($sqlLotacoes);
             $stmtLotacoes->bindParam(':gestor_id', $gestorId);
             $stmtLotacoes->execute();
@@ -553,7 +981,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao'])) {
             
             if ($lotacoes['total'] > 0) {
                 // Finalizar todas as lotações ativas
-                $sqlFinalizarLotacoes = "UPDATE gestor_lotacao SET fim = CURDATE() WHERE gestor_id = :gestor_id AND fim IS NULL";
+                $sqlFinalizarLotacoes = "UPDATE gestor_lotacao SET fim = CURDATE() 
+                                        WHERE gestor_id = :gestor_id 
+                                        AND (fim IS NULL OR fim = '' OR fim = '0000-00-00')";
                 $stmtFinalizarLotacoes = $conn->prepare($sqlFinalizarLotacoes);
                 $stmtFinalizarLotacoes->bindParam(':gestor_id', $gestorId);
                 $stmtFinalizarLotacoes->execute();
@@ -593,17 +1023,130 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['acao'])) {
             exit;
         }
         
-        $sql = "SELECT g.*, p.*, gl.escola_id, gl.responsavel, gl.tipo as tipo_lotacao, gl.observacoes as observacao_lotacao
+        // Garantir que o ID seja um inteiro
+        $gestorId = (int)$gestorId;
+        if ($gestorId <= 0) {
+            echo json_encode(['success' => false, 'message' => 'ID do gestor inválido']);
+            exit;
+        }
+        
+        // Buscar gestor básico primeiro (sem restrição de ativo para permitir visualização)
+        // IMPORTANTE: g.id AS id garante que o id seja sempre do gestor, não da pessoa
+        $sql = "SELECT g.id, g.pessoa_id, g.cargo, g.formacao, g.especializacao, g.registro_profissional, 
+                       g.observacoes, g.ativo, g.criado_por, g.criado_em,
+                       p.id AS pessoa_id_explicit, p.cpf, p.nome, p.data_nascimento, p.sexo, p.email, 
+                       p.telefone, p.nome_social, p.cor, p.endereco, p.numero, p.complemento, 
+                       p.bairro, p.cidade, p.estado, p.cep
                 FROM gestor g
                 INNER JOIN pessoa p ON g.pessoa_id = p.id
-                LEFT JOIN gestor_lotacao gl ON g.id = gl.gestor_id AND gl.fim IS NULL
                 WHERE g.id = :id";
         $stmt = $conn->prepare($sql);
-        $stmt->bindParam(':id', $gestorId);
+        $stmt->bindParam(':id', $gestorId, PDO::PARAM_INT);
         $stmt->execute();
         $gestor = $stmt->fetch(PDO::FETCH_ASSOC);
         
+        // Garantir que pessoa_id está definido corretamente
+        if ($gestor && isset($gestor['pessoa_id_explicit'])) {
+            $gestor['pessoa_id'] = $gestor['pessoa_id_explicit'];
+            unset($gestor['pessoa_id_explicit']);
+        }
+        
+        error_log("DEBUG BUSCAR GESTOR - ID: " . var_export($gestorId, true) . ", Encontrado: " . ($gestor ? 'SIM' : 'NÃO'));
+        
+        // Se não encontrou com JOIN, tentar buscar separadamente
+        if (!$gestor) {
+            error_log("DEBUG BUSCAR GESTOR - Tentando buscar gestor diretamente");
+            $sqlGestor = "SELECT * FROM gestor WHERE id = :id";
+            $stmtGestor = $conn->prepare($sqlGestor);
+            $stmtGestor->bindParam(':id', $gestorId, PDO::PARAM_INT);
+            $stmtGestor->execute();
+            $gestorTemp = $stmtGestor->fetch(PDO::FETCH_ASSOC);
+            
+            if ($gestorTemp) {
+                error_log("DEBUG BUSCAR GESTOR - Gestor encontrado diretamente, buscando pessoa");
+                $sqlPessoa = "SELECT * FROM pessoa WHERE id = :pessoa_id";
+                $stmtPessoa = $conn->prepare($sqlPessoa);
+                $stmtPessoa->bindParam(':pessoa_id', $gestorTemp['pessoa_id'], PDO::PARAM_INT);
+                $stmtPessoa->execute();
+                $pessoa = $stmtPessoa->fetch(PDO::FETCH_ASSOC);
+                
+                if ($pessoa) {
+                    $gestor = array_merge($gestorTemp, $pessoa);
+                    $gestor['pessoa_id'] = $pessoa['id'];
+                    error_log("DEBUG BUSCAR GESTOR - Gestor e pessoa combinados");
+                }
+            } else {
+                // Se não encontrou gestor, verificar se o ID é de uma pessoa
+                error_log("DEBUG BUSCAR GESTOR - Gestor não encontrado, verificando se ID é de pessoa");
+                $sqlVerificarPessoa = "SELECT id FROM pessoa WHERE id = :id";
+                $stmtVerificarPessoa = $conn->prepare($sqlVerificarPessoa);
+                $stmtVerificarPessoa->bindParam(':id', $gestorId, PDO::PARAM_INT);
+                $stmtVerificarPessoa->execute();
+                $pessoaEncontrada = $stmtVerificarPessoa->fetch(PDO::FETCH_ASSOC);
+                
+                if ($pessoaEncontrada) {
+                    error_log("DEBUG BUSCAR GESTOR - ID é de uma pessoa! Buscando gestor pela pessoa_id...");
+                    // Buscar gestor pela pessoa_id
+                    // IMPORTANTE: g.id AS id garante que o id seja sempre do gestor
+                    $sqlGestorPorPessoa = "SELECT g.id, g.pessoa_id, g.cargo, g.formacao, g.especializacao, g.registro_profissional, 
+                                                 g.observacoes, g.ativo, g.criado_por, g.criado_em,
+                                                 p.id AS pessoa_id_explicit, p.cpf, p.nome, p.data_nascimento, p.sexo, p.email, 
+                                                 p.telefone, p.nome_social, p.cor, p.endereco, p.numero, p.complemento, 
+                                                 p.bairro, p.cidade, p.estado, p.cep
+                                          FROM gestor g
+                                          INNER JOIN pessoa p ON g.pessoa_id = p.id
+                                          WHERE g.pessoa_id = :pessoa_id
+                                          ORDER BY g.id DESC LIMIT 1";
+                    $stmtGestorPorPessoa = $conn->prepare($sqlGestorPorPessoa);
+                    $stmtGestorPorPessoa->bindParam(':pessoa_id', $gestorId, PDO::PARAM_INT);
+                    $stmtGestorPorPessoa->execute();
+                    $gestorPorPessoa = $stmtGestorPorPessoa->fetch(PDO::FETCH_ASSOC);
+                    
+                    if ($gestorPorPessoa) {
+                        error_log("DEBUG BUSCAR GESTOR - Gestor encontrado pela pessoa_id! ID do gestor: " . $gestorPorPessoa['id']);
+                        // Garantir que pessoa_id está definido corretamente
+                        if (isset($gestorPorPessoa['pessoa_id_explicit'])) {
+                            $gestorPorPessoa['pessoa_id'] = $gestorPorPessoa['pessoa_id_explicit'];
+                            unset($gestorPorPessoa['pessoa_id_explicit']);
+                        }
+                        $gestor = $gestorPorPessoa;
+                        // Atualizar gestorId para o ID correto do gestor
+                        $gestorId = (int)$gestorPorPessoa['id'];
+                        error_log("DEBUG BUSCAR GESTOR - ID corrigido para: " . $gestorId);
+                    }
+                }
+            }
+        }
+        
         if ($gestor) {
+            // Usar o ID do gestor (pode ter sido corrigido se o ID original era de pessoa)
+            $gestorIdFinal = (int)$gestor['id'];
+            error_log("DEBUG BUSCAR GESTOR - Usando gestor_id: " . $gestorIdFinal);
+            
+            // Buscar lotação ativa separadamente
+            $sqlLotacao = "SELECT gl.escola_id, gl.responsavel, gl.tipo as tipo_lotacao, gl.observacoes as observacao_lotacao
+                          FROM gestor_lotacao gl
+                          WHERE gl.gestor_id = :gestor_id 
+                          AND (gl.fim IS NULL OR gl.fim = '' OR gl.fim = '0000-00-00')
+                          ORDER BY gl.responsavel DESC, gl.inicio DESC
+                          LIMIT 1";
+            $stmtLotacao = $conn->prepare($sqlLotacao);
+            $stmtLotacao->bindParam(':gestor_id', $gestorIdFinal);
+            $stmtLotacao->execute();
+            $lotacao = $stmtLotacao->fetch(PDO::FETCH_ASSOC);
+            
+            // Adicionar dados da lotação
+            if ($lotacao) {
+                $gestor['escola_id'] = $lotacao['escola_id'];
+                $gestor['responsavel'] = $lotacao['responsavel'];
+                $gestor['tipo_lotacao'] = $lotacao['tipo_lotacao'];
+                $gestor['observacao_lotacao'] = $lotacao['observacao_lotacao'];
+            } else {
+                $gestor['escola_id'] = null;
+                $gestor['responsavel'] = null;
+                $gestor['tipo_lotacao'] = null;
+                $gestor['observacao_lotacao'] = null;
+            }
             // Formatar CPF e telefone para exibição
             if (!empty($gestor['cpf']) && strlen($gestor['cpf']) === 11) {
                 $gestor['cpf_formatado'] = substr($gestor['cpf'], 0, 3) . '.' . substr($gestor['cpf'], 3, 3) . '.' . substr($gestor['cpf'], 6, 3) . '-' . substr($gestor['cpf'], 9, 2);
@@ -642,7 +1185,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['acao'])) {
         $sql = "SELECT g.*, p.nome, p.cpf, p.email, p.telefone, e.nome as escola_nome
                 FROM gestor g
                 INNER JOIN pessoa p ON g.pessoa_id = p.id
-                LEFT JOIN gestor_lotacao gl ON g.id = gl.gestor_id AND gl.fim IS NULL
+                LEFT JOIN gestor_lotacao gl ON g.id = gl.gestor_id AND (gl.fim IS NULL OR gl.fim = '' OR gl.fim = '0000-00-00')
                 LEFT JOIN escola e ON gl.escola_id = e.id
                 WHERE g.ativo = 1";
         
@@ -669,7 +1212,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['acao'])) {
 $sqlGestores = "SELECT g.*, p.nome, p.cpf, p.email, p.telefone, e.nome as escola_nome
                 FROM gestor g
                 INNER JOIN pessoa p ON g.pessoa_id = p.id
-                LEFT JOIN gestor_lotacao gl ON g.id = gl.gestor_id AND gl.fim IS NULL
+                LEFT JOIN gestor_lotacao gl ON g.id = gl.gestor_id AND (gl.fim IS NULL OR gl.fim = '' OR gl.fim = '0000-00-00')
                 LEFT JOIN escola e ON gl.escola_id = e.id
                 WHERE g.ativo = 1
                 GROUP BY g.id
@@ -806,7 +1349,7 @@ $gestores = $stmtGestores->fetchAll(PDO::FETCH_ASSOC);
                                             <td class="py-3 px-4"><?= htmlspecialchars($gestor['email'] ?? '-') ?></td>
                                             <td class="py-3 px-4">
                                                 <div class="flex space-x-2">
-                                                    <button onclick="editarGestor(<?= $gestor['id'] ?>)" class="text-blue-600 hover:text-blue-700 font-medium text-sm">
+                                                    <button onclick="editarGestor(<?= (int)$gestor['id'] ?>)" class="text-blue-600 hover:text-blue-700 font-medium text-sm" data-gestor-id="<?= (int)$gestor['id'] ?>">
                                                         Editar
                                                     </button>
                                                     <button onclick="excluirGestor(<?= $gestor['id'] ?>)" class="text-red-600 hover:text-red-700 font-medium text-sm">
@@ -1807,7 +2350,29 @@ $gestores = $stmtGestores->fetchAll(PDO::FETCH_ASSOC);
                 
                 const data = await response.json();
                 
+                console.log('DEBUG JS CADASTRO - Resposta do servidor:', data);
+                
                 if (data.success) {
+                    console.log('DEBUG JS CADASTRO - Resposta completa:', data);
+                    console.log('DEBUG JS CADASTRO - ID retornado:', data.id);
+                    console.log('DEBUG JS CADASTRO - gestor_id retornado:', data.gestor_id);
+                    console.log('DEBUG JS CADASTRO - pessoa_id retornado:', data.pessoa_id);
+                    console.log('DEBUG JS CADASTRO - Verificado:', data.verificado);
+                    console.log('DEBUG JS CADASTRO - Debug info:', data.debug);
+                    
+                    // IMPORTANTE: Usar gestor_id se disponível, caso contrário usar id
+                    const gestorIdCorreto = data.gestor_id || data.id;
+                    console.log('DEBUG JS CADASTRO - ID do gestor que será usado:', gestorIdCorreto);
+                    
+                    // Verificar se o ID não é da pessoa
+                    if (data.pessoa_id && data.pessoa_id == data.id) {
+                        console.error('DEBUG JS CADASTRO - ATENÇÃO: O ID retornado parece ser da pessoa, não do gestor!');
+                        console.error('DEBUG JS CADASTRO - pessoa_id:', data.pessoa_id, 'id retornado:', data.id);
+                        if (data.gestor_id) {
+                            console.log('DEBUG JS CADASTRO - Usando gestor_id correto:', data.gestor_id);
+                        }
+                    }
+                    
                     alertaSucesso.textContent = `Gestor cadastrado com sucesso! Username: ${data.username || 'gerado automaticamente'}`;
                     alertaSucesso.classList.remove('hidden');
                     
@@ -1831,6 +2396,7 @@ $gestores = $stmtGestores->fetchAll(PDO::FETCH_ASSOC);
                     // Recarregar lista de gestores após 1.5 segundos
                     setTimeout(() => {
                         fecharModalNovoGestor();
+                        console.log('DEBUG JS CADASTRO - Recarregando lista de gestores');
                         filtrarGestores();
                     }, 1500);
                 } else {
@@ -1856,19 +2422,59 @@ $gestores = $stmtGestores->fetchAll(PDO::FETCH_ASSOC);
 
         async function editarGestor(id) {
             try {
+                // Garantir que o ID seja um número
+                const gestorId = parseInt(id);
+                if (isNaN(gestorId) || gestorId <= 0) {
+                    alert('ID do gestor inválido: ' + id);
+                    console.error('ID inválido recebido:', id, 'Tipo:', typeof id);
+                    return;
+                }
+                
+                console.log('DEBUG JS - Buscando gestor com ID:', gestorId, 'Tipo:', typeof gestorId);
+                
                 // Buscar dados do gestor
-                const response = await fetch('?acao=buscar_gestor&id=' + id);
+                const response = await fetch('?acao=buscar_gestor&id=' + gestorId);
                 const data = await response.json();
                 
+                console.log('DEBUG JS - Resposta da busca:', data);
+                
                 if (!data.success || !data.gestor) {
-                    alert('Erro ao carregar dados do gestor: ' + (data.message || 'Gestor não encontrado'));
+                    console.error('DEBUG JS - Erro na busca:', data);
+                    alert('Erro ao carregar dados do gestor: ' + (data.message || 'Gestor não encontrado') + ' (ID: ' + gestorId + ')');
                     return;
                 }
                 
                 const gestor = data.gestor;
                 
+                // IMPORTANTE: Garantir que estamos usando o ID do gestor, não da pessoa
+                // O backend já corrige isso automaticamente, então confiamos no backend
+                const gestorIdCorreto = parseInt(gestor.id);
+                
+                console.log('DEBUG JS - ID do gestor recebido:', gestorIdCorreto);
+                console.log('DEBUG JS - pessoa_id do gestor:', gestor.pessoa_id);
+                console.log('DEBUG JS - Dados completos do gestor:', gestor);
+                
+                // Verificar se o ID é válido
+                if (isNaN(gestorIdCorreto) || gestorIdCorreto <= 0) {
+                    console.error('DEBUG JS - ERRO: ID do gestor inválido!', gestorIdCorreto);
+                    alert('Erro: ID do gestor inválido. Por favor, recarregue a página e tente novamente.');
+                    return;
+                }
+                
+                // Verificação opcional: só alertar se ambos existirem e forem iguais
+                // Mas não bloquear, pois o backend já corrigiu
+                if (gestor.pessoa_id) {
+                    const pessoaId = parseInt(gestor.pessoa_id);
+                    if (!isNaN(pessoaId) && gestorIdCorreto === pessoaId) {
+                        console.warn('DEBUG JS - AVISO: ID do gestor é igual ao pessoa_id! O backend deveria ter corrigido isso.');
+                        // Não bloquear, apenas logar o aviso
+                    }
+                }
+                
+                console.log('DEBUG JS - ID do gestor validado:', gestorIdCorreto);
+                
                 // Preencher formulário
-                document.getElementById('editar_gestor_id').value = gestor.id;
+                document.getElementById('editar_gestor_id').value = gestorIdCorreto;
                 document.getElementById('editar_nome').value = gestor.nome || '';
                 document.getElementById('editar_cpf').value = gestor.cpf_formatado || gestor.cpf || '';
                 document.getElementById('editar_data_nascimento').value = gestor.data_nascimento || '';
@@ -2053,15 +2659,60 @@ $gestores = $stmtGestores->fetchAll(PDO::FETCH_ASSOC);
             
             // Coletar dados do formulário
             const formData = new FormData(this);
+            
+            // Validar gestor_id
+            const gestorIdValue = document.getElementById('editar_gestor_id').value;
+            if (!gestorIdValue || gestorIdValue === '' || parseInt(gestorIdValue) <= 0) {
+                alert('Erro: ID do gestor não encontrado. Por favor, recarregue a página e tente novamente.');
+                console.error('DEBUG JS - gestor_id inválido:', gestorIdValue);
+                btnSalvar.disabled = false;
+                spinner.classList.add('hidden');
+                return;
+            }
+            
             formData.append('acao', 'editar_gestor');
+            formData.set('gestor_id', gestorIdValue); // Garantir que o gestor_id seja enviado
+            
+            // Log para debug
+            const escolaIdValue = document.getElementById('editar_escola_id').value;
+            console.log('DEBUG JS - gestor_id:', gestorIdValue, 'Tipo:', typeof gestorIdValue);
+            console.log('DEBUG JS - escola_id antes do envio:', escolaIdValue);
+            
+            // Garantir que escola_id seja enviado se tiver valor
+            if (escolaIdValue && escolaIdValue !== '') {
+                formData.set('escola_id', escolaIdValue); // Usar set para garantir que o valor seja atualizado
+            } else {
+                console.log('DEBUG JS - escola_id está vazio, não será enviado');
+            }
+            
+            // Log de todos os dados que serão enviados
+            console.log('DEBUG JS - Dados do FormData:');
+            for (let pair of formData.entries()) {
+                console.log('  ' + pair[0] + ': ' + pair[1]);
+            }
             
             try {
+                console.log('DEBUG JS - Enviando requisição de edição...');
                 const response = await fetch('', {
                     method: 'POST',
                     body: formData
                 });
                 
+                console.log('DEBUG JS - Status da resposta:', response.status, response.statusText);
+                console.log('DEBUG JS - Content-Type:', response.headers.get('content-type'));
+                
+                // Verificar se a resposta é JSON
+                const contentType = response.headers.get('content-type');
+                if (!contentType || !contentType.includes('application/json')) {
+                    const textResponse = await response.text();
+                    console.error('DEBUG JS - Resposta não é JSON:', textResponse);
+                    alertaErro.textContent = 'Erro: Resposta inválida do servidor. Verifique o console para mais detalhes.';
+                    alertaErro.classList.remove('hidden');
+                    return;
+                }
+                
                 const data = await response.json();
+                console.log('DEBUG JS - Resposta do servidor:', data);
                 
                 if (data.success) {
                     alertaSucesso.textContent = 'Gestor atualizado com sucesso!';
@@ -2077,8 +2728,9 @@ $gestores = $stmtGestores->fetchAll(PDO::FETCH_ASSOC);
                     alertaErro.classList.remove('hidden');
                 }
             } catch (error) {
-                console.error('Erro:', error);
-                alertaErro.textContent = 'Erro ao processar requisição. Por favor, tente novamente.';
+                console.error('DEBUG JS - Erro completo:', error);
+                console.error('DEBUG JS - Stack trace:', error.stack);
+                alertaErro.textContent = 'Erro ao processar requisição: ' + (error.message || 'Erro desconhecido') + '. Verifique o console para mais detalhes.';
                 alertaErro.classList.remove('hidden');
             } finally {
                 btnSalvar.disabled = false;
@@ -2183,18 +2835,25 @@ $gestores = $stmtGestores->fetchAll(PDO::FETCH_ASSOC);
                         }
                         
                         data.gestores.forEach(gestor => {
+                            // Garantir que o ID seja um número válido
+                            const gestorId = parseInt(gestor.id);
+                            if (isNaN(gestorId) || gestorId <= 0) {
+                                console.error('ID inválido na listagem:', gestor.id, gestor);
+                                return;
+                            }
+                            
                             tbody.innerHTML += `
                                 <tr class="border-b border-gray-100 hover:bg-gray-50">
-                                    <td class="py-3 px-4">${gestor.nome}</td>
+                                    <td class="py-3 px-4">${gestor.nome || '-'}</td>
                                     <td class="py-3 px-4">${gestor.cpf || '-'}</td>
                                     <td class="py-3 px-4">${gestor.escola_nome || '-'}</td>
                                     <td class="py-3 px-4">${gestor.email || '-'}</td>
                                     <td class="py-3 px-4">
                                         <div class="flex space-x-2">
-                                            <button onclick="editarGestor(${gestor.id})" class="text-blue-600 hover:text-blue-700 font-medium text-sm">
+                                            <button onclick="editarGestor(${gestorId})" class="text-blue-600 hover:text-blue-700 font-medium text-sm" data-gestor-id="${gestorId}">
                                                 Editar
                                             </button>
-                                            <button onclick="excluirGestor(${gestor.id})" class="text-red-600 hover:text-red-700 font-medium text-sm">
+                                            <button onclick="excluirGestor(${gestorId})" class="text-red-600 hover:text-red-700 font-medium text-sm" data-gestor-id="${gestorId}">
                                                 Excluir
                                             </button>
                                         </div>
