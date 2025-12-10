@@ -94,11 +94,37 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao'])) {
         
         if ($turmaId && $disciplinaId && !empty($notas)) {
             try {
+                $bimestre = $notas[0]['bimestre'] ?? 1;
+                
+                // Extrair IDs dos alunos das notas que serão lançadas
+                $alunoIds = array_unique(array_column($notas, 'aluno_id'));
+                
+                // Verificar se já existem notas para esses alunos neste bimestre
+                $notasExistentes = $notaModel->verificarNotasExistentes($turmaId, $disciplinaId, $bimestre, $alunoIds);
+                
+                if (!empty($notasExistentes)) {
+                    // Buscar nomes dos alunos que já têm notas
+                    $alunosComNotas = [];
+                    foreach ($notasExistentes as $notaExistente) {
+                        $sqlAluno = "SELECT p.nome FROM aluno a INNER JOIN pessoa p ON a.pessoa_id = p.id WHERE a.id = :aluno_id";
+                        $stmtAluno = $conn->prepare($sqlAluno);
+                        $stmtAluno->bindParam(':aluno_id', $notaExistente['aluno_id']);
+                        $stmtAluno->execute();
+                        $aluno = $stmtAluno->fetch(PDO::FETCH_ASSOC);
+                        if ($aluno) {
+                            $alunosComNotas[] = $aluno['nome'];
+                        }
+                    }
+                    
+                    $mensagem = 'Já existem notas lançadas para o ' . $bimestre . 'º bimestre para os seguintes alunos: ' . implode(', ', $alunosComNotas) . '. Use a opção "Editar" para modificar as notas existentes.';
+                    echo json_encode(['success' => false, 'message' => $mensagem, 'alunos_com_notas' => array_column($notasExistentes, 'aluno_id')]);
+                    exit;
+                }
+                
                 $conn->beginTransaction();
                 
                 // Criar cache de avaliações para evitar múltiplas consultas
                 $avaliacoesCache = [];
-                $bimestre = $notas[0]['bimestre'] ?? 1;
                 
                 // Buscar ou criar avaliações para PARCIAL e BIMESTRAL
                 foreach (['PARCIAL', 'BIMESTRAL'] as $tipo) {
@@ -120,6 +146,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao'])) {
                     if (!$avaliacao) {
                         // Criar nova avaliação
                         $titulo = ($tipo === 'PARCIAL') ? "Avaliação Parcial - {$bimestre}º Bimestre" : "Avaliação Bimestral - {$bimestre}º Bimestre";
+                        
+                        // Validar e obter usuario_id válido
+                        $usuarioId = null;
+                        if (isset($_SESSION['usuario_id']) && !empty($_SESSION['usuario_id'])) {
+                            $usuarioIdParam = (int)$_SESSION['usuario_id'];
+                            // Verificar se o usuário existe na tabela
+                            $sqlVerificarUsuario = "SELECT id FROM usuario WHERE id = :usuario_id LIMIT 1";
+                            $stmtVerificarUsuario = $conn->prepare($sqlVerificarUsuario);
+                            $stmtVerificarUsuario->bindParam(':usuario_id', $usuarioIdParam);
+                            $stmtVerificarUsuario->execute();
+                            $usuarioExiste = $stmtVerificarUsuario->fetch(PDO::FETCH_ASSOC);
+                            if ($usuarioExiste) {
+                                $usuarioId = $usuarioIdParam;
+                            }
+                        }
+                        
                         $sqlInsertAvaliacao = "INSERT INTO avaliacao (turma_id, disciplina_id, titulo, tipo, data, criado_por, criado_em)
                                                VALUES (:turma_id, :disciplina_id, :titulo, :tipo, CURDATE(), :criado_por, NOW())";
                         $stmtInsertAvaliacao = $conn->prepare($sqlInsertAvaliacao);
@@ -127,7 +169,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao'])) {
                         $stmtInsertAvaliacao->bindParam(':disciplina_id', $disciplinaId);
                         $stmtInsertAvaliacao->bindParam(':titulo', $titulo);
                         $stmtInsertAvaliacao->bindValue(':tipo', $tipoAvaliacao);
-                        $stmtInsertAvaliacao->bindParam(':criado_por', $_SESSION['usuario_id']);
+                        $stmtInsertAvaliacao->bindParam(':criado_por', $usuarioId);
                         $stmtInsertAvaliacao->execute();
                         $avaliacoesCache[$tipo] = $conn->lastInsertId();
                     } else {
@@ -136,6 +178,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao'])) {
                 }
                 
                 $notasFormatadas = [];
+                $notasJaAdicionadas = []; // Rastrear notas já adicionadas para evitar duplicação no array
                 foreach ($notas as $nota) {
                     if (!isset($nota['aluno_id']) || !isset($nota['nota'])) {
                         continue; // Pular notas inválidas
@@ -147,6 +190,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao'])) {
                         continue; // Pular se não encontrou avaliação
                     }
                     
+                    // Criar chave única para verificar duplicatas no array
+                    $chaveArray = $nota['aluno_id'] . '_' . $avaliacaoId . '_' . $bimestre;
+                    if (isset($notasJaAdicionadas[$chaveArray])) {
+                        continue; // Já adicionamos esta nota, pular
+                    }
+                    $notasJaAdicionadas[$chaveArray] = true;
+                    
+                    // Determinar o tipo de avaliação (ATIVIDADE para PARCIAL, PROVA para BIMESTRAL)
+                    $tipoAvaliacao = ($tipo === 'PARCIAL') ? 'ATIVIDADE' : 'PROVA';
+                    
                     // Preparar nota para inserção
                     $notasFormatadas[] = [
                         'avaliacao_id' => $avaliacaoId,
@@ -156,13 +209,51 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao'])) {
                         'nota' => $nota['nota'],
                         'bimestre' => $bimestre,
                         'recuperacao' => 0,
-                        'comentario' => $nota['comentario'] ?? null
+                        'comentario' => $nota['comentario'] ?? null,
+                        'tipo_avaliacao' => $tipoAvaliacao // Adicionar tipo para verificação
                     ];
                 }
                 
                 // Inserir notas
-                foreach ($notasFormatadas as $nota) {
-                    $notaModel->lancar($nota);
+                // O método lancar() já verifica duplicatas internamente
+                // Usar um array para rastrear notas já processadas e evitar duplicação
+                $notasProcessadas = [];
+                foreach ($notasFormatadas as $index => $nota) {
+                    // Criar chave única para esta nota
+                    $chaveNota = $nota['aluno_id'] . '_' . $nota['avaliacao_id'] . '_' . $nota['bimestre'];
+                    
+                    // Verificar se já processamos esta nota nesta requisição
+                    if (isset($notasProcessadas[$chaveNota])) {
+                        continue; // Pular se já foi processada
+                    }
+                    
+                    // Marcar como processada
+                    $notasProcessadas[$chaveNota] = true;
+                    
+                    // Remover tipo_avaliacao antes de passar para o modelo (não é campo da tabela)
+                    unset($nota['tipo_avaliacao']);
+                    
+                    // Log para debug - remover depois
+                    error_log("Chamando lancar() para aluno_id: {$nota['aluno_id']}, avaliacao_id: {$nota['avaliacao_id']}, bimestre: {$nota['bimestre']}");
+                    
+                    // Inserir usando o modelo (que já verifica duplicatas)
+                    // IMPORTANTE: Garantir que está sendo chamado apenas uma vez
+                    $resultado = $notaModel->lancar($nota);
+                    
+                    // Log após chamada
+                    error_log("Resultado do lancar(): " . ($resultado ? 'true' : 'false') . " para aluno_id: {$nota['aluno_id']}");
+                    
+                    // Verificar se a inserção foi bem-sucedida
+                    // Se retornar false, pode ser porque já existe (não é erro)
+                    // Mas vamos verificar se houve algum erro real
+                    if ($resultado === false) {
+                        // Verificar se foi porque já existe ou se houve erro real
+                        $errorInfo = $conn->errorInfo();
+                        if ($errorInfo[0] !== '00000' && $errorInfo[0] !== null) {
+                            throw new Exception("Erro ao inserir nota: " . ($errorInfo[2] ?? 'Erro desconhecido'));
+                        }
+                        // Se não houver erro SQL, provavelmente já existe (verificação do método lancar retornou false)
+                    }
                 }
                 
                 $conn->commit();
@@ -235,6 +326,45 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['acao'])) {
             echo json_encode(['success' => true, 'nota' => $nota]);
         } else {
             echo json_encode(['success' => false, 'message' => 'Nota não encontrada']);
+        }
+        exit;
+    }
+    
+    if ($_GET['acao'] === 'buscar_notas_existentes_bimestre' && !empty($_GET['turma_id']) && !empty($_GET['disciplina_id']) && !empty($_GET['bimestre'])) {
+        $turmaId = $_GET['turma_id'];
+        $disciplinaId = $_GET['disciplina_id'];
+        $bimestre = $_GET['bimestre'];
+        $alunoIds = isset($_GET['aluno_ids']) ? json_decode($_GET['aluno_ids'], true) : [];
+        
+        try {
+            $notasExistentes = $notaModel->buscarNotasPorBimestre($turmaId, $disciplinaId, $bimestre, $alunoIds);
+            
+            // Organizar notas por aluno e tipo
+            $notasOrganizadas = [];
+            foreach ($notasExistentes as $nota) {
+                $alunoId = $nota['aluno_id'];
+                if (!isset($notasOrganizadas[$alunoId])) {
+                    $notasOrganizadas[$alunoId] = [
+                        'aluno_id' => $alunoId,
+                        'aluno_nome' => $nota['aluno_nome'],
+                        'aluno_matricula' => $nota['aluno_matricula'],
+                        'parcial' => null,
+                        'bimestral' => null
+                    ];
+                }
+                
+                $tipoAvaliacao = $nota['avaliacao_tipo'] ?? '';
+                if ($tipoAvaliacao === 'ATIVIDADE') {
+                    $notasOrganizadas[$alunoId]['parcial'] = $nota;
+                } else if ($tipoAvaliacao === 'PROVA') {
+                    $notasOrganizadas[$alunoId]['bimestral'] = $nota;
+                }
+            }
+            
+            echo json_encode(['success' => true, 'notas' => array_values($notasOrganizadas)]);
+        } catch (Exception $e) {
+            error_log("Erro ao buscar notas existentes: " . $e->getMessage());
+            echo json_encode(['success' => false, 'message' => 'Erro ao buscar notas: ' . $e->getMessage()]);
         }
         exit;
     }
@@ -544,7 +674,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao']) && $_POST['ac
             <div class="max-w-5xl mx-auto flex items-center justify-between gap-4">
                 <div class="flex items-center gap-3">
                     <label class="text-xs font-medium text-gray-600">Bimestre:</label>
-                    <select id="notas-bimestre" class="text-sm px-3 py-1.5 border border-gray-200 rounded-lg bg-white focus:outline-none focus:border-orange-500">
+                    <select id="notas-bimestre" class="text-sm px-3 py-1.5 border border-gray-200 rounded-lg bg-white focus:outline-none focus:border-orange-500" onchange="atualizarNotasAoMudarBimestre()">
                         <option value="1">1º Bimestre</option>
                         <option value="2">2º Bimestre</option>
                         <option value="3">3º Bimestre</option>
@@ -872,64 +1002,159 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao']) && $_POST['ac
         }
         
         function carregarAlunosParaNotas(turmaId) {
-            fetch('?acao=buscar_alunos_turma&turma_id=' + turmaId)
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success && data.alunos) {
+            const disciplinaId = document.getElementById('notas-disciplina-id').value;
+            const bimestre = document.getElementById('notas-bimestre').value;
+            
+            Promise.all([
+                fetch('?acao=buscar_alunos_turma&turma_id=' + turmaId).then(r => r.json()),
+                fetch('?acao=buscar_notas_existentes_bimestre&turma_id=' + turmaId + '&disciplina_id=' + disciplinaId + '&bimestre=' + bimestre).then(r => r.json())
+            ])
+                .then(([alunosData, notasData]) => {
+                    if (alunosData.success && alunosData.alunos) {
                         const container = document.getElementById('notas-alunos-container');
                         container.innerHTML = '';
                         
                         // Atualizar contador de alunos
-                        document.getElementById('total-alunos').textContent = data.alunos.length;
+                        document.getElementById('total-alunos').textContent = alunosData.alunos.length;
                         document.getElementById('notas-preenchidas').textContent = '0';
                         
-                        data.alunos.forEach((aluno, index) => {
+                        // Organizar notas existentes por aluno_id
+                        const notasExistentes = {};
+                        if (notasData.success && notasData.notas) {
+                            notasData.notas.forEach(nota => {
+                                notasExistentes[nota.aluno_id] = nota;
+                            });
+                        }
+                        
+                        // Verificar se há notas existentes e mostrar aviso
+                        const temNotasExistentes = Object.keys(notasExistentes).length > 0;
+                        if (temNotasExistentes) {
+                            const avisoDiv = document.createElement('div');
+                            avisoDiv.className = 'mb-4 p-4 bg-amber-50 border border-amber-200 rounded-lg';
+                            avisoDiv.innerHTML = `
+                                <div class="flex items-start gap-3">
+                                    <svg class="w-5 h-5 text-amber-600 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z"></path>
+                                    </svg>
+                                    <div class="flex-1">
+                                        <p class="text-sm font-medium text-amber-800">Atenção: Já existem notas lançadas para este bimestre!</p>
+                                        <p class="text-xs text-amber-700 mt-1">As notas existentes serão exibidas abaixo. Para editar, use o botão "Editar" na visualização da turma.</p>
+                                    </div>
+                                </div>
+                            `;
+                            container.appendChild(avisoDiv);
+                        }
+                        
+                        alunosData.alunos.forEach((aluno, index) => {
+                            const notaExistente = notasExistentes[aluno.id];
+                            const temNota = notaExistente !== undefined;
+                            const notaParcial = notaExistente && notaExistente.parcial ? parseFloat(notaExistente.parcial.nota).toFixed(1).replace('.', ',') : '';
+                            const notaBimestral = notaExistente && notaExistente.bimestral ? parseFloat(notaExistente.bimestral.nota).toFixed(1).replace('.', ',') : '';
+                            const comentario = (notaExistente && notaExistente.bimestral && notaExistente.bimestral.comentario) 
+                                ? notaExistente.bimestral.comentario 
+                                : (notaExistente && notaExistente.parcial && notaExistente.parcial.comentario) 
+                                    ? notaExistente.parcial.comentario 
+                                    : '';
+                            
                             const div = document.createElement('div');
-                            div.className = 'aluno-row grid grid-cols-12 gap-3 items-center px-3 py-2.5 bg-white rounded-lg border border-gray-100';
+                            div.className = `aluno-row grid grid-cols-12 gap-3 items-center px-3 py-2.5 rounded-lg border ${temNota ? 'bg-amber-50 border-amber-200' : 'bg-white border-gray-100'}`;
                             div.innerHTML = `
                                 <div class="col-span-4 flex items-center gap-3">
                                     <span class="text-xs text-gray-400 w-5">${index + 1}</span>
-                                    <div>
+                                    <div class="flex-1">
                                         <div class="text-sm font-medium text-gray-900">${aluno.nome}</div>
                                         ${aluno.matricula ? `<div class="text-xs text-gray-400">${aluno.matricula}</div>` : ''}
+                                        ${temNota ? '<div class="text-xs text-amber-600 mt-0.5">Notas já lançadas</div>' : ''}
                                     </div>
                                 </div>
                                 <div class="col-span-2">
                                     <input type="text" 
-                                        class="nota-input nota-parcial w-full px-2 py-1.5 text-sm text-center border border-gray-200 rounded-lg" 
+                                        class="nota-input nota-parcial w-full px-2 py-1.5 text-sm text-center border rounded-lg ${temNota ? 'border-amber-300 bg-amber-50' : 'border-gray-200'}" 
                                         data-aluno-id="${aluno.id}" 
-                                        placeholder="0,0" 
-                                        oninput="aplicarMascaraNota(this); calcularMediaAluno(this); atualizarContadores();"
-                                        onblur="aplicarMascaraNota(this); calcularMediaAluno(this);">
+                                        value="${notaParcial}"
+                                        ${temNota ? 'readonly title="Nota já lançada. Use a opção Editar para modificar."' : 'placeholder="0,0"'}
+                                        oninput="${temNota ? '' : 'aplicarMascaraNota(this); calcularMediaAluno(this); atualizarContadores();'}"
+                                        onblur="${temNota ? '' : 'aplicarMascaraNota(this); calcularMediaAluno(this);'}">
                                 </div>
                                 <div class="col-span-2">
                                     <input type="text" 
-                                        class="nota-input nota-bimestral w-full px-2 py-1.5 text-sm text-center border border-gray-200 rounded-lg" 
+                                        class="nota-input nota-bimestral w-full px-2 py-1.5 text-sm text-center border rounded-lg ${temNota ? 'border-amber-300 bg-amber-50' : 'border-gray-200'}" 
                                         data-aluno-id="${aluno.id}" 
-                                        placeholder="0,0" 
-                                        oninput="aplicarMascaraNota(this); calcularMediaAluno(this); atualizarContadores();"
-                                        onblur="aplicarMascaraNota(this); calcularMediaAluno(this);">
+                                        value="${notaBimestral}"
+                                        ${temNota ? 'readonly title="Nota já lançada. Use a opção Editar para modificar."' : 'placeholder="0,0"'}
+                                        oninput="${temNota ? '' : 'aplicarMascaraNota(this); calcularMediaAluno(this); atualizarContadores();'}"
+                                        onblur="${temNota ? '' : 'aplicarMascaraNota(this); calcularMediaAluno(this);'}">
                                 </div>
                                 <div class="col-span-1">
                                     <div class="media-badge media-aluno text-sm font-medium text-gray-400 py-1 rounded" data-aluno-id="${aluno.id}">
-                                        -
+                                        ${temNota && (notaParcial || notaBimestral) ? calcularMediaTexto(notaParcial, notaBimestral) : '-'}
                                     </div>
                                 </div>
                                 <div class="col-span-3">
                                     <input type="text" 
-                                        class="w-full px-2 py-1.5 text-sm border border-gray-200 rounded-lg" 
+                                        class="comentario-input w-full px-2 py-1.5 text-sm border rounded-lg ${temNota ? 'border-amber-300 bg-amber-50' : 'border-gray-200'}" 
                                         data-aluno-id="${aluno.id}" 
-                                        placeholder="Opcional">
+                                        value="${comentario}"
+                                        ${temNota ? 'readonly title="Observação já lançada. Use a opção Editar para modificar."' : 'placeholder="Opcional"'}
+                                        oninput="${temNota ? '' : 'atualizarContadores();'}">
                                 </div>
                             `;
                             container.appendChild(div);
+                            
+                            // Calcular e atualizar média visualmente se houver notas existentes
+                            if (temNota && (notaParcial || notaBimestral)) {
+                                setTimeout(() => {
+                                    const mediaDiv = div.querySelector('.media-aluno');
+                                    if (mediaDiv) {
+                                        const parcial = parseFloat(notaParcial.replace(',', '.')) || 0;
+                                        const bimestral = parseFloat(notaBimestral.replace(',', '.')) || 0;
+                                        let media = 0;
+                                        if (parcial > 0 && bimestral > 0) {
+                                            media = (parcial + bimestral) / 2;
+                                        } else if (parcial > 0) {
+                                            media = parcial;
+                                        } else if (bimestral > 0) {
+                                            media = bimestral;
+                                        }
+                                        
+                                        if (media > 0) {
+                                            mediaDiv.textContent = media.toFixed(1);
+                                            mediaDiv.className = 'media-badge media-aluno text-sm font-medium py-1 rounded';
+                                            if (media >= 7) {
+                                                mediaDiv.classList.add('text-green-600', 'bg-green-50');
+                                            } else if (media >= 5) {
+                                                mediaDiv.classList.add('text-amber-600', 'bg-amber-50');
+                                            } else {
+                                                mediaDiv.classList.add('text-red-600', 'bg-red-50');
+                                            }
+                                        }
+                                    }
+                                }, 10);
+                            }
                         });
+                        
+                        // Atualizar contador de notas preenchidas
+                        atualizarContadores();
                     }
                 })
                 .catch(error => {
                     console.error('Erro ao carregar alunos:', error);
                     alert('Erro ao carregar alunos da turma');
                 });
+        }
+        
+        function calcularMediaTexto(parcial, bimestral) {
+            const p = parseFloat((parcial || '0').replace(',', '.')) || 0;
+            const b = parseFloat((bimestral || '0').replace(',', '.')) || 0;
+            let media = 0;
+            if (p > 0 && b > 0) {
+                media = (p + b) / 2;
+            } else if (p > 0) {
+                media = p;
+            } else if (b > 0) {
+                media = b;
+            }
+            return media > 0 ? media.toFixed(1) : '-';
         }
         
         function aplicarMascaraNota(input) {
@@ -1017,7 +1242,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao']) && $_POST['ac
             }
         }
         
+        function atualizarNotasAoMudarBimestre() {
+            const turmaId = document.getElementById('notas-turma-id').value;
+            if (turmaId) {
+                carregarAlunosParaNotas(turmaId);
+            }
+        }
+        
+        // Variável para controlar se já está salvando
+        let salvandoNotas = false;
+        
         function salvarNotas() {
+            // Prevenir múltiplas execuções simultâneas
+            if (salvandoNotas) {
+                return;
+            }
+            
             const turmaId = document.getElementById('notas-turma-id').value;
             const disciplinaId = document.getElementById('notas-disciplina-id').value;
             const bimestre = document.getElementById('notas-bimestre').value;
@@ -1026,15 +1266,30 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao']) && $_POST['ac
             const alunosProcessados = new Set();
             document.querySelectorAll('#notas-alunos-container .nota-parcial').forEach(input => {
                 const alunoId = input.dataset.alunoId;
+                // Ignorar campos readonly (notas já existentes)
+                if (input.readOnly) {
+                    return;
+                }
+                
                 if (!alunosProcessados.has(alunoId)) {
                     const notaParcialInput = document.querySelector(`.nota-parcial[data-aluno-id="${alunoId}"]`);
                     const notaBimestralInput = document.querySelector(`.nota-bimestral[data-aluno-id="${alunoId}"]`);
-                    const comentarioInput = document.querySelector(`input[type="text"][data-aluno-id="${alunoId}"]`);
+                    const comentarioInput = document.querySelector(`.comentario-input[data-aluno-id="${alunoId}"]`);
+                    
+                    // Verificar se os inputs não são readonly
+                    if (notaParcialInput && notaParcialInput.readOnly) {
+                        alunosProcessados.add(alunoId);
+                        return;
+                    }
+                    if (notaBimestralInput && notaBimestralInput.readOnly) {
+                        alunosProcessados.add(alunoId);
+                        return;
+                    }
                     
                     // Converter vírgula para ponto para envio ao servidor
                     const notaParcial = notaParcialInput ? parseFloat((notaParcialInput.value || '').replace(',', '.')) : null;
                     const notaBimestral = notaBimestralInput ? parseFloat((notaBimestralInput.value || '').replace(',', '.')) : null;
-                    const comentario = comentarioInput ? comentarioInput.value : '';
+                    const comentario = comentarioInput && !comentarioInput.readOnly ? comentarioInput.value : '';
                     
                     if (notaParcial !== null && notaParcial > 0) {
                         notas.push({
@@ -1061,9 +1316,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao']) && $_POST['ac
             });
             
             if (notas.length === 0) {
-                alert('Nenhuma nota foi preenchida');
+                alert('Nenhuma nota nova foi preenchida. As notas existentes não podem ser modificadas aqui. Use a opção "Editar" na visualização da turma.');
                 return;
             }
+            
+            // Marcar como salvando e desabilitar botões
+            salvandoNotas = true;
+            const botoesSalvar = document.querySelectorAll('button[onclick="salvarNotas()"]');
+            botoesSalvar.forEach(btn => {
+                btn.disabled = true;
+                btn.classList.add('opacity-50', 'cursor-not-allowed');
+                const textoOriginal = btn.textContent;
+                btn.textContent = 'Salvando...';
+                btn.dataset.textoOriginal = textoOriginal;
+            });
             
             const formData = new FormData();
             formData.append('acao', 'lancar_notas');
@@ -1085,11 +1351,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao']) && $_POST['ac
                     }, 1500);
                 } else {
                     alert('Erro ao registrar notas: ' + (data.message || 'Erro desconhecido'));
+                    // Reabilitar botões em caso de erro
+                    salvandoNotas = false;
+                    botoesSalvar.forEach(btn => {
+                        btn.disabled = false;
+                        btn.classList.remove('opacity-50', 'cursor-not-allowed');
+                        btn.textContent = btn.dataset.textoOriginal || 'Salvar';
+                    });
                 }
             })
             .catch(error => {
                 console.error('Erro:', error);
                 alert('Erro ao registrar notas');
+                // Reabilitar botões em caso de erro
+                salvandoNotas = false;
+                botoesSalvar.forEach(btn => {
+                    btn.disabled = false;
+                    btn.classList.remove('opacity-50', 'cursor-not-allowed');
+                    btn.textContent = btn.dataset.textoOriginal || 'Salvar';
+                });
             });
         }
         

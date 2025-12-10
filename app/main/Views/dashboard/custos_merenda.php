@@ -112,6 +112,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao'])) {
                 $mesAtual = date('n');
                 $anoAtual = date('Y');
                 $usuarioId = $_SESSION['usuario_id'] ?? null;
+                if ($usuarioId !== null && is_numeric($usuarioId)) {
+                    $usuarioId = (int)$usuarioId;
+                    $stmtUsu = $conn->prepare("SELECT id FROM usuario WHERE id = :id LIMIT 1");
+                    $stmtUsu->bindValue(':id', $usuarioId, PDO::PARAM_INT);
+                    $stmtUsu->execute();
+                    if (!$stmtUsu->fetch(PDO::FETCH_ASSOC)) {
+                        $usuarioId = null;
+                    }
+                } else {
+                    $usuarioId = null;
+                }
                 
                 $sqlCusto = "INSERT INTO custo_merenda (escola_id, tipo, descricao, produto_id, fornecedor_id,
                             quantidade, valor_unitario, valor_total, data, mes, ano, observacoes, registrado_por, registrado_em)
@@ -134,8 +145,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao'])) {
                 $stmtCusto->bindParam(':valor_unitario', $valorUnitario);
                 $stmtCusto->bindParam(':valor_total', $valorTotal);
                 $stmtCusto->bindParam(':data', $dataAtual);
-                $stmtCusto->bindParam(':mes', $mesAtual);
-                $stmtCusto->bindParam(':ano', $anoAtual);
+                $stmtCusto->bindParam(':mes', $mesAtual, PDO::PARAM_INT);
+                $stmtCusto->bindParam(':ano', $anoAtual, PDO::PARAM_INT);
                 $stmtCusto->bindParam(':observacoes', $observacoes);
                 $stmtCusto->bindParam(':registrado_por', $usuarioId);
                 $stmtCusto->execute();
