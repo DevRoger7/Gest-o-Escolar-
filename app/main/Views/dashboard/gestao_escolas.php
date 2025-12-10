@@ -1644,6 +1644,7 @@ if ($_SESSION['tipo'] === 'ADM') {
                                         <option value="ESPECIAL">ESPECIAL</option>
                                         <option value="INDIGENA">INDÍGENA</option>
                                         <option value="QUILOMBOLA">QUILOMBOLA</option>
+                                        <option value="INTEGRAL">INTEGRAL</option>
                                     </select>
                                 </div>
                                 <div>
@@ -2259,6 +2260,7 @@ if ($_SESSION['tipo'] === 'ADM') {
                                             <option value="ESPECIAL">ESPECIAL</option>
                                             <option value="INDIGENA">INDÍGENA</option>
                                             <option value="QUILOMBOLA">QUILOMBOLA</option>
+                                            <option value="INTEGRAL">INTEGRAL</option>
                                         </select>
                                     </div>
                                     

@@ -770,13 +770,16 @@ $gestores = $stmtGestores->fetchAll(PDO::FETCH_ASSOC);
                         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                             <div>
                                 <label class="block text-sm font-medium text-gray-700 mb-2">Escola</label>
-                                <select name="escola_id" id="editar_escola_id"
-                                        class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent">
-                                    <option value="">Selecione uma escola...</option>
-                                    <?php foreach ($escolas as $escola): ?>
-                                        <option value="<?= $escola['id'] ?>"><?= htmlspecialchars($escola['nome']) ?></option>
-                                    <?php endforeach; ?>
-                                </select>
+                                <div class="relative">
+                                    <input type="text" id="editar_escola_search" placeholder="Digite para pesquisar escola..."
+                                           class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                                           autocomplete="off">
+                                    <input type="hidden" name="escola_id" id="editar_escola_id" value="">
+                                    <div id="editar_escola_dropdown" class="hidden absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                                        <!-- Opções serão preenchidas via JavaScript -->
+                                    </div>
+                                </div>
+                                <p class="text-xs text-gray-500 mt-1">Digite o nome da escola para pesquisar</p>
                             </div>
                             <div>
                                 <label class="block text-sm font-medium text-gray-700 mb-2">Tipo de Lotação</label>
@@ -812,8 +815,17 @@ $gestores = $stmtGestores->fetchAll(PDO::FETCH_ASSOC);
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div>
                                 <label class="block text-sm font-medium text-gray-700 mb-2">Nova Senha (deixe em branco para manter a atual)</label>
-                                <input type="password" name="senha" id="editar_senha"
-                                       class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent">
+                                <div class="relative">
+                                    <input type="password" name="senha" id="editar_senha"
+                                           class="w-full px-4 py-2 pr-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent">
+                                    <button type="button" onclick="toggleSenha('editar_senha', 'editar_senhaIcon')" 
+                                            class="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700 focus:outline-none">
+                                        <svg id="editar_senhaIcon" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
+                                        </svg>
+                                    </button>
+                                </div>
                                 <p class="text-xs text-gray-500 mt-1">Deixe em branco para manter a senha atual</p>
                             </div>
                             <div>
@@ -942,13 +954,16 @@ $gestores = $stmtGestores->fetchAll(PDO::FETCH_ASSOC);
                         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                             <div>
                                 <label class="block text-sm font-medium text-gray-700 mb-2">Escola</label>
-                                <select name="escola_id" id="escola_id"
-                                        class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent">
-                                    <option value="">Selecione uma escola...</option>
-                                    <?php foreach ($escolas as $escola): ?>
-                                        <option value="<?= $escola['id'] ?>"><?= htmlspecialchars($escola['nome']) ?></option>
-                                    <?php endforeach; ?>
-                                </select>
+                                <div class="relative">
+                                    <input type="text" id="escola_search" placeholder="Digite para pesquisar escola..."
+                                           class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                                           autocomplete="off">
+                                    <input type="hidden" name="escola_id" id="escola_id" value="">
+                                    <div id="escola_dropdown" class="hidden absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                                        <!-- Opções serão preenchidas via JavaScript -->
+                                    </div>
+                                </div>
+                                <p class="text-xs text-gray-500 mt-1">Digite o nome da escola para pesquisar</p>
                             </div>
                             <div>
                                 <label class="block text-sm font-medium text-gray-700 mb-2">Tipo de Lotação</label>
@@ -984,8 +999,17 @@ $gestores = $stmtGestores->fetchAll(PDO::FETCH_ASSOC);
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div>
                                 <label class="block text-sm font-medium text-gray-700 mb-2">Senha Padrão</label>
-                                <input type="password" name="senha" id="senha" value="123456"
-                                       class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent">
+                                <div class="relative">
+                                    <input type="password" name="senha" id="senha" value="123456"
+                                           class="w-full px-4 py-2 pr-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent">
+                                    <button type="button" onclick="toggleSenha('senha', 'senhaIcon')" 
+                                            class="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700 focus:outline-none">
+                                        <svg id="senhaIcon" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
+                                        </svg>
+                                    </button>
+                                </div>
                                 <p class="text-xs text-gray-500 mt-1">Senha padrão: 123456 (pode ser alterada pelo gestor após o primeiro login)</p>
                             </div>
                             <div>
@@ -1072,6 +1096,123 @@ $gestores = $stmtGestores->fetchAll(PDO::FETCH_ASSOC);
             window.location.href = '../auth/logout.php';
         };
 
+        // Array de escolas para pesquisa
+        const escolas = <?= json_encode($escolas) ?>;
+        
+        // Função para mostrar/ocultar senha
+        function toggleSenha(inputId, iconId) {
+            const input = document.getElementById(inputId);
+            const icon = document.getElementById(iconId);
+            
+            if (!input || !icon) return;
+            
+            if (input.type === 'password') {
+                input.type = 'text';
+                icon.innerHTML = `
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21"></path>
+                `;
+            } else {
+                input.type = 'password';
+                icon.innerHTML = `
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
+                `;
+            }
+        }
+        
+        // Função de pesquisa de escolas (genérica para ambos os modais)
+        function initEscolaSearchField(searchInputId, dropdownId, hiddenInputId) {
+            const searchInput = document.getElementById(searchInputId);
+            const dropdown = document.getElementById(dropdownId);
+            const hiddenInput = document.getElementById(hiddenInputId);
+            
+            if (!searchInput || !dropdown || !hiddenInput) return;
+            
+            searchInput.addEventListener('input', function() {
+                const searchTerm = this.value.toLowerCase().trim();
+                
+                if (searchTerm.length === 0) {
+                    dropdown.classList.add('hidden');
+                    hiddenInput.value = '';
+                    return;
+                }
+                
+                // Filtrar escolas
+                const filtered = escolas.filter(escola => 
+                    escola.nome.toLowerCase().includes(searchTerm)
+                );
+                
+                if (filtered.length === 0) {
+                    dropdown.innerHTML = '<div class="px-4 py-2 text-gray-500 text-sm">Nenhuma escola encontrada</div>';
+                    dropdown.classList.remove('hidden');
+                    return;
+                }
+                
+                // Criar opções
+                dropdown.innerHTML = filtered.map(escola => {
+                    const nomeEscapado = escola.nome.replace(/'/g, "\\'").replace(/"/g, '&quot;').replace(/\n/g, ' ');
+                    return `
+                    <div class="px-4 py-2 hover:bg-gray-100 cursor-pointer border-b border-gray-100 last:border-b-0" 
+                         onclick="selectEscola('${searchInputId}', '${dropdownId}', '${hiddenInputId}', ${escola.id}, '${nomeEscapado}')">
+                        ${escola.nome}
+                    </div>
+                `;
+                }).join('');
+                
+                dropdown.classList.remove('hidden');
+            });
+            
+            // Fechar dropdown ao clicar fora
+            document.addEventListener('click', function(e) {
+                if (!searchInput.contains(e.target) && !dropdown.contains(e.target)) {
+                    dropdown.classList.add('hidden');
+                }
+            });
+        }
+        
+        // Função de pesquisa de escolas (inicializa ambos)
+        function initEscolaSearch() {
+            // Modal de cadastro
+            initEscolaSearchField('escola_search', 'escola_dropdown', 'escola_id');
+            // Modal de edição
+            initEscolaSearchField('editar_escola_search', 'editar_escola_dropdown', 'editar_escola_id');
+        }
+        
+        // Função para selecionar escola
+        window.selectEscola = function(searchInputId, dropdownId, hiddenInputId, id, nome) {
+            const searchInput = document.getElementById(searchInputId);
+            const hiddenInput = document.getElementById(hiddenInputId);
+            const dropdown = document.getElementById(dropdownId);
+            
+            if (searchInput && hiddenInput && dropdown) {
+                searchInput.value = nome;
+                hiddenInput.value = id;
+                dropdown.classList.add('hidden');
+            }
+        };
+        
+        // Limpar pesquisa de escola ao abrir modal
+        function limparPesquisaEscola() {
+            const searchInput = document.getElementById('escola_search');
+            const hiddenInput = document.getElementById('escola_id');
+            const dropdown = document.getElementById('escola_dropdown');
+            
+            if (searchInput) searchInput.value = '';
+            if (hiddenInput) hiddenInput.value = '';
+            if (dropdown) dropdown.classList.add('hidden');
+        }
+        
+        // Limpar pesquisa de escola no modal de edição
+        function limparPesquisaEscolaEdicao() {
+            const searchInput = document.getElementById('editar_escola_search');
+            const hiddenInput = document.getElementById('editar_escola_id');
+            const dropdown = document.getElementById('editar_escola_dropdown');
+            
+            if (searchInput) searchInput.value = '';
+            if (hiddenInput) hiddenInput.value = '';
+            if (dropdown) dropdown.classList.add('hidden');
+        }
+
         function abrirModalNovoGestor() {
             const modal = document.getElementById('modalNovoGestor');
             if (modal) {
@@ -1079,8 +1220,20 @@ $gestores = $stmtGestores->fetchAll(PDO::FETCH_ASSOC);
                 modal.classList.remove('hidden');
                 // Limpar formulário
                 document.getElementById('formNovoGestor').reset();
-                document.getElementById('senha').value = '123456';
+                const senhaInput = document.getElementById('senha');
+                senhaInput.value = '123456';
+                senhaInput.type = 'password'; // Garantir que volta para password
+                // Resetar ícone do olho mágico
+                const senhaIcon = document.getElementById('senhaIcon');
+                if (senhaIcon) {
+                    senhaIcon.innerHTML = `
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
+                    `;
+                }
                 document.getElementById('responsavel').value = '1';
+                // Limpar pesquisa de escola
+                limparPesquisaEscola();
                 // Limpar alertas
                 document.getElementById('alertaErro').classList.add('hidden');
                 document.getElementById('alertaSucesso').classList.add('hidden');
@@ -1151,9 +1304,41 @@ $gestores = $stmtGestores->fetchAll(PDO::FETCH_ASSOC);
             alertaErro.classList.add('hidden');
             alertaSucesso.classList.add('hidden');
             
+            // Validar campos obrigatórios
+            const nome = document.getElementById('nome').value.trim();
+            const cpf = document.getElementById('cpf').value.trim();
+            const dataNascimento = document.getElementById('data_nascimento').value;
+            const sexo = document.getElementById('sexo').value;
+            const cargo = document.getElementById('cargo').value.trim();
+            
+            if (!nome || !cpf || !dataNascimento || !sexo || !cargo) {
+                alertaErro.textContent = 'Por favor, preencha todos os campos obrigatórios (*).';
+                alertaErro.classList.remove('hidden');
+                btnSalvar.disabled = false;
+                spinner.classList.add('hidden');
+                return;
+            }
+            
+            // Verificar se escola foi selecionada (se o campo de pesquisa tem valor mas não tem ID)
+            const escolaSearch = document.getElementById('escola_search').value;
+            const escolaId = document.getElementById('escola_id').value;
+            if (escolaSearch && !escolaId) {
+                alertaErro.textContent = 'Por favor, selecione uma escola válida da lista de resultados.';
+                alertaErro.classList.remove('hidden');
+                btnSalvar.disabled = false;
+                spinner.classList.add('hidden');
+                return;
+            }
+            
             // Coletar dados do formulário
             const formData = new FormData(this);
             formData.append('acao', 'cadastrar_gestor');
+            
+            // Garantir que escola_id está sendo enviado corretamente
+            // Se não houver escola selecionada, garantir que o campo está vazio
+            if (!escolaId || escolaId === '') {
+                formData.set('escola_id', ''); // Garantir que está vazio
+            }
             
             try {
                 const response = await fetch('', {
@@ -1169,8 +1354,19 @@ $gestores = $stmtGestores->fetchAll(PDO::FETCH_ASSOC);
                     
                     // Limpar formulário
                     this.reset();
-                    document.getElementById('senha').value = '123456';
+                    const senhaInput = document.getElementById('senha');
+                    senhaInput.value = '123456';
+                    senhaInput.type = 'password'; // Garantir que volta para password
+                    // Resetar ícone do olho mágico
+                    const senhaIcon = document.getElementById('senhaIcon');
+                    if (senhaIcon) {
+                        senhaIcon.innerHTML = `
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
+                        `;
+                    }
                     document.getElementById('responsavel').value = '1';
+                    limparPesquisaEscola(); // Limpar pesquisa de escola
                     atualizarPreviewUsername();
                     
                     // Recarregar lista de gestores após 1.5 segundos
@@ -1225,7 +1421,20 @@ $gestores = $stmtGestores->fetchAll(PDO::FETCH_ASSOC);
                 document.getElementById('editar_registro_profissional').value = gestor.registro_profissional || '';
                 document.getElementById('editar_observacoes').value = gestor.observacoes || '';
                 document.getElementById('editar_ativo').value = gestor.ativo !== undefined ? gestor.ativo : 1;
-                document.getElementById('editar_escola_id').value = gestor.escola_id || '';
+                // Preencher escola (pesquisa)
+                if (gestor.escola_id) {
+                    const escola = escolas.find(e => e.id == gestor.escola_id);
+                    if (escola) {
+                        document.getElementById('editar_escola_search').value = escola.nome;
+                        document.getElementById('editar_escola_id').value = escola.id;
+                    } else {
+                        document.getElementById('editar_escola_search').value = '';
+                        document.getElementById('editar_escola_id').value = '';
+                    }
+                } else {
+                    limparPesquisaEscolaEdicao();
+                }
+                
                 document.getElementById('editar_tipo_lotacao').value = gestor.tipo_lotacao || '';
                 document.getElementById('editar_responsavel').value = gestor.responsavel !== undefined ? gestor.responsavel : 1;
                 document.getElementById('editar_observacao_lotacao').value = gestor.observacao_lotacao || '';
@@ -1425,6 +1634,12 @@ $gestores = $stmtGestores->fetchAll(PDO::FETCH_ASSOC);
                 .catch(error => {
                     console.error('Erro ao filtrar gestores:', error);
                 });
+        }
+        // Inicializar pesquisa de escolas quando a página carregar
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', initEscolaSearch);
+        } else {
+            initEscolaSearch();
         }
     </script>
 </body>
