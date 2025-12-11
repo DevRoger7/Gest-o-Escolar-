@@ -15,6 +15,7 @@ $session->tempo_session();
 // Inicializar classe de estatísticas
 $stats = new DashboardStats();
 
+
 // Função para obter dados do usuário logado
 function obterDadosUsuarioLogado($usuarioId) {
     try {
@@ -109,69 +110,85 @@ if (!defined('BASE_URL')) {
 }
 
 // Buscar escola do gestor logado (para mostrar links de cardápio e desperdício)
+// Buscar escolas do gestor e escola selecionada
+$escolasGestor = [];
 $escolaGestorId = null;
 $escolaGestor = null;
+
 if (isset($_SESSION['tipo']) && strtoupper($_SESSION['tipo']) === 'GESTAO') {
     $usuarioId = $_SESSION['usuario_id'] ?? null;
-    error_log("DEBUG DASHBOARD - usuario_id: " . ($usuarioId ?? 'NULL'));
     
     if ($usuarioId) {
         try {
-            // Query mais simples - buscar a última lotação do gestor (sem filtro de fim)
-            $sqlGestor = "SELECT gl.escola_id, e.nome as escola_nome, gl.responsavel, gl.fim, gl.inicio, gl.id
-                          FROM gestor g
-                          INNER JOIN usuario u ON g.pessoa_id = u.pessoa_id
-                          INNER JOIN gestor_lotacao gl ON g.id = gl.gestor_id
-                          INNER JOIN escola e ON gl.escola_id = e.id
-                          WHERE u.id = :usuario_id AND g.ativo = 1
-                          ORDER BY gl.id DESC
-                          LIMIT 1";
-            $stmtGestor = $conn->prepare($sqlGestor);
-            $stmtGestor->bindParam(':usuario_id', $usuarioId);
-            $stmtGestor->execute();
-            $gestorEscola = $stmtGestor->fetch(PDO::FETCH_ASSOC);
-            error_log("DEBUG DASHBOARD - Query resultado: " . json_encode($gestorEscola));
+            // Primeiro, buscar o ID do gestor usando pessoa_id
+            $pessoaId = $_SESSION['pessoa_id'] ?? null;
             
-            if ($gestorEscola) {
-                // Verificar se a lotação está ativa (fim é NULL, vazio, ou data futura)
-                $fimLotacao = $gestorEscola['fim'];
-                $lotacaoAtiva = ($fimLotacao === null || $fimLotacao === '' || $fimLotacao === '0000-00-00' || 
-                                (is_string($fimLotacao) && strtotime($fimLotacao) >= strtotime('today')));
-                
-                error_log("DEBUG DASHBOARD - Fim lotação: " . var_export($fimLotacao, true) . ", Ativa: " . ($lotacaoAtiva ? 'SIM' : 'NÃO'));
-                
-                // Usar a escola mesmo se a lotação estiver inativa (pode ser que o campo fim esteja preenchido incorretamente)
-                // Mas priorizar lotações ativas
-                if ($lotacaoAtiva || empty($fimLotacao)) {
-                    $escolaGestorId = (int)$gestorEscola['escola_id'];
-                    $escolaGestor = $gestorEscola['escola_nome'];
-                    error_log("DEBUG DASHBOARD - Escola encontrada: ID=" . $escolaGestorId . ", Nome=" . $escolaGestor);
-                } else {
-                    // Mesmo se inativa, usar se for a única lotação
-                    $escolaGestorId = (int)$gestorEscola['escola_id'];
-                    $escolaGestor = $gestorEscola['escola_nome'];
-                    error_log("DEBUG DASHBOARD - Escola encontrada (lotação inativa mas usando mesmo): ID=" . $escolaGestorId . ", Nome=" . $escolaGestor);
-                }
+            if ($pessoaId) {
+                $sqlBuscarGestor = "SELECT g.id as gestor_id
+                          FROM gestor g
+                                    WHERE g.pessoa_id = :pessoa_id AND g.ativo = 1
+                          LIMIT 1";
+                $stmtBuscarGestor = $conn->prepare($sqlBuscarGestor);
+                $stmtBuscarGestor->bindParam(':pessoa_id', $pessoaId);
+                $stmtBuscarGestor->execute();
+                $gestorData = $stmtBuscarGestor->fetch(PDO::FETCH_ASSOC);
             } else {
-                // Verificar se existe gestor mas sem lotação
-                $sqlCheckGestor = "SELECT g.id, g.ativo
-                                   FROM gestor g
-                                   INNER JOIN usuario u ON g.pessoa_id = u.pessoa_id
-                                   WHERE u.id = :usuario_id";
-                $stmtCheck = $conn->prepare($sqlCheckGestor);
-                $stmtCheck->bindParam(':usuario_id', $usuarioId);
-                $stmtCheck->execute();
-                $checkGestor = $stmtCheck->fetch(PDO::FETCH_ASSOC);
-                error_log("DEBUG DASHBOARD - Gestor existe mas sem lotação: " . json_encode($checkGestor));
+                $gestorData = null;
+            }
+            
+            if ($gestorData && isset($gestorData['gestor_id'])) {
+                $gestorId = (int)$gestorData['gestor_id'];
                 
-                error_log("DEBUG DASHBOARD - Nenhuma escola encontrada para o gestor");
+                // Buscar todas as escolas ativas do gestor (sem duplicatas)
+                $sqlEscolas = "SELECT DISTINCT 
+                                 gl.escola_id, 
+                                 e.nome as escola_nome, 
+                                 MAX(gl.responsavel) as responsavel,
+                                 MAX(gl.inicio) as inicio
+                               FROM gestor_lotacao gl
+                               INNER JOIN escola e ON gl.escola_id = e.id
+                               WHERE gl.gestor_id = :gestor_id
+                               AND (gl.fim IS NULL OR gl.fim = '' OR gl.fim = '0000-00-00' OR gl.fim >= CURDATE())
+                               AND e.ativo = 1
+                               GROUP BY gl.escola_id, e.nome
+                               ORDER BY 
+                                 MAX(gl.responsavel) DESC,
+                                 MAX(gl.inicio) DESC,
+                                 e.nome ASC";
+                $stmtEscolas = $conn->prepare($sqlEscolas);
+                $stmtEscolas->bindParam(':gestor_id', $gestorId);
+                $stmtEscolas->execute();
+                $escolasGestor = $stmtEscolas->fetchAll(PDO::FETCH_ASSOC);
+                
+                // Verificar se há escola selecionada na sessão
+                if (isset($_SESSION['escola_selecionada_id']) && !empty($_SESSION['escola_selecionada_id'])) {
+                    $escolaSelecionadaId = (int)$_SESSION['escola_selecionada_id'];
+                    
+                    // Verificar se a escola selecionada está na lista de escolas do gestor
+                    foreach ($escolasGestor as $escola) {
+                        if ((int)$escola['escola_id'] === $escolaSelecionadaId) {
+                            $escolaGestorId = $escolaSelecionadaId;
+                            $escolaGestor = $_SESSION['escola_selecionada_nome'] ?? $escola['escola_nome'];
+                            break;
+                        }
+                    }
+                }
+                
+                // Se não há escola selecionada ou a selecionada não é válida, usar a primeira (priorizando responsável)
+                if (!$escolaGestorId && !empty($escolasGestor)) {
+                    $escolaGestorId = (int)$escolasGestor[0]['escola_id'];
+                    $escolaGestor = $escolasGestor[0]['escola_nome'];
+                    
+                    // Salvar na sessão
+                    $_SESSION['escola_selecionada_id'] = $escolaGestorId;
+                    $_SESSION['escola_selecionada_nome'] = $escolaGestor;
+                }
             }
         } catch (Exception $e) {
-            error_log("DEBUG DASHBOARD - Erro ao buscar escola do gestor: " . $e->getMessage());
-            error_log("DEBUG DASHBOARD - Stack trace: " . $e->getTraceAsString());
+            error_log("ERRO ao buscar escolas do gestor: " . $e->getMessage());
+            $escolaGestorId = null;
+            $escolaGestor = null;
         }
-    } else {
-        error_log("DEBUG DASHBOARD - usuario_id é NULL");
     }
 } else {
     error_log("DEBUG DASHBOARD - Tipo de usuário não é GESTAO: " . ($_SESSION['tipo'] ?? 'NULL'));
@@ -328,6 +345,34 @@ if (isset($_SESSION['tipo']) && strtoupper($_SESSION['tipo']) === 'GESTAO') {
                 max-width: none;
             }
         }
+        
+        /* Estilos customizados para o dropdown de escolas */
+        #select-escola-gestor {
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3E%3Cpath stroke='%23ffffff' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M6 8l4 4 4-4'/%3E%3C/svg%3E");
+            background-position: right 0.5rem center;
+            background-repeat: no-repeat;
+            background-size: 1.5em 1.5em;
+            padding-right: 2.5rem;
+        }
+        
+        #select-escola-gestor:hover {
+            background-color: rgba(45, 90, 39, 0.9);
+        }
+        
+        #select-escola-gestor:focus {
+            box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.3);
+        }
+        
+        #select-escola-gestor option {
+            background-color: white;
+            color: #1f2937;
+            padding: 0.5rem;
+        }
+        
+        #select-escola-gestor:disabled {
+            opacity: 0.6;
+            cursor: wait;
+        }
     </style>
 
     <script>
@@ -398,6 +443,96 @@ if (isset($_SESSION['tipo']) && strtoupper($_SESSION['tipo']) === 'GESTAO') {
                     main.classList.toggle('content-dimmed');
                 }
             }
+        };
+        
+        // Função para mudar a escola selecionada - DEFINIDA NO HEAD PARA ESTAR DISPONÍVEL
+        window.mudarEscolaGestor = function(escolaId) {
+            console.log('mudarEscolaGestor chamado com escolaId:', escolaId);
+            
+            if (!escolaId) {
+                console.error('escolaId não fornecido');
+                return;
+            }
+            
+            // Mostrar loading
+            const select = document.getElementById('select-escola-gestor');
+            if (!select) {
+                console.error('Elemento select-escola-gestor não encontrado');
+                return;
+            }
+            
+            const originalValue = select.value;
+            select.disabled = true;
+            select.style.opacity = '0.6';
+            select.style.cursor = 'wait';
+            
+            // Fazer requisição AJAX
+            const formData = new FormData();
+            formData.append('action', 'mudar_escola');
+            formData.append('escola_id', escolaId);
+            
+            console.log('Enviando requisição para mudar escola...');
+            
+            // Caminho do controller - construir baseado na URL atual
+            const currentUrl = window.location.href;
+            const urlObj = new URL(currentUrl);
+            const pathParts = urlObj.pathname.split('/');
+            
+            // Encontrar o índice de 'app' e construir o caminho
+            const appIndex = pathParts.indexOf('app');
+            let controllerPath = '';
+            
+            if (appIndex !== -1) {
+                // Construir caminho absoluto: /GitHub/Gest-o-Escolar-/app/main/Controllers/gestao/GestorEscolaController.php
+                const basePath = pathParts.slice(0, appIndex + 1).join('/'); // /GitHub/Gest-o-Escolar-/app
+                controllerPath = basePath + '/main/Controllers/gestao/GestorEscolaController.php';
+            } else {
+                // Fallback para caminho relativo
+                controllerPath = '../../Controllers/gestao/GestorEscolaController.php';
+            }
+            
+            console.log('Caminho do controller:', controllerPath);
+            console.log('URL atual:', currentUrl);
+            console.log('Pathname:', urlObj.pathname);
+            
+            fetch(controllerPath, {
+                method: 'POST',
+                body: formData,
+                credentials: 'same-origin',
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            })
+            .then(response => {
+                console.log('Resposta recebida, status:', response.status);
+                if (!response.ok) {
+                    throw new Error('Erro HTTP: ' + response.status);
+                }
+                return response.json();
+            })
+            .then(data => {
+                console.log('Dados recebidos:', data);
+                if (data.success) {
+                    console.log('Escola alterada com sucesso, recarregando página...');
+                    // Recarregar a página para aplicar a mudança
+                    window.location.reload();
+                } else {
+                    console.error('Erro ao mudar escola:', data.message);
+                    alert('Erro ao mudar escola: ' + (data.message || 'Erro desconhecido'));
+                    select.value = originalValue;
+                    select.disabled = false;
+                    select.style.opacity = '1';
+                    select.style.cursor = 'pointer';
+                }
+            })
+            .catch(error => {
+                console.error('Erro na requisição:', error);
+                alert('Erro ao mudar escola. Verifique o console para mais detalhes.');
+                select.value = originalValue;
+                select.disabled = false;
+                select.style.opacity = '1';
+                select.style.cursor = 'pointer';
+            });
         };
     </script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
@@ -2074,6 +2209,8 @@ if (isset($_SESSION['tipo']) && strtoupper($_SESSION['tipo']) === 'GESTAO') {
         <?php include('components/sidebar_nutricionista.php'); ?>
     <?php } elseif (eResponsavel()) { ?>
         <?php include('components/sidebar_responsavel.php'); ?>
+    <?php } elseif (isset($_SESSION['tipo']) && strtoupper($_SESSION['tipo']) === 'GESTAO') { ?>
+        <?php include('components/sidebar_gestao.php'); ?>
     <?php } else { ?>
     <aside id="sidebar" class="fixed left-0 top-0 h-full w-64 bg-white shadow-lg sidebar-transition z-50 lg:translate-x-0 sidebar-mobile">
         <!-- Logo e Header -->
@@ -2153,34 +2290,6 @@ if (isset($_SESSION['tipo']) && strtoupper($_SESSION['tipo']) === 'GESTAO') {
                 </li>
                 <?php } ?>
                 <?php if (isset($_SESSION['cadastrar_pessoas']) || isset($_SESSION['matricular_alunos']) || isset($_SESSION['acessar_registros']) || $_SESSION['tipo'] === 'ADM') { ?>
-                <?php } ?>
-                <?php if ($_SESSION['tipo'] === 'GESTAO') { ?>
-                <li id="gestao-menu">
-                    <a href="gestao_escolar.php" class="menu-item flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                        </svg>
-                        <span>Gestão Escolar</span>
-                    </a>
-                </li>
-                <?php if ($escolaGestorId): ?>
-                <li>
-                    <a href="gestao_escolar.php?aba=cardapio" class="menu-item flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"></path>
-                        </svg>
-                        <span>Cardápio</span>
-                    </a>
-                </li>
-                <li>
-                    <a href="gestao_escolar.php?acao=abrir_desperdicio" class="menu-item flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
-                        </svg>
-                        <span>Registrar Desperdício</span>
-                    </a>
-                </li>
-                <?php endif; ?>
                 <?php } ?>
                 <?php if ($_SESSION['tipo'] === 'ADM' || $_SESSION['tipo'] === 'GESTAO') { ?>
                 <?php } ?>
@@ -2371,57 +2480,41 @@ if (isset($_SESSION['tipo']) && strtoupper($_SESSION['tipo']) === 'GESTAO') {
                                     <p class="text-xs text-gray-500">Órgão Central</p>
                                 </div>
                             <?php } elseif ($_SESSION['tipo'] === 'GESTAO') { ?>
-                                <!-- Para GESTAO, mostrar nome da escola -->
+                                <!-- Para GESTAO, dropdown de escolas -->
+                                <?php if (count($escolasGestor) > 1): ?>
+                                    <!-- Múltiplas escolas - mostrar dropdown -->
+                                    <div class="relative group">
+                                        <select id="select-escola-gestor" 
+                                                onchange="mudarEscolaGestor(this.value)"
+                                                class="bg-primary-green hover:bg-opacity-90 text-white px-5 py-2.5 rounded-lg shadow-md text-sm font-semibold appearance-none cursor-pointer border-0 focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-primary-green pr-10 transition-all duration-200 min-w-[200px]">
+                                            <?php foreach ($escolasGestor as $escola): ?>
+                                                <option value="<?= $escola['escola_id'] ?>" 
+                                                        <?= ($escolaGestorId == $escola['escola_id']) ? 'selected' : '' ?>
+                                                        class="bg-white text-gray-800 py-2">
+                                                    <?= htmlspecialchars($escola['escola_nome']) ?>
+                                                    <?= $escola['responsavel'] ? ' (Responsável)' : '' ?>
+                                                </option>
+                                            <?php endforeach; ?>
+                                        </select>
+                                        <div class="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
+                                            <svg class="w-5 h-5 text-white transition-transform duration-200 group-hover:scale-110" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                                            </svg>
+                                        </div>
+                                    </div>
+                                <?php else: ?>
+                                    <!-- Uma única escola - mostrar apenas o nome -->
                                 <div class="bg-primary-green text-white px-4 py-2 rounded-lg shadow-sm">
                                     <div class="flex items-center space-x-2">
                                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path>
                                         </svg>
                                         <span class="text-sm font-semibold">
-                                            <?php 
-                                            if (!empty($escolaGestor)) {
-                                                echo htmlspecialchars($escolaGestor);
-                                            } else {
-                                                // Fallback: tentar buscar diretamente no header
-                                                $usuarioIdHeader = $_SESSION['usuario_id'] ?? null;
-                                                if ($usuarioIdHeader) {
-                                                    try {
-                                                        $sqlHeader = "SELECT e.nome as escola_nome
-                                                                      FROM gestor g
-                                                                      INNER JOIN usuario u ON g.pessoa_id = u.pessoa_id
-                                                                      INNER JOIN gestor_lotacao gl ON g.id = gl.gestor_id
-                                                                      INNER JOIN escola e ON gl.escola_id = e.id
-                                                                      WHERE u.id = :usuario_id AND g.ativo = 1
-                                                                      ORDER BY 
-                                                                        CASE WHEN gl.fim IS NULL OR gl.fim = '' OR gl.fim = '0000-00-00' THEN 0 ELSE 1 END,
-                                                                        gl.responsavel DESC, 
-                                                                        gl.inicio DESC,
-                                                                        gl.id DESC
-                                                                      LIMIT 1";
-                                                        $stmtHeader = $conn->prepare($sqlHeader);
-                                                        $stmtHeader->bindParam(':usuario_id', $usuarioIdHeader);
-                                                        $stmtHeader->execute();
-                                                        $resultHeader = $stmtHeader->fetch(PDO::FETCH_ASSOC);
-                                                        if ($resultHeader && !empty($resultHeader['escola_nome'])) {
-                                                            echo htmlspecialchars($resultHeader['escola_nome']);
-                                                            error_log("DEBUG DASHBOARD HEADER - Escola encontrada: " . $resultHeader['escola_nome']);
-                                                        } else {
-                                                            echo 'Escola não encontrada';
-                                                            error_log("DEBUG DASHBOARD HEADER - Nenhuma escola encontrada para usuario_id: " . $usuarioIdHeader);
-                                                        }
-                                                    } catch (Exception $e) {
-                                                        echo 'Erro ao buscar escola';
-                                                        error_log("DEBUG DASHBOARD HEADER - Erro: " . $e->getMessage());
-                                                    }
-                                                } else {
-                                                    echo 'Escola Municipal';
-                                                    error_log("DEBUG DASHBOARD HEADER - usuario_id é NULL");
-                                                }
-                                            }
-                                            ?>
+                                                <?= !empty($escolaGestor) ? htmlspecialchars($escolaGestor) : 'Escola não encontrada' ?>
                                         </span>
                                     </div>
                                 </div>
+                                <?php endif; ?>
                             <?php } else { ?>
                                 <!-- Para outros usuários, card verde com ícone -->
                             <div class="bg-primary-green text-white px-4 py-2 rounded-lg shadow-sm">
@@ -2430,7 +2523,7 @@ if (isset($_SESSION['tipo']) && strtoupper($_SESSION['tipo']) === 'GESTAO') {
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path>
                                     </svg>
                                     <span class="text-sm font-semibold">
-                                            <?php echo $_SESSION['escola_atual'] ?? 'Escola Municipal'; ?>
+                                            <?php echo !empty($_SESSION['escola_atual']) ? htmlspecialchars($_SESSION['escola_atual']) : 'N/A'; ?>
                                     </span>
                                 </div>
                             </div>

@@ -18,70 +18,82 @@ $db = Database::getInstance();
 $conn = $db->getConnection();
 $alunoModel = new AlunoModel();
 
-// Buscar escola do gestor logado
+// Buscar escolas do gestor e escola selecionada
+$escolasGestor = [];
 $escolaGestorId = null;
 $escolaGestor = null;
 
 if (isset($_SESSION['tipo']) && strtoupper($_SESSION['tipo']) === 'GESTAO') {
     $usuarioId = $_SESSION['usuario_id'] ?? null;
-    
+
     if ($usuarioId) {
         try {
-            // Buscar gestor através do usuario_id
-            // Query simplificada - buscar qualquer lotação recente, priorizando as sem data de fim
-            $sqlGestor = "SELECT g.id as gestor_id, gl.escola_id, e.nome as escola_nome, gl.responsavel, gl.fim, gl.inicio
-                          FROM gestor g
-                          INNER JOIN usuario u ON g.pessoa_id = u.pessoa_id
-                          INNER JOIN gestor_lotacao gl ON g.id = gl.gestor_id
-                          INNER JOIN escola e ON gl.escola_id = e.id
-                          WHERE u.id = :usuario_id AND g.ativo = 1
-                          ORDER BY 
-                            CASE WHEN gl.fim IS NULL OR gl.fim = '' OR gl.fim = '0000-00-00' THEN 0 ELSE 1 END,
-                            gl.responsavel DESC, 
-                            gl.inicio DESC,
-                            gl.id DESC
-                          LIMIT 1";
-            $stmtGestor = $conn->prepare($sqlGestor);
-            $stmtGestor->bindParam(':usuario_id', $usuarioId);
-            $stmtGestor->execute();
-            $gestorEscola = $stmtGestor->fetch(PDO::FETCH_ASSOC);
+            // Primeiro, buscar o ID do gestor usando pessoa_id
+            $pessoaId = $_SESSION['pessoa_id'] ?? null;
             
-            if ($gestorEscola) {
-                // Verificar se a lotação está realmente ativa
-                $fimLotacao = $gestorEscola['fim'];
-                $lotacaoAtiva = ($fimLotacao === null || $fimLotacao === '' || $fimLotacao === '0000-00-00' || (strtotime($fimLotacao) !== false && strtotime($fimLotacao) >= strtotime('today')));
+            if ($pessoaId) {
+                $sqlBuscarGestor = "SELECT g.id as gestor_id
+                                    FROM gestor g
+                                    WHERE g.pessoa_id = :pessoa_id AND g.ativo = 1
+                                    LIMIT 1";
+                $stmtBuscarGestor = $conn->prepare($sqlBuscarGestor);
+                $stmtBuscarGestor->bindParam(':pessoa_id', $pessoaId);
+                $stmtBuscarGestor->execute();
+                $gestorData = $stmtBuscarGestor->fetch(PDO::FETCH_ASSOC);
+            } else {
+                $gestorData = null;
+            }
+            
+            if ($gestorData && isset($gestorData['gestor_id'])) {
+                $gestorId = (int)$gestorData['gestor_id'];
                 
-                if ($lotacaoAtiva) {
-                    $escolaGestorId = (int)$gestorEscola['escola_id'];
-                    $escolaGestor = $gestorEscola['escola_nome'];
-                } else {
-                    // Tentar buscar sem a condição de fim (caso o campo esteja com valor diferente)
-                    $sqlGestor2 = "SELECT g.id as gestor_id, gl.escola_id, e.nome as escola_nome, gl.responsavel, gl.fim, gl.inicio
-                                   FROM gestor g
-                                   INNER JOIN usuario u ON g.pessoa_id = u.pessoa_id
-                                   INNER JOIN gestor_lotacao gl ON g.id = gl.gestor_id
-                                   INNER JOIN escola e ON gl.escola_id = e.id
-                                   WHERE u.id = :usuario_id AND g.ativo = 1
-                                   ORDER BY gl.responsavel DESC, gl.inicio DESC, gl.id DESC
-                                   LIMIT 1";
-                    $stmtGestor2 = $conn->prepare($sqlGestor2);
-                    $stmtGestor2->bindParam(':usuario_id', $usuarioId);
-                    $stmtGestor2->execute();
-                    $gestorEscola2 = $stmtGestor2->fetch(PDO::FETCH_ASSOC);
+                // Buscar todas as escolas ativas do gestor (sem duplicatas)
+                $sqlEscolas = "SELECT DISTINCT 
+                                 gl.escola_id, 
+                                 e.nome as escola_nome, 
+                                 MAX(gl.responsavel) as responsavel,
+                                 MAX(gl.inicio) as inicio
+                               FROM gestor_lotacao gl
+                               INNER JOIN escola e ON gl.escola_id = e.id
+                               WHERE gl.gestor_id = :gestor_id
+                               AND (gl.fim IS NULL OR gl.fim = '' OR gl.fim = '0000-00-00' OR gl.fim >= CURDATE())
+                               AND e.ativo = 1
+                               GROUP BY gl.escola_id, e.nome
+                               ORDER BY 
+                                 MAX(gl.responsavel) DESC,
+                                 MAX(gl.inicio) DESC,
+                                 e.nome ASC";
+                $stmtEscolas = $conn->prepare($sqlEscolas);
+                $stmtEscolas->bindParam(':gestor_id', $gestorId);
+                $stmtEscolas->execute();
+                $escolasGestor = $stmtEscolas->fetchAll(PDO::FETCH_ASSOC);
+                
+                // Verificar se há escola selecionada na sessão
+                if (isset($_SESSION['escola_selecionada_id']) && !empty($_SESSION['escola_selecionada_id'])) {
+                    $escolaSelecionadaId = (int)$_SESSION['escola_selecionada_id'];
                     
-                    if ($gestorEscola2) {
-                        $fimLotacao2 = $gestorEscola2['fim'];
-                        $lotacaoAtiva2 = ($fimLotacao2 === null || $fimLotacao2 === '' || $fimLotacao2 === '0000-00-00' || (strtotime($fimLotacao2) !== false && strtotime($fimLotacao2) >= strtotime('today')));
-                        
-                        if ($lotacaoAtiva2) {
-                            $escolaGestorId = (int)$gestorEscola2['escola_id'];
-                            $escolaGestor = $gestorEscola2['escola_nome'];
+                    // Verificar se a escola selecionada está na lista de escolas do gestor
+                    foreach ($escolasGestor as $escola) {
+                        if ((int)$escola['escola_id'] === $escolaSelecionadaId) {
+                            $escolaGestorId = $escolaSelecionadaId;
+                            $escolaGestor = $_SESSION['escola_selecionada_nome'] ?? $escola['escola_nome'];
+                            break;
                         }
                     }
                 }
+                
+                // Se não há escola selecionada ou a selecionada não é válida, usar a primeira (priorizando responsável)
+                if (!$escolaGestorId && !empty($escolasGestor)) {
+                    $escolaGestorId = (int)$escolasGestor[0]['escola_id'];
+                    $escolaGestor = $escolasGestor[0]['escola_nome'];
+                    
+                    // Salvar na sessão
+                    $_SESSION['escola_selecionada_id'] = $escolaGestorId;
+                    $_SESSION['escola_selecionada_nome'] = $escolaGestor;
+                }
             }
         } catch (Exception $e) {
-            error_log("ERRO ao buscar escola do gestor: " . $e->getMessage());
+            error_log("ERRO ao buscar escolas do gestor: " . $e->getMessage());
             $escolaGestorId = null;
             $escolaGestor = null;
         }
@@ -98,41 +110,84 @@ $tipoMensagem = '';
 
 // Processar ações
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao'])) {
-    $alunoId = $_POST['aluno_id'] ?? null;
-    
-    if (!$alunoId) {
-        $mensagem = 'ID do aluno não informado!';
-        $tipoMensagem = 'error';
-    } else {
-        if ($_POST['acao'] === 'aceitar') {
-            $resultado = $alunoModel->aceitarTransferencia($alunoId);
-            
-            if ($resultado['success']) {
-                $mensagem = $resultado['message'];
-                $tipoMensagem = 'success';
-            } else {
-                $mensagem = $resultado['message'];
+    if ($_POST['acao'] === 'transferir') {
+        // Processar transferência de aluno
+        $alunoId = $_POST['aluno_id'] ?? null;
+        $escolaOrigemId = $_POST['escola_origem_id'] ?? null;
+        $escolaDestinoId = $_POST['escola_destino_id'] ?? null;
+        $dataTransferencia = $_POST['data_transferencia'] ?? date('Y-m-d');
+        
+        if ($alunoId && $escolaOrigemId && $escolaDestinoId) {
+            // Verificar se a escola de origem é a escola do gestor
+            if ($escolaOrigemId != $escolaGestorId) {
+                $mensagem = 'Você só pode transferir alunos da sua escola!';
                 $tipoMensagem = 'error';
+            } elseif ($escolaOrigemId == $escolaDestinoId) {
+                $mensagem = 'A escola de origem e destino não podem ser a mesma!';
+                $tipoMensagem = 'error';
+            } else {
+                $resultado = $alunoModel->transferirEscola($alunoId, $escolaOrigemId, $escolaDestinoId, $dataTransferencia);
+                
+                if ($resultado['success']) {
+                    $mensagem = $resultado['message'];
+                    $tipoMensagem = 'success';
+                } else {
+                    $mensagem = $resultado['message'];
+                    $tipoMensagem = 'error';
+                }
             }
-        } elseif ($_POST['acao'] === 'recusar') {
-            $resultado = $alunoModel->recusarTransferencia($alunoId);
-            
-            if ($resultado['success']) {
-                $mensagem = $resultado['message'];
-                $tipoMensagem = 'success';
-            } else {
-                $mensagem = $resultado['message'];
-                $tipoMensagem = 'error';
+        } else {
+            $mensagem = 'Dados incompletos para realizar a transferência!';
+            $tipoMensagem = 'error';
+        }
+    } else {
+        // Processar aceitar/recusar transferência
+        $alunoId = $_POST['aluno_id'] ?? null;
+        
+        if (!$alunoId) {
+            $mensagem = 'ID do aluno não informado!';
+            $tipoMensagem = 'error';
+        } else {
+            if ($_POST['acao'] === 'aceitar') {
+                $resultado = $alunoModel->aceitarTransferencia($alunoId);
+                
+                if ($resultado['success']) {
+                    $mensagem = $resultado['message'];
+                    $tipoMensagem = 'success';
+                } else {
+                    $mensagem = $resultado['message'];
+                    $tipoMensagem = 'error';
+                }
+            } elseif ($_POST['acao'] === 'recusar') {
+                $resultado = $alunoModel->recusarTransferencia($alunoId);
+                
+                if ($resultado['success']) {
+                    $mensagem = $resultado['message'];
+                    $tipoMensagem = 'success';
+                } else {
+                    $mensagem = $resultado['message'];
+                    $tipoMensagem = 'error';
+                }
             }
         }
     }
 }
+
+// Buscar todas as escolas para o dropdown de destino
+$sqlEscolas = "SELECT id, nome FROM escola WHERE ativo = 1 ORDER BY nome ASC";
+$stmtEscolas = $conn->prepare($sqlEscolas);
+$stmtEscolas->execute();
+$escolas = $stmtEscolas->fetchAll(PDO::FETCH_ASSOC);
 
 // Buscar alunos transferidos pendentes
 $alunosPendentes = [];
 if ($escolaGestorId) {
     $alunosPendentes = $alunoModel->buscarTransferidosPendentes($escolaGestorId);
 }
+
+// Debug: verificar se escolaGestorId está definido
+error_log("DEBUG TRANSFERENCIAS - escolaGestorId: " . ($escolaGestorId ?? 'NULL'));
+error_log("DEBUG TRANSFERENCIAS - escolaGestor: " . ($escolaGestor ?? 'NULL'));
 ?>
 <!DOCTYPE html>
 <html lang="pt-BR">
@@ -165,138 +220,10 @@ if ($escolaGestorId) {
     // Incluir sidebar do gestor
     if (isset($_SESSION['tipo']) && strtoupper($_SESSION['tipo']) === 'ADM') {
         include('components/sidebar_adm.php');
-    } else {
-        // Sidebar padrão para GESTAO - reutilizar do gestao_escolar.php
-        // Buscar escola do gestor novamente para o sidebar
-        $escolaGestorSidebar = null;
-        $escolaGestorIdSidebar = null;
-        if (isset($_SESSION['tipo']) && strtoupper($_SESSION['tipo']) === 'GESTAO') {
-            $usuarioId = $_SESSION['usuario_id'] ?? null;
-            if ($usuarioId) {
-                $sqlGestor = "SELECT g.id as gestor_id, gl.escola_id, e.nome as escola_nome
-                              FROM gestor g
-                              INNER JOIN usuario u ON g.pessoa_id = u.pessoa_id
-                              INNER JOIN gestor_lotacao gl ON g.id = gl.gestor_id
-                              INNER JOIN escola e ON gl.escola_id = e.id
-                              WHERE u.id = :usuario_id AND g.ativo = 1
-                              AND (gl.fim IS NULL OR gl.fim = '' OR gl.fim = '0000-00-00')
-                              ORDER BY gl.responsavel DESC, gl.inicio DESC
-                              LIMIT 1";
-                $stmtGestor = $conn->prepare($sqlGestor);
-                $stmtGestor->bindParam(':usuario_id', $usuarioId);
-                $stmtGestor->execute();
-                $gestorEscola = $stmtGestor->fetch(PDO::FETCH_ASSOC);
-                if ($gestorEscola) {
-                    $escolaGestorIdSidebar = (int)$gestorEscola['escola_id'];
-                    $escolaGestorSidebar = $gestorEscola['escola_nome'];
-                }
-            }
-        }
+    } elseif (isset($_SESSION['tipo']) && strtoupper($_SESSION['tipo']) === 'GESTAO') {
+        include('components/sidebar_gestao.php');
+    }
     ?>
-    <!-- Mobile Menu Overlay -->
-    <div id="mobileOverlay" class="fixed inset-0 bg-black bg-opacity-50 z-40 hidden mobile-menu-overlay lg:hidden"></div>
-
-    <!-- Sidebar padrão para GESTAO -->
-    <aside id="sidebar" class="fixed left-0 top-0 h-full w-64 bg-white shadow-lg sidebar-transition z-50 lg:translate-x-0 sidebar-mobile flex flex-col">
-        <div class="p-6 border-b border-gray-200">
-            <div class="flex items-center space-x-3">
-                <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/1/19/Bras%C3%A3o_de_Maranguape.png/250px-Bras%C3%A3o_de_Maranguape.png" alt="Brasão de Maranguape" class="w-10 h-10 object-contain">
-                <div>
-                    <h1 class="text-lg font-bold text-gray-800">SIGEA</h1>
-                    <p class="text-xs text-gray-500">Gestão Escolar</p>
-                </div>
-            </div>
-        </div>
-        <div class="p-4 border-b border-gray-200">
-            <div class="flex items-center space-x-3">
-                <div class="w-10 h-10 bg-primary-green rounded-full flex items-center justify-center flex-shrink-0" style="aspect-ratio: 1; min-width: 2.5rem; min-height: 2.5rem; overflow: hidden;">
-                    <span class="text-sm font-bold text-white">
-                        <?php
-                        $nome = $_SESSION['nome'] ?? '';
-                        $iniciais = '';
-                        if (strlen($nome) >= 2) {
-                            $iniciais = strtoupper(substr($nome, 0, 2));
-                        } elseif (strlen($nome) == 1) {
-                            $iniciais = strtoupper($nome);
-                        } else {
-                            $iniciais = 'US';
-                        }
-                        echo $iniciais;
-                        ?>
-                    </span>
-                </div>
-                <div>
-                    <p class="text-sm font-medium text-gray-800"><?= $_SESSION['nome'] ?? 'Usuário' ?></p>
-                    <p class="text-xs text-gray-500"><?= $_SESSION['tipo'] ?? 'Gestão' ?></p>
-                </div>
-            </div>
-        </div>
-        <nav class="p-4 overflow-y-auto flex-1" style="max-height: calc(100vh - 200px);">
-            <ul class="space-y-2">
-                <li>
-                    <a href="dashboard.php" class="menu-item flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"></path>
-                        </svg>
-                        <span>Dashboard</span>
-                    </a>
-                </li>
-                <li>
-                    <a href="gestao_escolar.php" class="menu-item flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"></path>
-                        </svg>
-                        <span>Gestão Escolar</span>
-                    </a>
-                </li>
-                <li>
-                    <a href="transferencias_pendentes.php" class="menu-item flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700 active">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"></path>
-                        </svg>
-                        <span>Transferências</span>
-                    </a>
-                </li>
-                <li>
-                    <a href="relatorios_professor.php" class="menu-item flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
-                        </svg>
-                        <span>Relatórios</span>
-                    </a>
-                </li>
-                <?php if ($_SESSION['tipo'] === 'GESTAO' && $escolaGestorIdSidebar): ?>
-                    <li>
-                        <a href="gestao_escolar.php?aba=cardapio" class="menu-item flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700">
-                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"></path>
-                            </svg>
-                            <span>Cardápio</span>
-                        </a>
-                    </li>
-                    <li>
-                        <a href="gestao_escolar.php?acao=abrir_desperdicio" class="menu-item flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700">
-                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
-                            </svg>
-                            <span>Registrar Desperdício</span>
-                        </a>
-                    </li>
-                <?php endif; ?>
-            </ul>
-        </nav>
-
-        <!-- Logout Button -->
-        <div class="absolute bottom-0 left-0 right-0 p-4 border-t border-gray-200 bg-white">
-            <button onclick="window.confirmLogout()" class="w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-red-600 hover:bg-red-50 transition-colors">
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path>
-                </svg>
-                <span>Sair</span>
-            </button>
-        </div>
-    </aside>
-    <?php } ?>
     
     <!-- Mobile Menu Button -->
     <button onclick="window.toggleSidebar()" class="lg:hidden fixed top-4 left-4 z-50 bg-white p-2 rounded-lg shadow-lg">
@@ -308,18 +235,36 @@ if ($escolaGestorId) {
     <!-- Main Content -->
     <main class="lg:ml-64 content-transition min-h-screen">
         <!-- Header -->
-        <header class="bg-white shadow-sm border-b border-gray-200">
-            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-                <div class="flex items-center justify-between">
-                    <div>
-                        <h1 class="text-2xl font-bold text-gray-900">Transferências Pendentes</h1>
-                        <p class="mt-1 text-sm text-gray-500">
-                            <?php if ($escolaGestor): ?>
-                                Alunos transferidos para <?= htmlspecialchars($escolaGestor) ?>
-                            <?php else: ?>
-                                Gerencie as transferências de alunos
+        <header class="bg-white shadow-sm border-b border-gray-200 sticky top-0 z-30">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div class="flex items-center justify-between h-16">
+                    <div class="flex-1">
+                        <h1 class="text-xl font-semibold text-gray-800">Transferências</h1>
+                    </div>
+                    <div class="flex items-center space-x-4">
+                        <!-- School Info (Desktop Only) -->
+                        <div class="hidden lg:block">
+                            <?php if ($_SESSION['tipo'] === 'GESTAO'): ?>
+                                <!-- Para GESTAO, mostrar apenas o nome da escola (mudança apenas no dashboard) -->
+                                <div class="bg-primary-green text-white px-4 py-2 rounded-lg shadow-sm">
+                                    <div class="flex items-center space-x-2">
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path>
+                                        </svg>
+                                        <span class="text-sm font-semibold">
+                                            <?= !empty($escolaGestor) ? htmlspecialchars($escolaGestor) : 'Escola não encontrada' ?>
+                                        </span>
+                                    </div>
+                                </div>
                             <?php endif; ?>
-                        </p>
+                        </div>
+                        
+                        <!-- User Profile Button -->
+                        <button onclick="window.openUserProfile()" class="p-2 text-gray-600 bg-gray-100 rounded-full hover:bg-gray-200 transition-colors cursor-pointer" title="Perfil do Usuário">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
+                            </svg>
+                        </button>
                     </div>
                 </div>
             </div>
@@ -344,6 +289,20 @@ if ($escolaGestorId) {
             </div>
             <?php endif; ?>
 
+            <!-- Tabs -->
+            <div class="mb-6 border-b border-gray-200">
+                <nav class="flex space-x-8 overflow-x-auto">
+                    <button onclick="mostrarAba('pendentes')" id="tab-pendentes" class="tab-button py-4 px-1 border-b-2 border-primary-green font-medium text-sm text-primary-green whitespace-nowrap">
+                        Transferências Pendentes
+                    </button>
+                    <button onclick="mostrarAba('transferir')" id="tab-transferir" class="tab-button py-4 px-1 border-b-2 border-transparent font-medium text-sm text-gray-500 hover:text-gray-700 hover:border-gray-300 whitespace-nowrap">
+                        Transferir Aluno
+                    </button>
+                </nav>
+            </div>
+
+            <!-- Aba: Transferências Pendentes -->
+            <div id="aba-pendentes" class="tab-content">
             <?php if (empty($alunosPendentes)): ?>
                 <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-12 text-center">
                     <svg class="w-16 h-16 text-gray-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -430,6 +389,136 @@ if ($escolaGestorId) {
                     </ul>
                 </div>
             <?php endif; ?>
+            </div>
+
+            <!-- Aba: Transferir Aluno -->
+            <div id="aba-transferir" class="tab-content hidden">
+                <!-- Formulário de Transferência -->
+                <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-8">
+                    <form method="POST" id="form-transferencia" class="space-y-6">
+                        <input type="hidden" name="acao" value="transferir">
+                        <input type="hidden" name="escola_origem_id" id="escola_origem_id" value="<?= $escolaGestorId ?>">
+                        
+                        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                            <!-- Escola de Origem (fixa - escola do gestor) -->
+                            <div>
+                                <label for="escola_origem_display" class="block text-sm font-medium text-gray-700 mb-2">
+                                    Escola de Origem <span class="text-red-500">*</span>
+                                </label>
+                                <input type="text" 
+                                       id="escola_origem_display" 
+                                       value="<?= htmlspecialchars($escolaGestor) ?>"
+                                       disabled
+                                       class="w-full px-4 py-3 border border-gray-300 rounded-lg bg-gray-100 text-gray-600 cursor-not-allowed">
+                            </div>
+
+                            <!-- Escola de Destino -->
+                            <div>
+                                <label for="escola_destino_id" class="block text-sm font-medium text-gray-700 mb-2">
+                                    Escola de Destino <span class="text-red-500">*</span>
+                                </label>
+                                <select name="escola_destino_id" id="escola_destino_id" required
+                                        class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-green focus:border-primary-green transition-colors">
+                                    <option value="">Selecione a escola de destino...</option>
+                                    <?php foreach ($escolas as $escola): ?>
+                                        <?php if ($escola['id'] != $escolaGestorId): ?>
+                                            <option value="<?= $escola['id'] ?>">
+                                                <?= htmlspecialchars($escola['nome']) ?>
+                                            </option>
+                                        <?php endif; ?>
+                                    <?php endforeach; ?>
+                                </select>
+                            </div>
+                        </div>
+
+                        <!-- Aluno -->
+                        <div class="relative">
+                            <label for="busca_aluno" class="block text-sm font-medium text-gray-700 mb-2">
+                                Buscar Aluno <span class="text-red-500">*</span>
+                                <?php if ($escolaGestorId): ?>
+                                    <span class="text-xs text-gray-500 font-normal">(Escola ID: <?= $escolaGestorId ?>)</span>
+                                <?php endif; ?>
+                            </label>
+                            <div class="relative">
+                                <input type="text" 
+                                       id="busca_aluno" 
+                                       name="busca_aluno"
+                                       placeholder="Digite o nome, CPF ou matrícula do aluno..."
+                                       class="w-full px-4 py-3 pr-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-green focus:border-primary-green transition-colors"
+                                       autocomplete="off"
+                                       <?= !$escolaGestorId ? 'disabled' : '' ?>>
+                                <input type="hidden" name="aluno_id" id="aluno_id" required>
+                                <svg class="absolute right-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                                </svg>
+                            </div>
+                            <!-- Lista de sugestões -->
+                            <div id="sugestoes-alunos" class="hidden absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                                <!-- Sugestões serão inseridas aqui via JavaScript -->
+                            </div>
+                            <p id="mensagem-busca" class="mt-1 text-sm text-gray-500 <?= !$escolaGestorId ? '' : 'hidden' ?>">
+                                <?= !$escolaGestorId ? 'Escola não encontrada. Não é possível buscar alunos.' : '' ?>
+                            </p>
+                        </div>
+
+                        <!-- Informações do Aluno -->
+                        <div id="info-aluno" class="bg-gray-50 rounded-lg p-4 hidden">
+                            <h4 class="text-sm font-semibold text-gray-700 mb-3">Informações do Aluno</h4>
+                            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                <div>
+                                    <p class="text-xs text-gray-500">Nome</p>
+                                    <p class="text-sm font-medium text-gray-900" id="info-nome">-</p>
+                                </div>
+                                <div>
+                                    <p class="text-xs text-gray-500">CPF</p>
+                                    <p class="text-sm font-medium text-gray-900" id="info-cpf">-</p>
+                                </div>
+                                <div>
+                                    <p class="text-xs text-gray-500">Matrícula</p>
+                                    <p class="text-sm font-medium text-gray-900" id="info-matricula">-</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Data de Transferência -->
+                        <div>
+                            <label for="data_transferencia" class="block text-sm font-medium text-gray-700 mb-2">
+                                Data de Transferência <span class="text-red-500">*</span>
+                            </label>
+                            <input type="date" name="data_transferencia" id="data_transferencia" 
+                                   value="<?= date('Y-m-d') ?>" required
+                                   class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-green focus:border-primary-green transition-colors">
+                        </div>
+
+                        <!-- Botões -->
+                        <div class="flex items-center justify-end space-x-4 pt-4 border-t border-gray-200">
+                            <button type="button" onclick="limparFormulario()" 
+                                    class="px-6 py-3 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors">
+                                Limpar
+                            </button>
+                            <button type="submit" 
+                                    class="px-6 py-3 bg-primary-green text-white rounded-lg hover:bg-green-700 transition-colors font-medium">
+                                Transferir Aluno
+                            </button>
+                        </div>
+                    </form>
+                </div>
+
+                <!-- Instruções -->
+                <div class="mt-6 bg-blue-50 border border-blue-200 rounded-lg p-6">
+                    <h3 class="text-lg font-semibold text-blue-900 mb-2">Como transferir um aluno:</h3>
+                    <ol class="list-decimal list-inside space-y-2 text-blue-800">
+                        <li>Digite o nome, CPF ou matrícula do aluno no campo de busca</li>
+                        <li>Selecione o aluno da lista de sugestões que aparecerá</li>
+                        <li>Escolha a escola de destino</li>
+                        <li>Confirme a data de transferência</li>
+                        <li>Clique em "Transferir Aluno" para concluir</li>
+                    </ol>
+                    <p class="mt-4 text-sm text-blue-700">
+                        <strong>Observação:</strong> Você só pode transferir alunos que estão matriculados na sua escola. Ao transferir, o aluno será automaticamente desvinculado da turma atual e sua situação será alterada para "TRANSFERIDO".
+                    </p>
+                </div>
+            </div>
         </div>
     </main>
 
@@ -482,7 +571,294 @@ if ($escolaGestorId) {
                 window.location.href = '../auth/logout.php';
             }
         };
+
+        // Sistema de abas
+        function mostrarAba(aba) {
+            // Esconder todas as abas
+            document.querySelectorAll('.tab-content').forEach(content => {
+                content.classList.add('hidden');
+            });
+            
+            // Remover estilo ativo de todas as tabs
+            document.querySelectorAll('.tab-button').forEach(button => {
+                button.classList.remove('border-primary-green', 'text-primary-green');
+                button.classList.add('border-transparent', 'text-gray-500');
+            });
+            
+            // Mostrar aba selecionada
+            document.getElementById('aba-' + aba).classList.remove('hidden');
+            
+            // Ativar tab selecionada
+            const tabButton = document.getElementById('tab-' + aba);
+            tabButton.classList.remove('border-transparent', 'text-gray-500');
+            tabButton.classList.add('border-primary-green', 'text-primary-green');
+            
+            // Se for a aba de transferir, carregar alunos
+            if (aba === 'transferir') {
+                setTimeout(carregarAlunos, 100);
+            }
+        }
+
+        // Funcionalidade de busca de alunos (similar a transferencia_alunos.php)
+        let alunosDisponiveis = [];
+        let timeoutBusca = null;
+        let indiceSugestaoAtiva = -1;
+        const escolaOrigemId = <?= $escolaGestorId ? json_encode($escolaGestorId) : 'null' ?>;
+        
+        console.log('escolaOrigemId definido:', escolaOrigemId);
+
+        function carregarAlunos() {
+            const inputBusca = document.getElementById('busca_aluno');
+            const mensagemBusca = document.getElementById('mensagem-busca');
+            
+            if (!inputBusca || !mensagemBusca) {
+                console.error('Elementos não encontrados');
+                return;
+            }
+            
+            if (!escolaOrigemId || escolaOrigemId === null || escolaOrigemId === '') {
+                console.error('escolaOrigemId não definido:', escolaOrigemId);
+                inputBusca.disabled = true;
+                inputBusca.placeholder = 'Escola não encontrada...';
+                mensagemBusca.textContent = 'Erro: Escola não encontrada.';
+                mensagemBusca.classList.remove('hidden');
+                return;
+            }
+
+            inputBusca.disabled = false;
+            inputBusca.placeholder = 'Digite o nome, CPF ou matrícula do aluno...';
+            mensagemBusca.textContent = 'Carregando alunos...';
+            mensagemBusca.classList.remove('hidden');
+            
+            // Limpar alunos anteriores
+            alunosDisponiveis = [];
+            
+            // Carregar todos os alunos da escola para busca local
+            const url = `../../Controllers/academico/AlunoController.php?action=buscar_por_escola&escola_id=${escolaOrigemId}&situacao=MATRICULADO`;
+            console.log('Carregando alunos da URL:', url);
+            
+            fetch(url)
+                .then(response => {
+                    console.log('Response status:', response.status);
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    console.log('Dados recebidos:', data);
+                    if (data.success && data.data && data.data.length > 0) {
+                        alunosDisponiveis = data.data;
+                        mensagemBusca.textContent = `${alunosDisponiveis.length} aluno(s) encontrado(s) nesta escola. Digite para buscar...`;
+                        mensagemBusca.classList.remove('hidden');
+                        inputBusca.disabled = false;
+                    } else {
+                        console.warn('Nenhum aluno encontrado ou resposta vazia:', data);
+                        mensagemBusca.textContent = 'Nenhum aluno encontrado nesta escola.';
+                        mensagemBusca.classList.remove('hidden');
+                        inputBusca.disabled = false; // Manter habilitado para permitir tentar novamente
+                    }
+                })
+                .catch(error => {
+                    console.error('Erro ao carregar alunos:', error);
+                    mensagemBusca.textContent = 'Erro ao carregar alunos. Verifique o console para mais detalhes.';
+                    mensagemBusca.classList.remove('hidden');
+                    inputBusca.disabled = false;
+                });
+        }
+
+        function buscarAlunos(termo) {
+            const sugestoesDiv = document.getElementById('sugestoes-alunos');
+            const inputAlunoId = document.getElementById('aluno_id');
+            const infoAluno = document.getElementById('info-aluno');
+            
+            if (!termo || termo.length < 2) {
+                sugestoesDiv.classList.add('hidden');
+                inputAlunoId.value = '';
+                infoAluno.classList.add('hidden');
+                return;
+            }
+
+            termo = termo.toLowerCase();
+            const resultados = alunosDisponiveis.filter(aluno => {
+                const nome = (aluno.nome || '').toLowerCase();
+                const cpf = (aluno.cpf || '').replace(/\D/g, '');
+                const matricula = (aluno.matricula || '').toLowerCase();
+                const termoLimpo = termo.replace(/\D/g, '');
+                
+                return nome.includes(termo) || 
+                       cpf.includes(termoLimpo) || 
+                       matricula.includes(termo);
+            });
+
+            if (resultados.length === 0) {
+                sugestoesDiv.innerHTML = '<div class="p-4 text-center text-gray-500">Nenhum aluno encontrado</div>';
+                sugestoesDiv.classList.remove('hidden');
+                inputAlunoId.value = '';
+                infoAluno.classList.add('hidden');
+                return;
+            }
+
+            const resultadosLimitados = resultados.slice(0, 10);
+            
+            sugestoesDiv.innerHTML = '';
+            resultadosLimitados.forEach((aluno, index) => {
+                const item = document.createElement('div');
+                item.className = 'p-3 hover:bg-gray-100 cursor-pointer border-b border-gray-100 aluno-item';
+                item.dataset.alunoId = aluno.id;
+                item.dataset.index = index;
+                
+                const nome = aluno.nome || 'Sem nome';
+                const matricula = aluno.matricula ? ` - Matrícula: ${aluno.matricula}` : '';
+                const cpf = aluno.cpf ? ` - CPF: ${aluno.cpf}` : '';
+                
+                item.innerHTML = `
+                    <div class="font-medium text-gray-900">${nome}</div>
+                    <div class="text-sm text-gray-500">${matricula}${cpf}</div>
+                `;
+                
+                item.addEventListener('click', () => selecionarAluno(aluno));
+                item.addEventListener('mouseenter', () => {
+                    indiceSugestaoAtiva = index;
+                    atualizarDestaqueSugestoes();
+                });
+                
+                sugestoesDiv.appendChild(item);
+            });
+            
+            sugestoesDiv.classList.remove('hidden');
+            indiceSugestaoAtiva = -1;
+        }
+
+        function selecionarAluno(aluno) {
+            const inputBusca = document.getElementById('busca_aluno');
+            const inputAlunoId = document.getElementById('aluno_id');
+            const sugestoesDiv = document.getElementById('sugestoes-alunos');
+            const infoAluno = document.getElementById('info-aluno');
+            
+            inputBusca.value = aluno.nome + (aluno.matricula ? ` - Matrícula: ${aluno.matricula}` : '');
+            inputAlunoId.value = aluno.id;
+            
+            document.getElementById('info-nome').textContent = aluno.nome || '-';
+            document.getElementById('info-cpf').textContent = aluno.cpf || '-';
+            document.getElementById('info-matricula').textContent = aluno.matricula || '-';
+            
+            sugestoesDiv.classList.add('hidden');
+            infoAluno.classList.remove('hidden');
+        }
+
+        function atualizarDestaqueSugestoes() {
+            const itens = document.querySelectorAll('.aluno-item');
+            itens.forEach((item, index) => {
+                if (index === indiceSugestaoAtiva) {
+                    item.classList.add('bg-gray-100');
+                } else {
+                    item.classList.remove('bg-gray-100');
+                }
+            });
+        }
+
+        function limparFormulario() {
+            document.getElementById('busca_aluno').value = '';
+            document.getElementById('aluno_id').value = '';
+            document.getElementById('escola_destino_id').value = '';
+            document.getElementById('data_transferencia').value = '<?= date('Y-m-d') ?>';
+            document.getElementById('info-aluno').classList.add('hidden');
+            document.getElementById('sugestoes-alunos').classList.add('hidden');
+        }
+
+        // Event listeners para busca de alunos
+        document.addEventListener('DOMContentLoaded', function() {
+            // Carregar alunos automaticamente se a aba de transferir já estiver visível
+            const abaTransferir = document.getElementById('aba-transferir');
+            if (abaTransferir && !abaTransferir.classList.contains('hidden')) {
+                setTimeout(carregarAlunos, 200);
+            }
+
+            const inputBusca = document.getElementById('busca_aluno');
+            if (inputBusca) {
+                // Busca ao digitar
+                inputBusca.addEventListener('input', function(e) {
+                    clearTimeout(timeoutBusca);
+                    const termo = e.target.value;
+                    
+                    timeoutBusca = setTimeout(() => {
+                        buscarAlunos(termo);
+                    }, 300);
+                });
+
+                // Navegação com teclado
+                inputBusca.addEventListener('keydown', function(e) {
+                    const sugestoesDiv = document.getElementById('sugestoes-alunos');
+                    const itens = document.querySelectorAll('.aluno-item');
+                    
+                    if (!sugestoesDiv.classList.contains('hidden') && itens.length > 0) {
+                        if (e.key === 'ArrowDown') {
+                            e.preventDefault();
+                            indiceSugestaoAtiva = Math.min(indiceSugestaoAtiva + 1, itens.length - 1);
+                            atualizarDestaqueSugestoes();
+                            itens[indiceSugestaoAtiva].scrollIntoView({ block: 'nearest' });
+                        } else if (e.key === 'ArrowUp') {
+                            e.preventDefault();
+                            indiceSugestaoAtiva = Math.max(indiceSugestaoAtiva - 1, -1);
+                            atualizarDestaqueSugestoes();
+                        } else if (e.key === 'Enter' && indiceSugestaoAtiva >= 0) {
+                            e.preventDefault();
+                            const alunoId = itens[indiceSugestaoAtiva].dataset.alunoId;
+                            const aluno = alunosDisponiveis.find(a => a.id == alunoId);
+                            if (aluno) {
+                                selecionarAluno(aluno);
+                            }
+                        } else if (e.key === 'Escape') {
+                            sugestoesDiv.classList.add('hidden');
+                            indiceSugestaoAtiva = -1;
+                        }
+                    }
+                });
+            }
+
+            // Fechar sugestões ao clicar fora
+            document.addEventListener('click', function(e) {
+                const sugestoesDiv = document.getElementById('sugestoes-alunos');
+                const inputBusca = document.getElementById('busca_aluno');
+                
+                if (sugestoesDiv && inputBusca && !sugestoesDiv.contains(e.target) && e.target !== inputBusca) {
+                    sugestoesDiv.classList.add('hidden');
+                }
+            });
+
+            // Validação do formulário de transferência
+            const formTransferencia = document.getElementById('form-transferencia');
+            if (formTransferencia) {
+                formTransferencia.addEventListener('submit', function(e) {
+                    const escolaOrigem = document.getElementById('escola_origem_id').value;
+                    const escolaDestino = document.getElementById('escola_destino_id').value;
+                    const aluno = document.getElementById('aluno_id').value;
+
+                    if (escolaOrigem === escolaDestino) {
+                        e.preventDefault();
+                        alert('A escola de origem e destino não podem ser a mesma!');
+                        return false;
+                    }
+
+                    if (!aluno) {
+                        e.preventDefault();
+                        alert('Por favor, selecione um aluno para transferir!');
+                        return false;
+                    }
+
+                    if (!confirm('Tem certeza que deseja transferir este aluno? Esta ação não pode ser desfeita facilmente.')) {
+                        e.preventDefault();
+                        return false;
+                    }
+                });
+            }
+        });
     </script>
+    <style>
+        .aluno-item:first-child { border-top-left-radius: 0.5rem; border-top-right-radius: 0.5rem; }
+        .aluno-item:last-child { border-bottom-left-radius: 0.5rem; border-bottom-right-radius: 0.5rem; border-bottom: none; }
+    </style>
 </body>
 </html>
 

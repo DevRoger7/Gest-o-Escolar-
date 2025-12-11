@@ -40,122 +40,86 @@ $escolaGestorId = null;
 // Log inicial
 error_log("DEBUG GESTOR INICIAL - Tipo: " . ($_SESSION['tipo'] ?? 'NULL') . ", usuario_id: " . ($_SESSION['usuario_id'] ?? 'NULL'));
 
+// Buscar escolas do gestor e escola selecionada
+$escolasGestor = [];
+$escolaGestorId = null;
+$escolaGestor = null;
+
 if (isset($_SESSION['tipo']) && strtoupper($_SESSION['tipo']) === 'GESTAO') {
     $usuarioId = $_SESSION['usuario_id'] ?? null;
-    error_log("DEBUG GESTOR - usuario_id: " . ($usuarioId ?? 'NULL'));
 
     if ($usuarioId) {
         try {
-            // Log: Verificar se existe gestor para este usuario
-            $sqlCheckGestor = "SELECT g.id as gestor_id, g.pessoa_id, g.ativo
-                               FROM gestor g
-                               INNER JOIN usuario u ON g.pessoa_id = u.pessoa_id
-                               WHERE u.id = :usuario_id";
-            $stmtCheck = $conn->prepare($sqlCheckGestor);
-            $stmtCheck->bindParam(':usuario_id', $usuarioId);
-            $stmtCheck->execute();
-            $checkGestor = $stmtCheck->fetch(PDO::FETCH_ASSOC);
-            error_log("DEBUG GESTOR - Check gestor: " . json_encode($checkGestor));
-
-            // Buscar gestor através do usuario_id
-            // Query simplificada - buscar qualquer lotação recente, priorizando as sem data de fim
-            $sqlGestor = "SELECT g.id as gestor_id, gl.escola_id, e.nome as escola_nome, gl.responsavel, gl.fim, gl.inicio
+            // Primeiro, buscar o ID do gestor usando pessoa_id
+            $pessoaId = $_SESSION['pessoa_id'] ?? null;
+            
+            if ($pessoaId) {
+                $sqlBuscarGestor = "SELECT g.id as gestor_id
                           FROM gestor g
-                          INNER JOIN usuario u ON g.pessoa_id = u.pessoa_id
-                          INNER JOIN gestor_lotacao gl ON g.id = gl.gestor_id
-                          INNER JOIN escola e ON gl.escola_id = e.id
-                          WHERE u.id = :usuario_id AND g.ativo = 1
-                          ORDER BY 
-                            CASE WHEN gl.fim IS NULL OR gl.fim = '' OR gl.fim = '0000-00-00' THEN 0 ELSE 1 END,
-                            gl.responsavel DESC, 
-                            gl.inicio DESC,
-                            gl.id DESC
+                                    WHERE g.pessoa_id = :pessoa_id AND g.ativo = 1
                           LIMIT 1";
-            $stmtGestor = $conn->prepare($sqlGestor);
-            $stmtGestor->bindParam(':usuario_id', $usuarioId);
-            $stmtGestor->execute();
-            $gestorEscola = $stmtGestor->fetch(PDO::FETCH_ASSOC);
-            error_log("DEBUG GESTOR - Query 1 resultado: " . json_encode($gestorEscola));
-
-            if ($gestorEscola) {
-                // Verificar se a lotação está realmente ativa
-                $fimLotacao = $gestorEscola['fim'];
-                $lotacaoAtiva = ($fimLotacao === null || $fimLotacao === '' || $fimLotacao === '0000-00-00' || (strtotime($fimLotacao) !== false && strtotime($fimLotacao) >= strtotime('today')));
-                
-                if ($lotacaoAtiva) {
-                    $escolaGestorId = (int)$gestorEscola['escola_id'];
-                    $escolaGestor = $gestorEscola['escola_nome'];
-                    error_log("DEBUG GESTOR - Escola encontrada (Query 1): ID=" . $escolaGestorId . ", Nome=" . $escolaGestor);
-                } else {
-                    error_log("DEBUG GESTOR - Lotação encontrada mas não está ativa (fim: " . var_export($fimLotacao, true) . ")");
-                    // Continuar para a próxima query
-                }
+                $stmtBuscarGestor = $conn->prepare($sqlBuscarGestor);
+                $stmtBuscarGestor->bindParam(':pessoa_id', $pessoaId);
+                $stmtBuscarGestor->execute();
+                $gestorData = $stmtBuscarGestor->fetch(PDO::FETCH_ASSOC);
+            } else {
+                $gestorData = null;
             }
             
-            // Se ainda não encontrou, tentar query alternativa
-            if (!$escolaGestorId) {
-                // Tentar buscar sem a condição de fim (caso o campo esteja com valor diferente)
-                $sqlGestor2 = "SELECT g.id as gestor_id, gl.escola_id, e.nome as escola_nome, gl.responsavel, gl.fim, gl.inicio
-                               FROM gestor g
-                               INNER JOIN usuario u ON g.pessoa_id = u.pessoa_id
-                               INNER JOIN gestor_lotacao gl ON g.id = gl.gestor_id
+            if ($gestorData && isset($gestorData['gestor_id'])) {
+                $gestorId = (int)$gestorData['gestor_id'];
+                
+                // Buscar todas as escolas ativas do gestor (sem duplicatas)
+                $sqlEscolas = "SELECT DISTINCT 
+                                 gl.escola_id, 
+                                 e.nome as escola_nome, 
+                                 MAX(gl.responsavel) as responsavel,
+                                 MAX(gl.inicio) as inicio
+                               FROM gestor_lotacao gl
                                INNER JOIN escola e ON gl.escola_id = e.id
-                               WHERE u.id = :usuario_id AND g.ativo = 1
-                               ORDER BY gl.responsavel DESC, gl.inicio DESC, gl.id DESC
-                               LIMIT 1";
-                $stmtGestor2 = $conn->prepare($sqlGestor2);
-                $stmtGestor2->bindParam(':usuario_id', $usuarioId);
-                $stmtGestor2->execute();
-                $gestorEscola2 = $stmtGestor2->fetch(PDO::FETCH_ASSOC);
-                error_log("DEBUG GESTOR - Query 2 resultado: " . json_encode($gestorEscola2));
-
-                if ($gestorEscola2) {
-                    // Verificar se a lotação está realmente ativa (fim é NULL ou data futura)
-                    $fimLotacao2 = $gestorEscola2['fim'];
-                    $lotacaoAtiva2 = ($fimLotacao2 === null || $fimLotacao2 === '' || $fimLotacao2 === '0000-00-00' || (strtotime($fimLotacao2) !== false && strtotime($fimLotacao2) >= strtotime('today')));
-                    error_log("DEBUG GESTOR - Fim lotação: " . var_export($fimLotacao2, true) . ", Ativa: " . ($lotacaoAtiva2 ? 'SIM' : 'NÃO'));
-
-                    if ($lotacaoAtiva2) {
-                        $escolaGestorId = (int)$gestorEscola2['escola_id'];
-                        $escolaGestor = $gestorEscola2['escola_nome'];
-                        error_log("DEBUG GESTOR - Escola encontrada (Query 2): ID=" . $escolaGestorId . ", Nome=" . $escolaGestor);
-                    } else {
-                        error_log("DEBUG GESTOR - Lotação encontrada mas não está ativa (fim: " . var_export($fimLotacao2, true) . ")");
+                               WHERE gl.gestor_id = :gestor_id
+                               AND (gl.fim IS NULL OR gl.fim = '' OR gl.fim = '0000-00-00' OR gl.fim >= CURDATE())
+                               AND e.ativo = 1
+                               GROUP BY gl.escola_id, e.nome
+                               ORDER BY 
+                                 MAX(gl.responsavel) DESC,
+                                 MAX(gl.inicio) DESC,
+                                 e.nome ASC";
+                $stmtEscolas = $conn->prepare($sqlEscolas);
+                $stmtEscolas->bindParam(':gestor_id', $gestorId);
+                $stmtEscolas->execute();
+                $escolasGestor = $stmtEscolas->fetchAll(PDO::FETCH_ASSOC);
+                
+                // Verificar se há escola selecionada na sessão
+                if (isset($_SESSION['escola_selecionada_id']) && !empty($_SESSION['escola_selecionada_id'])) {
+                    $escolaSelecionadaId = (int)$_SESSION['escola_selecionada_id'];
+                    
+                    // Verificar se a escola selecionada está na lista de escolas do gestor
+                    foreach ($escolasGestor as $escola) {
+                        if ((int)$escola['escola_id'] === $escolaSelecionadaId) {
+                            $escolaGestorId = $escolaSelecionadaId;
+                            $escolaGestor = $_SESSION['escola_selecionada_nome'] ?? $escola['escola_nome'];
+                            break;
+                        }
                     }
                 }
                 
-                if (!$escolaGestorId) {
-                    // Verificar se existe lotação mesmo que inativa
-                    $sqlCheckLotacao = "SELECT gl.*, e.nome as escola_nome
-                                        FROM gestor g
-                                        INNER JOIN usuario u ON g.pessoa_id = u.pessoa_id
-                                        INNER JOIN gestor_lotacao gl ON g.id = gl.gestor_id
-                                        INNER JOIN escola e ON gl.escola_id = e.id
-                                        WHERE u.id = :usuario_id
-                                        ORDER BY gl.id DESC
-                                        LIMIT 5";
-                    $stmtCheckLot = $conn->prepare($sqlCheckLotacao);
-                    $stmtCheckLot->bindParam(':usuario_id', $usuarioId);
-                    $stmtCheckLot->execute();
-                    $todasLotacoes = $stmtCheckLot->fetchAll(PDO::FETCH_ASSOC);
-                    error_log("DEBUG GESTOR - Todas as lotações encontradas: " . json_encode($todasLotacoes));
-
-                    $escolaGestorId = null;
-                    $escolaGestor = null;
-                    error_log("DEBUG GESTOR - Nenhuma escola encontrada para o gestor");
+                // Se não há escola selecionada ou a selecionada não é válida, usar a primeira (priorizando responsável)
+                if (!$escolaGestorId && !empty($escolasGestor)) {
+                    $escolaGestorId = (int)$escolasGestor[0]['escola_id'];
+                    $escolaGestor = $escolasGestor[0]['escola_nome'];
+                    
+                    // Salvar na sessão
+                    $_SESSION['escola_selecionada_id'] = $escolaGestorId;
+                    $_SESSION['escola_selecionada_nome'] = $escolaGestor;
                 }
             }
         } catch (Exception $e) {
-            error_log("DEBUG GESTOR - Erro ao buscar escola do gestor: " . $e->getMessage());
-            error_log("DEBUG GESTOR - Stack trace: " . $e->getTraceAsString());
+            error_log("ERRO ao buscar escolas do gestor: " . $e->getMessage());
             $escolaGestorId = null;
             $escolaGestor = null;
         }
-    } else {
-        error_log("DEBUG GESTOR - usuario_id é NULL");
     }
-} else {
-    error_log("DEBUG GESTOR - Tipo de usuário não é GESTAO: " . ($_SESSION['tipo'] ?? 'NULL'));
 }
 
 // Buscar produtos para o modal de desperdício
@@ -1308,7 +1272,6 @@ if (!empty($_GET['acao']) && $_GET['acao'] === 'buscar_turma' && !empty($_GET['i
 // Buscar detalhes do professor
 if (!empty($_GET['acao']) && $_GET['acao'] === 'buscar_professor' && !empty($_GET['id'])) {
     header('Content-Type: application/json');
-<<<<<<< HEAD
 
     $professorId = $_GET['id'];
 
@@ -1354,21 +1317,12 @@ if (!empty($_GET['acao']) && $_GET['acao'] === 'buscar_professor' && !empty($_GE
 
         // Se for gestor e o professor não tiver atribuições na escola dele, negar acesso
         if ($_SESSION['tipo'] === 'GESTAO' && $escolaGestorId && empty($atribuicoes)) {
-=======
-    
-    try {
-        $professorId = $_GET['id'];
-        
-        // Validar que o ID é numérico
-        if (!is_numeric($professorId)) {
->>>>>>> 2f93e86a3c3e96b125007b901691880461eb3389
             echo json_encode([
                 'success' => false,
                 'message' => 'ID do professor inválido'
             ]);
             exit;
         }
-<<<<<<< HEAD
 
         echo json_encode([
             'success' => true,
@@ -1376,85 +1330,6 @@ if (!empty($_GET['acao']) && $_GET['acao'] === 'buscar_professor' && !empty($_GE
             'atribuicoes' => $atribuicoes
         ]);
     } else {
-=======
-        
-        $professorId = (int)$professorId;
-        
-        $sql = "SELECT pr.id, p.nome, p.email, p.telefone, pr.matricula
-                FROM professor pr
-                INNER JOIN pessoa p ON pr.pessoa_id = p.id
-                WHERE pr.id = :professor_id AND pr.ativo = 1";
-        
-        $stmt = $conn->prepare($sql);
-        $stmt->bindParam(':professor_id', $professorId, PDO::PARAM_INT);
-        $stmt->execute();
-        $professor = $stmt->fetch(PDO::FETCH_ASSOC);
-        
-        if ($professor) {
-            // Buscar atribuições do professor
-            try {
-                $sqlAtribuicoes = "SELECT 
-                                    CONCAT(t.serie, ' ', t.letra) as turma,
-                                    d.nome as disciplina,
-                                    tp.regime,
-                                    DATE_FORMAT(tp.inicio, '%d/%m/%Y') as inicio,
-                                    e.nome as escola_nome,
-                                    t.escola_id
-                                  FROM turma_professor tp
-                                  INNER JOIN turma t ON tp.turma_id = t.id
-                                  INNER JOIN disciplina d ON tp.disciplina_id = d.id
-                                  INNER JOIN escola e ON t.escola_id = e.id
-                                  WHERE tp.professor_id = :professor_id AND tp.fim IS NULL";
-                
-                // Filtrar por escola do gestor se necessário
-                if ($_SESSION['tipo'] === 'GESTAO' && isset($escolaGestorId) && $escolaGestorId) {
-                    $sqlAtribuicoes .= " AND t.escola_id = :escola_id";
-                }
-                
-                $sqlAtribuicoes .= " ORDER BY t.serie, t.letra, d.nome";
-                
-                $stmtAtrib = $conn->prepare($sqlAtribuicoes);
-                $stmtAtrib->bindParam(':professor_id', $professorId, PDO::PARAM_INT);
-                if ($_SESSION['tipo'] === 'GESTAO' && isset($escolaGestorId) && $escolaGestorId) {
-                    $stmtAtrib->bindParam(':escola_id', $escolaGestorId, PDO::PARAM_INT);
-                }
-                $stmtAtrib->execute();
-                $atribuicoes = $stmtAtrib->fetchAll(PDO::FETCH_ASSOC);
-                
-                // Se for gestor e o professor não tiver atribuições na escola dele, negar acesso
-                if ($_SESSION['tipo'] === 'GESTAO' && isset($escolaGestorId) && $escolaGestorId && empty($atribuicoes)) {
-                    echo json_encode([
-                        'success' => false,
-                        'message' => 'Você não tem permissão para visualizar este professor.'
-                    ]);
-                    exit;
-                }
-            } catch (PDOException $e) {
-                // Se houver erro ao buscar atribuições, retornar professor sem atribuições
-                error_log("Erro ao buscar atribuições do professor: " . $e->getMessage());
-                $atribuicoes = [];
-            }
-            
-            echo json_encode([
-                'success' => true,
-                'professor' => $professor,
-                'atribuicoes' => $atribuicoes ?? []
-            ]);
-        } else {
-            echo json_encode([
-                'success' => false,
-                'message' => 'Professor não encontrado'
-            ]);
-        }
-    } catch (PDOException $e) {
-        error_log("Erro ao buscar professor: " . $e->getMessage());
->>>>>>> 2f93e86a3c3e96b125007b901691880461eb3389
-        echo json_encode([
-            'success' => false,
-            'message' => 'Erro ao carregar dados do professor. Por favor, tente novamente.'
-        ]);
-    } catch (Exception $e) {
-        error_log("Erro ao buscar professor: " . $e->getMessage());
         echo json_encode([
             'success' => false,
             'message' => 'Erro ao carregar dados do professor. Por favor, tente novamente.'
@@ -1700,108 +1575,8 @@ if (!defined('BASE_URL')) {
     <!-- Sidebar -->
     <?php if (isset($_SESSION['tipo']) && strtoupper($_SESSION['tipo']) === 'ADM') { ?>
         <?php include('components/sidebar_adm.php'); ?>
-    <?php } else { ?>
-        <!-- Sidebar padrão para GESTAO -->
-        <aside id="sidebar" class="fixed left-0 top-0 h-full w-64 bg-white shadow-lg sidebar-transition z-50 lg:translate-x-0 sidebar-mobile flex flex-col">
-            <div class="p-6 border-b border-gray-200">
-                <div class="flex items-center space-x-3">
-                    <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/1/19/Bras%C3%A3o_de_Maranguape.png/250px-Bras%C3%A3o_de_Maranguape.png" alt="Brasão de Maranguape" class="w-10 h-10 object-contain">
-                    <div>
-                        <h1 class="text-lg font-bold text-gray-800">SIGEA</h1>
-                        <p class="text-xs text-gray-500">Gestão Escolar</p>
-                    </div>
-                </div>
-            </div>
-            <div class="p-4 border-b border-gray-200">
-                <div class="flex items-center space-x-3">
-                    <div class="w-10 h-10 bg-primary-green rounded-full flex items-center justify-center flex-shrink-0" style="aspect-ratio: 1; min-width: 2.5rem; min-height: 2.5rem; overflow: hidden;">
-                        <span class="text-sm font-bold text-white">
-                            <?php
-                            $nome = $_SESSION['nome'] ?? '';
-                            $iniciais = '';
-                            if (strlen($nome) >= 2) {
-                                $iniciais = strtoupper(substr($nome, 0, 2));
-                            } elseif (strlen($nome) == 1) {
-                                $iniciais = strtoupper($nome);
-                            } else {
-                                $iniciais = 'US';
-                            }
-                            echo $iniciais;
-                            ?>
-                        </span>
-                    </div>
-                    <div>
-                        <p class="text-sm font-medium text-gray-800"><?= $_SESSION['nome'] ?? 'Usuário' ?></p>
-                        <p class="text-xs text-gray-500"><?= $_SESSION['tipo'] ?? 'Gestão' ?></p>
-                    </div>
-                </div>
-            </div>
-            <nav class="p-4 overflow-y-auto flex-1" style="max-height: calc(100vh - 200px);">
-                <ul class="space-y-2">
-                    <li>
-                        <a href="dashboard.php" class="menu-item flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700 <?= basename($_SERVER['PHP_SELF']) === 'dashboard.php' ? 'active' : '' ?>">
-                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"></path>
-                            </svg>
-                            <span>Dashboard</span>
-                        </a>
-                    </li>
-                    <li>
-                        <a href="gestao_escolar.php" class="menu-item flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700 <?= basename($_SERVER['PHP_SELF']) === 'gestao_escolar.php' ? 'active' : '' ?>">
-                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"></path>
-                            </svg>
-                            <span>Gestão Escolar</span>
-                        </a>
-                    </li>
-                    <li>
-                        <a href="transferencias_pendentes.php" class="menu-item flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700 <?= basename($_SERVER['PHP_SELF']) === 'transferencias_pendentes.php' ? 'active' : '' ?>">
-                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"></path>
-                            </svg>
-                            <span>Transferências</span>
-                        </a>
-                    </li>
-                    <li>
-                        <a href="relatorios_professor.php" class="menu-item flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700">
-                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
-                            </svg>
-                            <span>Relatórios</span>
-                        </a>
-                    </li>
-                    <?php if ($_SESSION['tipo'] === 'GESTAO' && $escolaGestorId): ?>
-                        <li>
-                            <a href="gestao_escolar.php?aba=cardapio" class="menu-item flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700 <?= (basename($_SERVER['PHP_SELF']) === 'gestao_escolar.php' && isset($_GET['aba']) && $_GET['aba'] === 'cardapio') ? 'active' : '' ?>">
-                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"></path>
-                                </svg>
-                                <span>Cardápio</span>
-                            </a>
-                        </li>
-
-                        <li>
-                            <a href="gestao_escolar.php?acao=abrir_desperdicio" class="menu-item flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700">
-                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
-                                </svg>
-                                <span>Registrar Desperdício</span>
-                            </a>
-                        </li>
-                    <?php endif; ?>
-                </ul>
-            </nav>
-
-            <!-- Logout Button -->
-            <div class="absolute bottom-0 left-0 right-0 p-4 border-t border-gray-200 bg-white">
-                <button onclick="window.confirmLogout()" class="w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-red-600 hover:bg-red-50 transition-colors">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path>
-                    </svg>
-                    <span>Sair</span>
-                </button>
-            </div>
-        </aside>
+    <?php } elseif (isset($_SESSION['tipo']) && strtoupper($_SESSION['tipo']) === 'GESTAO') { ?>
+        <?php include('components/sidebar_gestao.php'); ?>
     <?php } ?>
 
     <main class="content-transition ml-0 lg:ml-64 min-h-screen">
@@ -1835,50 +1610,14 @@ if (!defined('BASE_URL')) {
                                     <p class="text-xs text-gray-500">Órgão Central</p>
                                 </div>
                             <?php } elseif ($_SESSION['tipo'] === 'GESTAO') { ?>
-                                <!-- Para GESTAO, mostrar nome da escola -->
+                                <!-- Para GESTAO, mostrar apenas o nome da escola (mudança apenas no dashboard) -->
                                 <div class="bg-primary-green text-white px-4 py-2 rounded-lg shadow-sm">
                                     <div class="flex items-center space-x-2">
                                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path>
                                         </svg>
                                         <span class="text-sm font-semibold">
-                                            <?php
-                                            if (!empty($escolaGestor)) {
-                                                echo htmlspecialchars($escolaGestor);
-                                            } else {
-                                                // Debug: tentar buscar diretamente
-                                                $usuarioIdDebug = $_SESSION['usuario_id'] ?? null;
-                                                if ($usuarioIdDebug) {
-                                                    try {
-                                                        $sqlDebug = "SELECT e.nome as escola_nome
-                                                                     FROM gestor g
-                                                                     INNER JOIN usuario u ON g.pessoa_id = u.pessoa_id
-                                                                     INNER JOIN gestor_lotacao gl ON g.id = gl.gestor_id
-                                                                     INNER JOIN escola e ON gl.escola_id = e.id
-                                                                     WHERE u.id = :usuario_id AND g.ativo = 1
-                                                                     ORDER BY gl.id DESC
-                                                                     LIMIT 1";
-                                                        $stmtDebug = $conn->prepare($sqlDebug);
-                                                        $stmtDebug->bindParam(':usuario_id', $usuarioIdDebug);
-                                                        $stmtDebug->execute();
-                                                        $resultDebug = $stmtDebug->fetch(PDO::FETCH_ASSOC);
-                                                        if ($resultDebug && !empty($resultDebug['escola_nome'])) {
-                                                            echo htmlspecialchars($resultDebug['escola_nome']);
-                                                            error_log("DEBUG HEADER - Escola encontrada diretamente: " . $resultDebug['escola_nome']);
-                                                        } else {
-                                                            echo 'Escola não encontrada';
-                                                            error_log("DEBUG HEADER - Nenhuma escola encontrada para usuario_id: " . $usuarioIdDebug);
-                                                        }
-                                                    } catch (Exception $e) {
-                                                        echo 'Erro ao buscar escola';
-                                                        error_log("DEBUG HEADER - Erro: " . $e->getMessage());
-                                                    }
-                                                } else {
-                                                    echo 'Escola Municipal';
-                                                    error_log("DEBUG HEADER - usuario_id é NULL");
-                                                }
-                                            }
-                                            ?>
+                                            <?= !empty($escolaGestor) ? htmlspecialchars($escolaGestor) : 'Escola não encontrada' ?>
                                         </span>
                                     </div>
                                 </div>
@@ -1890,7 +1629,7 @@ if (!defined('BASE_URL')) {
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path>
                                         </svg>
                                         <span class="text-sm font-semibold">
-                                            <?php echo $_SESSION['escola_atual'] ?? 'Escola Municipal'; ?>
+                                            <?php echo !empty($_SESSION['escola_atual']) ? htmlspecialchars($_SESSION['escola_atual']) : 'N/A'; ?>
                                         </span>
                                     </div>
                                 </div>
@@ -4716,7 +4455,6 @@ if (!defined('BASE_URL')) {
                     formData.append('professor_id', professorId);
                     formData.append('disciplina_id', disciplinaId);
 
-<<<<<<< HEAD
                     fetch('gestao_escolar.php', {
                             method: 'POST',
                             body: formData
@@ -4741,23 +4479,6 @@ if (!defined('BASE_URL')) {
                                 const atribuicoes = data.atribuicoes || [];
 
                                 let html = `
-=======
-        function verDetalhesProfessor(professorId) {
-            // Buscar detalhes do professor e suas atribuições
-            fetch(`gestao_escolar.php?acao=buscar_professor&id=${professorId}`)
-                .then(response => {
-                    if (!response.ok) {
-                        throw new Error('Erro na resposta do servidor: ' + response.status);
-                    }
-                    return response.json();
-                })
-                .then(data => {
-                    if (data.success) {
-                        const prof = data.professor;
-                        const atribuicoes = data.atribuicoes || [];
-                        
-                        let html = `
->>>>>>> 2f93e86a3c3e96b125007b901691880461eb3389
                             <div class="space-y-6">
                                 <div class="bg-gray-50 rounded-lg p-6">
                                     <h4 class="text-lg font-semibold text-gray-900 mb-4">Informações do Professor</h4>
@@ -6130,6 +5851,7 @@ if (!defined('BASE_URL')) {
             </div>
         </div>
     <?php endif; ?>
+    
 </body>
 
 </html>

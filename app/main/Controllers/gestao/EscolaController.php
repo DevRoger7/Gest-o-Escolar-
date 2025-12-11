@@ -174,14 +174,82 @@ try {
             echo json_encode(['status' => true, 'escolas' => $escolas]);
             break;
 
+        case 'verificar_escola_usuario':
+            // Verificar se a escola do usuário está ativa
+            if (!isset($_SESSION['usuario_id'])) {
+                echo json_encode(['escolaInativa' => false, 'message' => 'Usuário não logado']);
+                exit();
+            }
+            
+            require_once("../../Models/sessao/sessions.php");
+            $sessions = new sessions();
+            
+            try {
+                $db = Database::getInstance();
+                $conn = $db->getConnection();
+                
+                $tipoUsuario = $_SESSION['tipo'] ?? '';
+                $tiposComEscola = ['GESTAO', 'PROFESSOR', 'NUTRICIONISTA'];
+                $usuarioId = $_SESSION['usuario_id'];
+                
+                if (in_array(strtoupper($tipoUsuario), $tiposComEscola)) {
+                    $escolaAtiva = false;
+                    $tinhaLotacao = false;
+                    
+                    // Verificação similar à sessions.php
+                    if (strtoupper($tipoUsuario) === 'GESTAO') {
+                        $sql = "SELECT COUNT(*) as total 
+                                FROM gestor_lotacao gl 
+                                INNER JOIN escola e ON gl.escola_id = e.id 
+                                INNER JOIN gestor g ON gl.gestor_id = g.id 
+                                INNER JOIN usuario u ON g.pessoa_id = u.pessoa_id 
+                                WHERE u.id = :usuario_id 
+                                AND e.ativo = 1 
+                                AND (gl.fim IS NULL OR gl.fim = '' OR gl.fim = '0000-00-00')";
+                        $stmt = $conn->prepare($sql);
+                        $stmt->bindParam(':usuario_id', $usuarioId, PDO::PARAM_INT);
+                        $stmt->execute();
+                        $result = $stmt->fetch(PDO::FETCH_ASSOC);
+                        $escolaAtiva = ($result && $result['total'] > 0);
+                        
+                        $sqlLotacao = "SELECT COUNT(*) as total FROM gestor_lotacao gl 
+                                       INNER JOIN gestor g ON gl.gestor_id = g.id 
+                                       INNER JOIN usuario u ON g.pessoa_id = u.pessoa_id 
+                                       WHERE u.id = :usuario_id";
+                        $stmtLotacao = $conn->prepare($sqlLotacao);
+                        $stmtLotacao->bindParam(':usuario_id', $usuarioId, PDO::PARAM_INT);
+                        $stmtLotacao->execute();
+                        $resultLotacao = $stmtLotacao->fetch(PDO::FETCH_ASSOC);
+                        $tinhaLotacao = ($resultLotacao && $resultLotacao['total'] > 0);
+                    }
+                    // Adicionar outros tipos se necessário
+                    
+                    if ($tinhaLotacao && !$escolaAtiva) {
+                        echo json_encode(['escolaInativa' => true]);
+                        exit();
+                    }
+                }
+                
+                echo json_encode(['escolaInativa' => false]);
+            } catch (Exception $e) {
+                error_log("Erro ao verificar escola no controller: " . $e->getMessage());
+                echo json_encode(['escolaInativa' => false, 'error' => $e->getMessage()]);
+            }
+            exit();
+
         default:
             // Se há um ID, buscar escola específica
             if (isset($_GET['id'])) {
                 $escola = buscarEscolaPorId($_GET['id']);
                 if ($escola) {
-                    echo json_encode(['success' => true, 'escola' => $escola]);
+                    // Verificar se a escola está ativa antes de retornar
+                    if (isset($escola['ativo']) && $escola['ativo'] == 0) {
+                        echo json_encode(['success' => false, 'message' => 'Escola não encontrada.', 'escolaInativa' => true]);
+                    } else {
+                        echo json_encode(['success' => true, 'escola' => $escola]);
+                    }
                 } else {
-                    echo json_encode(['success' => false, 'message' => 'Escola não encontrada.']);
+                    echo json_encode(['success' => false, 'message' => 'Escola não encontrada.', 'escolaInativa' => true]);
                 }
             } else {
                 // Listar todas as escolas
