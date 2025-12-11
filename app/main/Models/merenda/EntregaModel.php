@@ -174,6 +174,40 @@ class EntregaModel {
         $stmt->execute();
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
+    
+    /**
+     * Exclui uma entrega e seus itens relacionados
+     */
+    public function excluir($id) {
+        $conn = $this->db->getConnection();
+        
+        try {
+            $conn->beginTransaction();
+            
+            // Primeiro, excluir os itens da entrega
+            $stmtItens = $conn->prepare("DELETE FROM entrega_item WHERE entrega_id = :id");
+            $stmtItens->bindParam(':id', $id, PDO::PARAM_INT);
+            $stmtItens->execute();
+            
+            // Depois, excluir a entrega
+            $stmt = $conn->prepare("DELETE FROM entrega WHERE id = :id");
+            $stmt->bindParam(':id', $id, PDO::PARAM_INT);
+            $stmt->execute();
+            
+            if ($stmt->rowCount() === 0) {
+                $conn->rollBack();
+                return ['success' => false, 'message' => 'Entrega não encontrada.'];
+            }
+            
+            $conn->commit();
+            return ['success' => true, 'message' => 'Entrega excluída com sucesso!'];
+            
+        } catch (PDOException $e) {
+            $conn->rollBack();
+            error_log("Erro ao excluir entrega: " . $e->getMessage());
+            return ['success' => false, 'message' => 'Erro ao excluir entrega: ' . $e->getMessage()];
+        }
+    }
 }
 
 ?>

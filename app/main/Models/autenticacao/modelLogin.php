@@ -71,6 +71,64 @@ Class ModelLogin {
             require_once("../../Models/permissions/PermissionManager.php");
             PermissionManager::definirPermissoes($resultado['role'] ?? '');
             
+            // Verificar se a escola do usuário ainda existe (antes de permitir login)
+            $tipoUsuario = $resultado['role'] ?? '';
+            $tiposComEscola = ['GESTAO', 'PROFESSOR', 'NUTRICIONISTA'];
+            
+            if (in_array(strtoupper($tipoUsuario), $tiposComEscola)) {
+                $escolaExiste = false;
+                $usuarioId = $resultado['id'];
+                
+                if (strtoupper($tipoUsuario) === 'GESTAO') {
+                    $sql = "SELECT COUNT(*) as total 
+                            FROM gestor_lotacao gl 
+                            INNER JOIN escola e ON gl.escola_id = e.id 
+                            INNER JOIN gestor g ON gl.gestor_id = g.id 
+                            INNER JOIN usuario u ON g.pessoa_id = u.pessoa_id 
+                            WHERE u.id = :usuario_id AND e.ativo = 1 
+                            AND (gl.fim IS NULL OR gl.fim = '' OR gl.fim = '0000-00-00')";
+                    $stmt = $conn->prepare($sql);
+                    $stmt->bindParam(':usuario_id', $usuarioId, PDO::PARAM_INT);
+                    $stmt->execute();
+                    $resultCheck = $stmt->fetch(PDO::FETCH_ASSOC);
+                    $escolaExiste = ($resultCheck && $resultCheck['total'] > 0);
+                } elseif (strtoupper($tipoUsuario) === 'PROFESSOR') {
+                    $sql = "SELECT COUNT(*) as total 
+                            FROM professor_lotacao pl 
+                            INNER JOIN escola e ON pl.escola_id = e.id 
+                            INNER JOIN professor p ON pl.professor_id = p.id 
+                            INNER JOIN usuario u ON p.pessoa_id = u.pessoa_id 
+                            WHERE u.id = :usuario_id AND e.ativo = 1 
+                            AND (pl.fim IS NULL OR pl.fim = '' OR pl.fim = '0000-00-00')";
+                    $stmt = $conn->prepare($sql);
+                    $stmt->bindParam(':usuario_id', $usuarioId, PDO::PARAM_INT);
+                    $stmt->execute();
+                    $resultCheck = $stmt->fetch(PDO::FETCH_ASSOC);
+                    $escolaExiste = ($resultCheck && $resultCheck['total'] > 0);
+                } elseif (strtoupper($tipoUsuario) === 'NUTRICIONISTA') {
+                    $sql = "SELECT COUNT(*) as total 
+                            FROM nutricionista_lotacao nl 
+                            INNER JOIN escola e ON nl.escola_id = e.id 
+                            INNER JOIN nutricionista n ON nl.nutricionista_id = n.id 
+                            INNER JOIN usuario u ON n.pessoa_id = u.pessoa_id 
+                            WHERE u.id = :usuario_id AND e.ativo = 1 
+                            AND (nl.fim IS NULL OR nl.fim = '' OR nl.fim = '0000-00-00')";
+                    $stmt = $conn->prepare($sql);
+                    $stmt->bindParam(':usuario_id', $usuarioId, PDO::PARAM_INT);
+                    $stmt->execute();
+                    $resultCheck = $stmt->fetch(PDO::FETCH_ASSOC);
+                    $escolaExiste = ($resultCheck && $resultCheck['total'] > 0);
+                }
+                
+                // Se não tem escola ativa, retornar código especial
+                if (!$escolaExiste) {
+                    // Destruir sessão parcial criada
+                    $_SESSION = array();
+                    session_destroy();
+                    return ['sem_escola' => true]; // Retorna código especial
+                }
+            }
+            
             return $resultado;
         } else {
             // Usuário não encontrado ou senha incorreta

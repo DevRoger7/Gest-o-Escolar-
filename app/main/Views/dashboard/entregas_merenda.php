@@ -64,6 +64,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao'])) {
         exit;
     }
     
+    if ($_POST['acao'] === 'excluir_entrega') {
+        $id = $_POST['entrega_id'] ?? null;
+        
+        if (empty($id)) {
+            echo json_encode(['success' => false, 'message' => 'ID da entrega não fornecido.'], JSON_UNESCAPED_UNICODE);
+            exit;
+        }
+        
+        $resultado = $entregaModel->excluir($id);
+        echo json_encode($resultado, JSON_UNESCAPED_UNICODE);
+        exit;
+    }
+    
     if ($_POST['acao'] === 'criar_entrega') {
         try {
             $escolaId = $_POST['escola_id'] ?? null;
@@ -305,13 +318,18 @@ $entregasRecentes = $entregaModel->listar(['status' => 'AGENDADA']);
                                                 </span>
                                             </td>
                                             <td class="py-3 px-4">
-                                                <?php if ($entrega['status'] !== 'ENTREGUE'): ?>
-                                                    <button onclick="registrarRecebimento(<?= $entrega['id'] ?>)" class="text-green-600 hover:text-green-700 font-medium text-sm">
-                                                        Registrar Recebimento
+                                                <div class="flex items-center space-x-3">
+                                                    <?php if ($entrega['status'] !== 'ENTREGUE'): ?>
+                                                        <button onclick="registrarRecebimento(<?= $entrega['id'] ?>)" class="text-green-600 hover:text-green-700 font-medium text-sm">
+                                                            Registrar Recebimento
+                                                        </button>
+                                                    <?php else: ?>
+                                                        <span class="text-gray-500 text-sm">Concluída</span>
+                                                    <?php endif; ?>
+                                                    <button onclick="excluirEntrega(<?= $entrega['id'] ?>, '<?= htmlspecialchars($entrega['escola_nome'], ENT_QUOTES) ?>')" class="text-red-600 hover:text-red-700 font-medium text-sm">
+                                                        Excluir
                                                     </button>
-                                                <?php else: ?>
-                                                    <span class="text-gray-500 text-sm">Concluída</span>
-                                                <?php endif; ?>
+                                                </div>
                                             </td>
                                         </tr>
                                     <?php endforeach; ?>
@@ -676,11 +694,16 @@ $entregasRecentes = $entregaModel->listar(['status' => 'AGENDADA']);
                                         </span>
                                     </td>
                                     <td class="py-3 px-4">
-                                        ${entrega.status !== 'ENTREGUE' ? `
-                                            <button onclick="registrarRecebimento(${entrega.id})" class="text-green-600 hover:text-green-700 font-medium text-sm">
-                                                Registrar Recebimento
+                                        <div class="flex items-center space-x-3">
+                                            ${entrega.status !== 'ENTREGUE' ? `
+                                                <button onclick="registrarRecebimento(${entrega.id})" class="text-green-600 hover:text-green-700 font-medium text-sm">
+                                                    Registrar Recebimento
+                                                </button>
+                                            ` : '<span class="text-gray-500 text-sm">Concluída</span>'}
+                                            <button onclick="excluirEntrega(${entrega.id}, '${entrega.escola_nome.replace(/'/g, "\\'")}')" class="text-red-600 hover:text-red-700 font-medium text-sm">
+                                                Excluir
                                             </button>
-                                        ` : '<span class="text-gray-500 text-sm">Concluída</span>'}
+                                        </div>
                                     </td>
                                 </tr>
                             `;
@@ -730,6 +753,34 @@ $entregasRecentes = $entregaModel->listar(['status' => 'AGENDADA']);
             .catch(error => {
                 console.error('Erro:', error);
                 alert('Erro ao registrar recebimento.');
+            });
+        }
+        
+        function excluirEntrega(id, escolaNome) {
+            if (!confirm(`Tem certeza que deseja excluir a entrega da escola "${escolaNome}"?\n\nEsta ação não pode ser desfeita.`)) {
+                return;
+            }
+            
+            const formData = new FormData();
+            formData.append('acao', 'excluir_entrega');
+            formData.append('entrega_id', id);
+            
+            fetch('', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert('Entrega excluída com sucesso!');
+                    filtrarEntregas();
+                } else {
+                    alert('Erro ao excluir entrega: ' + (data.message || 'Erro desconhecido'));
+                }
+            })
+            .catch(error => {
+                console.error('Erro:', error);
+                alert('Erro ao excluir entrega.');
             });
         }
     </script>

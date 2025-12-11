@@ -381,6 +381,374 @@ function cadastrarEscola($dados)
     }
 }
 
+function excluirEscolaForcado($id)
+{
+    $db = Database::getInstance();
+    $conn = $db->getConnection();
+
+    try {
+        $conn->beginTransaction();
+        
+        // 0. Criar backup antes de excluir
+        $usuarioId = $_SESSION['usuario_id'] ?? null;
+        
+        // Buscar dados completos da escola
+        $stmtEscola = $conn->prepare("SELECT * FROM escola WHERE id = :id");
+        $stmtEscola->bindParam(':id', $id, PDO::PARAM_INT);
+        $stmtEscola->execute();
+        $dadosEscola = $stmtEscola->fetch(PDO::FETCH_ASSOC);
+        
+        if (!$dadosEscola) {
+            $conn->rollBack();
+            return ['status' => false, 'mensagem' => 'Escola não encontrada.'];
+        }
+        
+        // Buscar turmas da escola
+        $stmtTurmas = $conn->prepare("SELECT * FROM turma WHERE escola_id = :id");
+        $stmtTurmas->bindParam(':id', $id, PDO::PARAM_INT);
+        $stmtTurmas->execute();
+        $turmas = $stmtTurmas->fetchAll(PDO::FETCH_ASSOC);
+        
+        // Buscar lotações
+        $lotacoes = [];
+        try {
+            $stmtProfLotacao = $conn->prepare("SELECT * FROM professor_lotacao WHERE escola_id = :id");
+            $stmtProfLotacao->bindParam(':id', $id, PDO::PARAM_INT);
+            $stmtProfLotacao->execute();
+            $lotacoes['professores'] = $stmtProfLotacao->fetchAll(PDO::FETCH_ASSOC);
+        } catch (PDOException $e) {
+            error_log("Erro ao buscar professor_lotacao: " . $e->getMessage());
+        }
+        
+        try {
+            $stmtGestorLotacao = $conn->prepare("SELECT * FROM gestor_lotacao WHERE escola_id = :id");
+            $stmtGestorLotacao->bindParam(':id', $id, PDO::PARAM_INT);
+            $stmtGestorLotacao->execute();
+            $lotacoes['gestores'] = $stmtGestorLotacao->fetchAll(PDO::FETCH_ASSOC);
+        } catch (PDOException $e) {}
+        
+        try {
+            $stmtNutricionistaLotacao = $conn->prepare("SELECT * FROM nutricionista_lotacao WHERE escola_id = :id");
+            $stmtNutricionistaLotacao->bindParam(':id', $id, PDO::PARAM_INT);
+            $stmtNutricionistaLotacao->execute();
+            $lotacoes['nutricionistas'] = $stmtNutricionistaLotacao->fetchAll(PDO::FETCH_ASSOC);
+        } catch (PDOException $e) {}
+        
+        // Salvar backup (verificar se tabela existe)
+        try {
+            $stmtBackup = $conn->prepare("INSERT INTO escola_backup 
+                                         (escola_id_original, dados_escola, dados_turmas, dados_lotacoes, excluido_por) 
+                                         VALUES (:escola_id, :dados_escola, :dados_turmas, :dados_lotacoes, :excluido_por)");
+            $stmtBackup->bindParam(':escola_id', $id, PDO::PARAM_INT);
+            $stmtBackup->bindValue(':dados_escola', json_encode($dadosEscola, JSON_UNESCAPED_UNICODE));
+            $stmtBackup->bindValue(':dados_turmas', json_encode($turmas, JSON_UNESCAPED_UNICODE));
+            $stmtBackup->bindValue(':dados_lotacoes', json_encode($lotacoes, JSON_UNESCAPED_UNICODE));
+            $stmtBackup->bindParam(':excluido_por', $usuarioId, PDO::PARAM_INT);
+            $stmtBackup->execute();
+        } catch (PDOException $e) {
+            // Se a tabela não existir, apenas logar o erro mas continuar com a exclusão
+            error_log("Erro ao salvar backup da escola (tabela pode não existir): " . $e->getMessage());
+        }
+
+        // 1. Excluir itens das entregas
+        try {
+            $stmt = $conn->prepare("DELETE ei FROM entrega_item ei 
+                                    INNER JOIN entrega e ON ei.entrega_id = e.id 
+                                    WHERE e.escola_id = :id");
+            $stmt->bindParam(':id', $id, PDO::PARAM_INT);
+            $stmt->execute();
+        } catch (PDOException $e) {
+            // Ignorar se não existir
+        }
+
+        // 2. Excluir entregas
+        try {
+            $stmt = $conn->prepare("DELETE FROM entrega WHERE escola_id = :id");
+            $stmt->bindParam(':id', $id, PDO::PARAM_INT);
+            $stmt->execute();
+        } catch (PDOException $e) {
+            // Ignorar se não existir
+        }
+
+        // 3. Excluir turmas e seus relacionamentos
+        // Primeiro, excluir relacionamentos das turmas
+        // Excluir notas relacionadas a turmas
+        try {
+            $stmt = $conn->prepare("DELETE n FROM nota n 
+                                    INNER JOIN turma t ON n.turma_id = t.id 
+                                    WHERE t.escola_id = :id");
+            $stmt->bindParam(':id', $id, PDO::PARAM_INT);
+            $stmt->execute();
+        } catch (PDOException $e) {
+            error_log("Erro ao excluir notas: " . $e->getMessage());
+        }
+        
+        // Excluir observações de desempenho
+        try {
+            $stmt = $conn->prepare("DELETE od FROM observacao_desempenho od 
+                                    INNER JOIN turma t ON od.turma_id = t.id 
+                                    WHERE t.escola_id = :id");
+            $stmt->bindParam(':id', $id, PDO::PARAM_INT);
+            $stmt->execute();
+        } catch (PDOException $e) {
+            error_log("Erro ao excluir observações: " . $e->getMessage());
+        }
+        
+        // Excluir planos de aula
+        try {
+            $stmt = $conn->prepare("DELETE pa FROM plano_aula pa 
+                                    INNER JOIN turma t ON pa.turma_id = t.id 
+                                    WHERE t.escola_id = :id");
+            $stmt->bindParam(':id', $id, PDO::PARAM_INT);
+            $stmt->execute();
+        } catch (PDOException $e) {
+            error_log("Erro ao excluir planos de aula: " . $e->getMessage());
+        }
+        
+        // Excluir turma_professor
+        try {
+            $stmt = $conn->prepare("DELETE tp FROM turma_professor tp 
+                                    INNER JOIN turma t ON tp.turma_id = t.id 
+                                    WHERE t.escola_id = :id");
+            $stmt->bindParam(':id', $id, PDO::PARAM_INT);
+            $stmt->execute();
+        } catch (PDOException $e) {
+            error_log("Erro ao excluir turma_professor: " . $e->getMessage());
+        }
+        
+        // Excluir aluno_turma
+        try {
+            $stmt = $conn->prepare("DELETE at FROM aluno_turma at 
+                                    INNER JOIN turma t ON at.turma_id = t.id 
+                                    WHERE t.escola_id = :id");
+            $stmt->bindParam(':id', $id, PDO::PARAM_INT);
+            $stmt->execute();
+        } catch (PDOException $e) {
+            error_log("Erro ao excluir aluno_turma: " . $e->getMessage());
+        }
+        
+        // Excluir itens de boletim
+        try {
+            $stmt = $conn->prepare("DELETE bi FROM boletim_item bi 
+                                    INNER JOIN boletim b ON bi.boletim_id = b.id 
+                                    INNER JOIN turma t ON b.turma_id = t.id 
+                                    WHERE t.escola_id = :id");
+            $stmt->bindParam(':id', $id, PDO::PARAM_INT);
+            $stmt->execute();
+        } catch (PDOException $e) {
+            error_log("Erro ao excluir boletim_item: " . $e->getMessage());
+        }
+        
+        // Excluir boletins
+        try {
+            $stmt = $conn->prepare("DELETE b FROM boletim b 
+                                    INNER JOIN turma t ON b.turma_id = t.id 
+                                    WHERE t.escola_id = :id");
+            $stmt->bindParam(':id', $id, PDO::PARAM_INT);
+            $stmt->execute();
+        } catch (PDOException $e) {
+            error_log("Erro ao excluir boletins: " . $e->getMessage());
+        }
+        
+        // Excluir avaliações das turmas
+        try {
+            $stmt = $conn->prepare("DELETE av FROM avaliacao av 
+                                    INNER JOIN turma t ON av.turma_id = t.id 
+                                    WHERE t.escola_id = :id");
+            $stmt->bindParam(':id', $id, PDO::PARAM_INT);
+            $stmt->execute();
+        } catch (PDOException $e) {
+            error_log("Erro ao excluir avaliações: " . $e->getMessage());
+        }
+        
+        // Excluir frequências relacionadas às turmas da escola
+        // Primeiro, buscar os IDs das turmas da escola
+        try {
+            $stmtTurmas = $conn->prepare("SELECT id FROM turma WHERE escola_id = :id");
+            $stmtTurmas->bindParam(':id', $id, PDO::PARAM_INT);
+            $stmtTurmas->execute();
+            $turmaIds = $stmtTurmas->fetchAll(PDO::FETCH_COLUMN);
+            
+            if (!empty($turmaIds)) {
+                $placeholders = implode(',', array_fill(0, count($turmaIds), '?'));
+                $stmt = $conn->prepare("DELETE FROM frequencia WHERE turma_id IN ($placeholders)");
+                $stmt->execute($turmaIds);
+            }
+        } catch (PDOException $e) {
+            error_log("Erro ao excluir frequências: " . $e->getMessage());
+            throw $e; // Relançar o erro para não continuar
+        }
+        
+        // Excluir comunicados relacionados a turmas
+        try {
+            $stmt = $conn->prepare("DELETE c FROM comunicado c 
+                                    INNER JOIN turma t ON c.turma_id = t.id 
+                                    WHERE t.escola_id = :id");
+            $stmt->bindParam(':id', $id, PDO::PARAM_INT);
+            $stmt->execute();
+        } catch (PDOException $e) {
+            error_log("Erro ao excluir comunicados: " . $e->getMessage());
+        }
+        
+        // Excluir itens de consumo diário
+        try {
+            $stmt = $conn->prepare("DELETE ci FROM consumo_item ci 
+                                    INNER JOIN consumo_diario cd ON ci.consumo_diario_id = cd.id 
+                                    WHERE cd.escola_id = :id");
+            $stmt->bindParam(':id', $id, PDO::PARAM_INT);
+            $stmt->execute();
+        } catch (PDOException $e) {
+            error_log("Erro ao excluir consumo_item: " . $e->getMessage());
+        }
+        
+        // Excluir consumo diário (todos, não apenas relacionados a turmas)
+        try {
+            $stmt = $conn->prepare("DELETE FROM consumo_diario WHERE escola_id = :id");
+            $stmt->bindParam(':id', $id, PDO::PARAM_INT);
+            $stmt->execute();
+        } catch (PDOException $e) {
+            error_log("Erro ao excluir consumo diário: " . $e->getMessage());
+        }
+        
+        // Excluir as turmas (DEVE SER O ÚLTIMO)
+        try {
+            $stmt = $conn->prepare("DELETE FROM turma WHERE escola_id = :id");
+            $stmt->bindParam(':id', $id, PDO::PARAM_INT);
+            $stmt->execute();
+        } catch (PDOException $e) {
+            error_log("Erro ao excluir turmas: " . $e->getMessage());
+            throw $e; // Relançar o erro para não continuar
+        }
+
+        // 4. Atualizar alunos para escola_id = NULL (não excluir alunos)
+        try {
+            $stmt = $conn->prepare("UPDATE aluno SET escola_id = NULL WHERE escola_id = :id");
+            $stmt->bindParam(':id', $id, PDO::PARAM_INT);
+            $stmt->execute();
+        } catch (PDOException $e) {
+            // Ignorar se não existir
+        }
+
+        // 5. Remover lotações de professores
+        try {
+            $stmt = $conn->prepare("DELETE FROM professor_lotacao WHERE escola_id = :id");
+            $stmt->bindParam(':id', $id, PDO::PARAM_INT);
+            $stmt->execute();
+        } catch (PDOException $e) {
+            // Ignorar se não existir
+        }
+
+        // 6. Remover lotações de gestores
+        try {
+            $stmt = $conn->prepare("DELETE FROM gestor_lotacao WHERE escola_id = :id");
+            $stmt->bindParam(':id', $id, PDO::PARAM_INT);
+            $stmt->execute();
+        } catch (PDOException $e) {
+            // Ignorar se não existir
+        }
+
+        // 7. Remover lotações de nutricionistas
+        try {
+            $stmt = $conn->prepare("DELETE FROM nutricionista_lotacao WHERE escola_id = :id");
+            $stmt->bindParam(':id', $id, PDO::PARAM_INT);
+            $stmt->execute();
+        } catch (PDOException $e) {
+            error_log("Erro ao excluir nutricionista_lotacao: " . $e->getMessage());
+        }
+
+        // 8. Remover lotações de funcionários
+        try {
+            $stmt = $conn->prepare("DELETE FROM funcionario_lotacao WHERE escola_id = :id");
+            $stmt->bindParam(':id', $id, PDO::PARAM_INT);
+            $stmt->execute();
+        } catch (PDOException $e) {
+            error_log("Erro ao excluir funcionario_lotacao: " . $e->getMessage());
+        }
+
+        // 9. Excluir cardápios e itens
+        try {
+            // Excluir itens de cardápio
+            $stmt = $conn->prepare("DELETE ci FROM cardapio_item ci 
+                                    INNER JOIN cardapio c ON ci.cardapio_id = c.id 
+                                    WHERE c.escola_id = :id");
+            $stmt->bindParam(':id', $id, PDO::PARAM_INT);
+            $stmt->execute();
+            
+            // Excluir cardápios
+            $stmt = $conn->prepare("DELETE FROM cardapio WHERE escola_id = :id");
+            $stmt->bindParam(':id', $id, PDO::PARAM_INT);
+            $stmt->execute();
+        } catch (PDOException $e) {
+            error_log("Erro ao excluir cardápios: " . $e->getMessage());
+        }
+
+        // 10. Excluir desperdícios
+        try {
+            $stmt = $conn->prepare("DELETE FROM desperdicio WHERE escola_id = :id");
+            $stmt->bindParam(':id', $id, PDO::PARAM_INT);
+            $stmt->execute();
+        } catch (PDOException $e) {
+            error_log("Erro ao excluir desperdícios: " . $e->getMessage());
+        }
+
+        // 11. Excluir histórico escolar
+        try {
+            $stmt = $conn->prepare("DELETE FROM historico_escolar WHERE escola_id = :id");
+            $stmt->bindParam(':id', $id, PDO::PARAM_INT);
+            $stmt->execute();
+        } catch (PDOException $e) {
+            error_log("Erro ao excluir histórico escolar: " . $e->getMessage());
+        }
+
+        // 12. Excluir itens de pedido de cesta
+        try {
+            $stmt = $conn->prepare("DELETE pi FROM pedido_item pi 
+                                    INNER JOIN pedido_cesta pc ON pi.pedido_id = pc.id 
+                                    WHERE pc.escola_id = :id");
+            $stmt->bindParam(':id', $id, PDO::PARAM_INT);
+            $stmt->execute();
+            
+            // Excluir pedidos de cesta
+            $stmt = $conn->prepare("DELETE FROM pedido_cesta WHERE escola_id = :id");
+            $stmt->bindParam(':id', $id, PDO::PARAM_INT);
+            $stmt->execute();
+        } catch (PDOException $e) {
+            error_log("Erro ao excluir pedidos de cesta: " . $e->getMessage());
+        }
+
+        // 13. Excluir comunicados gerais (não relacionados a turmas)
+        try {
+            $stmt = $conn->prepare("DELETE FROM comunicado WHERE escola_id = :id AND turma_id IS NULL");
+            $stmt->bindParam(':id', $id, PDO::PARAM_INT);
+            $stmt->execute();
+        } catch (PDOException $e) {
+            error_log("Erro ao excluir comunicados gerais: " . $e->getMessage());
+        }
+
+        // 14. Remover relações com programas
+        try {
+            $stmt = $conn->prepare("DELETE FROM escola_programa WHERE escola_id = :id");
+            $stmt->bindParam(':id', $id, PDO::PARAM_INT);
+            $stmt->execute();
+        } catch (PDOException $e) {
+            error_log("Erro ao excluir escola_programa: " . $e->getMessage());
+        }
+
+        // 15. Excluir a escola (DEVE SER O ÚLTIMO)
+        $stmt = $conn->prepare("DELETE FROM escola WHERE id = :id");
+        $stmt->bindParam(':id', $id, PDO::PARAM_INT);
+        $stmt->execute();
+
+        $conn->commit();
+
+        return ['status' => true, 'mensagem' => 'Escola excluída com sucesso! Todas as turmas e dados relacionados foram removidos. Os alunos foram mantidos, mas desvinculados da escola.'];
+    } catch (PDOException $e) {
+        $conn->rollBack();
+        error_log("Erro ao excluir escola forçadamente: " . $e->getMessage());
+        return ['status' => false, 'mensagem' => 'Erro ao excluir escola: ' . $e->getMessage()];
+    }
+}
+
 function excluirEscola($id)
 {
     $db = Database::getInstance();
@@ -389,8 +757,91 @@ function excluirEscola($id)
     try {
         $conn->beginTransaction();
 
+        // Verificar e listar todas as relações que impedem a exclusão
+        $relacoes = [];
+        
+        // Verificar entregas
+        $stmtCheck = $conn->prepare("SELECT COUNT(*) as total FROM entrega WHERE escola_id = :id");
+        $stmtCheck->bindParam(':id', $id, PDO::PARAM_INT);
+        $stmtCheck->execute();
+        $result = $stmtCheck->fetch(PDO::FETCH_ASSOC);
+        if ($result && $result['total'] > 0) {
+            $relacoes[] = $result['total'] . ' entrega(s) de merenda';
+        }
+        
+        // Verificar turmas
+        try {
+            $stmtCheck = $conn->prepare("SELECT COUNT(*) as total FROM turma WHERE escola_id = :id");
+            $stmtCheck->bindParam(':id', $id, PDO::PARAM_INT);
+            $stmtCheck->execute();
+            $result = $stmtCheck->fetch(PDO::FETCH_ASSOC);
+            if ($result && $result['total'] > 0) {
+                $relacoes[] = $result['total'] . ' turma(s)';
+            }
+        } catch (PDOException $e) {
+            // Tabela pode não existir, ignorar
+        }
+        
+        // Verificar alunos (mesmo que seja SET NULL, vamos informar)
+        try {
+            $stmtCheck = $conn->prepare("SELECT COUNT(*) as total FROM aluno WHERE escola_id = :id");
+            $stmtCheck->bindParam(':id', $id, PDO::PARAM_INT);
+            $stmtCheck->execute();
+            $result = $stmtCheck->fetch(PDO::FETCH_ASSOC);
+            if ($result && $result['total'] > 0) {
+                $relacoes[] = $result['total'] . ' aluno(s)';
+            }
+        } catch (PDOException $e) {
+            // Tabela pode não existir, ignorar
+        }
+        
+        // Se houver relações, retornar mensagem detalhada
+        if (!empty($relacoes)) {
+            $conn->rollBack();
+            $mensagem = 'Não é possível excluir esta escola pois ela possui: ' . implode(', ', $relacoes) . '.';
+            $mensagem .= ' Por favor, remova ou transfira esses registros antes de excluir a escola.';
+            return ['status' => false, 'mensagem' => $mensagem];
+        }
+
+        // Remover entregas e seus itens primeiro
+        try {
+            // Excluir itens das entregas
+            $stmt = $conn->prepare("DELETE ei FROM entrega_item ei 
+                                    INNER JOIN entrega e ON ei.entrega_id = e.id 
+                                    WHERE e.escola_id = :id");
+            $stmt->bindParam(':id', $id, PDO::PARAM_INT);
+            $stmt->execute();
+            
+            // Excluir entregas
+            $stmt = $conn->prepare("DELETE FROM entrega WHERE escola_id = :id");
+            $stmt->bindParam(':id', $id, PDO::PARAM_INT);
+            $stmt->execute();
+        } catch (PDOException $e) {
+            // Se der erro, pode ser que não existam entregas, continuar
+        }
+
+        // Remover lotações de professores
+        $stmt = $conn->prepare("DELETE FROM professor_lotacao WHERE escola_id = :id");
+        $stmt->bindParam(':id', $id, PDO::PARAM_INT);
+        $stmt->execute();
+
+        // Remover lotações de gestores
+        $stmt = $conn->prepare("DELETE FROM gestor_lotacao WHERE escola_id = :id");
+        $stmt->bindParam(':id', $id, PDO::PARAM_INT);
+        $stmt->execute();
+
+        // Remover relações com programas (se a tabela existir)
+        try {
+            $stmt = $conn->prepare("DELETE FROM escola_programa WHERE escola_id = :id");
+            $stmt->bindParam(':id', $id, PDO::PARAM_INT);
+            $stmt->execute();
+        } catch (PDOException $e) {
+            // Tabela pode não existir, ignorar
+        }
+
+        // Excluir a escola
         $stmt = $conn->prepare("DELETE FROM escola WHERE id = :id");
-        $stmt->bindParam(':id', $id);
+        $stmt->bindParam(':id', $id, PDO::PARAM_INT);
         $stmt->execute();
 
         $conn->commit();
@@ -398,6 +849,27 @@ function excluirEscola($id)
         return ['status' => true, 'mensagem' => 'Escola excluída com sucesso!'];
     } catch (PDOException $e) {
         $conn->rollBack();
+        error_log("Erro ao excluir escola: " . $e->getMessage());
+        
+        // Mensagem mais amigável para constraint violation
+        if ($e->getCode() == 23000) {
+            $mensagemErro = $e->getMessage();
+            
+            if (strpos($mensagemErro, 'entrega') !== false) {
+                return ['status' => false, 'mensagem' => 'Não é possível excluir esta escola pois ela possui entregas de merenda associadas. Por favor, exclua as entregas primeiro.'];
+            } elseif (strpos($mensagemErro, 'turma') !== false) {
+                return ['status' => false, 'mensagem' => 'Não é possível excluir esta escola pois ela possui turmas associadas. Por favor, remova ou transfira as turmas primeiro.'];
+            } elseif (strpos($mensagemErro, 'aluno') !== false) {
+                return ['status' => false, 'mensagem' => 'Não é possível excluir esta escola pois ela possui alunos associados. Por favor, transfira os alunos para outra escola primeiro.'];
+            } elseif (strpos($mensagemErro, 'professor_lotacao') !== false) {
+                return ['status' => false, 'mensagem' => 'Não é possível excluir esta escola pois ela possui professores lotados. Por favor, remova os professores primeiro.'];
+            } elseif (strpos($mensagemErro, 'gestor_lotacao') !== false) {
+                return ['status' => false, 'mensagem' => 'Não é possível excluir esta escola pois ela possui gestores lotados. Por favor, remova os gestores primeiro.'];
+            } else {
+                return ['status' => false, 'mensagem' => 'Não é possível excluir esta escola pois ela possui registros relacionados em outras tabelas. Erro: ' . substr($mensagemErro, 0, 200)];
+            }
+        }
+        
         return ['status' => false, 'mensagem' => 'Erro ao excluir escola: ' . $e->getMessage()];
     }
 }
@@ -567,7 +1039,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         // Excluir escola
         if ($_POST['acao'] === 'excluir' && isset($_POST['id'])) {
-            $resultado = excluirEscola($_POST['id']);
+            // Verificar se é exclusão forçada
+            $forcado = isset($_POST['forcado']) && $_POST['forcado'] === 'true';
+            if ($forcado) {
+                $resultado = excluirEscolaForcado($_POST['id']);
+            } else {
+                $resultado = excluirEscola($_POST['id']);
+            }
             $mensagem = $resultado['mensagem'];
             $tipoMensagem = $resultado['status'] ? 'success' : 'error';
         }
@@ -652,18 +1130,10 @@ $escolas = listarEscolas($busca);
         // Definir funções de modal no escopo global imediatamente
         // Isso garante que as funções estejam disponíveis quando o HTML for renderizado
         window.abrirModalEdicaoEscola = function(id, nome) {
-            console.log('abrirModalEdicaoEscola chamado com id:', id, 'nome:', nome);
-            
             function abrirModal() {
                 const editEscolaId = document.getElementById('edit_escola_id');
                 const tituloModal = document.getElementById('tituloModalEdicao');
                 const modalEdicao = document.getElementById('modalEdicaoEscola');
-                
-                console.log('Buscando elementos:', {
-                    editEscolaId: !!editEscolaId,
-                    tituloModal: !!tituloModal,
-                    modalEdicao: !!modalEdicao
-                });
                 
                 if (editEscolaId && tituloModal && modalEdicao) {
                     editEscolaId.value = id;
@@ -671,15 +1141,11 @@ $escolas = listarEscolas($busca);
                     
                     // Remover hidden e garantir que está visível
                     modalEdicao.classList.remove('hidden');
-                    // Forçar display block/flex para garantir visibilidade
-                    modalEdicao.style.display = 'block';
+                    // Forçar display flex para garantir visibilidade (modal usa flex)
+                    modalEdicao.style.display = 'flex';
                     modalEdicao.style.visibility = 'visible';
                     modalEdicao.style.opacity = '1';
                     modalEdicao.style.zIndex = '9999';
-                    
-                    console.log('Modal aberto. Classes:', modalEdicao.className);
-                    console.log('Estilo display:', window.getComputedStyle(modalEdicao).display);
-                    console.log('Estilo z-index:', window.getComputedStyle(modalEdicao).zIndex);
                     
                     if (typeof carregarDadosEscola === 'function') {
                         carregarDadosEscola(id);
@@ -691,7 +1157,6 @@ $escolas = listarEscolas($busca);
             
             // Tentar imediatamente
             if (abrirModal()) {
-                console.log('Modal aberto imediatamente');
                 return;
             }
             
@@ -701,11 +1166,7 @@ $escolas = listarEscolas($busca);
                 const maxTentativas = 20;
                 const intervalId = setInterval(() => {
                     tentativas++;
-                    if (abrirModal()) {
-                        console.log('Modal aberto após', tentativas, 'tentativas');
-                        clearInterval(intervalId);
-                    } else if (tentativas >= maxTentativas) {
-                        console.error('Não foi possível abrir o modal após', maxTentativas, 'tentativas');
+                    if (abrirModal() || tentativas >= maxTentativas) {
                         clearInterval(intervalId);
                     }
                 }, 50);
@@ -720,22 +1181,31 @@ $escolas = listarEscolas($busca);
         };
         
         window.abrirModalExclusaoEscola = function(id, nome) {
-            console.log('abrirModalExclusaoEscola chamado com id:', id, 'nome:', nome);
-            
             function abrirModal() {
                 const idEscolaExclusao = document.getElementById('idEscolaExclusao');
                 const nomeEscolaExclusao = document.getElementById('nomeEscolaExclusao');
                 const modalExclusao = document.getElementById('modalExclusaoEscola');
-                
-                console.log('Buscando elementos:', {
-                    idEscolaExclusao: !!idEscolaExclusao,
-                    nomeEscolaExclusao: !!nomeEscolaExclusao,
-                    modalExclusao: !!modalExclusao
-                });
+                const excluirForcado = document.getElementById('excluirForcado');
+                const forcadoExclusao = document.getElementById('forcadoExclusao');
                 
                 if (idEscolaExclusao && nomeEscolaExclusao && modalExclusao) {
                     idEscolaExclusao.value = id;
                     nomeEscolaExclusao.textContent = nome;
+                    
+                    // Resetar checkbox e campo hidden
+                    if (excluirForcado) {
+                        excluirForcado.checked = false;
+                    }
+                    if (forcadoExclusao) {
+                        forcadoExclusao.value = 'false';
+                    }
+                    
+                    // Adicionar listener ao checkbox
+                    if (excluirForcado && forcadoExclusao) {
+                        excluirForcado.onchange = function() {
+                            forcadoExclusao.value = this.checked ? 'true' : 'false';
+                        };
+                    }
                     
                     // Remover hidden e garantir que está visível
                     modalExclusao.classList.remove('hidden');
@@ -744,10 +1214,6 @@ $escolas = listarEscolas($busca);
                     modalExclusao.style.opacity = '1';
                     modalExclusao.style.zIndex = '9999';
                     
-                    console.log('Modal aberto. Classes:', modalExclusao.className);
-                    console.log('Estilo display:', window.getComputedStyle(modalExclusao).display);
-                    console.log('Estilo z-index:', window.getComputedStyle(modalExclusao).zIndex);
-                    
                     return true;
                 }
                 return false;
@@ -755,7 +1221,6 @@ $escolas = listarEscolas($busca);
             
             // Tentar imediatamente
             if (abrirModal()) {
-                console.log('Modal aberto imediatamente');
                 return;
             }
             
@@ -765,11 +1230,7 @@ $escolas = listarEscolas($busca);
                 const maxTentativas = 20;
                 const intervalId = setInterval(() => {
                     tentativas++;
-                    if (abrirModal()) {
-                        console.log('Modal aberto após', tentativas, 'tentativas');
-                        clearInterval(intervalId);
-                    } else if (tentativas >= maxTentativas) {
-                        console.error('Não foi possível abrir o modal após', maxTentativas, 'tentativas');
+                    if (abrirModal() || tentativas >= maxTentativas) {
                         clearInterval(intervalId);
                     }
                 }, 50);
@@ -2448,9 +2909,22 @@ if ($_SESSION['tipo'] === 'ADM') {
                 <p class="text-sm text-gray-600 mb-4">
                     Tem certeza que deseja excluir a escola <strong id="nomeEscolaExclusao"></strong>?
                 </p>
-                <p class="text-xs text-red-600 mb-6">
+                <p class="text-xs text-red-600 mb-4">
                     ⚠️ Esta ação não pode ser desfeita. Todos os dados relacionados à escola serão perdidos permanentemente.
                 </p>
+                
+                <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-3 mb-4">
+                    <label class="flex items-start space-x-2 cursor-pointer">
+                        <input type="checkbox" id="excluirForcado" name="forcado" value="true" class="mt-1">
+                        <div class="flex-1">
+                            <p class="text-xs font-semibold text-yellow-800">Excluir mesmo com dados relacionados</p>
+                            <p class="text-xs text-yellow-700 mt-1">
+                                Se marcado, a escola será excluída mesmo tendo turmas, alunos ou outros dados. 
+                                As turmas serão excluídas, mas os alunos e usuários serão mantidos (apenas desvinculados).
+                            </p>
+                        </div>
+                    </label>
+                </div>
                 
                 <div class="flex space-x-3 justify-center">
                     <button onclick="fecharModalExclusaoEscola()" class="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 transition-colors duration-200">
@@ -2459,6 +2933,7 @@ if ($_SESSION['tipo'] === 'ADM') {
                     <form id="formExclusaoEscola" method="POST" class="inline">
                         <input type="hidden" name="acao" value="excluir">
                         <input type="hidden" name="id" id="idEscolaExclusao">
+                        <input type="hidden" name="forcado" id="forcadoExclusao" value="false">
                         <button type="submit" class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 transition-colors duration-200">
                             Sim, Excluir
                         </button>
@@ -2886,159 +3361,29 @@ if ($_SESSION['tipo'] === 'ADM') {
     </div>
     
     <script>
-        // Definir funções no escopo global imediatamente para garantir disponibilidade
-        // Isso garante que as funções estejam disponíveis quando o HTML for renderizado
+        // Funções abrirModalEdicaoEscola e abrirModalExclusaoEscola já estão definidas no início do script
+        // Não é necessário redefinir aqui
         
-        // Função para abrir modal de edição de escola (já definida no início do script)
-        // Sobrescrever com a versão melhorada que aguarda o DOM
-        window.abrirModalEdicaoEscola = function(id, nome) {
-            console.log('abrirModalEdicaoEscola chamado com id:', id, 'nome:', nome);
-            
-            function abrirModal() {
-                const editEscolaId = document.getElementById('edit_escola_id');
-                const tituloModal = document.getElementById('tituloModalEdicao');
-                const modalEdicao = document.getElementById('modalEdicaoEscola');
-                
-                console.log('Buscando elementos:', {
-                    editEscolaId: !!editEscolaId,
-                    tituloModal: !!tituloModal,
-                    modalEdicao: !!modalEdicao
-                });
-                
-                if (editEscolaId && tituloModal && modalEdicao) {
-                    editEscolaId.value = id;
-                    tituloModal.textContent = `Editar Escola - ${nome}`;
-                    
-                    // Remover hidden e garantir que está visível
-                    modalEdicao.classList.remove('hidden');
-                    // Forçar display block/flex para garantir visibilidade
-                    modalEdicao.style.display = 'block';
-                    modalEdicao.style.visibility = 'visible';
-                    modalEdicao.style.opacity = '1';
-                    modalEdicao.style.zIndex = '9999';
-                    
-                    console.log('Modal aberto. Classes:', modalEdicao.className);
-                    console.log('Estilo display:', window.getComputedStyle(modalEdicao).display);
-                    console.log('Estilo z-index:', window.getComputedStyle(modalEdicao).zIndex);
-                    
-                    if (typeof carregarDadosEscola === 'function') {
-                        carregarDadosEscola(id);
-                    }
-                    return true;
-                }
-                return false;
-            }
-            
-            // Tentar imediatamente
-            if (abrirModal()) {
-                console.log('Modal aberto imediatamente');
-                return;
-            }
-            
-            // Aguardar carregamento completo
-            const tentarAposCarregamento = () => {
-                let tentativas = 0;
-                const maxTentativas = 20;
-                const intervalId = setInterval(() => {
-                    tentativas++;
-                    if (abrirModal()) {
-                        console.log('Modal aberto após', tentativas, 'tentativas');
-                        clearInterval(intervalId);
-                    } else if (tentativas >= maxTentativas) {
-                        console.error('Não foi possível abrir o modal após', maxTentativas, 'tentativas');
-                        clearInterval(intervalId);
-                    }
-                }, 50);
-            };
-            
-            if (document.readyState === 'complete') {
-                tentarAposCarregamento();
-            } else {
-                window.addEventListener('load', tentarAposCarregamento, {once: true});
-                document.addEventListener('DOMContentLoaded', tentarAposCarregamento, {once: true});
+        // Função para fechar modal de exclusão de escola (definir no escopo global)
+        window.fecharModalExclusaoEscola = function() {
+            const modal = document.getElementById('modalExclusaoEscola');
+            if (modal) {
+                modal.classList.add('hidden');
+                modal.style.display = 'none';
             }
         };
-        
-        // Função para abrir modal de exclusão de escola
-        // Sobrescrever com a versão melhorada que aguarda o DOM
-        window.abrirModalExclusaoEscola = function(id, nome) {
-            console.log('abrirModalExclusaoEscola chamado com id:', id, 'nome:', nome);
-            
-            function abrirModal() {
-                const idEscolaExclusao = document.getElementById('idEscolaExclusao');
-                const nomeEscolaExclusao = document.getElementById('nomeEscolaExclusao');
-                const modalExclusao = document.getElementById('modalExclusaoEscola');
-                
-                console.log('Buscando elementos:', {
-                    idEscolaExclusao: !!idEscolaExclusao,
-                    nomeEscolaExclusao: !!nomeEscolaExclusao,
-                    modalExclusao: !!modalExclusao
-                });
-                
-                if (idEscolaExclusao && nomeEscolaExclusao && modalExclusao) {
-                    idEscolaExclusao.value = id;
-                    nomeEscolaExclusao.textContent = nome;
-                    
-                    // Remover hidden e garantir que está visível
-                    modalExclusao.classList.remove('hidden');
-                    modalExclusao.style.display = 'flex';
-                    modalExclusao.style.visibility = 'visible';
-                    modalExclusao.style.opacity = '1';
-                    modalExclusao.style.zIndex = '9999';
-                    
-                    console.log('Modal aberto. Classes:', modalExclusao.className);
-                    console.log('Estilo display:', window.getComputedStyle(modalExclusao).display);
-                    console.log('Estilo z-index:', window.getComputedStyle(modalExclusao).zIndex);
-                    
-                    return true;
-                }
-                return false;
-            }
-            
-            // Tentar imediatamente
-            if (abrirModal()) {
-                console.log('Modal aberto imediatamente');
-                return;
-            }
-            
-            // Aguardar carregamento completo
-            const tentarAposCarregamento = () => {
-                let tentativas = 0;
-                const maxTentativas = 20;
-                const intervalId = setInterval(() => {
-                    tentativas++;
-                    if (abrirModal()) {
-                        console.log('Modal aberto após', tentativas, 'tentativas');
-                        clearInterval(intervalId);
-                    } else if (tentativas >= maxTentativas) {
-                        console.error('Não foi possível abrir o modal após', maxTentativas, 'tentativas');
-                        clearInterval(intervalId);
-                    }
-                }, 50);
-            };
-            
-            if (document.readyState === 'complete') {
-                tentarAposCarregamento();
-            } else {
-                window.addEventListener('load', tentarAposCarregamento, {once: true});
-                document.addEventListener('DOMContentLoaded', tentarAposCarregamento, {once: true});
-            }
-        };
-        
-        // Função para fechar modal de exclusão de escola
-        function fecharModalExclusaoEscola() {
-            document.getElementById('modalExclusaoEscola').classList.add('hidden');
-        }
         
         // Fechar modal clicando fora dele
-        const modalExclusao = document.getElementById('modalExclusaoEscola');
-        if (modalExclusao) {
-            modalExclusao.addEventListener('click', function(e) {
-                if (e.target === this) {
-                    fecharModalExclusaoEscola();
-                }
-            });
-        }
+        document.addEventListener('DOMContentLoaded', function() {
+            const modalExclusao = document.getElementById('modalExclusaoEscola');
+            if (modalExclusao) {
+                modalExclusao.addEventListener('click', function(e) {
+                    if (e.target === this) {
+                        window.fecharModalExclusaoEscola();
+                    }
+                });
+            }
+        });
         
         // Função para buscar gestores
         function buscarGestores(termo) {
@@ -3095,18 +3440,29 @@ if ($_SESSION['tipo'] === 'ADM') {
         // Funções do Modal de Edição (já definida acima no escopo global)
         // A função abrirModalEdicaoEscola já está definida no início do script
         
-        function fecharModalEdicaoEscola() {
-            document.getElementById('modalEdicaoEscola').classList.add('hidden');
-            
-            // Resetar estado dos botões
-            desabilitarBotoesSalvar();
-            
-            // Resetar seleção de professores
-            ocultarAdicionarProfessores();
-            
-            // Voltar para a primeira aba
-            mostrarAbaEdicao('dados-basicos');
-        }
+        // Função para fechar modal de edição (definir no escopo global)
+        window.fecharModalEdicaoEscola = function() {
+            const modal = document.getElementById('modalEdicaoEscola');
+            if (modal) {
+                modal.classList.add('hidden');
+                modal.style.display = 'none';
+                
+                // Resetar estado dos botões
+                if (typeof desabilitarBotoesSalvar === 'function') {
+                    desabilitarBotoesSalvar();
+                }
+                
+                // Resetar seleção de professores
+                if (typeof ocultarAdicionarProfessores === 'function') {
+                    ocultarAdicionarProfessores();
+                }
+                
+                // Voltar para a primeira aba
+                if (typeof mostrarAbaEdicao === 'function') {
+                    mostrarAbaEdicao('dados-basicos');
+                }
+            }
+        };
 
         function carregarProfessoresEscola(escolaId) {
             fetch(`../../Controllers/gestao/EscolaController.php?acao=buscar_professores&escola_id=${escolaId}`)
@@ -3235,16 +3591,20 @@ if ($_SESSION['tipo'] === 'ADM') {
             
             // Fechar automaticamente após 3 segundos
             setTimeout(() => {
-                fecharModalSucesso();
+                window.fecharModalSucesso();
             }, 3000);
         }
         
-        function fecharModalSucesso() {
+        // Função para fechar modal de sucesso (definir no escopo global)
+        window.fecharModalSucesso = function() {
             const modal = document.getElementById('modalSucesso');
-            modal.classList.add('hidden');
-            // Recarregar a página após fechar o modal
-            window.location.reload();
-        }
+            if (modal) {
+                modal.classList.add('hidden');
+                modal.style.display = 'none';
+                // Recarregar a página após fechar o modal
+                window.location.reload();
+            }
+        };
         
         // Variável global para armazenar dados originais
         let dadosOriginaisEscola = {};
@@ -3265,12 +3625,10 @@ if ($_SESSION['tipo'] === 'ADM') {
             // Buscar dados da escola diretamente via PHP
             fetch(`../../Controllers/gestao/EscolaController.php?acao=buscar_escola&id=${encodeURIComponent(id)}`)
                 .then(response => {
-                    console.log('Response status:', response.status);
                     if (!response.ok) {
                         throw new Error(`HTTP error! status: ${response.status}`);
                     }
                     return response.text().then(text => {
-                        console.log('Response text:', text);
                         try {
                             return JSON.parse(text);
                         } catch (e) {
@@ -3281,7 +3639,6 @@ if ($_SESSION['tipo'] === 'ADM') {
                     });
                 })
                 .then(data => {
-                    console.log('Dados recebidos:', data);
                     
                     // Ocultar loading
                     if (loadingElement) {
@@ -4530,7 +4887,7 @@ if ($_SESSION['tipo'] === 'ADM') {
             if (modalSucesso) {
                 modalSucesso.addEventListener('click', function(e) {
                     if (e.target === this) {
-                        fecharModalSucesso();
+                        window.fecharModalSucesso();
                     }
                 });
             }
