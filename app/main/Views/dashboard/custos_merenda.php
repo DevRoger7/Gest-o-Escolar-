@@ -151,8 +151,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao'])) {
                 $stmtCusto->bindParam(':valor_unitario', $valorUnitario);
                 $stmtCusto->bindParam(':valor_total', $valorTotal);
                 $stmtCusto->bindParam(':data', $dataAtual);
-                $stmtCusto->bindParam(':mes', $mesAtual);
-                $stmtCusto->bindParam(':ano', $anoAtual);
+                $stmtCusto->bindParam(':mes', $mesAtual, PDO::PARAM_INT);
+                $stmtCusto->bindParam(':ano', $anoAtual, PDO::PARAM_INT);
                 $stmtCusto->bindParam(':observacoes', $observacoes);
 
                 // EDIT: registrado_por com binding correto (INT ou NULL)
@@ -518,14 +518,10 @@ $totalGeral = array_sum(array_column($totaisMes, 'total_custos'));
                                 : 'bg-gray-100 text-gray-800';
                             tbody.innerHTML += `
                                 <tr class="border-b border-gray-100 hover:bg-gray-50">
-<<<<<<< HEAD
                                     <td class="py-3 px-4">
                                         ${dataFormatada}
                                     </td>
                                     <td class="py-3 px-4">${custo.escola_nome || '-'}</td>
-=======
-                                    <td class="py-3 px-4">${dataFormatada}</td>
->>>>>>> 74135b614a664e3df6baad182beb5e5c05454218
                                     <td class="py-3 px-4">
                                         ${escolaNome}
                                         ${custo.escola_id === null ? '<span class="ml-2 text-xs text-blue-600">(Central)</span>' : ''}
