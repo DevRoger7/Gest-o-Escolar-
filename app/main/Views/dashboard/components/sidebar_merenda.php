@@ -133,10 +133,26 @@ $nomeSistema = getNomeSistemaCurto();
                     <span>Pedidos de Compra</span>
                 </a>
             </li>
-        </ul>
-    </nav>
 
-    <!-- Logout Button -->
+            <!-- Relatórios -->
+            <li class="pt-4">
+                <p class="px-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Relatórios</p>
+            </li>
+            <li>
+                <!-- Update link and active highlight to relatorio_merenda.php -->
+                <a href="relatorio_merenda.php" class="menu-item flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700 <?= basename($_SERVER['PHP_SELF']) === 'relatorio_merenda.php' ? 'active' : '' ?>">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <!-- Using same document icon style as Cardápios for consistency -->
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                    </svg>
+                    <span>Visão Geral</span>
+                </a>
+            </li>
+            <!-- Removed other report items: Consumo, Desperdício, Custos, Entregas -->
+            
+            <!-- ... existing code continues ... -->
+
+            <!-- Logout Button -->
     <div class="absolute bottom-0 left-0 right-0 p-4 border-t border-gray-200">
         <button onclick="window.confirmLogout()" class="w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-red-600 hover:bg-red-50 transition-colors duration-200">
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">

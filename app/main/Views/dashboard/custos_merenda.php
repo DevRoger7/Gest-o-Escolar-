@@ -111,8 +111,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao'])) {
                 $dataAtual = date('Y-m-d');
                 $mesAtual = date('n');
                 $anoAtual = date('Y');
-                $usuarioId = $_SESSION['usuario_id'] ?? null;
                 
+                // EDIT: validar e normalizar o usuário que está registrando
+                $usuarioId = null;
+                if (!empty($_SESSION['usuario_id']) && is_numeric($_SESSION['usuario_id'])) {
+                    $usuarioIdTmp = (int) $_SESSION['usuario_id'];
+                    $stmtUser = $conn->prepare("SELECT id FROM usuario WHERE id = :id LIMIT 1");
+                    $stmtUser->bindValue(':id', $usuarioIdTmp, PDO::PARAM_INT);
+                    $stmtUser->execute();
+                    if ($stmtUser->fetchColumn()) {
+                        $usuarioId = $usuarioIdTmp;
+                    }
+                }
                 $sqlCusto = "INSERT INTO custo_merenda (escola_id, tipo, descricao, produto_id, fornecedor_id,
                             quantidade, valor_unitario, valor_total, data, mes, ano, observacoes, registrado_por, registrado_em)
                             VALUES (NULL, 'COMPRA_PRODUTOS', :descricao, :produto_id, :fornecedor_id,
@@ -129,7 +139,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao'])) {
                 $stmtCusto = $conn->prepare($sqlCusto);
                 $stmtCusto->bindParam(':descricao', $descricao);
                 $stmtCusto->bindParam(':produto_id', $produtoId);
-                $stmtCusto->bindParam(':fornecedor_id', $fornecedorId);
+
+                // EDIT: fornecedor_id pode ser nulo; ajustar tipo de binding
+                if (!empty($fornecedorId) && is_numeric($fornecedorId)) {
+                    $stmtCusto->bindValue(':fornecedor_id', (int) $fornecedorId, PDO::PARAM_INT);
+                } else {
+                    $stmtCusto->bindValue(':fornecedor_id', null, PDO::PARAM_NULL);
+                }
+
                 $stmtCusto->bindParam(':quantidade', $quantidade);
                 $stmtCusto->bindParam(':valor_unitario', $valorUnitario);
                 $stmtCusto->bindParam(':valor_total', $valorTotal);
@@ -137,7 +154,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao'])) {
                 $stmtCusto->bindParam(':mes', $mesAtual);
                 $stmtCusto->bindParam(':ano', $anoAtual);
                 $stmtCusto->bindParam(':observacoes', $observacoes);
-                $stmtCusto->bindParam(':registrado_por', $usuarioId);
+
+                // EDIT: registrado_por com binding correto (INT ou NULL)
+                if ($usuarioId !== null) {
+                    $stmtCusto->bindValue(':registrado_por', $usuarioId, PDO::PARAM_INT);
+                } else {
+                    $stmtCusto->bindValue(':registrado_por', null, PDO::PARAM_NULL);
+                }
+
                 $stmtCusto->execute();
             }
             
