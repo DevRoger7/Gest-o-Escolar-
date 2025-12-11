@@ -94,11 +94,15 @@ if (isset($_SESSION['tipo']) && strtoupper($_SESSION['tipo']) === 'GESTAO') {
                 if (isset($_SESSION['escola_selecionada_id']) && !empty($_SESSION['escola_selecionada_id'])) {
                     $escolaSelecionadaId = (int)$_SESSION['escola_selecionada_id'];
                     
+                    // Log para debug
+                    error_log("DEBUG GESTAO_ESCOLAR - Escola selecionada na sessão: " . $escolaSelecionadaId);
+                    
                     // Verificar se a escola selecionada está na lista de escolas do gestor
                     foreach ($escolasGestor as $escola) {
                         if ((int)$escola['escola_id'] === $escolaSelecionadaId) {
                             $escolaGestorId = $escolaSelecionadaId;
                             $escolaGestor = $_SESSION['escola_selecionada_nome'] ?? $escola['escola_nome'];
+                            error_log("DEBUG GESTAO_ESCOLAR - Escola encontrada e definida: ID=" . $escolaGestorId . ", Nome=" . $escolaGestor);
                             break;
                         }
                     }
@@ -1074,6 +1078,8 @@ $filtroTurmaAcompanhamento = !empty($_GET['turma_acompanhamento']) ? $_GET['turm
 $escolaIdAcompanhamento = null;
 if ($_SESSION['tipo'] === 'GESTAO' && $escolaGestorId) {
     $escolaIdAcompanhamento = $escolaGestorId;
+    // Log para debug
+    error_log("DEBUG GESTAO_ESCOLAR - Escola selecionada para acompanhamento: " . $escolaGestorId);
 } elseif (!empty($_GET['escola_id'])) {
     $escolaIdAcompanhamento = $_GET['escola_id'];
 }
@@ -1227,6 +1233,8 @@ function contarLancamentosPendentes($escolaId = null)
 $escolaIdLancamentos = null;
 if ($_SESSION['tipo'] === 'GESTAO' && $escolaGestorId) {
     $escolaIdLancamentos = $escolaGestorId;
+    // Log para debug
+    error_log("DEBUG GESTAO_ESCOLAR - Escola selecionada para lançamentos: " . $escolaGestorId);
 } elseif (!empty($_GET['escola_id'])) {
     $escolaIdLancamentos = $_GET['escola_id'];
 }
@@ -1366,13 +1374,25 @@ if (!empty($_GET['acao']) && $_GET['acao'] === 'buscar_alunos' && !empty($_GET['
                 INNER JOIN pessoa p ON a.pessoa_id = p.id
                 LEFT JOIN escola e ON a.escola_id = e.id
                 WHERE a.ativo = 1 
-                AND (p.nome LIKE :busca OR a.matricula LIKE :busca OR p.cpf LIKE :busca)
-                ORDER BY p.nome ASC
+                AND (p.nome LIKE :busca OR a.matricula LIKE :busca OR p.cpf LIKE :busca)";
+
+        // Filtrar por escola do gestor se necessário
+        if ($_SESSION['tipo'] === 'GESTAO' && $escolaGestorId) {
+            $sql .= " AND a.escola_id = :escola_id";
+        } elseif (!empty($_GET['escola_id'])) {
+            $sql .= " AND a.escola_id = :escola_id";
+        }
+
+        $sql .= " ORDER BY p.nome ASC
                 LIMIT 20";
 
         $stmt = $conn->prepare($sql);
         $buscaParam = "%{$busca}%";
         $stmt->bindParam(':busca', $buscaParam);
+        if (($_SESSION['tipo'] === 'GESTAO' && $escolaGestorId) || !empty($_GET['escola_id'])) {
+            $escolaIdFiltro = $_SESSION['tipo'] === 'GESTAO' && $escolaGestorId ? $escolaGestorId : $_GET['escola_id'];
+            $stmt->bindParam(':escola_id', $escolaIdFiltro);
+        }
         $stmt->execute();
         $alunos = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
@@ -1453,7 +1473,11 @@ if (!empty($_GET['acao']) && $_GET['acao'] === 'buscar_aluno_acompanhamento' && 
 
 // Buscar alunos
 $filtrosAluno = ['ativo' => 1];
-if (!empty($_GET['escola_id'])) {
+// Se for gestor, forçar filtro pela escola dele
+if ($_SESSION['tipo'] === 'GESTAO' && $escolaGestorId) {
+    $filtrosAluno['escola_id'] = $escolaGestorId;
+} elseif (!empty($_GET['escola_id'])) {
+    // Admin pode filtrar por escola específica
     $filtrosAluno['escola_id'] = $_GET['escola_id'];
 }
 $alunos = $alunoModel->listar($filtrosAluno);
@@ -1482,6 +1506,95 @@ if (!defined('BASE_URL')) {
                 }
             }
         }
+        
+        // Função para mudar a escola selecionada
+        window.mudarEscolaGestor = function(escolaId) {
+            console.log('mudarEscolaGestor chamado com escolaId:', escolaId);
+            
+            if (!escolaId) {
+                console.error('escolaId não fornecido');
+                return;
+            }
+            
+            // Mostrar loading
+            const select = document.getElementById('select-escola-gestor');
+            if (!select) {
+                console.error('Elemento select-escola-gestor não encontrado');
+                return;
+            }
+            
+            const originalValue = select.value;
+            select.disabled = true;
+            select.style.opacity = '0.6';
+            select.style.cursor = 'wait';
+            
+            // Fazer requisição AJAX
+            const formData = new FormData();
+            formData.append('action', 'mudar_escola');
+            formData.append('escola_id', escolaId);
+            
+            console.log('Enviando requisição para mudar escola...');
+            
+            // Caminho do controller
+            const currentUrl = window.location.href;
+            const urlObj = new URL(currentUrl);
+            const pathParts = urlObj.pathname.split('/');
+            
+            // Encontrar o índice de 'app' e construir o caminho
+            const appIndex = pathParts.indexOf('app');
+            let controllerPath = '';
+            
+            if (appIndex !== -1) {
+                const basePath = pathParts.slice(0, appIndex + 1).join('/');
+                controllerPath = basePath + '/main/Controllers/gestao/GestorEscolaController.php';
+            } else {
+                controllerPath = '../../Controllers/gestao/GestorEscolaController.php';
+            }
+            
+            console.log('Caminho do controller:', controllerPath);
+            
+            fetch(controllerPath, {
+                method: 'POST',
+                body: formData,
+                credentials: 'same-origin',
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            })
+            .then(response => {
+                console.log('Resposta recebida, status:', response.status);
+                if (!response.ok) {
+                    throw new Error('Erro HTTP: ' + response.status);
+                }
+                return response.json();
+            })
+            .then(data => {
+                console.log('Dados recebidos:', data);
+                if (data.success) {
+                    console.log('Escola alterada com sucesso, recarregando página...');
+                    // Recarregar a página sem cache adicionando timestamp para forçar reload
+                    const url = new URL(window.location.href);
+                    url.searchParams.set('_t', new Date().getTime());
+                    url.searchParams.set('escola_mudada', '1');
+                    window.location.href = url.toString();
+                } else {
+                    console.error('Erro ao mudar escola:', data.message);
+                    alert('Erro ao mudar escola: ' + (data.message || 'Erro desconhecido'));
+                    select.value = originalValue;
+                    select.disabled = false;
+                    select.style.opacity = '1';
+                    select.style.cursor = 'pointer';
+                }
+            })
+            .catch(error => {
+                console.error('Erro na requisição:', error);
+                alert('Erro ao mudar escola. Verifique o console para mais detalhes.');
+                select.value = originalValue;
+                select.disabled = false;
+                select.style.opacity = '1';
+                select.style.cursor = 'pointer';
+            });
+        };
     </script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="global-theme.css">
@@ -1610,17 +1723,41 @@ if (!defined('BASE_URL')) {
                                     <p class="text-xs text-gray-500">Órgão Central</p>
                                 </div>
                             <?php } elseif ($_SESSION['tipo'] === 'GESTAO') { ?>
-                                <!-- Para GESTAO, mostrar apenas o nome da escola (mudança apenas no dashboard) -->
-                                <div class="bg-primary-green text-white px-4 py-2 rounded-lg shadow-sm">
-                                    <div class="flex items-center space-x-2">
-                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path>
-                                        </svg>
-                                        <span class="text-sm font-semibold">
-                                            <?= !empty($escolaGestor) ? htmlspecialchars($escolaGestor) : 'Escola não encontrada' ?>
-                                        </span>
+                                <!-- Para GESTAO, dropdown de escolas -->
+                                <?php if (count($escolasGestor) > 1): ?>
+                                    <!-- Múltiplas escolas - mostrar dropdown -->
+                                    <div class="relative group">
+                                        <select id="select-escola-gestor" 
+                                                onchange="mudarEscolaGestor(this.value)"
+                                                class="bg-primary-green hover:bg-opacity-90 text-white px-5 py-2.5 rounded-lg shadow-md text-sm font-semibold appearance-none cursor-pointer border-0 focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-primary-green pr-10 transition-all duration-200 min-w-[200px]">
+                                            <?php foreach ($escolasGestor as $escola): ?>
+                                                <option value="<?= $escola['escola_id'] ?>" 
+                                                        <?= ($escolaGestorId == $escola['escola_id']) ? 'selected' : '' ?>
+                                                        class="bg-white text-gray-800 py-2">
+                                                    <?= htmlspecialchars($escola['escola_nome']) ?>
+                                                    <?= $escola['responsavel'] ? ' (Responsável)' : '' ?>
+                                                </option>
+                                            <?php endforeach; ?>
+                                        </select>
+                                        <div class="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
+                                            <svg class="w-5 h-5 text-white transition-transform duration-200 group-hover:scale-110" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                                            </svg>
+                                        </div>
                                     </div>
-                                </div>
+                                <?php else: ?>
+                                    <!-- Uma única escola - mostrar apenas o nome -->
+                                    <div class="bg-primary-green text-white px-4 py-2 rounded-lg shadow-sm">
+                                        <div class="flex items-center space-x-2">
+                                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path>
+                                            </svg>
+                                            <span class="text-sm font-semibold">
+                                                <?= !empty($escolaGestor) ? htmlspecialchars($escolaGestor) : 'Escola não encontrada' ?>
+                                            </span>
+                                        </div>
+                                    </div>
+                                <?php endif; ?>
                             <?php } else { ?>
                                 <!-- Para outros usuários, card verde com ícone -->
                                 <div class="bg-primary-green text-white px-4 py-2 rounded-lg shadow-sm">

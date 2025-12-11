@@ -30,6 +30,7 @@ try {
 $db = Database::getInstance();
 $conn = $db->getConnection();
 $alunoModel = new AlunoModel();
+$responsavelModel = new ResponsavelModel();
 
 // Buscar escolas
 $sqlEscolas = "SELECT id, nome FROM escola WHERE ativo = 1 ORDER BY nome ASC";
@@ -316,6 +317,77 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao'])) {
                 ]);
             } else {
                 throw new Exception('Erro ao excluir aluno.');
+            }
+        } catch (Exception $e) {
+            echo json_encode([
+                'success' => false,
+                'message' => $e->getMessage()
+            ]);
+        }
+        exit;
+    }
+    
+    if ($_POST['acao'] === 'cadastrar_responsavel') {
+        try {
+            // Preparar dados
+            $cpf = preg_replace('/[^0-9]/', '', $_POST['cpf'] ?? '');
+            $telefone = preg_replace('/[^0-9]/', '', $_POST['telefone'] ?? '');
+            
+            // Validar CPF
+            if (empty($cpf) || strlen($cpf) !== 11) {
+                throw new Exception('CPF inválido. Deve conter 11 dígitos.');
+            }
+            
+            // Validar senha
+            if (empty($_POST['senha']) || strlen($_POST['senha']) < 6) {
+                throw new Exception('A senha é obrigatória e deve ter no mínimo 6 caracteres.');
+            }
+            
+            // Preparar dados para o model
+            $dados = [
+                'cpf' => $cpf,
+                'nome' => trim($_POST['nome'] ?? ''),
+                'data_nascimento' => $_POST['data_nascimento'] ?? null,
+                'sexo' => $_POST['sexo'] ?? null,
+                'email' => !empty($_POST['email']) ? trim($_POST['email']) : null,
+                'telefone' => !empty($telefone) ? $telefone : null,
+                'senha' => $_POST['senha'] ?? null
+            ];
+            
+            // Validar campos obrigatórios
+            if (empty($dados['nome'])) {
+                throw new Exception('Nome é obrigatório.');
+            }
+            
+            // Usar o model para criar o responsável
+            $result = $responsavelModel->criar($dados);
+            
+            if ($result['success']) {
+                $responsavelId = $result['pessoa_id'];
+                
+                // Se foi fornecido aluno_id, associar o responsável ao aluno
+                $alunoId = !empty($_POST['aluno_id']) ? $_POST['aluno_id'] : null;
+                $parentesco = !empty($_POST['parentesco']) ? $_POST['parentesco'] : 'OUTRO';
+                
+                if ($alunoId) {
+                    $associacao = $responsavelModel->associarAlunos($responsavelId, [$alunoId], $parentesco, 1);
+                    if (!$associacao['success']) {
+                        // Responsável foi criado, mas associação falhou
+                        error_log("Erro ao associar responsável ao aluno: " . ($associacao['message'] ?? 'Erro desconhecido'));
+                    }
+                }
+                
+                echo json_encode([
+                    'success' => true,
+                    'message' => 'Responsável cadastrado com sucesso!',
+                    'responsavel_id' => $responsavelId,
+                    'pessoa_id' => $responsavelId
+                ]);
+            } else {
+                echo json_encode([
+                    'success' => false,
+                    'message' => $result['message'] ?? 'Erro ao cadastrar responsável.'
+                ]);
             }
         } catch (Exception $e) {
             echo json_encode([
@@ -733,6 +805,8 @@ $alunos = $stmtAlunos->fetchAll(PDO::FETCH_ASSOC);
                 <div id="alertaErro" class="hidden bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-lg"></div>
                 <div id="alertaSucesso" class="hidden bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded-lg"></div>
                 
+                <input type="hidden" name="responsavel_id" id="responsavel_id">
+                
                 <!-- Informações Pessoais -->
                 <div>
                     <h3 class="text-lg font-semibold text-gray-800 mb-4 pb-2 border-b border-gray-200">Informações Pessoais</h3>
@@ -829,15 +903,137 @@ $alunos = $stmtAlunos->fetchAll(PDO::FETCH_ASSOC);
             </div>
             
             <!-- Footer do Modal (Sticky) -->
-            <div class="flex justify-end space-x-3 p-6 border-t border-gray-200 bg-white sticky bottom-0 z-10">
-                <button type="button" onclick="fecharModalNovoAluno()" 
+            <div class="flex justify-between items-center p-6 border-t border-gray-200 bg-white sticky bottom-0 z-10">
+                <button type="button" onclick="abrirModalNovoResponsavel()" 
+                        class="px-6 py-3 text-white bg-green-600 hover:bg-green-700 rounded-lg font-medium transition-colors duration-200 flex items-center space-x-2">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+                    </svg>
+                    <span>Cadastrar Responsável</span>
+                </button>
+                <div class="flex space-x-3">
+                    <button type="button" onclick="fecharModalNovoAluno()" 
+                            class="px-6 py-3 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg font-medium transition-colors duration-200">
+                        Cancelar
+                    </button>
+                    <button type="submit" form="formNovoAluno" id="btnSalvarAluno"
+                            class="px-6 py-3 text-white bg-blue-600 hover:bg-blue-700 rounded-lg font-medium transition-colors duration-200 flex items-center space-x-2">
+                        <span>Salvar Aluno</span>
+                        <svg id="spinnerSalvar" class="hidden animate-spin h-5 w-5 text-white" fill="none" viewBox="0 0 24 24">
+                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Modal de Cadastro de Responsável -->
+    <div id="modalNovoResponsavel" class="fixed inset-0 bg-black bg-opacity-50 z-[70] hidden items-center justify-center" style="display: none;">
+        <div class="bg-white w-full max-w-4xl max-h-[90vh] flex flex-col shadow-2xl rounded-2xl m-4">
+            <!-- Header do Modal -->
+            <div class="flex justify-between items-center p-6 border-b border-gray-200 bg-white sticky top-0 z-10 rounded-t-2xl">
+                <h2 class="text-2xl font-bold text-gray-900">Cadastrar Responsável</h2>
+                <button onclick="fecharModalNovoResponsavel()" class="text-gray-400 hover:text-gray-600 transition-colors p-2 hover:bg-gray-100 rounded-lg">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+            </div>
+            
+            <!-- Conteúdo do Modal (Scrollable) -->
+            <div class="flex-1 overflow-y-auto p-6">
+                <form id="formNovoResponsavel" class="space-y-6">
+                    <div id="alertaErroResponsavel" class="hidden bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-lg"></div>
+                    <div id="alertaSucessoResponsavel" class="hidden bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded-lg"></div>
+                    
+                    <input type="hidden" id="responsavel_aluno_id" name="aluno_id">
+                    <input type="hidden" id="responsavel_parentesco" name="parentesco" value="OUTRO">
+                    
+                    <!-- Informações Pessoais -->
+                    <div>
+                        <h3 class="text-lg font-semibold text-gray-800 mb-4 pb-2 border-b border-gray-200">Informações Pessoais</h3>
+                        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Nome Completo *</label>
+                                <input type="text" name="nome" id="responsavel_nome" required 
+                                       class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">CPF *</label>
+                                <input type="text" name="cpf" id="responsavel_cpf" required maxlength="14"
+                                       placeholder="000.000.000-00"
+                                       class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                       oninput="formatarCPF(this)">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Data de Nascimento</label>
+                                <input type="date" name="data_nascimento" id="responsavel_data_nascimento" max="<?= date('Y-m-d') ?>"
+                                       class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Sexo</label>
+                                <select name="sexo" id="responsavel_sexo"
+                                        class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                                    <option value="">Selecione...</option>
+                                    <option value="M">Masculino</option>
+                                    <option value="F">Feminino</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Email</label>
+                                <input type="email" name="email" id="responsavel_email"
+                                       class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Telefone</label>
+                                <input type="text" name="telefone" id="responsavel_telefone" maxlength="15"
+                                       placeholder="(00) 00000-0000"
+                                       class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                       oninput="formatarTelefone(this)">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Acesso ao Sistema -->
+                    <div>
+                        <h3 class="text-lg font-semibold text-gray-800 mb-4 pb-2 border-b border-gray-200">Acesso ao Sistema</h3>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Senha *</label>
+                                <input type="password" name="senha" id="responsavel_senha" required minlength="6"
+                                       class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                       placeholder="Mínimo 6 caracteres">
+                                <p class="text-xs text-gray-500 mt-1">A senha deve ter no mínimo 6 caracteres</p>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Parentesco *</label>
+                                <select name="parentesco" id="responsavel_parentesco_select" required
+                                        class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                                    <option value="">Selecione...</option>
+                                    <option value="PAI">Pai</option>
+                                    <option value="MAE">Mãe</option>
+                                    <option value="AVO">Avô/Avó</option>
+                                    <option value="TIO">Tio/Tia</option>
+                                    <option value="OUTRO">Outro</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            
+            <!-- Footer do Modal (Sticky) -->
+            <div class="flex justify-end space-x-3 p-6 border-t border-gray-200 bg-white sticky bottom-0 z-10 rounded-b-2xl">
+                <button type="button" onclick="fecharModalNovoResponsavel()" 
                         class="px-6 py-3 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg font-medium transition-colors duration-200">
                     Cancelar
                 </button>
-                <button type="submit" form="formNovoAluno" id="btnSalvarAluno"
-                        class="px-6 py-3 text-white bg-blue-600 hover:bg-blue-700 rounded-lg font-medium transition-colors duration-200 flex items-center space-x-2">
-                    <span>Salvar Aluno</span>
-                    <svg id="spinnerSalvar" class="hidden animate-spin h-5 w-5 text-white" fill="none" viewBox="0 0 24 24">
+                <button type="button" onclick="salvarResponsavel()" id="btnSalvarResponsavel"
+                        class="px-6 py-3 text-white bg-green-600 hover:bg-green-700 rounded-lg font-medium transition-colors duration-200 flex items-center space-x-2">
+                    <span>Salvar Responsável</span>
+                    <svg id="spinnerSalvarResponsavel" class="hidden animate-spin h-5 w-5 text-white" fill="none" viewBox="0 0 24 24">
                         <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                         <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                     </svg>
@@ -997,6 +1193,11 @@ $alunos = $stmtAlunos->fetchAll(PDO::FETCH_ASSOC);
                 const data = await response.json();
                 
                 if (data.success) {
+                    // Armazenar ID do aluno para possível associação com responsável
+                    if (data.id) {
+                        alunoIdTemporario = data.id;
+                    }
+                    
                     alertaSucesso.textContent = 'Aluno cadastrado com sucesso!';
                     alertaSucesso.classList.remove('hidden');
                     
@@ -1009,6 +1210,7 @@ $alunos = $stmtAlunos->fetchAll(PDO::FETCH_ASSOC);
                     setTimeout(() => {
                         fecharModalNovoAluno();
                         filtrarAlunos();
+                        alunoIdTemporario = null; // Limpar ID temporário
                     }, 1500);
                 } else {
                     alertaErro.textContent = data.message || 'Erro ao cadastrar aluno. Por favor, tente novamente.';
@@ -1264,6 +1466,206 @@ $alunos = $stmtAlunos->fetchAll(PDO::FETCH_ASSOC);
                     console.error('Erro ao filtrar alunos:', error);
                 });
         }
+        
+        // Variável para armazenar o ID do aluno temporário (se já foi salvo)
+        let alunoIdTemporario = null;
+        
+        async function abrirModalNovoResponsavel() {
+            // Se o aluno ainda não foi salvo, salvar primeiro
+            if (!alunoIdTemporario) {
+                // Validar campos obrigatórios do aluno antes de abrir modal de responsável
+                const nomeAluno = document.getElementById('nome').value.trim();
+                const cpfAluno = document.getElementById('cpf').value.replace(/\D/g, '');
+                const dataNascAluno = document.getElementById('data_nascimento').value;
+                const sexoAluno = document.getElementById('sexo').value;
+                
+                if (!nomeAluno || !cpfAluno || cpfAluno.length !== 11 || !dataNascAluno || !sexoAluno) {
+                    alert('Por favor, preencha todos os campos obrigatórios do aluno (Nome, CPF, Data de Nascimento e Sexo) antes de cadastrar o responsável.');
+                    return;
+                }
+                
+                // Salvar aluno primeiro
+                const formData = new FormData(document.getElementById('formNovoAluno'));
+                formData.append('acao', 'cadastrar_aluno');
+                
+                try {
+                    const response = await fetch('', {
+                        method: 'POST',
+                        body: formData
+                    });
+                    
+                    const data = await response.json();
+                    
+                    if (data.success) {
+                        alunoIdTemporario = data.id;
+                        // Continuar para abrir modal de responsável
+                    } else {
+                        alert('Erro ao salvar aluno: ' + (data.message || 'Erro desconhecido'));
+                        return;
+                    }
+                } catch (error) {
+                    console.error('Erro:', error);
+                    alert('Erro ao processar requisição. Por favor, tente novamente.');
+                    return;
+                }
+            }
+            
+            // Abrir modal de responsável
+            const modal = document.getElementById('modalNovoResponsavel');
+            if (modal) {
+                modal.style.display = 'flex';
+                modal.classList.remove('hidden');
+                // Limpar formulário
+                document.getElementById('formNovoResponsavel').reset();
+                // Definir parentesco padrão
+                document.getElementById('responsavel_parentesco_select').value = 'OUTRO';
+                // Limpar alertas
+                document.getElementById('alertaErroResponsavel').classList.add('hidden');
+                document.getElementById('alertaSucessoResponsavel').classList.add('hidden');
+            }
+        }
+        
+        function fecharModalNovoResponsavel() {
+            const modal = document.getElementById('modalNovoResponsavel');
+            if (modal) {
+                modal.style.display = 'none';
+                modal.classList.add('hidden');
+            }
+        }
+        
+        async function salvarResponsavel() {
+            const btnSalvar = document.getElementById('btnSalvarResponsavel');
+            const spinner = document.getElementById('spinnerSalvarResponsavel');
+            const alertaErro = document.getElementById('alertaErroResponsavel');
+            const alertaSucesso = document.getElementById('alertaSucessoResponsavel');
+            
+            // Validar campos obrigatórios
+            const nome = document.getElementById('responsavel_nome').value.trim();
+            const cpf = document.getElementById('responsavel_cpf').value.replace(/\D/g, '');
+            const senha = document.getElementById('responsavel_senha').value;
+            const parentesco = document.getElementById('responsavel_parentesco_select').value;
+            
+            if (!nome) {
+                alertaErro.textContent = 'Nome é obrigatório.';
+                alertaErro.classList.remove('hidden');
+                return;
+            }
+            
+            if (!cpf || cpf.length !== 11) {
+                alertaErro.textContent = 'CPF inválido. Deve conter 11 dígitos.';
+                alertaErro.classList.remove('hidden');
+                return;
+            }
+            
+            if (!senha || senha.length < 6) {
+                alertaErro.textContent = 'A senha é obrigatória e deve ter no mínimo 6 caracteres.';
+                alertaErro.classList.remove('hidden');
+                return;
+            }
+            
+            if (!parentesco) {
+                alertaErro.textContent = 'Parentesco é obrigatório.';
+                alertaErro.classList.remove('hidden');
+                return;
+            }
+            
+            // Mostrar loading
+            btnSalvar.disabled = true;
+            spinner.classList.remove('hidden');
+            alertaErro.classList.add('hidden');
+            alertaSucesso.classList.add('hidden');
+            
+            // Coletar dados do formulário
+            const formData = new FormData(document.getElementById('formNovoResponsavel'));
+            formData.append('acao', 'cadastrar_responsavel');
+            
+            // Se o aluno já foi salvo, incluir o ID e parentesco
+            if (alunoIdTemporario) {
+                formData.append('aluno_id', alunoIdTemporario);
+                formData.append('parentesco', parentesco);
+            }
+            
+            try {
+                const response = await fetch('', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    alertaSucesso.textContent = 'Responsável cadastrado com sucesso!';
+                    alertaSucesso.classList.remove('hidden');
+                    
+                    // Se houver responsavel_id, atualizar o campo no formulário de aluno (se existir)
+                    if (data.responsavel_id) {
+                        const campoResponsavelId = document.getElementById('responsavel_id');
+                        if (campoResponsavelId) {
+                            campoResponsavelId.value = data.responsavel_id;
+                        }
+                    }
+                    
+                    // Se o aluno já foi salvo, atualizar o aluno com o responsavel_id
+                    if (alunoIdTemporario && data.responsavel_id) {
+                        // Atualizar o aluno com o responsavel_id
+                        const formDataUpdate = new FormData();
+                        formDataUpdate.append('acao', 'editar_aluno');
+                        formDataUpdate.append('aluno_id', alunoIdTemporario);
+                        formDataUpdate.append('responsavel_id', data.responsavel_id);
+                        // Manter outros campos do aluno
+                        const formAluno = document.getElementById('formNovoAluno');
+                        if (formAluno) {
+                            const formDataAluno = new FormData(formAluno);
+                            formDataUpdate.append('nome', formDataAluno.get('nome') || '');
+                            formDataUpdate.append('cpf', formDataAluno.get('cpf') || '');
+                            formDataUpdate.append('data_nascimento', formDataAluno.get('data_nascimento') || '');
+                            formDataUpdate.append('sexo', formDataAluno.get('sexo') || '');
+                            formDataUpdate.append('email', formDataAluno.get('email') || '');
+                            formDataUpdate.append('telefone', formDataAluno.get('telefone') || '');
+                            formDataUpdate.append('matricula', formDataAluno.get('matricula') || '');
+                            formDataUpdate.append('nis', formDataAluno.get('nis') || '');
+                            formDataUpdate.append('escola_id', formDataAluno.get('escola_id') || '');
+                            formDataUpdate.append('data_matricula', formDataAluno.get('data_matricula') || '');
+                            formDataUpdate.append('situacao', formDataAluno.get('situacao') || 'MATRICULADO');
+                            formDataUpdate.append('ativo', '1');
+                        }
+                        
+                        // Atualizar aluno em background (não bloquear UI)
+                        fetch('', {
+                            method: 'POST',
+                            body: formDataUpdate
+                        }).catch(err => console.error('Erro ao atualizar aluno com responsável:', err));
+                    }
+                    
+                    // Fechar modal após 1.5 segundos e voltar para o modal de aluno
+                    setTimeout(() => {
+                        fecharModalNovoResponsavel();
+                        // Se o modal de aluno estiver fechado, abrir novamente
+                        const modalAluno = document.getElementById('modalNovoAluno');
+                        if (modalAluno && modalAluno.classList.contains('hidden')) {
+                            abrirModalNovoAluno();
+                        }
+                    }, 1500);
+                } else {
+                    alertaErro.textContent = data.message || 'Erro ao cadastrar responsável. Por favor, tente novamente.';
+                    alertaErro.classList.remove('hidden');
+                }
+            } catch (error) {
+                console.error('Erro:', error);
+                alertaErro.textContent = 'Erro ao processar requisição. Por favor, tente novamente.';
+                alertaErro.classList.remove('hidden');
+            } finally {
+                btnSalvar.disabled = false;
+                spinner.classList.add('hidden');
+            }
+        }
+        
+        // Fechar modal ao clicar fora
+        document.getElementById('modalNovoResponsavel')?.addEventListener('click', function(e) {
+            if (e.target === this) {
+                fecharModalNovoResponsavel();
+            }
+        });
     </script>
 </body>
 </html>
