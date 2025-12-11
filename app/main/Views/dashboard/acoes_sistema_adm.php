@@ -35,26 +35,33 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao'])) {
                 $conn->beginTransaction();
                 
                 $dadosEscola = json_decode($backup['dados_escola'], true);
-                $dadosTurmas = json_decode($backup['dados_turmas'], true) ?: [];
+                $backupCompleto = json_decode($backup['dados_turmas'], true) ?: [];
                 $dadosLotacoes = json_decode($backup['dados_lotacoes'], true) ?: [];
                 
-                // Verificar se a escola já existe (pode ter sido restaurada ou apenas desativada)
-                $stmtCheck = $conn->prepare("SELECT id, ativo FROM escola WHERE id = :id");
+                // Extrair dados do backup completo
+                $dadosTurmas = $backupCompleto['turmas'] ?? [];
+                $dadosAlunos = $backupCompleto['alunos'] ?? [];
+                $dadosAlunoTurma = $backupCompleto['aluno_turma'] ?? [];
+                $dadosNotas = $backupCompleto['notas'] ?? [];
+                $dadosFrequencia = $backupCompleto['frequencia'] ?? [];
+                $dadosAvaliacao = $backupCompleto['avaliacao'] ?? [];
+                $dadosBoletim = $backupCompleto['boletim'] ?? [];
+                $dadosBoletimItem = $backupCompleto['boletim_item'] ?? [];
+                $dadosEntrega = $backupCompleto['entrega'] ?? [];
+                $dadosEntregaItem = $backupCompleto['entrega_item'] ?? [];
+                $dadosCardapio = $backupCompleto['cardapio'] ?? [];
+                $dadosCardapioItem = $backupCompleto['cardapio_item'] ?? [];
+                $dadosConsumo = $backupCompleto['consumo_diario'] ?? [];
+                $dadosConsumoItem = $backupCompleto['consumo_item'] ?? [];
+                
+                // Verificar se a escola já existe
+                $stmtCheck = $conn->prepare("SELECT id FROM escola WHERE id = :id");
                 $stmtCheck->bindParam(':id', $dadosEscola['id'], PDO::PARAM_INT);
                 $stmtCheck->execute();
-                $escolaExistente = $stmtCheck->fetch(PDO::FETCH_ASSOC);
+                $escolaExistente = $stmtCheck->fetch();
                 
-                if ($escolaExistente) {
-                    // Escola existe - apenas reativar (soft delete reverso)
-                    if ($escolaExistente['ativo'] == 0) {
-                        $stmtReativar = $conn->prepare("UPDATE escola SET ativo = 1 WHERE id = :id");
-                        $stmtReativar->bindParam(':id', $dadosEscola['id'], PDO::PARAM_INT);
-                        $stmtReativar->execute();
-                    } else {
-                        // Escola já está ativa, não precisa fazer nada
-                    }
-                } else {
-                    // Escola não existe - inserir nova (caso tenha sido excluída permanentemente antes)
+                if (!$escolaExistente) {
+                    // Escola não existe - inserir
                     $sqlEscola = "INSERT INTO escola (id, codigo, nome, endereco, numero, complemento, bairro, municipio, estado, cep, telefone, telefone_secundario, email, site, cnpj, diretor_id, qtd_salas, obs, ativo, criado_em, atualizado_em, atualizado_por) 
                                  VALUES (:id, :codigo, :nome, :endereco, :numero, :complemento, :bairro, :municipio, :estado, :cep, :telefone, :telefone_secundario, :email, :site, :cnpj, :diretor_id, :qtd_salas, :obs, :ativo, :criado_em, :atualizado_em, :atualizado_por)";
                     $stmtEscola = $conn->prepare($sqlEscola);
@@ -81,10 +88,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao'])) {
                     $stmtEscola->bindValue(':atualizado_em', $dadosEscola['atualizado_em'] ?? date('Y-m-d H:i:s'));
                     $stmtEscola->bindValue(':atualizado_por', $dadosEscola['atualizado_por'] ?? null, PDO::PARAM_INT);
                     $stmtEscola->execute();
+                } else {
+                    // Escola existe - apenas garantir que está ativa
+                    $stmtReativar = $conn->prepare("UPDATE escola SET ativo = 1 WHERE id = :id");
+                    $stmtReativar->bindParam(':id', $dadosEscola['id'], PDO::PARAM_INT);
+                    $stmtReativar->execute();
                 }
                 
-                // Restaurar turmas (se não existirem)
-                // Como agora fazemos soft delete, as turmas já devem existir, mas verificamos mesmo assim
+                // Restaurar turmas
                 if (!empty($dadosTurmas) && is_array($dadosTurmas)) {
                     foreach ($dadosTurmas as $turma) {
                         if (!is_array($turma)) continue;
@@ -235,6 +246,358 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao'])) {
                     }
                 }
                 
+                // Restaurar dados relacionados às turmas (se existirem no backup)
+                $backupCompleto = json_decode($backup['dados_turmas'], true) ?: [];
+                $dadosAlunoTurma = $backupCompleto['aluno_turma'] ?? [];
+                $dadosNotas = $backupCompleto['notas'] ?? [];
+                $dadosFrequencia = $backupCompleto['frequencia'] ?? [];
+                $dadosAvaliacao = $backupCompleto['avaliacao'] ?? [];
+                $dadosBoletim = $backupCompleto['boletim'] ?? [];
+                $dadosBoletimItem = $backupCompleto['boletim_item'] ?? [];
+                $dadosEntrega = $backupCompleto['entrega'] ?? [];
+                $dadosEntregaItem = $backupCompleto['entrega_item'] ?? [];
+                $dadosCardapio = $backupCompleto['cardapio'] ?? [];
+                $dadosCardapioItem = $backupCompleto['cardapio_item'] ?? [];
+                $dadosConsumo = $backupCompleto['consumo_diario'] ?? [];
+                $dadosConsumoItem = $backupCompleto['consumo_item'] ?? [];
+                $dadosAlunos = $backupCompleto['alunos'] ?? [];
+                
+                // Restaurar aluno_turma
+                if (!empty($dadosAlunoTurma) && is_array($dadosAlunoTurma)) {
+                    foreach ($dadosAlunoTurma as $at) {
+                        if (!is_array($at)) continue;
+                        try {
+                            $stmtCheck = $conn->prepare("SELECT id FROM aluno_turma WHERE aluno_id = :aluno_id AND turma_id = :turma_id");
+                            $stmtCheck->bindValue(':aluno_id', $at['aluno_id'] ?? null, PDO::PARAM_INT);
+                            $stmtCheck->bindValue(':turma_id', $at['turma_id'] ?? null, PDO::PARAM_INT);
+                            $stmtCheck->execute();
+                            if (!$stmtCheck->fetch()) {
+                                $sql = "INSERT INTO aluno_turma (aluno_id, turma_id, ano_letivo, situacao, data_matricula, data_saida, observacoes) 
+                                        VALUES (:aluno_id, :turma_id, :ano_letivo, :situacao, :data_matricula, :data_saida, :observacoes)";
+                                $stmt = $conn->prepare($sql);
+                                $stmt->bindValue(':aluno_id', $at['aluno_id'] ?? null, PDO::PARAM_INT);
+                                $stmt->bindValue(':turma_id', $at['turma_id'] ?? null, PDO::PARAM_INT);
+                                $stmt->bindValue(':ano_letivo', $at['ano_letivo'] ?? null);
+                                $stmt->bindValue(':situacao', $at['situacao'] ?? 'MATRICULADO');
+                                $stmt->bindValue(':data_matricula', $at['data_matricula'] ?? null);
+                                $stmt->bindValue(':data_saida', $at['data_saida'] ?? null);
+                                $stmt->bindValue(':observacoes', $at['observacoes'] ?? null);
+                                $stmt->execute();
+                            }
+                        } catch (PDOException $e) {
+                            error_log("Erro ao restaurar aluno_turma: " . $e->getMessage());
+                        }
+                    }
+                }
+                
+                // Restaurar notas
+                if (!empty($dadosNotas) && is_array($dadosNotas)) {
+                    foreach ($dadosNotas as $nota) {
+                        if (!is_array($nota) || !isset($nota['id'])) continue;
+                        try {
+                            $stmtCheck = $conn->prepare("SELECT id FROM nota WHERE id = :id");
+                            $stmtCheck->bindValue(':id', $nota['id'], PDO::PARAM_INT);
+                            $stmtCheck->execute();
+                            if (!$stmtCheck->fetch()) {
+                                $sql = "INSERT INTO nota (id, aluno_id, turma_id, disciplina_id, avaliacao_id, nota, peso, observacoes, criado_em) 
+                                        VALUES (:id, :aluno_id, :turma_id, :disciplina_id, :avaliacao_id, :nota, :peso, :observacoes, :criado_em)";
+                                $stmt = $conn->prepare($sql);
+                                $stmt->bindValue(':id', $nota['id'], PDO::PARAM_INT);
+                                $stmt->bindValue(':aluno_id', $nota['aluno_id'] ?? null, PDO::PARAM_INT);
+                                $stmt->bindValue(':turma_id', $nota['turma_id'] ?? null, PDO::PARAM_INT);
+                                $stmt->bindValue(':disciplina_id', $nota['disciplina_id'] ?? null, PDO::PARAM_INT);
+                                $stmt->bindValue(':avaliacao_id', $nota['avaliacao_id'] ?? null, PDO::PARAM_INT);
+                                $stmt->bindValue(':nota', $nota['nota'] ?? null);
+                                $stmt->bindValue(':peso', $nota['peso'] ?? null);
+                                $stmt->bindValue(':observacoes', $nota['observacoes'] ?? null);
+                                $stmt->bindValue(':criado_em', $nota['criado_em'] ?? date('Y-m-d H:i:s'));
+                                $stmt->execute();
+                            }
+                        } catch (PDOException $e) {
+                            error_log("Erro ao restaurar nota: " . $e->getMessage());
+                        }
+                    }
+                }
+                
+                // Restaurar frequências
+                if (!empty($dadosFrequencia) && is_array($dadosFrequencia)) {
+                    foreach ($dadosFrequencia as $freq) {
+                        if (!is_array($freq) || !isset($freq['id'])) continue;
+                        try {
+                            $stmtCheck = $conn->prepare("SELECT id FROM frequencia WHERE id = :id");
+                            $stmtCheck->bindValue(':id', $freq['id'], PDO::PARAM_INT);
+                            $stmtCheck->execute();
+                            if (!$stmtCheck->fetch()) {
+                                $sql = "INSERT INTO frequencia (id, aluno_id, turma_id, data, presente, justificativa_id, observacoes) 
+                                        VALUES (:id, :aluno_id, :turma_id, :data, :presente, :justificativa_id, :observacoes)";
+                                $stmt = $conn->prepare($sql);
+                                $stmt->bindValue(':id', $freq['id'], PDO::PARAM_INT);
+                                $stmt->bindValue(':aluno_id', $freq['aluno_id'] ?? null, PDO::PARAM_INT);
+                                $stmt->bindValue(':turma_id', $freq['turma_id'] ?? null, PDO::PARAM_INT);
+                                $stmt->bindValue(':data', $freq['data'] ?? null);
+                                $stmt->bindValue(':presente', $freq['presente'] ?? 1, PDO::PARAM_INT);
+                                $stmt->bindValue(':justificativa_id', $freq['justificativa_id'] ?? null, PDO::PARAM_INT);
+                                $stmt->bindValue(':observacoes', $freq['observacoes'] ?? null);
+                                $stmt->execute();
+                            }
+                        } catch (PDOException $e) {
+                            error_log("Erro ao restaurar frequencia: " . $e->getMessage());
+                        }
+                    }
+                }
+                
+                // Restaurar avaliações
+                if (!empty($dadosAvaliacao) && is_array($dadosAvaliacao)) {
+                    foreach ($dadosAvaliacao as $av) {
+                        if (!is_array($av) || !isset($av['id'])) continue;
+                        try {
+                            $stmtCheck = $conn->prepare("SELECT id FROM avaliacao WHERE id = :id");
+                            $stmtCheck->bindValue(':id', $av['id'], PDO::PARAM_INT);
+                            $stmtCheck->execute();
+                            if (!$stmtCheck->fetch()) {
+                                $sql = "INSERT INTO avaliacao (id, turma_id, disciplina_id, tipo, data, descricao, peso, criado_em) 
+                                        VALUES (:id, :turma_id, :disciplina_id, :tipo, :data, :descricao, :peso, :criado_em)";
+                                $stmt = $conn->prepare($sql);
+                                $stmt->bindValue(':id', $av['id'], PDO::PARAM_INT);
+                                $stmt->bindValue(':turma_id', $av['turma_id'] ?? null, PDO::PARAM_INT);
+                                $stmt->bindValue(':disciplina_id', $av['disciplina_id'] ?? null, PDO::PARAM_INT);
+                                $stmt->bindValue(':tipo', $av['tipo'] ?? null);
+                                $stmt->bindValue(':data', $av['data'] ?? null);
+                                $stmt->bindValue(':descricao', $av['descricao'] ?? null);
+                                $stmt->bindValue(':peso', $av['peso'] ?? null);
+                                $stmt->bindValue(':criado_em', $av['criado_em'] ?? date('Y-m-d H:i:s'));
+                                $stmt->execute();
+                            }
+                        } catch (PDOException $e) {
+                            error_log("Erro ao restaurar avaliacao: " . $e->getMessage());
+                        }
+                    }
+                }
+                
+                // Restaurar boletins
+                if (!empty($dadosBoletim) && is_array($dadosBoletim)) {
+                    foreach ($dadosBoletim as $boletim) {
+                        if (!is_array($boletim) || !isset($boletim['id'])) continue;
+                        try {
+                            $stmtCheck = $conn->prepare("SELECT id FROM boletim WHERE id = :id");
+                            $stmtCheck->bindValue(':id', $boletim['id'], PDO::PARAM_INT);
+                            $stmtCheck->execute();
+                            if (!$stmtCheck->fetch()) {
+                                $sql = "INSERT INTO boletim (id, aluno_id, turma_id, ano_letivo, bimestre, media_geral, situacao, observacoes, criado_em) 
+                                        VALUES (:id, :aluno_id, :turma_id, :ano_letivo, :bimestre, :media_geral, :situacao, :observacoes, :criado_em)";
+                                $stmt = $conn->prepare($sql);
+                                $stmt->bindValue(':id', $boletim['id'], PDO::PARAM_INT);
+                                $stmt->bindValue(':aluno_id', $boletim['aluno_id'] ?? null, PDO::PARAM_INT);
+                                $stmt->bindValue(':turma_id', $boletim['turma_id'] ?? null, PDO::PARAM_INT);
+                                $stmt->bindValue(':ano_letivo', $boletim['ano_letivo'] ?? null);
+                                $stmt->bindValue(':bimestre', $boletim['bimestre'] ?? null);
+                                $stmt->bindValue(':media_geral', $boletim['media_geral'] ?? null);
+                                $stmt->bindValue(':situacao', $boletim['situacao'] ?? null);
+                                $stmt->bindValue(':observacoes', $boletim['observacoes'] ?? null);
+                                $stmt->bindValue(':criado_em', $boletim['criado_em'] ?? date('Y-m-d H:i:s'));
+                                $stmt->execute();
+                            }
+                        } catch (PDOException $e) {
+                            error_log("Erro ao restaurar boletim: " . $e->getMessage());
+                        }
+                    }
+                }
+                
+                // Restaurar itens de boletim
+                if (!empty($dadosBoletimItem) && is_array($dadosBoletimItem)) {
+                    foreach ($dadosBoletimItem as $bi) {
+                        if (!is_array($bi) || !isset($bi['id'])) continue;
+                        try {
+                            $stmtCheck = $conn->prepare("SELECT id FROM boletim_item WHERE id = :id");
+                            $stmtCheck->bindValue(':id', $bi['id'], PDO::PARAM_INT);
+                            $stmtCheck->execute();
+                            if (!$stmtCheck->fetch()) {
+                                $sql = "INSERT INTO boletim_item (id, boletim_id, disciplina_id, nota_final, frequencia, situacao) 
+                                        VALUES (:id, :boletim_id, :disciplina_id, :nota_final, :frequencia, :situacao)";
+                                $stmt = $conn->prepare($sql);
+                                $stmt->bindValue(':id', $bi['id'], PDO::PARAM_INT);
+                                $stmt->bindValue(':boletim_id', $bi['boletim_id'] ?? null, PDO::PARAM_INT);
+                                $stmt->bindValue(':disciplina_id', $bi['disciplina_id'] ?? null, PDO::PARAM_INT);
+                                $stmt->bindValue(':nota_final', $bi['nota_final'] ?? null);
+                                $stmt->bindValue(':frequencia', $bi['frequencia'] ?? null);
+                                $stmt->bindValue(':situacao', $bi['situacao'] ?? null);
+                                $stmt->execute();
+                            }
+                        } catch (PDOException $e) {
+                            error_log("Erro ao restaurar boletim_item: " . $e->getMessage());
+                        }
+                    }
+                }
+                
+                // Restaurar entregas
+                if (!empty($dadosEntrega) && is_array($dadosEntrega)) {
+                    foreach ($dadosEntrega as $entrega) {
+                        if (!is_array($entrega) || !isset($entrega['id'])) continue;
+                        try {
+                            $stmtCheck = $conn->prepare("SELECT id FROM entrega WHERE id = :id");
+                            $stmtCheck->bindValue(':id', $entrega['id'], PDO::PARAM_INT);
+                            $stmtCheck->execute();
+                            if (!$stmtCheck->fetch()) {
+                                $sql = "INSERT INTO entrega (id, escola_id, data_entrega, quantidade_total, observacoes, criado_em) 
+                                        VALUES (:id, :escola_id, :data_entrega, :quantidade_total, :observacoes, :criado_em)";
+                                $stmt = $conn->prepare($sql);
+                                $stmt->bindValue(':id', $entrega['id'], PDO::PARAM_INT);
+                                $stmt->bindValue(':escola_id', $entrega['escola_id'] ?? $dadosEscola['id'], PDO::PARAM_INT);
+                                $stmt->bindValue(':data_entrega', $entrega['data_entrega'] ?? null);
+                                $stmt->bindValue(':quantidade_total', $entrega['quantidade_total'] ?? null);
+                                $stmt->bindValue(':observacoes', $entrega['observacoes'] ?? null);
+                                $stmt->bindValue(':criado_em', $entrega['criado_em'] ?? date('Y-m-d H:i:s'));
+                                $stmt->execute();
+                            }
+                        } catch (PDOException $e) {
+                            error_log("Erro ao restaurar entrega: " . $e->getMessage());
+                        }
+                    }
+                }
+                
+                // Restaurar itens de entrega
+                if (!empty($dadosEntregaItem) && is_array($dadosEntregaItem)) {
+                    foreach ($dadosEntregaItem as $ei) {
+                        if (!is_array($ei) || !isset($ei['id'])) continue;
+                        try {
+                            $stmtCheck = $conn->prepare("SELECT id FROM entrega_item WHERE id = :id");
+                            $stmtCheck->bindValue(':id', $ei['id'], PDO::PARAM_INT);
+                            $stmtCheck->execute();
+                            if (!$stmtCheck->fetch()) {
+                                $sql = "INSERT INTO entrega_item (id, entrega_id, item_id, quantidade, observacoes) 
+                                        VALUES (:id, :entrega_id, :item_id, :quantidade, :observacoes)";
+                                $stmt = $conn->prepare($sql);
+                                $stmt->bindValue(':id', $ei['id'], PDO::PARAM_INT);
+                                $stmt->bindValue(':entrega_id', $ei['entrega_id'] ?? null, PDO::PARAM_INT);
+                                $stmt->bindValue(':item_id', $ei['item_id'] ?? null, PDO::PARAM_INT);
+                                $stmt->bindValue(':quantidade', $ei['quantidade'] ?? null);
+                                $stmt->bindValue(':observacoes', $ei['observacoes'] ?? null);
+                                $stmt->execute();
+                            }
+                        } catch (PDOException $e) {
+                            error_log("Erro ao restaurar entrega_item: " . $e->getMessage());
+                        }
+                    }
+                }
+                
+                // Restaurar cardápios
+                if (!empty($dadosCardapio) && is_array($dadosCardapio)) {
+                    foreach ($dadosCardapio as $cardapio) {
+                        if (!is_array($cardapio) || !isset($cardapio['id'])) continue;
+                        try {
+                            $stmtCheck = $conn->prepare("SELECT id FROM cardapio WHERE id = :id");
+                            $stmtCheck->bindValue(':id', $cardapio['id'], PDO::PARAM_INT);
+                            $stmtCheck->execute();
+                            if (!$stmtCheck->fetch()) {
+                                $sql = "INSERT INTO cardapio (id, escola_id, data, tipo_refeicao, observacoes, criado_em) 
+                                        VALUES (:id, :escola_id, :data, :tipo_refeicao, :observacoes, :criado_em)";
+                                $stmt = $conn->prepare($sql);
+                                $stmt->bindValue(':id', $cardapio['id'], PDO::PARAM_INT);
+                                $stmt->bindValue(':escola_id', $cardapio['escola_id'] ?? $dadosEscola['id'], PDO::PARAM_INT);
+                                $stmt->bindValue(':data', $cardapio['data'] ?? null);
+                                $stmt->bindValue(':tipo_refeicao', $cardapio['tipo_refeicao'] ?? null);
+                                $stmt->bindValue(':observacoes', $cardapio['observacoes'] ?? null);
+                                $stmt->bindValue(':criado_em', $cardapio['criado_em'] ?? date('Y-m-d H:i:s'));
+                                $stmt->execute();
+                            }
+                        } catch (PDOException $e) {
+                            error_log("Erro ao restaurar cardapio: " . $e->getMessage());
+                        }
+                    }
+                }
+                
+                // Restaurar itens de cardápio
+                if (!empty($dadosCardapioItem) && is_array($dadosCardapioItem)) {
+                    foreach ($dadosCardapioItem as $ci) {
+                        if (!is_array($ci) || !isset($ci['id'])) continue;
+                        try {
+                            $stmtCheck = $conn->prepare("SELECT id FROM cardapio_item WHERE id = :id");
+                            $stmtCheck->bindValue(':id', $ci['id'], PDO::PARAM_INT);
+                            $stmtCheck->execute();
+                            if (!$stmtCheck->fetch()) {
+                                $sql = "INSERT INTO cardapio_item (id, cardapio_id, alimento_id, quantidade, unidade) 
+                                        VALUES (:id, :cardapio_id, :alimento_id, :quantidade, :unidade)";
+                                $stmt = $conn->prepare($sql);
+                                $stmt->bindValue(':id', $ci['id'], PDO::PARAM_INT);
+                                $stmt->bindValue(':cardapio_id', $ci['cardapio_id'] ?? null, PDO::PARAM_INT);
+                                $stmt->bindValue(':alimento_id', $ci['alimento_id'] ?? null, PDO::PARAM_INT);
+                                $stmt->bindValue(':quantidade', $ci['quantidade'] ?? null);
+                                $stmt->bindValue(':unidade', $ci['unidade'] ?? null);
+                                $stmt->execute();
+                            }
+                        } catch (PDOException $e) {
+                            error_log("Erro ao restaurar cardapio_item: " . $e->getMessage());
+                        }
+                    }
+                }
+                
+                // Restaurar consumo diário
+                if (!empty($dadosConsumo) && is_array($dadosConsumo)) {
+                    foreach ($dadosConsumo as $consumo) {
+                        if (!is_array($consumo) || !isset($consumo['id'])) continue;
+                        try {
+                            $stmtCheck = $conn->prepare("SELECT id FROM consumo_diario WHERE id = :id");
+                            $stmtCheck->bindValue(':id', $consumo['id'], PDO::PARAM_INT);
+                            $stmtCheck->execute();
+                            if (!$stmtCheck->fetch()) {
+                                $sql = "INSERT INTO consumo_diario (id, escola_id, turma_id, data, tipo_refeicao, quantidade_alunos, observacoes) 
+                                        VALUES (:id, :escola_id, :turma_id, :data, :tipo_refeicao, :quantidade_alunos, :observacoes)";
+                                $stmt = $conn->prepare($sql);
+                                $stmt->bindValue(':id', $consumo['id'], PDO::PARAM_INT);
+                                $stmt->bindValue(':escola_id', $consumo['escola_id'] ?? $dadosEscola['id'], PDO::PARAM_INT);
+                                $stmt->bindValue(':turma_id', $consumo['turma_id'] ?? null, PDO::PARAM_INT);
+                                $stmt->bindValue(':data', $consumo['data'] ?? null);
+                                $stmt->bindValue(':tipo_refeicao', $consumo['tipo_refeicao'] ?? null);
+                                $stmt->bindValue(':quantidade_alunos', $consumo['quantidade_alunos'] ?? null);
+                                $stmt->bindValue(':observacoes', $consumo['observacoes'] ?? null);
+                                $stmt->execute();
+                            }
+                        } catch (PDOException $e) {
+                            error_log("Erro ao restaurar consumo_diario: " . $e->getMessage());
+                        }
+                    }
+                }
+                
+                // Restaurar itens de consumo
+                if (!empty($dadosConsumoItem) && is_array($dadosConsumoItem)) {
+                    foreach ($dadosConsumoItem as $cItem) {
+                        if (!is_array($cItem) || !isset($cItem['id'])) continue;
+                        try {
+                            $stmtCheck = $conn->prepare("SELECT id FROM consumo_item WHERE id = :id");
+                            $stmtCheck->bindValue(':id', $cItem['id'], PDO::PARAM_INT);
+                            $stmtCheck->execute();
+                            if (!$stmtCheck->fetch()) {
+                                $sql = "INSERT INTO consumo_item (id, consumo_diario_id, alimento_id, quantidade, unidade) 
+                                        VALUES (:id, :consumo_diario_id, :alimento_id, :quantidade, :unidade)";
+                                $stmt = $conn->prepare($sql);
+                                $stmt->bindValue(':id', $cItem['id'], PDO::PARAM_INT);
+                                $stmt->bindValue(':consumo_diario_id', $cItem['consumo_diario_id'] ?? null, PDO::PARAM_INT);
+                                $stmt->bindValue(':alimento_id', $cItem['alimento_id'] ?? null, PDO::PARAM_INT);
+                                $stmt->bindValue(':quantidade', $cItem['quantidade'] ?? null);
+                                $stmt->bindValue(':unidade', $cItem['unidade'] ?? null);
+                                $stmt->execute();
+                            }
+                        } catch (PDOException $e) {
+                            error_log("Erro ao restaurar consumo_item: " . $e->getMessage());
+                        }
+                    }
+                }
+                
+                // Atualizar alunos para vincular à escola novamente
+                if (!empty($dadosAlunos) && is_array($dadosAlunos)) {
+                    foreach ($dadosAlunos as $aluno) {
+                        if (!is_array($aluno) || !isset($aluno['id'])) continue;
+                        try {
+                            $stmt = $conn->prepare("UPDATE aluno SET escola_id = :escola_id WHERE id = :id");
+                            $stmt->bindValue(':escola_id', $dadosEscola['id'], PDO::PARAM_INT);
+                            $stmt->bindValue(':id', $aluno['id'], PDO::PARAM_INT);
+                            $stmt->execute();
+                        } catch (PDOException $e) {
+                            error_log("Erro ao restaurar escola_id do aluno: " . $e->getMessage());
+                        }
+                    }
+                }
+                
                 // Marcar backup como revertido
                 $usuarioId = $_SESSION['usuario_id'] ?? null;
                 $stmtUpdate = $conn->prepare("UPDATE escola_backup SET revertido = 1, revertido_em = NOW(), revertido_por = :usuario_id WHERE id = :id");
@@ -243,7 +606,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao'])) {
                 $stmtUpdate->execute();
                 
                 $conn->commit();
-                $mensagem = 'Exclusão revertida com sucesso! A escola foi restaurada.';
+                $mensagem = 'Exclusão revertida com sucesso! Todos os dados da escola foram restaurados.';
                 $tipoMensagem = 'success';
             } catch (PDOException $e) {
                 $conn->rollBack();

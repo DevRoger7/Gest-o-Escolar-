@@ -1138,7 +1138,7 @@ $gestores = listarGestores();
                                 if ($_SESSION['tipo'] === 'ADM') {
                                     echo 'Secretaria Municipal da Educação';
                                 } else {
-                                    echo $_SESSION['escola_atual'] ?? 'Escola Municipal';
+                                    echo !empty($_SESSION['escola_atual']) ? htmlspecialchars($_SESSION['escola_atual']) : 'N/A';
                                 }
                                 ?>
                             </p>
