@@ -13,6 +13,7 @@ try {
     require_once('../../config/Database.php');
     require_once('../../config/system_helper.php');
     require_once('../../Models/academico/AlunoModel.php');
+    require_once('../../Models/pessoas/ResponsavelModel.php');
 
     $session = new sessions();
     $session->autenticar_session();
@@ -42,6 +43,7 @@ try {
     $db = Database::getInstance();
     $conn = $db->getConnection();
     $alunoModel = new AlunoModel();
+    $responsavelModel = new ResponsavelModel();
 
     // Buscar escolas
     $sqlEscolas = "SELECT id, nome FROM escola WHERE ativo = 1 ORDER BY nome ASC";
@@ -163,10 +165,86 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao'])) {
             $result = $alunoModel->criar($dados);
             
             if ($result['success']) {
+                $alunoId = $result['id'] ?? null;
+                $mensagem = 'Aluno cadastrado com sucesso!';
+                
+                // Verificar se deve criar responsável
+                $criarResponsavel = isset($_POST['criar_responsavel']) && $_POST['criar_responsavel'] === '1';
+                
+                if ($criarResponsavel && $alunoId) {
+                    // Preparar dados do responsável
+                    $responsavelCpf = preg_replace('/[^0-9]/', '', $_POST['responsavel_cpf'] ?? '');
+                    $responsavelTelefone = preg_replace('/[^0-9]/', '', $_POST['responsavel_telefone'] ?? '');
+                    $responsavelEmail = !empty($_POST['responsavel_email']) ? trim($_POST['responsavel_email']) : '';
+                    
+                    // Validar dados do responsável
+                    if (empty($responsavelCpf) || strlen($responsavelCpf) !== 11) {
+                        throw new Exception('CPF do responsável inválido. Deve conter 11 dígitos.');
+                    }
+                    
+                    if (empty($_POST['responsavel_nome'])) {
+                        throw new Exception('Nome do responsável é obrigatório.');
+                    }
+                    
+                    if (empty($_POST['responsavel_senha']) || strlen($_POST['responsavel_senha']) < 6) {
+                        throw new Exception('Senha do responsável é obrigatória e deve ter no mínimo 6 caracteres.');
+                    }
+                    
+                    if (empty($_POST['responsavel_parentesco'])) {
+                        throw new Exception('Parentesco é obrigatório.');
+                    }
+                    
+                    // Verificar se CPF do responsável já existe
+                    $sqlVerificarCPFResp = "SELECT id FROM pessoa WHERE cpf = :cpf";
+                    $stmtVerificarResp = $conn->prepare($sqlVerificarCPFResp);
+                    $stmtVerificarResp->bindParam(':cpf', $responsavelCpf);
+                    $stmtVerificarResp->execute();
+                    if ($stmtVerificarResp->fetch()) {
+                        throw new Exception('CPF do responsável já cadastrado no sistema.');
+                    }
+                    
+                    if (!empty($responsavelEmail)) {
+                        $sqlVerificarEmailResp = "SELECT id FROM pessoa WHERE email = :email LIMIT 1";
+                        $stmtVerificarEmailResp = $conn->prepare($sqlVerificarEmailResp);
+                        $stmtVerificarEmailResp->bindParam(':email', $responsavelEmail);
+                        $stmtVerificarEmailResp->execute();
+                        if ($stmtVerificarEmailResp->fetch()) {
+                            throw new Exception('Email do responsável já cadastrado no sistema.');
+                        }
+                    }
+                    
+                    // Criar responsável
+                    $dadosResponsavel = [
+                        'nome' => trim($_POST['responsavel_nome'] ?? ''),
+                        'cpf' => $responsavelCpf,
+                        'data_nascimento' => !empty($_POST['responsavel_data_nascimento']) ? $_POST['responsavel_data_nascimento'] : null,
+                        'sexo' => $_POST['responsavel_sexo'] ?? null,
+                        'email' => !empty($responsavelEmail) ? $responsavelEmail : null,
+                        'telefone' => !empty($responsavelTelefone) ? $responsavelTelefone : null,
+                        'senha' => $_POST['responsavel_senha'] ?? ''
+                    ];
+                    
+                    $resultadoResponsavel = $responsavelModel->criar($dadosResponsavel);
+                    
+                    if ($resultadoResponsavel['success']) {
+                        // Associar responsável ao aluno
+                        $parentesco = $_POST['responsavel_parentesco'] ?? 'OUTRO';
+                        $associacao = $responsavelModel->associarAlunos($resultadoResponsavel['pessoa_id'], [$alunoId], $parentesco);
+                        
+                        if ($associacao['success']) {
+                            $mensagem .= ' Responsável cadastrado e associado com sucesso!';
+                        } else {
+                            $mensagem .= ' Responsável cadastrado, mas houve erro ao associar: ' . ($associacao['message'] ?? 'Erro desconhecido');
+                        }
+                    } else {
+                        throw new Exception('Aluno cadastrado, mas erro ao criar responsável: ' . ($resultadoResponsavel['message'] ?? 'Erro desconhecido'));
+                    }
+                }
+                
                 echo json_encode([
                     'success' => true,
-                    'message' => 'Aluno cadastrado com sucesso!',
-                    'id' => $result['id'] ?? null,
+                    'message' => $mensagem,
+                    'id' => $alunoId,
                     'matricula' => $matricula
                 ]);
             } else {
@@ -478,6 +556,13 @@ if (ob_get_level()) {
             transform: translateX(4px);
         }
         .mobile-menu-overlay { transition: opacity 0.3s ease-in-out; }
+        .etapa-conteudo {
+            animation: fadeIn 0.3s ease-in;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
         @media (max-width: 1023px) {
             .sidebar-mobile { transform: translateX(-100%); }
             .sidebar-mobile.open { transform: translateX(0); }
@@ -760,7 +845,21 @@ if (ob_get_level()) {
         <div class="bg-white w-full h-full flex flex-col shadow-2xl">
             <!-- Header do Modal -->
             <div class="flex justify-between items-center p-6 border-b border-gray-200 bg-white sticky top-0 z-10">
-                <h2 class="text-2xl font-bold text-gray-900">Cadastrar Novo Aluno</h2>
+                <div>
+                    <h2 class="text-2xl font-bold text-gray-900">Cadastrar Novo Aluno</h2>
+                    <!-- Indicador de Etapas -->
+                    <div class="flex items-center space-x-4 mt-4">
+                        <div class="flex items-center">
+                            <div id="step-indicator-1" class="w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center font-semibold">1</div>
+                            <span class="ml-2 text-sm font-medium text-gray-700">Dados do Aluno</span>
+                        </div>
+                        <div class="w-12 h-0.5 bg-gray-300"></div>
+                        <div class="flex items-center">
+                            <div id="step-indicator-2" class="w-8 h-8 rounded-full bg-gray-300 text-gray-600 flex items-center justify-center font-semibold">2</div>
+                            <span class="ml-2 text-sm font-medium text-gray-500">Responsável (Opcional)</span>
+                        </div>
+                    </div>
+                </div>
                 <button onclick="fecharModalNovoAluno()" class="text-gray-400 hover:text-gray-600 transition-colors p-2 hover:bg-gray-100 rounded-lg">
                     <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
@@ -773,6 +872,9 @@ if (ob_get_level()) {
                 <form id="formNovoAluno" class="space-y-6 max-w-6xl mx-auto">
                 <div id="alertaErro" class="hidden bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-lg"></div>
                 <div id="alertaSucesso" class="hidden bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded-lg"></div>
+                
+                <!-- ETAPA 1: Dados do Aluno -->
+                <div id="etapa-aluno" class="etapa-conteudo">
                 
                 <!-- Informações Pessoais -->
                 <div>
@@ -865,24 +967,115 @@ if (ob_get_level()) {
                         </div>
                     </div>
                 </div>
+                </div>
+                
+                <!-- ETAPA 2: Dados do Responsável (Opcional) -->
+                <div id="etapa-responsavel" class="etapa-conteudo hidden">
+                    <div class="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                        <p class="text-sm text-blue-800">
+                            <strong>Opcional:</strong> Você pode cadastrar um responsável para este aluno agora. Se preferir, pode fazer isso depois.
+                        </p>
+                    </div>
+                    
+                    <!-- Dados Pessoais do Responsável -->
+                    <div>
+                        <h3 class="text-lg font-semibold text-gray-800 mb-4 pb-2 border-b border-gray-200">Dados Pessoais do Responsável</h3>
+                        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Nome Completo</label>
+                                <input type="text" name="responsavel_nome" id="responsavel_nome"
+                                       class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">CPF</label>
+                                <input type="text" name="responsavel_cpf" id="responsavel_cpf" maxlength="14"
+                                       placeholder="000.000.000-00"
+                                       class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                       oninput="formatarCPF(this)">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Data de Nascimento</label>
+                                <input type="date" name="responsavel_data_nascimento" id="responsavel_data_nascimento" max="<?= date('Y-m-d') ?>"
+                                       class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Sexo</label>
+                                <select name="responsavel_sexo" id="responsavel_sexo"
+                                        class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                                    <option value="">Selecione...</option>
+                                    <option value="M">Masculino</option>
+                                    <option value="F">Feminino</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">E-mail</label>
+                                <input type="email" name="responsavel_email" id="responsavel_email"
+                                       class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Telefone</label>
+                                <input type="text" name="responsavel_telefone" id="responsavel_telefone" maxlength="15"
+                                       placeholder="(00) 00000-0000"
+                                       class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                       oninput="formatarTelefone(this)">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Acesso ao Sistema -->
+                    <div>
+                        <h3 class="text-lg font-semibold text-gray-800 mb-4 pb-2 border-b border-gray-200">Acesso ao Sistema</h3>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Senha</label>
+                                <input type="password" name="responsavel_senha" id="responsavel_senha" minlength="6"
+                                       class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                       placeholder="Mínimo 6 caracteres">
+                                <p class="text-xs text-gray-500 mt-1">A senha deve ter no mínimo 6 caracteres</p>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Parentesco</label>
+                                <select name="responsavel_parentesco" id="responsavel_parentesco"
+                                        class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                                    <option value="">Selecione...</option>
+                                    <option value="PAI">Pai</option>
+                                    <option value="MAE">Mãe</option>
+                                    <option value="AVO">Avô/Avó</option>
+                                    <option value="TIO">Tio/Tia</option>
+                                    <option value="OUTRO">Outro</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                </div>
                 
                 </form>
             </div>
             
             <!-- Footer do Modal (Sticky) -->
-            <div class="flex justify-end space-x-3 p-6 border-t border-gray-200 bg-white sticky bottom-0 z-10">
+            <div class="flex justify-between items-center p-6 border-t border-gray-200 bg-white sticky bottom-0 z-10">
                 <button type="button" onclick="fecharModalNovoAluno()" 
                         class="px-6 py-3 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg font-medium transition-colors duration-200">
                     Cancelar
                 </button>
-                <button type="submit" form="formNovoAluno" id="btnSalvarAluno"
-                        class="px-6 py-3 text-white bg-blue-600 hover:bg-blue-700 rounded-lg font-medium transition-colors duration-200 flex items-center space-x-2">
-                    <span>Salvar Aluno</span>
-                    <svg id="spinnerSalvar" class="hidden animate-spin h-5 w-5 text-white" fill="none" viewBox="0 0 24 24">
-                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                    </svg>
-                </button>
+                <div class="flex space-x-3">
+                    <button type="button" id="btnVoltarEtapa" onclick="voltarEtapa()" 
+                            class="hidden px-6 py-3 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg font-medium transition-colors duration-200">
+                        Voltar
+                    </button>
+                    <button type="button" id="btnAvancarEtapa" onclick="avancarEtapa()" 
+                            class="px-6 py-3 text-white bg-blue-600 hover:bg-blue-700 rounded-lg font-medium transition-colors duration-200">
+                        Avançar
+                    </button>
+                    <button type="submit" form="formNovoAluno" id="btnSalvarAluno"
+                            class="hidden px-6 py-3 text-white bg-blue-600 hover:bg-blue-700 rounded-lg font-medium transition-colors duration-200 flex items-center space-x-2">
+                        <span>Salvar Aluno</span>
+                        <svg id="spinnerSalvar" class="hidden animate-spin h-5 w-5 text-white" fill="none" viewBox="0 0 24 24">
+                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                    </button>
+                </div>
             </div>
         </div>
     </div>
@@ -942,11 +1135,17 @@ if (ob_get_level()) {
             window.location.href = '../auth/logout.php';
         };
 
+        let etapaAtual = 1;
+        const totalEtapas = 2;
+
         function abrirModalNovoAluno() {
             const modal = document.getElementById('modalNovoAluno');
             if (modal) {
                 modal.style.display = 'flex';
                 modal.classList.remove('hidden');
+                // Resetar para primeira etapa
+                etapaAtual = 1;
+                atualizarNavegacaoEtapas();
                 // Gerar matrícula automática
                 gerarMatriculaAutomatica();
                 // Limpar formulário
@@ -958,11 +1157,67 @@ if (ob_get_level()) {
             }
         }
         
+        function atualizarNavegacaoEtapas() {
+            const etapaAluno = document.getElementById('etapa-aluno');
+            const etapaResponsavel = document.getElementById('etapa-responsavel');
+            const btnVoltar = document.getElementById('btnVoltarEtapa');
+            const btnAvancar = document.getElementById('btnAvancarEtapa');
+            const btnSalvar = document.getElementById('btnSalvarAluno');
+            const stepIndicator1 = document.getElementById('step-indicator-1');
+            const stepIndicator2 = document.getElementById('step-indicator-2');
+            
+            if (etapaAtual === 1) {
+                etapaAluno.classList.remove('hidden');
+                etapaResponsavel.classList.add('hidden');
+                btnVoltar.classList.add('hidden');
+                btnAvancar.classList.remove('hidden');
+                btnSalvar.classList.add('hidden');
+                stepIndicator1.classList.remove('bg-gray-300', 'text-gray-600');
+                stepIndicator1.classList.add('bg-blue-600', 'text-white');
+                stepIndicator2.classList.remove('bg-blue-600', 'text-white');
+                stepIndicator2.classList.add('bg-gray-300', 'text-gray-600');
+            } else if (etapaAtual === 2) {
+                etapaAluno.classList.add('hidden');
+                etapaResponsavel.classList.remove('hidden');
+                btnVoltar.classList.remove('hidden');
+                btnAvancar.classList.add('hidden');
+                btnSalvar.classList.remove('hidden');
+                stepIndicator1.classList.remove('bg-blue-600', 'text-white');
+                stepIndicator1.classList.add('bg-green-500', 'text-white');
+                stepIndicator2.classList.remove('bg-gray-300', 'text-gray-600');
+                stepIndicator2.classList.add('bg-blue-600', 'text-white');
+            }
+        }
+        
+        function avancarEtapa() {
+            // Validar campos obrigatórios da etapa 1
+            const nome = document.getElementById('nome').value.trim();
+            const cpf = document.getElementById('cpf').value.replace(/\D/g, '');
+            const dataNascimento = document.getElementById('data_nascimento').value;
+            const sexo = document.getElementById('sexo').value;
+            
+            if (!nome || !cpf || cpf.length !== 11 || !dataNascimento || !sexo) {
+                alert('Por favor, preencha todos os campos obrigatórios do aluno (Nome, CPF, Data de Nascimento e Sexo).');
+                return;
+            }
+            
+            etapaAtual = 2;
+            atualizarNavegacaoEtapas();
+        }
+        
+        function voltarEtapa() {
+            etapaAtual = 1;
+            atualizarNavegacaoEtapas();
+        }
+        
         function fecharModalNovoAluno() {
             const modal = document.getElementById('modalNovoAluno');
             if (modal) {
                 modal.style.display = 'none';
                 modal.classList.add('hidden');
+                // Resetar para primeira etapa
+                etapaAtual = 1;
+                atualizarNavegacaoEtapas();
             }
         }
         
@@ -1019,6 +1274,21 @@ if (ob_get_level()) {
                 return;
             }
             
+            // Verificar se há dados do responsável preenchidos
+            const responsavelNome = document.getElementById('responsavel_nome').value.trim();
+            const responsavelCpf = document.getElementById('responsavel_cpf').value.replace(/\D/g, '');
+            const responsavelSenha = document.getElementById('responsavel_senha').value;
+            const responsavelParentesco = document.getElementById('responsavel_parentesco').value;
+            
+            let criarResponsavel = false;
+            if (responsavelNome && responsavelCpf && responsavelCpf.length === 11 && responsavelSenha && responsavelSenha.length >= 6 && responsavelParentesco) {
+                criarResponsavel = true;
+            } else if (responsavelNome || responsavelCpf || responsavelSenha || responsavelParentesco) {
+                // Se algum campo foi preenchido mas não todos obrigatórios
+                alert('Para cadastrar o responsável, é necessário preencher: Nome, CPF, Senha (mínimo 6 caracteres) e Parentesco.');
+                return;
+            }
+            
             // Mostrar loading
             btnSalvar.disabled = true;
             spinner.classList.remove('hidden');
@@ -1028,6 +1298,7 @@ if (ob_get_level()) {
             // Coletar dados do formulário
             const formData = new FormData(this);
             formData.append('acao', 'cadastrar_aluno');
+            formData.append('criar_responsavel', criarResponsavel ? '1' : '0');
             
             try {
                 const response = await fetch('', {
@@ -1038,8 +1309,12 @@ if (ob_get_level()) {
                 const data = await response.json();
                 
                 if (data.success) {
-                    alertaSucesso.textContent = 'Aluno cadastrado com sucesso!';
+                    alertaSucesso.textContent = data.message || 'Aluno cadastrado com sucesso!';
                     alertaSucesso.classList.remove('hidden');
+                    
+                    // Resetar para primeira etapa
+                    etapaAtual = 1;
+                    atualizarNavegacaoEtapas();
                     
                     // Limpar formulário
                     this.reset();
