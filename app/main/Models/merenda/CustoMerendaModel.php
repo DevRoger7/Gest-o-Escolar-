@@ -112,49 +112,52 @@ class CustoMerendaModel {
         $params = [];
         
         if (!empty($filtros['escola_id'])) {
-            // Se filtrar por escola, mostra custos daquela escola OU compras centralizadas
             $sql .= " AND (c.escola_id = :escola_id OR c.escola_id IS NULL)";
-            $params[':escola_id'] = $filtros['escola_id'];
+            $params[':escola_id'] = (int)$filtros['escola_id'];
         }
-        
+
         if (!empty($filtros['tipo'])) {
             $sql .= " AND c.tipo = :tipo";
             $params[':tipo'] = $filtros['tipo'];
         }
-        
-        // Preferir filtro por intervalo de data quando mes/ano são informados,
-        // pois registros antigos podem ter mes NULL, mas data sempre existe.
+
+        // >>> Unified date range handling (avoids overlapping placeholders and ensures consistent behavior)
+        $rangeInicio = null;
+        $rangeFim = null;
+
         if (!empty($filtros['mes']) && !empty($filtros['ano'])) {
-            $inicio = date('Y-m-01', strtotime(sprintf('%04d-%02d-01', (int)$filtros['ano'], (int)$filtros['mes'])));
-            $fim = date('Y-m-t', strtotime($inicio));
-            $sql .= " AND c.data BETWEEN :data_inicio AND :data_fim";
-            $params[':data_inicio'] = $inicio;
-            $params[':data_fim'] = $fim;
+            $rangeInicio = date('Y-m-01', strtotime(sprintf('%04d-%02d-01', (int)$filtros['ano'], (int)$filtros['mes'])));
+            $rangeFim = date('Y-m-t', strtotime($rangeInicio));
         } elseif (!empty($filtros['ano'])) {
-            $inicio = sprintf('%04d-01-01', (int)$filtros['ano']);
-            $fim = sprintf('%04d-12-31', (int)$filtros['ano']);
-            $sql .= " AND c.data BETWEEN :data_inicio AND :data_fim";
-            $params[':data_inicio'] = $inicio;
-            $params[':data_fim'] = $fim;
+            $rangeInicio = sprintf('%04d-01-01', (int)$filtros['ano']);
+            $rangeFim = sprintf('%04d-12-31', (int)$filtros['ano']);
+        } elseif (!empty($filtros['data_inicio']) || !empty($filtros['data_fim'])) {
+            // Fixed lower-bound to a valid MySQL DATE minimum
+            $rangeInicio = !empty($filtros['data_inicio']) ? $filtros['data_inicio'] : '1000-01-01';
+            $rangeFim = !empty($filtros['data_fim']) ? $filtros['data_fim'] : '9999-12-31';
         }
-        
-        if (!empty($filtros['data_inicio'])) {
-            $sql .= " AND c.data >= :data_inicio";
-            $params[':data_inicio'] = $filtros['data_inicio'];
+
+        if ($rangeInicio !== null && $rangeFim !== null) {
+            // Use backticks around column name to avoid reserved word issues
+            $sql .= " AND c.`data` BETWEEN :range_inicio AND :range_fim";
+            $params[':range_inicio'] = $rangeInicio;
+            $params[':range_fim'] = $rangeFim;
         }
-        
-        if (!empty($filtros['data_fim'])) {
-            $sql .= " AND c.data <= :data_fim";
-            $params[':data_fim'] = $filtros['data_fim'];
-        }
-        
+
         $sql .= " ORDER BY c.data DESC, c.registrado_em DESC";
-        
+
         $stmt = $conn->prepare($sql);
         foreach ($params as $key => $value) {
-            $stmt->bindValue($key, $value);
+            // Explicit parameter typing
+            if ($value === null) {
+                $stmt->bindValue($key, null, PDO::PARAM_NULL);
+            } elseif (is_int($value)) {
+                $stmt->bindValue($key, $value, PDO::PARAM_INT);
+            } else {
+                $stmt->bindValue($key, (string)$value, PDO::PARAM_STR);
+            }
         }
-        
+
         $stmt->execute();
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
@@ -175,31 +178,43 @@ class CustoMerendaModel {
         $params = [];
         
         if ($escolaId) {
-            $sql .= " AND escola_id = :escola_id";
-            $params[':escola_id'] = $escolaId;
+            $sql .= " AND (escola_id = :escola_id OR escola_id IS NULL)";
+            $params[':escola_id'] = (int)$escolaId;
         }
-        
+
+        // >>> Unified date range handling (same as in listar)
+        $rangeInicio = null;
+        $rangeFim = null;
+
         if ($mes && $ano) {
-            $inicio = date('Y-m-01', strtotime(sprintf('%04d-%02d-01', (int)$ano, (int)$mes)));
-            $fim = date('Y-m-t', strtotime($inicio));
-            $sql .= " AND data BETWEEN :data_inicio AND :data_fim";
-            $params[':data_inicio'] = $inicio;
-            $params[':data_fim'] = $fim;
+            $rangeInicio = date('Y-m-01', strtotime(sprintf('%04d-%02d-01', (int)$ano, (int)$mes)));
+            $rangeFim = date('Y-m-t', strtotime($rangeInicio));
         } elseif ($ano) {
-            $inicio = sprintf('%04d-01-01', (int)$ano);
-            $fim = sprintf('%04d-12-31', (int)$ano);
-            $sql .= " AND data BETWEEN :data_inicio AND :data_fim";
-            $params[':data_inicio'] = $inicio;
-            $params[':data_fim'] = $fim;
+            $rangeInicio = sprintf('%04d-01-01', (int)$ano);
+            $rangeFim = sprintf('%04d-12-31', (int)$ano);
         }
-        
+
+        if ($rangeInicio !== null && $rangeFim !== null) {
+            // Use backticks around column name to avoid reserved word issues
+            $sql .= " AND `data` BETWEEN :range_inicio AND :range_fim";
+            $params[':range_inicio'] = $rangeInicio;
+            $params[':range_fim'] = $rangeFim;
+        }
+
         $sql .= " GROUP BY tipo";
-        
+
         $stmt = $conn->prepare($sql);
         foreach ($params as $key => $value) {
-            $stmt->bindValue($key, $value);
+            // Explicit parameter typing
+            if ($value === null) {
+                $stmt->bindValue($key, null, PDO::PARAM_NULL);
+            } elseif (is_int($value)) {
+                $stmt->bindValue($key, $value, PDO::PARAM_INT);
+            } else {
+                $stmt->bindValue($key, (string)$value, PDO::PARAM_STR);
+            }
         }
-        
+
         $stmt->execute();
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }

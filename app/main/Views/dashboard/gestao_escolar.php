@@ -40,6 +40,8 @@ $escolaGestorId = null;
 // Log inicial
 error_log("DEBUG GESTOR INICIAL - Tipo: " . ($_SESSION['tipo'] ?? 'NULL') . ", usuario_id: " . ($_SESSION['usuario_id'] ?? 'NULL'));
 
+// ... existing code (requires, session, $conn, etc.) ...
+
 if (isset($_SESSION['tipo']) && strtoupper($_SESSION['tipo']) === 'GESTAO') {
     $usuarioId = $_SESSION['usuario_id'] ?? null;
     error_log("DEBUG GESTOR - usuario_id: " . ($usuarioId ?? 'NULL'));
@@ -413,15 +415,34 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 }
                 
                 // 1. Criar pessoa
-                $nome = $_POST['nome'] ?? '';
+                $nome = trim($_POST['nome'] ?? '');
                 $dataNascimento = !empty($_POST['data_nascimento']) ? $_POST['data_nascimento'] : null;
                 $sexo = !empty($_POST['sexo']) ? $_POST['sexo'] : null;
-                $email = !empty($_POST['email']) ? $_POST['email'] : null;
-                $telefone = !empty($_POST['telefone']) ? $_POST['telefone'] : null;
+                $email = !empty($_POST['email']) ? trim($_POST['email']) : null;
+                $telefone = !empty($_POST['telefone']) ? trim($_POST['telefone']) : null;
+                $whatsapp = !empty($_POST['whatsapp']) ? trim($_POST['whatsapp']) : null;
+                $telefoneSecundario = !empty($_POST['telefone_secundario']) ? trim($_POST['telefone_secundario']) : null;
+                $endereco = !empty($_POST['endereco']) ? trim($_POST['endereco']) : null;
+                $numero = !empty($_POST['numero']) ? trim($_POST['numero']) : null;
+                $complemento = !empty($_POST['complemento']) ? trim($_POST['complemento']) : null;
+                $bairro = !empty($_POST['bairro']) ? trim($_POST['bairro']) : null;
+                $cidade = !empty($_POST['cidade']) ? trim($_POST['cidade']) : null;
+                $estado = !empty($_POST['estado']) ? trim($_POST['estado']) : null;
+                $cep = !empty($_POST['cep']) ? trim($_POST['cep']) : null;
+                $nomeSocial = !empty($_POST['nome_social']) ? trim($_POST['nome_social']) : null;
+                $raca = !empty($_POST['raca']) ? trim($_POST['raca']) : null;
                 $criadoPor = $_SESSION['usuario_id'];
                 
-                $sqlPessoa = "INSERT INTO pessoa (cpf, nome, data_nascimento, sexo, email, telefone, tipo, criado_por)
-                             VALUES (:cpf, :nome, :data_nascimento, :sexo, :email, :telefone, 'PROFESSOR', :criado_por)";
+                $sqlPessoa = "INSERT INTO pessoa (
+                                cpf, nome, data_nascimento, sexo, email, telefone, whatsapp, telefone_secundario,
+                                endereco, numero, complemento, bairro, cidade, estado, cep,
+                                tipo, criado_por, nome_social, raca
+                              )
+                              VALUES (
+                                :cpf, :nome, :data_nascimento, :sexo, :email, :telefone, :whatsapp, :telefone_secundario,
+                                :endereco, :numero, :complemento, :bairro, :cidade, :estado, :cep,
+                                'PROFESSOR', :criado_por, :nome_social, :raca
+                              )";
                 $stmtPessoa = $conn->prepare($sqlPessoa);
                 $stmtPessoa->bindParam(':cpf', $cpfLimpo);
                 $stmtPessoa->bindParam(':nome', $nome);
@@ -429,7 +450,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $stmtPessoa->bindParam(':sexo', $sexo);
                 $stmtPessoa->bindParam(':email', $email);
                 $stmtPessoa->bindParam(':telefone', $telefone);
+                $stmtPessoa->bindParam(':whatsapp', $whatsapp);
+                $stmtPessoa->bindParam(':telefone_secundario', $telefoneSecundario);
+                $stmtPessoa->bindParam(':endereco', $endereco);
+                $stmtPessoa->bindParam(':numero', $numero);
+                $stmtPessoa->bindParam(':complemento', $complemento);
+                $stmtPessoa->bindParam(':bairro', $bairro);
+                $stmtPessoa->bindParam(':cidade', $cidade);
+                $stmtPessoa->bindParam(':estado', $estado);
+                $stmtPessoa->bindParam(':cep', $cep);
                 $stmtPessoa->bindParam(':criado_por', $criadoPor);
+                $stmtPessoa->bindParam(':nome_social', $nomeSocial);
+                $stmtPessoa->bindParam(':raca', $raca);
                 $stmtPessoa->execute();
                 $pessoaId = $conn->lastInsertId();
                 
@@ -603,11 +635,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         case 'cadastrar_funcionario':
             $resultado = $funcionarioModel->criar([
                 'cpf' => $_POST['cpf'] ?? '',
-                'nome' => $_POST['nome'] ?? '',
+                'nome' => trim($_POST['nome'] ?? ''),
                 'data_nascimento' => $_POST['data_nascimento'] ?: null,
                 'sexo' => $_POST['sexo'] ?: null,
-                'email' => $_POST['email'] ?: null,
-                'telefone' => $_POST['telefone'] ?: null,
+                'email' => !empty($_POST['email']) ? trim($_POST['email']) : null,
+                'telefone' => !empty($_POST['telefone']) ? trim($_POST['telefone']) : null,
+                'whatsapp' => !empty($_POST['whatsapp']) ? trim($_POST['whatsapp']) : null,
+                'telefone_secundario' => !empty($_POST['telefone_secundario']) ? trim($_POST['telefone_secundario']) : null,
+                'endereco' => !empty($_POST['endereco']) ? trim($_POST['endereco']) : null,
+                'numero' => !empty($_POST['numero']) ? trim($_POST['numero']) : null,
+                'complemento' => !empty($_POST['complemento']) ? trim($_POST['complemento']) : null,
+                'bairro' => !empty($_POST['bairro']) ? trim($_POST['bairro']) : null,
+                'cidade' => !empty($_POST['cidade']) ? trim($_POST['cidade']) : null,
+                'estado' => !empty($_POST['estado']) ? trim($_POST['estado']) : null,
+                'cep' => !empty($_POST['cep']) ? trim($_POST['cep']) : null,
+                'nome_social' => !empty($_POST['nome_social']) ? trim($_POST['nome_social']) : null,
+                'raca' => !empty($_POST['raca']) ? trim($_POST['raca']) : null,
                 'matricula' => $_POST['matricula'] ?: null,
                 'cargo' => $_POST['cargo'] ?? '',
                 'setor' => $_POST['setor'] ?: null,
@@ -3453,177 +3496,261 @@ if (!defined('BASE_URL')) {
     </div>
 
     <!-- Modal Cadastrar Professor -->
-    <div id="modal-cadastrar-professor" class="hidden fixed inset-0 bg-white overflow-y-auto h-full w-full z-50">
-        <div class="w-full h-full flex flex-col">
-            <!-- Header -->
-            <div class="flex justify-between items-center p-6 border-b border-gray-200 bg-blue-600 text-white sticky top-0 z-10 shadow-md">
-                <div>
-                    <h3 class="text-2xl font-bold">Cadastrar Professor</h3>
-                    <p class="text-blue-100 text-sm mt-1">Preencha os dados para cadastrar um novo professor</p>
-                </div>
-                <button onclick="fecharModalCadastrarProfessor()" class="text-white hover:text-gray-200 transition-colors p-2 hover:bg-blue-700 rounded-lg">
-                    <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-                    </svg>
-                </button>
+<div id="modal-cadastrar-professor" class="hidden fixed inset-0 bg-white overflow-y-auto h-full w-full z-50">
+    <div class="w-full h-full flex flex-col">
+        <!-- Header -->
+        <div class="flex justify-between items-center p-6 border-b border-gray-200 bg-blue-600 text-white sticky top-0 z-10 shadow-md">
+            <div>
+                <h3 class="text-2xl font-bold">Cadastrar Professor</h3>
+                <p class="text-blue-100 text-sm mt-1">Preencha os dados para cadastrar um novo professor</p>
             </div>
-            
-            <!-- Content -->
-            <div class="flex-1 p-6 overflow-y-auto bg-gray-50">
-                <div class="max-w-4xl mx-auto">
-                    <form method="POST" id="form-cadastrar-professor" class="bg-white rounded-lg shadow-sm border border-gray-200 p-8">
-                        <input type="hidden" name="acao" value="cadastrar_professor">
-                        
-                        <div class="space-y-6">
-                            <!-- Dados Pessoais -->
-                            <div>
-                                <h4 class="text-lg font-semibold text-gray-900 mb-4 pb-2 border-b border-gray-200">Dados Pessoais</h4>
-                                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                    <div>
-                                        <label class="block text-sm font-medium text-gray-700 mb-2">
-                                            Nome Completo <span class="text-red-500">*</span>
-                                        </label>
-                                        <input type="text" name="nome" required 
-                                               class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-600 focus:border-blue-600 transition-colors">
-                                    </div>
-                                    
-                                    <div>
-                                        <label class="block text-sm font-medium text-gray-700 mb-2">
-                                            CPF <span class="text-red-500">*</span>
-                                        </label>
-                                        <input type="text" name="cpf" required maxlength="14" 
-                                               placeholder="000.000.000-00"
-                                               class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-600 focus:border-blue-600 transition-colors"
-                                               oninput="this.value = this.value.replace(/\D/g, '').replace(/(\d{3})(\d)/, '$1.$2').replace(/(\d{3})(\d)/, '$1.$2').replace(/(\d{3})(\d{1,2})$/, '$1-$2')">
-                                    </div>
-                                    
-                                    <div>
-                                        <label class="block text-sm font-medium text-gray-700 mb-2">Data de Nascimento</label>
-                                        <input type="date" name="data_nascimento" 
-                                               class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-600 focus:border-blue-600 transition-colors">
-                                    </div>
-                                    
-                                    <div>
-                                        <label class="block text-sm font-medium text-gray-700 mb-2">Sexo</label>
-                                        <select name="sexo" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-600 focus:border-blue-600 transition-colors">
-                                            <option value="">Selecione...</option>
-                                            <option value="M">Masculino</option>
-                                            <option value="F">Feminino</option>
-                                        </select>
-                                    </div>
-                                    
-                                    <div>
-                                        <label class="block text-sm font-medium text-gray-700 mb-2">E-mail</label>
-                                        <input type="email" name="email" 
-                                               class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-600 focus:border-blue-600 transition-colors">
-                                    </div>
-                                    
-                                    <div>
-                                        <label class="block text-sm font-medium text-gray-700 mb-2">Telefone</label>
-                                        <input type="text" name="telefone" maxlength="15" 
-                                               placeholder="(85) 99999-9999"
-                                               class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-600 focus:border-blue-600 transition-colors"
-                                               oninput="this.value = this.value.replace(/\D/g, '').replace(/(\d{2})(\d)/, '($1) $2').replace(/(\d{5})(\d)/, '$1-$2')">
-                                    </div>
-                                </div>
-                            </div>
+            <button onclick="fecharModalCadastrarProfessor()" class="text-white hover:text-gray-200 transition-colors p-2 hover:bg-blue-700 rounded-lg">
+                <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                </svg>
+            </button>
+        </div>
+        
+        <!-- Content -->
+        <div class="flex-1 p-6 overflow-y-auto bg-gray-50">
+            <div class="max-w-4xl mx-auto">
+                <form method="POST" id="form-cadastrar-professor" class="bg-white rounded-lg shadow-sm border border-gray-200 p-8">
+                    <input type="hidden" name="acao" value="cadastrar_professor">
                             
-                            <!-- Dados Profissionais -->
-                            <div>
-                                <h4 class="text-lg font-semibold text-gray-900 mb-4 pb-2 border-b border-gray-200">Dados Profissionais</h4>
-                                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                    <div>
-                                        <label class="block text-sm font-medium text-gray-700 mb-2">Matrícula</label>
-                                        <input type="text" name="matricula" 
-                                               class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-600 focus:border-blue-600 transition-colors">
-                                    </div>
-                                    
-                                    <div>
-                                        <label class="block text-sm font-medium text-gray-700 mb-2">Data de Admissão</label>
-                                        <input type="date" name="data_admissao" value="<?= date('Y-m-d') ?>" 
-                                               class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-600 focus:border-blue-600 transition-colors">
-                                    </div>
-                                    
-                                    <div class="md:col-span-2">
-                                        <label class="block text-sm font-medium text-gray-700 mb-2">Formação</label>
-                                        <input type="text" name="formacao" placeholder="Ex: Licenciatura em Matemática" 
-                                               class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-600 focus:border-blue-600 transition-colors">
-                                    </div>
-                                    
-                                    <div class="md:col-span-2">
-                                        <label class="block text-sm font-medium text-gray-700 mb-2">Especialização</label>
-                                        <input type="text" name="especializacao" placeholder="Ex: Especialização em Educação Especial" 
-                                               class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-600 focus:border-blue-600 transition-colors">
-                                    </div>
-                                    
-                                    <div class="md:col-span-2">
-                                        <label class="block text-sm font-medium text-gray-700 mb-2">Registro Profissional</label>
-                                        <input type="text" name="registro_profissional" placeholder="Ex: CREA, CREF, etc." 
-                                               class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-600 focus:border-blue-600 transition-colors">
-                                    </div>
-                                </div>
-                            </div>
-                            
-                            <!-- Lotação na Escola -->
-                            <div>
-                                <h4 class="text-lg font-semibold text-gray-900 mb-4 pb-2 border-b border-gray-200">Lotação na Escola</h4>
-                                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                    <div>
-                                        <label class="block text-sm font-medium text-gray-700 mb-2">Escola</label>
-                                        <select name="escola_id" 
-                                                class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-600 focus:border-blue-600 transition-colors">
-                                            <option value="">Selecione uma escola (opcional)</option>
-                                            <?php foreach ($escolas as $escola): ?>
-                                                <option value="<?= $escola['id'] ?>"><?= htmlspecialchars($escola['nome']) ?></option>
-                                            <?php endforeach; ?>
-                                        </select>
-                                    </div>
-                                    
-                                    <div>
-                                        <label class="block text-sm font-medium text-gray-700 mb-2">Carga Horária</label>
-                                        <input type="number" name="carga_horaria" placeholder="Ex: 20" min="1" 
-                                               class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-600 focus:border-blue-600 transition-colors">
-                                    </div>
-                                    
-                                    <div class="md:col-span-2">
-                                        <label class="block text-sm font-medium text-gray-700 mb-2">Observação da Lotação</label>
-                                        <textarea name="observacao_lotacao" rows="2" placeholder="Observações sobre a lotação..." 
-                                                  class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-600 focus:border-blue-600 transition-colors resize-none"></textarea>
-                                    </div>
-                                </div>
-                            </div>
-                            
-                            <!-- Acesso ao Sistema -->
-                            <div>
-                                <h4 class="text-lg font-semibold text-gray-900 mb-4 pb-2 border-b border-gray-200">Acesso ao Sistema</h4>
+                    <div class="space-y-6">
+                        <!-- Dados Pessoais -->
+                        <div>
+                            <h4 class="text-lg font-semibold text-gray-900 mb-4 pb-2 border-b border-gray-200">Dados Pessoais</h4>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                                 <div>
-                                    <label class="block text-sm font-medium text-gray-700 mb-2">Senha Inicial</label>
-                                    <input type="password" name="senha" value="123456" 
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">
+                                        Nome Completo <span class="text-red-500">*</span>
+                                    </label>
+                                    <input type="text" name="nome" required 
                                            class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-600 focus:border-blue-600 transition-colors">
-                                    <p class="text-xs text-gray-500 mt-1">Senha padrão: 123456 (pode ser alterada após o primeiro login)</p>
+                                </div>
+
+                                <!-- ADD: Nome Social -->
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">Nome Social</label>
+                                    <input type="text" name="nome_social"
+                                           class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-600 focus:border-blue-600 transition-colors">
+                                </div>
+                                
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">
+                                        CPF <span class="text-red-500">*</span>
+                                    </label>
+                                    <input type="text" name="cpf" required maxlength="14" 
+                                           placeholder="000.000.000-00"
+                                           class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-600 focus:border-blue-600 transition-colors"
+                                           oninput="this.value = this.value.replace(/\D/g, '').replace(/(\d{3})(\d)/, '$1.$2').replace(/(\d{3})(\d)/, '$1.$2').replace(/(\d{3})(\d{1,2})$/, '$1-$2')">
+                                </div>
+                                
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">Data de Nascimento</label>
+                                    <input type="date" name="data_nascimento" 
+                                           class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-600 focus:border-blue-600 transition-colors">
+                                </div>
+                                
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">Sexo</label>
+                                    <select name="sexo" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-600 focus:border-blue-600 transition-colors">
+                                        <option value="">Selecione...</option>
+                                        <option value="M">Masculino</option>
+                                        <option value="F">Feminino</option>
+                                    </select>
+                                </div>
+
+                                <!-- ADD: Raça -->
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">Raça</label>
+                                    <select name="raca" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-600 focus:border-blue-600 transition-colors">
+                                        <option value="">Selecione...</option>
+                                        <option value="PRETO">Preto</option>
+                                        <option value="BRANCO">Branco</option>
+                                        <option value="INDIGENA">Indígena</option>
+                                        <option value="AMARELO">Amarelo</option>
+                                        <option value="PARDO">Pardo</option>
+                                    </select>
+                                </div>
+                                
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">E-mail</label>
+                                    <input type="email" name="email" 
+                                           class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-600 focus:border-blue-600 transition-colors">
+                                </div>
+                                
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">Telefone</label>
+                                    <input type="text" name="telefone" maxlength="15" 
+                                           placeholder="(85) 99999-9999"
+                                           class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-600 focus:border-blue-600 transition-colors"
+                                           oninput="this.value = this.value.replace(/\D/g, '').replace(/(\d{2})(\d)/, '($1) $2').replace(/(\d{5})(\d)/, '$1-$2')">
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- ADD: Endereço -->
+                        <div>
+                            <h4 class="text-lg font-semibold text-gray-900 mb-4 pb-2 border-b border-gray-200">Endereço</h4>
+                            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                                <div class="md:col-span-2">
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">Endereço</label>
+                                    <input type="text" name="endereco" placeholder="Rua, Avenida..." 
+                                           class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-600 focus:border-blue-600 transition-colors">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">Número</label>
+                                    <input type="text" name="numero"
+                                           class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-600 focus:border-blue-600 transition-colors">
+                                </div>
+                                <div class="md:col-span-3">
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">Complemento</label>
+                                    <input type="text" name="complemento" placeholder="Apartamento, bloco, referência..." 
+                                           class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-600 focus:border-blue-600 transition-colors">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">Bairro</label>
+                                    <input type="text" name="bairro"
+                                           class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-600 focus:border-blue-600 transition-colors">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">Cidade</label>
+                                    <input type="text" name="cidade"
+                                           class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-600 focus:border-blue-600 transition-colors">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">Estado</label>
+                                    <input type="text" name="estado" maxlength="2"
+                                           class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-600 focus:border-blue-600 transition-colors uppercase"
+                                           oninput="this.value = this.value.replace(/[^A-Za-z]/g, '').toUpperCase()">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">CEP</label>
+                                    <input type="text" name="cep" maxlength="9" placeholder="00000-000"
+                                           class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-600 focus:border-blue-600 transition-colors"
+                                           oninput="this.value = this.value.replace(/\D/g,'').replace(/(\d{5})(\d)/,'$1-$2').substring(0,9)">
                                 </div>
                             </div>
                         </div>
                         
-                        <!-- Botões de Ação -->
-                        <div class="flex justify-end space-x-3 pt-8 mt-8 border-t border-gray-200">
-                            <button type="button" onclick="fecharModalCadastrarProfessor()" 
-                                    class="px-6 py-3 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 font-medium transition-colors">
-                                Cancelar
-                            </button>
-                            <button type="submit" 
-                                    class="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium transition-colors shadow-md hover:shadow-lg">
-                                <svg class="w-5 h-5 inline mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
-                                </svg>
-                                Cadastrar Professor
-                            </button>
+                       <!-- Dados Profissionais -->
+                        <div>
+                            <h4 class="text-lg font-semibold text-gray-900 mb-4 pb-2 border-b border-gray-200">Dados Profissionais</h4>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">Matrícula</label>
+                                    <input type="text" name="matricula" 
+                                        class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-600 focus:border-blue-600 transition-colors">
+                                </div>
+                                
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">Data de Admissão</label>
+                                    <input type="date" name="data_admissao" value="<?= date('Y-m-d') ?>" 
+                                        class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-600 focus:border-blue-600 transition-colors">
+                                </div>
+
+                                <!-- Pós agora é SELECT -->
+                                <div class="md:col-span-2">
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">Pós</label>
+                                    <select name="pos" 
+                                            class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-600 focus:border-blue-600 transition-colors">
+                                        <option value="">Selecione...</option>
+                                        <option value="ENSINO_MEDIO">Ensino Médio</option>
+                                        <option value="GRADUANDO">Graduando</option>
+                                        <option value="GRADUADO">Graduado</option>
+                                        <option value="MESTRADO">Mestrado</option>
+                                        <option value="DOUTORADO">Doutorado</option>
+                                        <option value="POS_DOUTORADO">Pós Doutorado</option>
+                                    </select>
+                                </div>
+
+                                <!-- Formação agora é INPUT texto -->
+                                <div class="md:col-span-2">
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">Formação</label>
+                                    <input type="text" name="formacao" placeholder="Descreva a formação"
+                                        class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-600 focus:border-blue-600 transition-colors">
+                                </div>
+                                
+                                <div class="md:col-span-2">
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">Especialização</label>
+                                    <input type="text" name="especializacao" placeholder="Ex: Especialização em Educação Especial" 
+                                        class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-600 focus:border-blue-600 transition-colors">
+                                </div>
+                                
+                                <div class="md:col-span-2">
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">Registro Profissional</label>
+                                    <input type="text" name="registro_profissional" placeholder="Ex: CREA, CREF, etc." 
+                                        class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-600 focus:border-blue-600 transition-colors">
+                                </div>
+
+                            </div>
                         </div>
-                    </form>
-                </div>
+
+<!-- Lotação na Escola -->
+<div>
+    <h4 class="text-lg font-semibold text-gray-900 mb-4 pb-2 border-b border-gray-200">Lotação na Escola</h4>
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div>
+            <label class="block text-sm font-medium text-gray-700 mb-2">Escola</label>
+            <select name="escola_id" 
+                    class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-600 focus:border-blue-600 transition-colors">
+                <option value="">Selecione uma escola (opcional)</option>
+                <?php foreach ($escolas as $escola): ?>
+                    <option value="<?= $escola['id'] ?>"><?= htmlspecialchars($escola['nome']) ?></option>
+                <?php endforeach; ?>
+            </select>
+        </div>
+    </div>
+</div>
+        
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">Carga Horária</label>
+                                    <input type="number" name="carga_horaria" placeholder="Ex: 20" min="1" 
+                                           class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-600 focus:border-blue-600 transition-colors">
+                                </div>
+                                
+                                <div class="md:col-span-2">
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">Observação da Lotação</label>
+                                    <textarea name="observacao_lotacao" rows="2" placeholder="Observações sobre a lotação..." 
+                                              class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-600 focus:border-blue-600 transition-colors resize-none"></textarea>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Acesso ao Sistema -->
+                        <div>
+                            <h4 class="text-lg font-semibold text-gray-900 mb-4 pb-2 border-b border-gray-200">Acesso ao Sistema</h4>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Senha Inicial</label>
+                                <input type="password" name="senha" value="123456" 
+                                       class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-600 focus:border-blue-600 transition-colors">
+                                <p class="text-xs text-gray-500 mt-1">Senha padrão: 123456 (pode ser alterada após o primeiro login)</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Botões de Ação -->
+                    <div class="flex justify-end space-x-3 pt-8 mt-8 border-t border-gray-200">
+                        <button type="button" onclick="fecharModalCadastrarProfessor()" 
+                                class="px-6 py-3 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 font-medium transition-colors">
+                            Cancelar
+                        </button>
+                        <button type="submit" 
+                                class="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium transition-colors shadow-md hover:shadow-lg">
+                            <svg class="w-5 h-5 inline mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+                            </svg>
+                            Cadastrar Professor
+                        </button>
+                    </div>
+                </form>
             </div>
         </div>
     </div>
+</div>
 
     <!-- Modal Cadastrar Funcionário -->
     <div id="modal-cadastrar-funcionario" class="hidden fixed inset-0 bg-white overflow-y-auto h-full w-full z-50">
@@ -3697,6 +3824,90 @@ if (!defined('BASE_URL')) {
                                                placeholder="(85) 99999-9999"
                                                class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-600 focus:border-green-600 transition-colors"
                                                oninput="this.value = this.value.replace(/\D/g, '').replace(/(\d{2})(\d)/, '($1) $2').replace(/(\d{5})(\d)/, '$1-$2')">
+                                    </div>
+                                </div>
+
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-2">WhatsApp</label>
+                                        <input type="text" name="whatsapp" maxlength="15" 
+                                               placeholder="(85) 99999-9999"
+                                               class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-600 focus:border-green-600 transition-colors"
+                                               oninput="this.value = this.value.replace(/\\D/g, '').replace(/(\\d{2})(\\d)/, '($1) $2').replace(/(\\d{5})(\\d)/, '$1-$2')">
+                                    </div>
+                                    
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-2">Telefone Secundário</label>
+                                        <input type="text" name="telefone_secundario" maxlength="15" 
+                                               placeholder="(85) 98888-7777"
+                                               class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-600 focus:border-green-600 transition-colors"
+                                               oninput="this.value = this.value.replace(/\\D/g, '').replace(/(\\d{2})(\\d)/, '($1) $2').replace(/(\\d{5})(\\d)/, '$1-$2')">
+                                    </div>
+                                </div>
+
+                                <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mt-4">
+                                    <div class="md:col-span-2">
+                                        <label class="block text-sm font-medium text-gray-700 mb-2">Endereço</label>
+                                        <input type="text" name="endereco" 
+                                               class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-600 focus:border-green-600 transition-colors">
+                                    </div>
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-2">Número</label>
+                                        <input type="text" name="numero" 
+                                               class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-600 focus:border-green-600 transition-colors">
+                                    </div>
+                                </div>
+
+                                <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mt-4">
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-2">Complemento</label>
+                                        <input type="text" name="complemento" 
+                                               class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-600 focus:border-green-600 transition-colors">
+                                    </div>
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-2">Bairro</label>
+                                        <input type="text" name="bairro" 
+                                               class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-600 focus-border-green-600 transition-colors">
+                                    </div>
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-2">CEP</label>
+                                        <input type="text" name="cep" maxlength="9" 
+                                               placeholder="00000-000"
+                                               class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-600 focus-border-green-600 transition-colors"
+                                               oninput="this.value = this.value.replace(/\\D/g, '').replace(/(\\d{5})(\\d)/, '$1-$2')">
+                                    </div>
+                                </div>
+
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-2">Cidade</label>
+                                        <input type="text" name="cidade" 
+                                               class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-600 focus-border-green-600 transition-colors">
+                                    </div>
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-2">Estado</label>
+                                        <input type="text" name="estado" maxlength="2" placeholder="UF" 
+                                               class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-600 focus-border-green-600 transition-colors">
+                                    </div>
+                                </div>
+
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-2">Nome Social</label>
+                                        <input type="text" name="nome_social" 
+                                               class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-600 focus-border-green-600 transition-colors">
+                                    </div>
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-2">Raça/Cor</label>
+                                        <select name="raca" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-600 focus-border-green-600 transition-colors">
+                                            <option value="">Selecione...</option>
+                                            <option value="BRANCA">Branca</option>
+                                            <option value="PRETA">Preta</option>
+                                            <option value="PARDA">Parda</option>
+                                            <option value="AMARELA">Amarela</option>
+                                            <option value="INDIGENA">Indígena</option>
+                                            <option value="NAO_INFORMADO">Prefere não informar</option>
+                                        </select>
                                     </div>
                                 </div>
                             </div>

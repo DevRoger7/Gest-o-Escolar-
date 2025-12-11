@@ -98,9 +98,16 @@ class FuncionarioModel {
         try {
             $conn->beginTransaction();
             
-            // 1. Criar pessoa
-            $sqlPessoa = "INSERT INTO pessoa (cpf, nome, data_nascimento, sexo, email, telefone, tipo, criado_por)
-                         VALUES (:cpf, :nome, :data_nascimento, :sexo, :email, :telefone, 'FUNCIONARIO', :criado_por)";
+            // 1. Criar pessoa (com dados completos, incluindo endereço, contatos e identificação)
+            $sqlPessoa = "INSERT INTO pessoa (
+                            cpf, nome, data_nascimento, sexo, email, telefone, whatsapp, telefone_secundario,
+                            endereco, numero, complemento, bairro, cidade, estado, cep,
+                            tipo, criado_por, nome_social, raca
+                          ) VALUES (
+                            :cpf, :nome, :data_nascimento, :sexo, :email, :telefone, :whatsapp, :telefone_secundario,
+                            :endereco, :numero, :complemento, :bairro, :cidade, :estado, :cep,
+                            'FUNCIONARIO', :criado_por, :nome_social, :raca
+                          )";
             $stmtPessoa = $conn->prepare($sqlPessoa);
             $cpf = $dados['cpf'];
             $nome = $dados['nome'];
@@ -108,6 +115,17 @@ class FuncionarioModel {
             $sexo = $dados['sexo'];
             $email = $dados['email'];
             $telefone = $dados['telefone'];
+            $whatsapp = $dados['whatsapp'] ?? null;
+            $telefoneSecundario = $dados['telefone_secundario'] ?? null;
+            $endereco = $dados['endereco'] ?? null;
+            $numero = $dados['numero'] ?? null;
+            $complemento = $dados['complemento'] ?? null;
+            $bairro = $dados['bairro'] ?? null;
+            $cidade = $dados['cidade'] ?? null;
+            $estado = $dados['estado'] ?? null;
+            $cep = $dados['cep'] ?? null;
+            $nomeSocial = $dados['nome_social'] ?? null;
+            $raca = $dados['raca'] ?? null;
             $criadoPorUsuario = (isset($_SESSION['usuario_id']) && is_numeric($_SESSION['usuario_id'])) ? (int)$_SESSION['usuario_id'] : null;
             $stmtPessoa->bindParam(':cpf', $cpf);
             $stmtPessoa->bindParam(':nome', $nome);
@@ -115,7 +133,18 @@ class FuncionarioModel {
             $stmtPessoa->bindParam(':sexo', $sexo);
             $stmtPessoa->bindParam(':email', $email);
             $stmtPessoa->bindParam(':telefone', $telefone);
+            $stmtPessoa->bindParam(':whatsapp', $whatsapp);
+            $stmtPessoa->bindParam(':telefone_secundario', $telefoneSecundario);
+            $stmtPessoa->bindParam(':endereco', $endereco);
+            $stmtPessoa->bindParam(':numero', $numero);
+            $stmtPessoa->bindParam(':complemento', $complemento);
+            $stmtPessoa->bindParam(':bairro', $bairro);
+            $stmtPessoa->bindParam(':cidade', $cidade);
+            $stmtPessoa->bindParam(':estado', $estado);
+            $stmtPessoa->bindParam(':cep', $cep);
             $stmtPessoa->bindParam(':criado_por', $criadoPorUsuario);
+            $stmtPessoa->bindParam(':nome_social', $nomeSocial);
+            $stmtPessoa->bindParam(':raca', $raca);
             $stmtPessoa->execute();
             
             $pessoaId = $conn->lastInsertId();

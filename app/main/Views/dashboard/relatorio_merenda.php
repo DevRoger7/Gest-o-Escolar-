@@ -373,9 +373,8 @@ if ($tipo !== 'adm_merenda') {
     ?>
     <!-- --- end added --- -->
 
-    <!-- header: offset by sidebar and centered title -->
-    <!-- REPLACED HEADER: use the same structure as custos_merenda.php -->
-    <header class="bg-white shadow-sm border-b border-gray-200 sticky top-0 z-30">
+    <!-- UPDATED: add lg:pl-64 to header and remove duplicated blocks -->
+    <header class="bg-white shadow-sm border-b border-gray-200 sticky top-0 z-30 lg:pl-64">
         <div class="px-4 sm:px-6 lg:px-8">
             <div class="flex justify-between items-center h-16">
                 <button onclick="window.toggleSidebar()" class="lg:hidden p-2 rounded-md text-gray-600 hover:text-gray-900 hover:bg-gray-100" aria-label="Abrir menu">
@@ -384,8 +383,7 @@ if ($tipo !== 'adm_merenda') {
                     </svg>
                 </button>
                 <div class="flex-1 text-center lg:text-left">
-                    <!-- per your mold -->
-                    <h1 class="text-xl font-semibold text-gray-800">Gestão de Fornecedores</h1>
+                    <h1 class="text-xl font-semibold text-gray-800">Relatórios de Merenda</h1>
                 </div>
                 <div class="flex items-center space-x-4">
                     <div class="hidden lg:block">
@@ -409,12 +407,12 @@ if ($tipo !== 'adm_merenda') {
                     </div>
                 </div>
             </div>
-            <!-- moved centered page title inside header to avoid extra stray closing tag -->
-            <h1 class="text-center text-lg font-bold text-gray-800 mt-2">
-                Relatório de Merenda
-            </h1>
         </div>
     </header>
+
+    <!-- REMOVED: duplicated header block and the misplaced standalone title -->
+    <!-- (This removed section contained a second identical header area and the separate
+         <h1 class="text-center ...">Relatório de Merenda</h1> outside the container.) -->
 
     <main class="p-8 lg:p-12 lg:ml-64 content-transition">
         <div class="bg-white rounded-2xl p-6 shadow-sm">
@@ -453,10 +451,8 @@ if ($tipo !== 'adm_merenda') {
             </div>
         </div>
 
-        <!-- --- updated: daily report wired to DB --- -->
         <div id="dailyReport" class="mt-8 bg-white rounded-2xl p-6 shadow-sm hidden">
             <h3 class="text-xl font-semibold text-gray-800 mb-4">Relatório Diário</h3>
-            <!-- --- changed: explicit action to ensure form submits to this page --- -->
             <form method="get" action="relatorio_merenda.php" class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
                 <input type="hidden" name="report" value="daily" />
                 <div>
@@ -490,48 +486,55 @@ if ($tipo !== 'adm_merenda') {
                 </div>
             </form>
 
-            <div class="overflow-x-auto">
-                <table class="min-w-full border rounded-lg">
-                    <thead class="bg-gray-100">
-                        <tr>
-                            <th class="px-4 py-2 text-left text-sm font-medium text-gray-700">Unidade Escolar</th>
-                            <th class="px-4 py-2 text-left text-sm font-medium text-gray-700">Data</th>
-                            <th class="px-4 py-2 text-left text-sm font-medium text-gray-700">Turno</th>
-                            <th class="px-4 py-2 text-left text-sm font-medium text-gray-700">Refeições Servidas</th>
-                            <th class="px-4 py-2 text-left text-sm font-medium text-gray-700">Desperdício (kg)</th>
-                            <th class="px-4 py-2 text-left text-sm font-medium text-gray-700">Observações</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <?php if ($report === 'daily' && $mysqli): ?>
-                            <?php if (count($dailyRows) === 0): ?>
-                                <tr class="border-t">
-                                    <td colspan="6" class="px-4 py-3 text-gray-500">Nenhum registro encontrado para os filtros informados.</td>
-                                </tr>
-                            <?php else: ?>
-                                <?php foreach ($dailyRows as $row): ?>
-                                    <?php
-                                        $wkg = desperdicioKg($mysqli, (int)$row['escola_id'], $row['data'], $row['turno']);
-                                        $dataFmt = date('Y-m-d', strtotime($row['data'])); // CHANGED: normalize date display
-                                    ?>
-                                    <tr class="border-t">
-                                        <td class="px-4 py-2"><?php echo htmlspecialchars(escolaNome($mysqli, (int)$row['escola_id'])); ?></td>
-                                        <td class="px-4 py-2"><?php echo htmlspecialchars($dataFmt); ?></td>
-                                        <td class="px-4 py-2"><?php echo htmlspecialchars($row['turno'] ?? '-'); ?></td>
-                                        <td class="px-4 py-2"><?php echo (int)$row['alunos_atendidos']; ?></td>
-                                        <td class="px-4 py-2"><?php echo number_format($wkg, 2, ',', '.'); ?></td>
-                                        <td class="px-4 py-2"><?php echo htmlspecialchars($row['observacoes'] ?? ''); ?></td>
-                                    </tr>
-                                <?php endforeach; ?>
-                            <?php endif; ?>
-                        <?php else: ?>
-                            <!-- Optionally show a hint when no filters are applied yet -->
-                            <tr class="border-t">
-                                <td colspan="6" class="px-4 py-3 text-gray-500">Preencha os filtros acima e clique em "Gerar" para visualizar o relatório diário.</td>
-                            </tr>
-                        <?php endif; ?>
-                    </tbody>
-                </table>
+            <!-- CHANGED: table -> cards for a cleaner, modern look -->
+            <div>
+                <?php if ($report === 'daily' && $mysqli): ?>
+                    <?php if (count($dailyRows) === 0): ?>
+                        <div class="flex items-center justify-center rounded-xl border border-dashed border-gray-300 bg-gray-50 p-8">
+                            <div class="text-center">
+                                <div class="mx-auto mb-3 w-10 h-10 rounded-full bg-green-100 text-green-700 flex items-center justify-center">ℹ️</div>
+                                <p class="text-gray-600">Nenhum registro encontrado para os filtros informados.</p>
+                            </div>
+                        </div>
+                    <?php else: ?>
+                        <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                            <?php foreach ($dailyRows as $row): ?>
+                                <?php
+                                    $wkg = desperdicioKg($mysqli, (int)$row['escola_id'], $row['data'], $row['turno']);
+                                    $dataFmt = date('Y-m-d', strtotime($row['data']));
+                                ?>
+                                <div class="rounded-xl border bg-gradient-to-br from-white to-gray-50 p-4 shadow-sm hover:shadow-md transition">
+                                    <div class="flex items-center justify-between mb-2">
+                                        <h4 class="text-base font-semibold text-gray-800">
+                                            <?php echo htmlspecialchars(escolaNome($mysqli, (int)$row['escola_id'])); ?>
+                                        </h4>
+                                        <span class="px-2 py-1 text-xs rounded-full bg-green-100 text-green-700">
+                                            <?php echo htmlspecialchars($row['turno'] ?? '-'); ?>
+                                        </span>
+                                    </div>
+                                    <p class="text-sm text-gray-500 mb-3">Data: <?php echo htmlspecialchars($dataFmt); ?></p>
+                                    <div class="grid grid-cols-2 gap-3">
+                                        <div class="rounded-lg bg-white border p-3">
+                                            <p class="text-xs text-gray-500">Refeições Servidas</p>
+                                            <p class="text-lg font-semibold text-gray-800"><?php echo (int)$row['alunos_atendidos']; ?></p>
+                                        </div>
+                                        <div class="rounded-lg bg-white border p-3">
+                                            <p class="text-xs text-gray-500">Desperdício (kg)</p>
+                                            <p class="text-lg font-semibold text-gray-800"><?php echo number_format($wkg, 2, ',', '.'); ?></p>
+                                        </div>
+                                    </div>
+                                    <?php if (!empty($row['observacoes'])): ?>
+                                        <p class="mt-3 text-sm text-gray-600">Obs: <?php echo htmlspecialchars($row['observacoes']); ?></p>
+                                    <?php endif; ?>
+                                </div>
+                            <?php endforeach; ?>
+                        </div>
+                    <?php endif; ?>
+                <?php else: ?>
+                    <div class="flex items-center justify-center rounded-xl border border-dashed border-gray-300 bg-gray-50 p-8">
+                        <p class="text-gray-600">Preencha os filtros acima e clique em "Gerar" para visualizar o relatório diário.</p>
+                    </div>
+                <?php endif; ?>
             </div>
 
             <div class="mt-4 flex gap-2">
@@ -544,7 +547,6 @@ if ($tipo !== 'adm_merenda') {
         <!-- --- added: monthly report wired to DB --- -->
         <div id="monthlyReport" class="mt-8 bg-white rounded-2xl p-6 shadow-sm hidden">
             <h3 class="text-xl font-semibold text-gray-800 mb-4">Relatório Mensal</h3>
-            <!-- --- changed: explicit action to ensure form submits to this page --- -->
             <form method="get" action="relatorio_merenda.php" class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
                 <input type="hidden" name="report" value="monthly" />
                 <div>
@@ -578,49 +580,72 @@ if ($tipo !== 'adm_merenda') {
                 </div>
             </form>
 
-            <div class="overflow-x-auto">
-                <table class="min-w-full border rounded-lg">
-                    <thead class="bg-gray-100">
-                        <tr>
-                            <th class="px-4 py-2 text-left text-sm font-medium text-gray-700">Unidade Escolar</th>
-                            <th class="px-4 py-2 text-left text-sm font-medium text-gray-700">Mês</th>
-                            <th class="px-4 py-2 text-left text-sm font-medium text-gray-700">Turno</th>
-                            <th class="px-4 py-2 text-left text-sm font-medium text-gray-700">Dias com registro</th>
-                            <th class="px-4 py-2 text-left text-sm font-medium text-gray-700">Refeições Servidas</th>
-                            <th class="px-4 py-2 text-left text-sm font-medium text-gray-700">Desperdício (kg)</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <?php if ($report === 'monthly' && $mysqli): ?>
-                            <?php if (count($monthlyRows) === 0): ?>
-                                <tr class="border-t">
-                                    <td colspan="6" class="px-4 py-3 text-gray-500">Nenhum registro encontrado para os filtros informados.</td>
-                                </tr>
-                            <?php else: ?>
-                                <?php $sumKg = 0.0; $sumMeals = 0; ?>
-                                <?php foreach ($monthlyRows as $row): ?>
-                                    <?php
-                                        $sumKg += (float)$row['waste_kg'];
-                                        $sumMeals += (int)$row['total_atendidos'];
-                                        $m = htmlspecialchars($_GET['month'] ?? date('Y-m'));
-                                    ?>
-                                    <tr class="border-t">
-                                        <td class="px-4 py-2"><?php echo htmlspecialchars(escolaNome($mysqli, (int)$row['escola_id'])); ?></td>
-                                        <td class="px-4 py-2"><?php echo $m; ?></td>
-                                        <td class="px-4 py-2"><?php echo htmlspecialchars($row['turno'] ?? '-'); ?></td>
-                                        <td class="px-4 py-2"><?php echo (int)($row['dias_registrados'] ?? 0); ?></td>
-                                        <td class="px-4 py-2"><?php echo (int)($row['total_atendidos'] ?? 0); ?></td>
-                                        <td class="px-4 py-2"><?php echo number_format((float)$row['waste_kg'], 2, ',', '.'); ?></td>
-                                    </tr>
-                                <?php endforeach; ?>
-                            <?php endif; ?>
-                        <?php else: ?>
-                            <tr class="border-t">
-                                <td colspan="6" class="px-4 py-3 text-gray-500">Selecione o mês e clique em "Gerar" para visualizar o relatório mensal.</td>
-                            </tr>
-                        <?php endif; ?>
-                    </tbody>
-                </table>
+            <!-- CHANGED: table -> cards; added sleek summary -->
+            <div>
+                <?php if ($report === 'monthly' && $mysqli): ?>
+                    <?php if (count($monthlyRows) === 0): ?>
+                        <div class="flex items-center justify-center rounded-xl border border-dashed border-gray-300 bg-gray-50 p-8">
+                            <div class="text-center">
+                                <div class="mx-auto mb-3 w-10 h-10 rounded-full bg-green-100 text-green-700 flex items-center justify-center">ℹ️</div>
+                                <p class="text-gray-600">Nenhum registro encontrado para os filtros informados.</p>
+                            </div>
+                        </div>
+                    <?php else: ?>
+                        <?php $sumKg = 0.0; $sumMeals = 0; $m = htmlspecialchars($_GET['month'] ?? date('Y-m')); ?>
+                        <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                            <?php foreach ($monthlyRows as $row): ?>
+                                <?php
+                                    $sumKg    += (float)$row['waste_kg'];
+                                    $sumMeals += (int)$row['total_atendidos'];
+                                ?>
+                                <div class="rounded-xl border bg-gradient-to-br from-white to-gray-50 p-4 shadow-sm hover:shadow-md transition">
+                                    <div class="flex items-center justify-between mb-2">
+                                        <h4 class="text-base font-semibold text-gray-800">
+                                            <?php echo htmlspecialchars(escolaNome($mysqli, (int)$row['escola_id'])); ?>
+                                        </h4>
+                                        <span class="px-2 py-1 text-xs rounded-full bg-indigo-100 text-indigo-700">
+                                            <?php echo htmlspecialchars($row['turno'] ?? '-'); ?>
+                                        </span>
+                                    </div>
+                                    <p class="text-sm text-gray-500 mb-3">Mês: <?php echo $m; ?></p>
+                                    <div class="grid grid-cols-3 gap-3">
+                                        <div class="rounded-lg bg-white border p-3">
+                                            <p class="text-xs text-gray-500">Dias com registro</p>
+                                            <p class="text-lg font-semibold text-gray-800"><?php echo (int)($row['dias_registrados'] ?? 0); ?></p>
+                                        </div>
+                                        <div class="rounded-lg bg-white border p-3">
+                                            <p class="text-xs text-gray-500">Refeições</p>
+                                            <p class="text-lg font-semibold text-gray-800"><?php echo (int)($row['total_atendidos'] ?? 0); ?></p>
+                                        </div>
+                                        <div class="rounded-lg bg-white border p-3">
+                                            <p class="text-xs text-gray-500">Desperdício (kg)</p>
+                                            <p class="text-lg font-semibold text-gray-800"><?php echo number_format((float)$row['waste_kg'], 2, ',', '.'); ?></p>
+                                        </div>
+                                    </div>
+                                </div>
+                            <?php endforeach; ?>
+                        </div>
+
+                        <!-- Summary footer -->
+                        <div class="mt-6 rounded-xl border bg-white p-4 flex items-center justify-between">
+                            <div class="text-sm text-gray-600">Total no mês selecionado</div>
+                            <div class="flex gap-6">
+                                <div>
+                                    <div class="text-xs text-gray-500">Refeições</div>
+                                    <div class="text-lg font-semibold text-gray-800"><?php echo (int)$sumMeals; ?></div>
+                                </div>
+                                <div>
+                                    <div class="text-xs text-gray-500">Desperdício (kg)</div>
+                                    <div class="text-lg font-semibold text-gray-800"><?php echo number_format((float)$sumKg, 2, ',', '.'); ?></div>
+                                </div>
+                            </div>
+                        </div>
+                    <?php endif; ?>
+                <?php else: ?>
+                    <div class="flex items-center justify-center rounded-xl border border-dashed border-gray-300 bg-gray-50 p-8">
+                        <p class="text-gray-600">Selecione o mês e clique em "Gerar" para visualizar o relatório mensal.</p>
+                    </div>
+                <?php endif; ?>
             </div>
 
             <div class="mt-4 flex gap-2">
@@ -632,7 +657,6 @@ if ($tipo !== 'adm_merenda') {
         <!-- --- added: waste (desperdício) report wired to DB -->
         <div id="wasteReport" class="mt-8 bg-white rounded-2xl p-6 shadow-sm hidden">
             <h3 class="text-xl font-semibold text-gray-800 mb-4">Relatório de Desperdício</h3>
-            <!-- --- changed: explicit action to ensure form submits to this page --- -->
             <form method="get" action="relatorio_merenda.php" class="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6">
                 <input type="hidden" name="report" value="waste" />
                 <div>
