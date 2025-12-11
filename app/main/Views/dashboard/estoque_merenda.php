@@ -25,6 +25,12 @@ $stmtFornecedores = $conn->prepare($sqlFornecedores);
 $stmtFornecedores->execute();
 $fornecedores = $stmtFornecedores->fetchAll(PDO::FETCH_ASSOC);
 
+// Buscar escolas
+$sqlEscolas = "SELECT id, nome FROM escola WHERE ativo = 1 ORDER BY nome ASC";
+$stmtEscolas = $conn->prepare($sqlEscolas);
+$stmtEscolas->execute();
+$escolas = $stmtEscolas->fetchAll(PDO::FETCH_ASSOC);
+
 // Buscar produtos
 $sqlProdutos = "SELECT id, nome, unidade_medida, estoque_minimo FROM produto WHERE ativo = 1 ORDER BY nome ASC";
 $stmtProdutos = $conn->prepare($sqlProdutos);
@@ -279,46 +285,174 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['acao'])) {
     header('Content-Type: application/json; charset=utf-8');
     
     if ($_GET['acao'] === 'listar_estoque') {
-        $sql = "SELECT ec.*, p.nome as produto_nome, p.unidade_medida, p.estoque_minimo, f.nome as fornecedor_nome
-                FROM estoque_central ec
-                INNER JOIN produto p ON ec.produto_id = p.id
-                LEFT JOIN fornecedor f ON ec.fornecedor_id = f.id
-                WHERE 1=1";
+        $escolaId = $_GET['escola_id'] ?? null;
         
-        $params = [];
-        
-        if (!empty($_GET['produto_id'])) {
-            $sql .= " AND ec.produto_id = :produto_id";
-            $params[':produto_id'] = $_GET['produto_id'];
-        }
-        
-        if (!empty($_GET['fornecedor_id'])) {
-            $sql .= " AND ec.fornecedor_id = :fornecedor_id";
-            $params[':fornecedor_id'] = $_GET['fornecedor_id'];
-        }
-        
-        $sql .= " ORDER BY ec.criado_em DESC";
-        
-        $stmt = $conn->prepare($sql);
-        foreach ($params as $key => $value) {
-            $stmt->bindValue($key, $value);
-        }
-        $stmt->execute();
-        $estoque = $stmt->fetchAll(PDO::FETCH_ASSOC);
-        
-        // Calcular totais por produto
-        $sqlTotal = "SELECT produto_id, SUM(quantidade) as total_quantidade
-                     FROM estoque_central
-                     GROUP BY produto_id";
-        $stmtTotal = $conn->prepare($sqlTotal);
-        $stmtTotal->execute();
-        $totais = [];
-        while ($row = $stmtTotal->fetch(PDO::FETCH_ASSOC)) {
-            $totais[$row['produto_id']] = $row['total_quantidade'];
-        }
-        
-        foreach ($estoque as &$item) {
-            $item['total_produto'] = $totais[$item['produto_id']] ?? 0;
+        // Se escola_id for "todos" ou vazio, mostrar estoque central
+        // Se escola_id for específico, mostrar produtos dos pacotes enviados para aquela escola
+        if (empty($escolaId) || $escolaId === 'todos') {
+            // Estoque Central
+            $sql = "SELECT ec.*, p.nome as produto_nome, p.unidade_medida, p.estoque_minimo, f.nome as fornecedor_nome
+                    FROM estoque_central ec
+                    INNER JOIN produto p ON ec.produto_id = p.id
+                    LEFT JOIN fornecedor f ON ec.fornecedor_id = f.id
+                    WHERE 1=1";
+            
+            $params = [];
+            
+            if (!empty($_GET['produto_id'])) {
+                $sql .= " AND ec.produto_id = :produto_id";
+                $params[':produto_id'] = $_GET['produto_id'];
+            }
+            
+            if (!empty($_GET['fornecedor_id'])) {
+                $sql .= " AND ec.fornecedor_id = :fornecedor_id";
+                $params[':fornecedor_id'] = $_GET['fornecedor_id'];
+            }
+            
+            $sql .= " ORDER BY ec.criado_em DESC";
+            
+            $stmt = $conn->prepare($sql);
+            foreach ($params as $key => $value) {
+                $stmt->bindValue($key, $value);
+            }
+            $stmt->execute();
+            $estoque = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            
+            // Calcular totais por produto
+            $sqlTotal = "SELECT produto_id, SUM(quantidade) as total_quantidade
+                         FROM estoque_central
+                         GROUP BY produto_id";
+            $stmtTotal = $conn->prepare($sqlTotal);
+            $stmtTotal->execute();
+            $totais = [];
+            while ($row = $stmtTotal->fetch(PDO::FETCH_ASSOC)) {
+                $totais[$row['produto_id']] = $row['total_quantidade'];
+            }
+            
+            foreach ($estoque as &$item) {
+                $item['total_produto'] = $totais[$item['produto_id']] ?? 0;
+            }
+        } else {
+            // Estoque da Escola (produtos dos pacotes enviados)
+            $escolaId = (int)$escolaId;
+            
+            // Verificar se a coluna estoque_central_id existe
+            try {
+                $checkColumn = $conn->query("SHOW COLUMNS FROM pacote_escola_item LIKE 'estoque_central_id'");
+                $columnExists = $checkColumn->rowCount() > 0;
+            } catch (Exception $e) {
+                $columnExists = false;
+            }
+            
+            if ($columnExists) {
+                // Se a coluna existe, agrupar por produto_id + estoque_central_id para mostrar cada lote separadamente
+                $sql = "SELECT 
+                            pei.produto_id,
+                            pei.estoque_central_id,
+                            p.nome as produto_nome,
+                            p.unidade_medida,
+                            p.estoque_minimo,
+                            SUM(pei.quantidade) as quantidade,
+                            COALESCE(ec1.validade, ec2.validade) as validade,
+                            COALESCE(ec1.lote, ec2.lote, 'Sem lote') as lote,
+                            COALESCE(f1.nome, f2.nome) as fornecedor_nome,
+                            MAX(pe.data_envio) as data_envio_mais_recente
+                        FROM pacote_escola_item pei
+                        INNER JOIN pacote_escola pe ON pei.pacote_id = pe.id
+                        INNER JOIN produto p ON pei.produto_id = p.id
+                        LEFT JOIN estoque_central ec1 ON pei.estoque_central_id = ec1.id
+                        LEFT JOIN fornecedor f1 ON ec1.fornecedor_id = f1.id
+                        LEFT JOIN estoque_central ec2 ON pei.produto_id = ec2.produto_id 
+                            AND ec2.quantidade > 0 
+                            AND pei.estoque_central_id IS NULL
+                            AND ec2.id = (
+                                SELECT ec3.id 
+                                FROM estoque_central ec3 
+                                WHERE ec3.produto_id = pei.produto_id 
+                                AND ec3.quantidade > 0 
+                                ORDER BY ec3.validade ASC 
+                                LIMIT 1
+                            )
+                        LEFT JOIN fornecedor f2 ON ec2.fornecedor_id = f2.id
+                        WHERE pe.escola_id = :escola_id";
+            } else {
+                // Se a coluna não existe, agrupar por produto_id + lote para mostrar cada lote separadamente
+                $sql = "SELECT 
+                            pei.produto_id,
+                            ec.id as estoque_central_id,
+                            p.nome as produto_nome,
+                            p.unidade_medida,
+                            p.estoque_minimo,
+                            SUM(pei.quantidade) as quantidade,
+                            ec.validade,
+                            COALESCE(ec.lote, 'Sem lote') as lote,
+                            f.nome as fornecedor_nome,
+                            MAX(pe.data_envio) as data_envio_mais_recente
+                        FROM pacote_escola_item pei
+                        INNER JOIN pacote_escola pe ON pei.pacote_id = pe.id
+                        INNER JOIN produto p ON pei.produto_id = p.id
+                        LEFT JOIN estoque_central ec ON pei.produto_id = ec.produto_id AND ec.quantidade > 0
+                        LEFT JOIN fornecedor f ON ec.fornecedor_id = f.id
+                        WHERE pe.escola_id = :escola_id";
+            }
+            
+            $params = [':escola_id' => $escolaId];
+            
+            if (!empty($_GET['produto_id'])) {
+                $sql .= " AND pei.produto_id = :produto_id";
+                $params[':produto_id'] = $_GET['produto_id'];
+            }
+            
+            // Agrupar por produto_id + estoque_central_id (ou lote) para mostrar cada lote separadamente
+            if ($columnExists) {
+                $sql .= " GROUP BY pei.produto_id, pei.estoque_central_id, p.nome, p.unidade_medida, p.estoque_minimo, 
+                          COALESCE(ec1.validade, ec2.validade), COALESCE(ec1.lote, ec2.lote), COALESCE(f1.nome, f2.nome)
+                          ORDER BY p.nome ASC, COALESCE(ec1.validade, ec2.validade) ASC";
+            } else {
+                $sql .= " GROUP BY pei.produto_id, ec.id, p.nome, p.unidade_medida, p.estoque_minimo, ec.validade, ec.lote, f.nome
+                          ORDER BY p.nome ASC, ec.validade ASC";
+            }
+            
+            $stmt = $conn->prepare($sql);
+            foreach ($params as $key => $value) {
+                $stmt->bindValue($key, $value);
+            }
+            $stmt->execute();
+            $estoque = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            
+            // Limpar valores vazios e formatar dados
+            foreach ($estoque as &$item) {
+                $item['id'] = null; // Não temos ID do estoque_central para itens de pacote
+                $item['total_produto'] = $item['quantidade']; // Total já é a soma
+                $item['criado_em'] = $item['data_envio_mais_recente'];
+                
+                // Limpar valores vazios (não usamos mais GROUP_CONCAT, então não precisa limpar vírgulas)
+                if (isset($item['lote'])) {
+                    $lote = trim($item['lote']);
+                    if (empty($lote) || $lote === '' || $lote === 'Sem lote') {
+                        $item['lote'] = null;
+                    } else {
+                        $item['lote'] = $lote;
+                    }
+                } else {
+                    $item['lote'] = null;
+                }
+                
+                if (isset($item['fornecedor_nome'])) {
+                    $fornecedor = trim($item['fornecedor_nome']);
+                    if (empty($fornecedor) || $fornecedor === '') {
+                        $item['fornecedor_nome'] = null;
+                    } else {
+                        $item['fornecedor_nome'] = $fornecedor;
+                    }
+                } else {
+                    $item['fornecedor_nome'] = null;
+                }
+                
+                if (empty($item['validade']) || $item['validade'] === '0000-00-00' || $item['validade'] === '0000-00-00 00:00:00') {
+                    $item['validade'] = null;
+                }
+            }
         }
         
         echo json_encode(['success' => true, 'estoque' => $estoque], JSON_UNESCAPED_UNICODE);
@@ -428,11 +562,11 @@ $estoque = $stmtEstoque->fetchAll(PDO::FETCH_ASSOC);
         </header>
         
         <div class="p-8">
-            <div class="max-w-7xl mx-auto">
+            <div class="max-w-[95%] mx-auto">
                 <div class="mb-6 flex justify-between items-center">
                     <div>
-                        <h2 class="text-2xl font-bold text-gray-900">Estoque Central</h2>
-                        <p class="text-gray-600 mt-1">Gerencie entradas e saídas de produtos</p>
+                        <h2 id="titulo-estoque" class="text-2xl font-bold text-gray-900">Estoque De Produtos</h2>
+                        <p id="subtitulo-estoque" class="text-gray-600 mt-1">Gerencie entradas e saídas de produtos</p>
                     </div>
                     <div class="flex space-x-3">
                         <button onclick="sincronizarCustos()" class="bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded-lg font-medium transition-colors duration-200 flex items-center space-x-2" title="Sincronizar entradas antigas do estoque para custos">
@@ -446,7 +580,16 @@ $estoque = $stmtEstoque->fetchAll(PDO::FETCH_ASSOC);
                 
                 <!-- Filtros -->
                 <div class="bg-white rounded-2xl p-6 shadow-lg mb-6">
-                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Escola</label>
+                            <select id="filtro-escola" class="w-full px-4 py-2 border border-gray-300 rounded-lg" onchange="filtrarEstoque()">
+                                <option value="todos">Todos (Estoque Central)</option>
+                                <?php foreach ($escolas as $escola): ?>
+                                    <option value="<?= $escola['id'] ?>"><?= htmlspecialchars($escola['nome']) ?></option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-2">Produto</label>
                             <select id="filtro-produto" class="w-full px-4 py-2 border border-gray-300 rounded-lg" onchange="filtrarEstoque()">
@@ -477,43 +620,140 @@ $estoque = $stmtEstoque->fetchAll(PDO::FETCH_ASSOC);
                 </div>
                 
                 <!-- Lista de Estoque -->
-                <div class="bg-white rounded-2xl p-6 shadow-lg">
+                <div class="bg-white rounded-2xl shadow-lg overflow-hidden border border-gray-200">
                     <div class="overflow-x-auto">
-                        <table class="w-full">
+                        <table class="w-full min-w-[1200px]">
                             <thead>
-                                <tr class="border-b border-gray-200">
-                                    <th class="text-left py-3 px-4 font-semibold text-gray-700">Produto</th>
-                                    <th class="text-left py-3 px-4 font-semibold text-gray-700">Quantidade</th>
-                                    <th class="text-left py-3 px-4 font-semibold text-gray-700">Lote</th>
-                                    <th class="text-left py-3 px-4 font-semibold text-gray-700">Fornecedor</th>
-                                    <th class="text-left py-3 px-4 font-semibold text-gray-700">Validade</th>
-                                    <th class="text-left py-3 px-4 font-semibold text-gray-700">Data de Entrada</th>
+                                <tr class="bg-gradient-to-r from-primary-green to-green-700 text-white">
+                                    <th class="text-left py-4 px-6 font-bold text-sm uppercase tracking-wider">
+                                        <div class="flex items-center">
+                                            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path>
+                                            </svg>
+                                            Produto
+                                        </div>
+                                    </th>
+                                    <th class="text-center py-4 px-6 font-bold text-sm uppercase tracking-wider">
+                                        <div class="flex items-center justify-center">
+                                            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 7h6m0 10v-5m-6 5v-5m6 5h-3m-3 0h3m-3-10h3m-3 0H9m0 0V7m0 10v-5"></path>
+                                            </svg>
+                                            Quantidade
+                                        </div>
+                                    </th>
+                                    <th class="text-left py-4 px-6 font-bold text-sm uppercase tracking-wider">
+                                        <div class="flex items-center">
+                                            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                                            </svg>
+                                            Lote
+                                        </div>
+                                    </th>
+                                    <th class="text-left py-4 px-6 font-bold text-sm uppercase tracking-wider">
+                                        <div class="flex items-center">
+                                            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path>
+                                            </svg>
+                                            Fornecedor
+                                        </div>
+                                    </th>
+                                    <th class="text-center py-4 px-6 font-bold text-sm uppercase tracking-wider">
+                                        <div class="flex items-center justify-center">
+                                            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                                            </svg>
+                                            Validade
+                                        </div>
+                                    </th>
+                                    <th class="text-center py-4 px-6 font-bold text-sm uppercase tracking-wider">
+                                        <div class="flex items-center justify-center">
+                                            <svg class="w-5 h-5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                            </svg>
+                                            Data de Entrada
+                                        </div>
+                                    </th>
                                 </tr>
                             </thead>
-                            <tbody id="lista-estoque">
+                            <tbody id="lista-estoque" class="divide-y divide-gray-100">
                                 <?php if (empty($estoque)): ?>
                                     <tr>
-                                        <td colspan="6" class="text-center py-12 text-gray-600">
-                                            Nenhum registro de estoque encontrado.
+                                        <td colspan="6" class="text-center py-16">
+                                            <div class="flex flex-col items-center justify-center text-gray-400">
+                                                <svg class="w-20 h-20 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"></path>
+                                                </svg>
+                                                <p class="text-lg font-medium">Nenhum registro de estoque encontrado</p>
+                                                <p class="text-sm mt-1">Os registros aparecerão aqui quando houver dados</p>
+                                            </div>
                                         </td>
                                     </tr>
                                 <?php else: ?>
-                                    <?php foreach ($estoque as $item): ?>
-                                        <tr class="border-b border-gray-100 hover:bg-gray-50">
-                                            <td class="py-3 px-4">
-                                                <div class="font-medium text-gray-900"><?= htmlspecialchars($item['produto_nome']) ?></div>
-                                                <div class="text-sm text-gray-500"><?= htmlspecialchars($item['unidade_medida']) ?></div>
+                                    <?php foreach ($estoque as $index => $item): 
+                                        $validade = $item['validade'] ? date('d/m/Y', strtotime($item['validade'])) : null;
+                                        $dataValidade = $item['validade'] ? new DateTime($item['validade']) : null;
+                                        $hoje = new DateTime();
+                                        $diasRestantes = $dataValidade ? $hoje->diff($dataValidade)->days : null;
+                                        $corValidade = '';
+                                        $iconeValidade = '';
+                                        if ($validade && $diasRestantes !== null) {
+                                            if ($diasRestantes < 0) {
+                                                $corValidade = 'bg-red-100 text-red-800 border-red-200';
+                                                $iconeValidade = '<svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>';
+                                            } else if ($diasRestantes <= 7) {
+                                                $corValidade = 'bg-yellow-100 text-yellow-800 border-yellow-200';
+                                                $iconeValidade = '<svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>';
+                                            } else {
+                                                $corValidade = 'bg-green-100 text-green-800 border-green-200';
+                                                $iconeValidade = '<svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>';
+                                            }
+                                        }
+                                    ?>
+                                        <tr class="hover:bg-gray-50 transition-colors duration-150 <?= $index % 2 === 0 ? 'bg-white' : 'bg-gray-50' ?>">
+                                            <td class="py-4 px-6">
+                                                <div class="flex items-center">
+                                                    <div class="flex-shrink-0 w-10 h-10 bg-primary-green bg-opacity-10 rounded-lg flex items-center justify-center mr-3">
+                                                        <svg class="w-5 h-5 text-primary-green" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path>
+                                                        </svg>
+                                                    </div>
+                                                    <div>
+                                                        <div class="font-semibold text-gray-900"><?= htmlspecialchars($item['produto_nome']) ?></div>
+                                                        <div class="text-sm text-gray-500 mt-0.5"><?= htmlspecialchars($item['unidade_medida']) ?></div>
+                                                    </div>
+                                                </div>
                                             </td>
-                                            <td class="py-3 px-4">
-                                                <span class="font-medium"><?= number_format($item['quantidade'], 2, ',', '.') ?></span>
+                                            <td class="py-4 px-6 text-center">
+                                                <span class="inline-flex items-center px-4 py-2 bg-blue-100 text-blue-800 rounded-lg font-bold text-sm border border-blue-200">
+                                                    <?php
+                                                    $unidade = strtoupper(trim($item['unidade_medida'] ?? ''));
+                                                    $permiteDecimal = in_array($unidade, ['ML', 'L', 'G', 'KG', 'LT', 'LITRO', 'LITROS', 'MILILITRO', 'MILILITROS', 'GRAMA', 'GRAMAS', 'QUILO', 'QUILOS']);
+                                                    $casasDecimais = $permiteDecimal ? 3 : 0;
+                                                    echo number_format($item['quantidade'], $casasDecimais, ',', '.');
+                                                    ?>
+                                                </span>
                                             </td>
-                                            <td class="py-3 px-4 text-sm text-gray-600"><?= htmlspecialchars($item['lote'] ?? '-') ?></td>
-                                            <td class="py-3 px-4 text-sm text-gray-600"><?= htmlspecialchars($item['fornecedor_nome'] ?? '-') ?></td>
-                                            <td class="py-3 px-4 text-sm text-gray-600">
-                                                <?= $item['validade'] ? date('d/m/Y', strtotime($item['validade'])) : '-' ?>
+                                            <td class="py-4 px-6">
+                                                <span class="inline-flex items-center px-3 py-1 bg-gray-100 text-gray-700 rounded-md text-sm font-medium">
+                                                    <?= htmlspecialchars($item['lote'] ?? '-') ?>
+                                                </span>
                                             </td>
-                                            <td class="py-3 px-4 text-sm text-gray-600">
-                                                <?= $item['criado_em'] ? date('d/m/Y', strtotime($item['criado_em'])) : '-' ?>
+                                            <td class="py-4 px-6">
+                                                <span class="text-gray-700 font-medium"><?= htmlspecialchars($item['fornecedor_nome'] ?? '-') ?></span>
+                                            </td>
+                                            <td class="py-4 px-6 text-center">
+                                                <?php if ($validade): ?>
+                                                    <span class="inline-flex items-center px-3 py-1 rounded-lg text-sm font-semibold border <?= $corValidade ?>">
+                                                        <?= $iconeValidade ?><?= $validade ?>
+                                                    </span>
+                                                <?php else: ?>
+                                                    <span class="text-gray-400 italic">Não informada</span>
+                                                <?php endif; ?>
+                                            </td>
+                                            <td class="py-4 px-6 text-center">
+                                                <span class="text-gray-600 font-medium">
+                                                    <?= $item['criado_em'] ? date('d/m/Y', strtotime($item['criado_em'])) : '-' ?>
+                                                </span>
                                             </td>
                                         </tr>
                                     <?php endforeach; ?>
@@ -623,6 +863,21 @@ $estoque = $stmtEstoque->fetchAll(PDO::FETCH_ASSOC);
     </div>
     
     <script>
+        // Função para formatar quantidade baseado na unidade de medida
+        function formatarQuantidade(quantidade, unidadeMedida) {
+            if (!quantidade && quantidade !== 0) return '0';
+            
+            const unidade = (unidadeMedida || '').toUpperCase().trim();
+            // Unidades que permitem decimais (líquidas e de peso)
+            const permiteDecimal = ['ML', 'L', 'G', 'KG', 'LT', 'LITRO', 'LITROS', 'MILILITRO', 'MILILITROS', 'GRAMA', 'GRAMAS', 'QUILO', 'QUILOS'].includes(unidade);
+            const casasDecimais = permiteDecimal ? 3 : 0;
+            
+            return parseFloat(quantidade).toLocaleString('pt-BR', {
+                minimumFractionDigits: casasDecimais,
+                maximumFractionDigits: casasDecimais
+            });
+        }
+        
         window.toggleSidebar = function() {
             const sidebar = document.getElementById('sidebar');
             const overlay = document.getElementById('mobileOverlay');
@@ -868,10 +1123,23 @@ $estoque = $stmtEstoque->fetchAll(PDO::FETCH_ASSOC);
         }
 
         function filtrarEstoque() {
+            const escolaId = document.getElementById('filtro-escola').value;
             const produtoId = document.getElementById('filtro-produto').value;
             const fornecedorId = document.getElementById('filtro-fornecedor').value;
+            const selectEscola = document.getElementById('filtro-escola');
+            const escolaSelecionada = selectEscola.options[selectEscola.selectedIndex].text;
+            
+            // Atualizar título
+            if (escolaId === 'todos' || !escolaId) {
+                document.getElementById('titulo-estoque').textContent = 'Estoque Central';
+                document.getElementById('subtitulo-estoque').textContent = 'Gerencie entradas e saídas de produtos';
+            } else {
+                document.getElementById('titulo-estoque').textContent = 'Estoque da Escola';
+                document.getElementById('subtitulo-estoque').textContent = `Produtos disponíveis em: ${escolaSelecionada}`;
+            }
             
             let url = '?acao=listar_estoque';
+            if (escolaId && escolaId !== 'todos') url += '&escola_id=' + escolaId;
             if (produtoId) url += '&produto_id=' + produtoId;
             if (fornecedorId) url += '&fornecedor_id=' + fornecedorId;
             
@@ -883,26 +1151,111 @@ $estoque = $stmtEstoque->fetchAll(PDO::FETCH_ASSOC);
                         tbody.innerHTML = '';
                         
                         if (data.estoque.length === 0) {
-                            tbody.innerHTML = '<tr><td colspan="6" class="text-center py-12 text-gray-600">Nenhum registro encontrado.</td></tr>';
+                            tbody.innerHTML = `
+                                <tr>
+                                    <td colspan="6" class="text-center py-16">
+                                        <div class="flex flex-col items-center justify-center text-gray-400">
+                                            <svg class="w-20 h-20 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"></path>
+                                            </svg>
+                                            <p class="text-lg font-medium">Nenhum registro encontrado</p>
+                                            <p class="text-sm mt-1">Os registros aparecerão aqui quando houver dados</p>
+                                        </div>
+                                    </td>
+                                </tr>
+                            `;
                             return;
                         }
                         
-                        data.estoque.forEach(item => {
-                            const validade = item.validade ? new Date(item.validade).toLocaleDateString('pt-BR') : '-';
-                            const dataEntrada = item.criado_em ? new Date(item.criado_em).toLocaleDateString('pt-BR') : '-';
+                        data.estoque.forEach((item, index) => {
+                            // Formatar validade
+                            let validade = null;
+                            let corValidade = '';
+                            let iconeValidade = '';
+                            if (item.validade) {
+                                try {
+                                    const dataValidade = new Date(item.validade);
+                                    if (!isNaN(dataValidade.getTime())) {
+                                        validade = dataValidade.toLocaleDateString('pt-BR');
+                                        const hoje = new Date();
+                                        hoje.setHours(0, 0, 0, 0);
+                                        const diasRestantes = Math.ceil((dataValidade - hoje) / (1000 * 60 * 60 * 24));
+                                        
+                                        if (diasRestantes < 0) {
+                                            corValidade = 'bg-red-100 text-red-800 border-red-200';
+                                            iconeValidade = '<svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>';
+                                        } else if (diasRestantes <= 7) {
+                                            corValidade = 'bg-yellow-100 text-yellow-800 border-yellow-200';
+                                            iconeValidade = '<svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>';
+                                        } else {
+                                            corValidade = 'bg-green-100 text-green-800 border-green-200';
+                                            iconeValidade = '<svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>';
+                                        }
+                                    }
+                                } catch (e) {
+                                    validade = item.validade;
+                                }
+                            }
+                            
+                            // Formatar data de entrada
+                            let dataEntrada = '-';
+                            if (item.criado_em) {
+                                try {
+                                    const data = new Date(item.criado_em);
+                                    if (!isNaN(data.getTime())) {
+                                        dataEntrada = data.toLocaleDateString('pt-BR');
+                                    }
+                                } catch (e) {
+                                    dataEntrada = item.criado_em;
+                                }
+                            }
+                            
+                            // Formatar lote
+                            let lote = item.lote ? item.lote.trim() : null;
+                            if (!lote || lote === '' || lote === 'Sem lote') lote = '-';
+                            
+                            // Formatar fornecedor
+                            let fornecedor = item.fornecedor_nome ? item.fornecedor_nome.trim() : null;
+                            if (!fornecedor || fornecedor === '') fornecedor = '-';
+                            
                             tbody.innerHTML += `
-                                <tr class="border-b border-gray-100 hover:bg-gray-50">
-                                    <td class="py-3 px-4">
-                                        <div class="font-medium text-gray-900">${item.produto_nome}</div>
-                                        <div class="text-sm text-gray-500">${item.unidade_medida}</div>
+                                <tr class="hover:bg-gray-50 transition-colors duration-150 ${index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}">
+                                    <td class="py-4 px-6">
+                                        <div class="flex items-center">
+                                            <div class="flex-shrink-0 w-10 h-10 bg-primary-green bg-opacity-10 rounded-lg flex items-center justify-center mr-3">
+                                                <svg class="w-5 h-5 text-primary-green" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path>
+                                                </svg>
+                                            </div>
+                                            <div>
+                                                <div class="font-semibold text-gray-900">${item.produto_nome || '-'}</div>
+                                                <div class="text-sm text-gray-500 mt-0.5">${item.unidade_medida || '-'}</div>
+                                            </div>
+                                        </div>
                                     </td>
-                                    <td class="py-3 px-4">
-                                        <span class="font-medium">${parseFloat(item.quantidade).toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>
+                                    <td class="py-4 px-6 text-center">
+                                        <span class="inline-flex items-center px-4 py-2 bg-blue-100 text-blue-800 rounded-lg font-bold text-sm border border-blue-200">
+                                            ${formatarQuantidade(item.quantidade || 0, item.unidade_medida)}
+                                        </span>
                                     </td>
-                                    <td class="py-3 px-4 text-sm text-gray-600">${item.lote || '-'}</td>
-                                    <td class="py-3 px-4 text-sm text-gray-600">${item.fornecedor_nome || '-'}</td>
-                                    <td class="py-3 px-4 text-sm text-gray-600">${validade}</td>
-                                    <td class="py-3 px-4 text-sm text-gray-600">${dataEntrada}</td>
+                                    <td class="py-4 px-6">
+                                        <span class="inline-flex items-center px-3 py-1 bg-gray-100 text-gray-700 rounded-md text-sm font-medium">
+                                            ${lote}
+                                        </span>
+                                    </td>
+                                    <td class="py-4 px-6">
+                                        <span class="text-gray-700 font-medium">${fornecedor}</span>
+                                    </td>
+                                    <td class="py-4 px-6 text-center">
+                                        ${validade ? `
+                                            <span class="inline-flex items-center px-3 py-1 rounded-lg text-sm font-semibold border ${corValidade}">
+                                                ${iconeValidade}${validade}
+                                            </span>
+                                        ` : '<span class="text-gray-400 italic">Não informada</span>'}
+                                    </td>
+                                    <td class="py-4 px-6 text-center">
+                                        <span class="text-gray-600 font-medium">${dataEntrada}</span>
+                                    </td>
                                 </tr>
                             `;
                         });

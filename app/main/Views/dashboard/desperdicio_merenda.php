@@ -228,7 +228,16 @@ $desperdiciosRecentes = $desperdicioModel->listar(['data_inicio' => date('Y-m-d'
                                             <td class="py-3 px-4"><?= date('d/m/Y', strtotime($desp['data'])) ?></td>
                                             <td class="py-3 px-4"><?= htmlspecialchars($desp['escola_nome']) ?></td>
                                             <td class="py-3 px-4"><?= htmlspecialchars($desp['produto_nome'] ?? '-') ?></td>
-                                            <td class="py-3 px-4"><?= $desp['quantidade'] ? number_format($desp['quantidade'], 2, ',', '.') . ' ' . ($desp['unidade_medida'] ?? '') : '-' ?></td>
+                                            <td class="py-3 px-4"><?php
+                                                if ($desp['quantidade']) {
+                                                    $unidade = strtoupper(trim($desp['unidade_medida'] ?? ''));
+                                                    $permiteDecimal = in_array($unidade, ['ML', 'L', 'G', 'KG', 'LT', 'LITRO', 'LITROS', 'MILILITRO', 'MILILITROS', 'GRAMA', 'GRAMAS', 'QUILO', 'QUILOS']);
+                                                    $casasDecimais = $permiteDecimal ? 3 : 0;
+                                                    echo number_format($desp['quantidade'], $casasDecimais, ',', '.') . ' ' . ($desp['unidade_medida'] ?? '');
+                                                } else {
+                                                    echo '-';
+                                                }
+                                            ?></td>
                                             <td class="py-3 px-4 font-medium"><?= $desp['peso_kg'] ? number_format($desp['peso_kg'], 2, ',', '.') . ' kg' : '-' ?></td>
                                             <td class="py-3 px-4">
                                                 <span class="px-2 py-1 rounded text-xs <?php
@@ -366,6 +375,21 @@ $desperdiciosRecentes = $desperdicioModel->listar(['data_inicio' => date('Y-m-d'
     </div>
     
     <script>
+        // Função para formatar quantidade baseado na unidade de medida
+        function formatarQuantidade(quantidade, unidadeMedida) {
+            if (!quantidade && quantidade !== 0) return '0';
+            
+            const unidade = (unidadeMedida || '').toUpperCase().trim();
+            // Unidades que permitem decimais (líquidas e de peso)
+            const permiteDecimal = ['ML', 'L', 'G', 'KG', 'LT', 'LITRO', 'LITROS', 'MILILITRO', 'MILILITROS', 'GRAMA', 'GRAMAS', 'QUILO', 'QUILOS'].includes(unidade);
+            const casasDecimais = permiteDecimal ? 3 : 0;
+            
+            return parseFloat(quantidade).toLocaleString('pt-BR', {
+                minimumFractionDigits: casasDecimais,
+                maximumFractionDigits: casasDecimais
+            });
+        }
+        
         window.toggleSidebar = function() {
             const sidebar = document.getElementById('sidebar');
             const overlay = document.getElementById('mobileOverlay');
@@ -473,7 +497,7 @@ $desperdiciosRecentes = $desperdicioModel->listar(['data_inicio' => date('Y-m-d'
                                     <td class="py-3 px-4">${dataFormatada}</td>
                                     <td class="py-3 px-4">${desp.escola_nome}</td>
                                     <td class="py-3 px-4">${desp.produto_nome || '-'}</td>
-                                    <td class="py-3 px-4">${desp.quantidade ? parseFloat(desp.quantidade).toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2}) + ' ' + (desp.unidade_medida || '') : '-'}</td>
+                                    <td class="py-3 px-4">${desp.quantidade ? formatarQuantidade(desp.quantidade, desp.unidade_medida) + ' ' + (desp.unidade_medida || '') : '-'}</td>
                                     <td class="py-3 px-4 font-medium">${desp.peso_kg ? parseFloat(desp.peso_kg).toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2}) + ' kg' : '-'}</td>
                                     <td class="py-3 px-4">
                                         <span class="px-2 py-1 rounded text-xs ${motivoClass}">

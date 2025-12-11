@@ -74,16 +74,52 @@ function listarEscolas($busca = '')
     $db = Database::getInstance();
     $conn = $db->getConnection();
 
-    $sql = "SELECT e.id, e.nome, e.endereco, e.telefone, e.email, e.municipio, e.cep, e.qtd_salas, e.obs, e.codigo, e.criado_em as data_criacao,
-                   p.nome as gestor_nome, p.email as gestor_email
-            FROM escola e 
-            LEFT JOIN gestor_lotacao gl ON e.id = gl.escola_id AND gl.responsavel = 1 AND gl.fim IS NULL
-            LEFT JOIN gestor g ON gl.gestor_id = g.id AND g.ativo = 1
-            LEFT JOIN pessoa p ON g.pessoa_id = p.id
-            WHERE 1=1";
+    // Usar subquery para buscar apenas um gestor responsável por escola (evitar duplicatas)
+    $sql = "SELECT 
+                e.id, 
+                e.nome, 
+                e.endereco, 
+                e.telefone, 
+                e.email, 
+                e.municipio, 
+                e.cep, 
+                e.qtd_salas, 
+                e.obs, 
+                e.codigo, 
+                e.criado_em as data_criacao,
+                (SELECT p.nome 
+                 FROM gestor_lotacao gl2
+                 INNER JOIN gestor g2 ON gl2.gestor_id = g2.id AND g2.ativo = 1
+                 INNER JOIN pessoa p ON g2.pessoa_id = p.id
+                 WHERE gl2.escola_id = e.id 
+                 AND gl2.responsavel = 1 
+                 AND (gl2.fim IS NULL OR gl2.fim = '' OR gl2.fim = '0000-00-00')
+                 ORDER BY gl2.inicio DESC
+                 LIMIT 1) as gestor_nome,
+                (SELECT p.email 
+                 FROM gestor_lotacao gl3
+                 INNER JOIN gestor g3 ON gl3.gestor_id = g3.id AND g3.ativo = 1
+                 INNER JOIN pessoa p ON g3.pessoa_id = p.id
+                 WHERE gl3.escola_id = e.id 
+                 AND gl3.responsavel = 1 
+                 AND (gl3.fim IS NULL OR gl3.fim = '' OR gl3.fim = '0000-00-00')
+                 ORDER BY gl3.inicio DESC
+                 LIMIT 1) as gestor_email
+            FROM escola e
+            WHERE e.ativo = 1";
 
     if (!empty($busca)) {
-        $sql .= " AND (e.nome LIKE :busca OR e.endereco LIKE :busca OR e.email LIKE :busca OR e.municipio LIKE :busca OR p.nome LIKE :busca)";
+        $sql .= " AND (e.nome LIKE :busca OR e.endereco LIKE :busca OR e.email LIKE :busca OR e.municipio LIKE :busca 
+                      OR EXISTS (
+                          SELECT 1 
+                          FROM gestor_lotacao gl4
+                          INNER JOIN gestor g4 ON gl4.gestor_id = g4.id AND g4.ativo = 1
+                          INNER JOIN pessoa p4 ON g4.pessoa_id = p4.id
+                          WHERE gl4.escola_id = e.id 
+                          AND gl4.responsavel = 1 
+                          AND (gl4.fim IS NULL OR gl4.fim = '' OR gl4.fim = '0000-00-00')
+                          AND p4.nome LIKE :busca
+                      ))";
     }
 
     $sql .= " ORDER BY e.nome ASC";
@@ -91,15 +127,14 @@ function listarEscolas($busca = '')
     $stmt = $conn->prepare($sql);
 
     if (!empty($busca)) {
-        $busca = "%{$busca}%";
-        $stmt->bindParam(':busca', $busca);
+        $buscaParam = "%{$busca}%";
+        $stmt->bindParam(':busca', $buscaParam);
     }
 
     $stmt->execute();
     $escolas = $stmt->fetchAll(PDO::FETCH_ASSOC);
     
-    // Os dados do gestor já vêm do JOIN, não precisamos processar o campo obs
-    // Apenas garantir que valores vazios sejam tratados como null
+    // Garantir que valores vazios sejam tratados como null
     foreach ($escolas as &$escola) {
         if (empty($escola['gestor_nome'])) {
             $escola['gestor_nome'] = null;

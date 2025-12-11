@@ -244,6 +244,24 @@ $totalGeral = array_sum(array_column($totaisMes, 'total_custos'));
             .sidebar-mobile { transform: translateX(-100%); }
             .sidebar-mobile.open { transform: translateX(0); }
         }
+        /* Estilos para a tabela de custos */
+        table {
+            border-collapse: separate;
+            border-spacing: 0;
+        }
+        table thead th {
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+        table tbody tr {
+            transition: all 0.2s ease;
+        }
+        table tbody tr:hover {
+            background-color: #f9fafb;
+            transform: scale(1.01);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+        }
     </style>
 </head>
 <body class="bg-gray-50">
@@ -376,46 +394,66 @@ $totalGeral = array_sum(array_column($totaisMes, 'total_custos'));
                 <!-- Lista de Custos -->
                 <div class="bg-white rounded-2xl p-6 shadow-lg">
                     <div class="overflow-x-auto">
-                        <table class="w-full">
+                        <table class="w-full table-auto">
                             <thead>
-                                <tr class="border-b border-gray-200">
-                                    <th class="text-left py-3 px-4 font-semibold text-gray-700">Data</th>
-                                    <th class="text-left py-3 px-4 font-semibold text-gray-700">Origem</th>
-                                    <th class="text-left py-3 px-4 font-semibold text-gray-700">Tipo</th>
-                                    <th class="text-left py-3 px-4 font-semibold text-gray-700">Descrição</th>
-                                    <th class="text-right py-3 px-4 font-semibold text-gray-700">Valor Total</th>
+                                <tr class="border-b-2 border-gray-300 bg-gray-50">
+                                    <th class="text-center py-4 px-4 font-semibold text-gray-700 text-sm uppercase tracking-wider">Data</th>
+                                    <th class="text-center py-4 px-4 font-semibold text-gray-700 text-sm uppercase tracking-wider">Origem</th>
+                                    <th class="text-center py-4 px-4 font-semibold text-gray-700 text-sm uppercase tracking-wider">Tipo</th>
+                                    <th class="text-left py-4 px-4 font-semibold text-gray-700 text-sm uppercase tracking-wider">Descrição</th>
+                                    <th class="text-center py-4 px-4 font-semibold text-gray-700 text-sm uppercase tracking-wider">Valor Total</th>
                                 </tr>
                             </thead>
-                            <tbody id="lista-custos">
+                            <tbody id="lista-custos" class="divide-y divide-gray-200">
                                 <?php if (empty($custosMes)): ?>
                                     <tr>
-                                        <td colspan="5" class="text-center py-12 text-gray-600">
-                                            Nenhum registro de custo encontrado.
+                                        <td colspan="5" class="text-center py-16 text-gray-500">
+                                            <div class="flex flex-col items-center justify-center">
+                                                <svg class="w-16 h-16 text-gray-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                                                </svg>
+                                                <p class="text-lg font-medium">Nenhum registro de custo encontrado</p>
+                                                <p class="text-sm mt-1">Os registros aparecerão aqui quando forem cadastrados</p>
+                                            </div>
                                         </td>
                                     </tr>
                                 <?php else: ?>
                                     <?php foreach ($custosMes as $custo): 
                                         $escolaNome = $custo['escola_nome'] ?? ($custo['escola_id'] === null ? 'Compra Centralizada' : '-');
                                         $tipoClass = ($custo['tipo'] === 'COMPRA_PRODUTOS' && $custo['escola_id'] === null) 
-                                            ? 'bg-blue-100 text-blue-800' 
-                                            : 'bg-gray-100 text-gray-800';
+                                            ? 'bg-blue-100 text-blue-800 border border-blue-200' 
+                                            : 'bg-gray-100 text-gray-800 border border-gray-200';
                                     ?>
-                                        <tr class="border-b border-gray-100 hover:bg-gray-50">
-                                            <td class="py-3 px-4"><?= date('d/m/Y', strtotime($custo['data'])) ?></td>
-                                            <td class="py-3 px-4">
-                                                <?= htmlspecialchars($escolaNome) ?>
-                                                <?php if ($custo['escola_id'] === null): ?>
-                                                    <span class="ml-2 text-xs text-blue-600">(Central)</span>
-                                                <?php endif; ?>
+                                        <tr class="border-b border-gray-100 hover:bg-gray-50 transition-colors duration-150">
+                                            <td class="py-4 px-4 text-center text-sm text-gray-700 font-medium whitespace-nowrap">
+                                                <?= date('d/m/Y', strtotime($custo['data'])) ?>
                                             </td>
-                                            <td class="py-3 px-4">
-                                                <span class="px-2 py-1 rounded text-xs <?= $tipoClass ?>">
+                                            <td class="py-4 px-4 text-center">
+                                                <div class="flex flex-col items-center justify-center">
+                                                    <span class="text-sm font-medium text-gray-900">
+                                                        <?= htmlspecialchars($escolaNome) ?>
+                                                    </span>
+                                                    <?php if ($custo['escola_id'] === null): ?>
+                                                        <span class="mt-1 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800">
+                                                            Central
+                                                        </span>
+                                                    <?php endif; ?>
+                                                </div>
+                                            </td>
+                                            <td class="py-4 px-4 text-center">
+                                                <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold <?= $tipoClass ?>">
                                                     <?= htmlspecialchars($custo['tipo'] ?? 'OUTROS') ?>
                                                 </span>
                                             </td>
-                                            <td class="py-3 px-4"><?= htmlspecialchars($custo['descricao'] ?? '-') ?></td>
-                                            <td class="py-3 px-4 text-right font-medium">
-                                                R$ <?= number_format($custo['valor_total'] ?? 0, 2, ',', '.') ?>
+                                            <td class="py-4 px-4 text-sm text-gray-700">
+                                                <div class="max-w-md">
+                                                    <?= htmlspecialchars($custo['descricao'] ?? '-') ?>
+                                                </div>
+                                            </td>
+                                            <td class="py-4 px-4 text-center">
+                                                <span class="text-sm font-bold text-gray-900">
+                                                    R$ <?= number_format($custo['valor_total'] ?? 0, 2, ',', '.') ?>
+                                                </span>
                                             </td>
                                         </tr>
                                     <?php endforeach; ?>
@@ -499,7 +537,19 @@ $totalGeral = array_sum(array_column($totaisMes, 'total_custos'));
                         tbody.innerHTML = '';
                         
                         if (data.custos.length === 0) {
-                            tbody.innerHTML = '<tr><td colspan="5" class="text-center py-12 text-gray-600">Nenhum registro encontrado.</td></tr>';
+                            tbody.innerHTML = `
+                                <tr>
+                                    <td colspan="5" class="text-center py-16 text-gray-500">
+                                        <div class="flex flex-col items-center justify-center">
+                                            <svg class="w-16 h-16 text-gray-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                                            </svg>
+                                            <p class="text-lg font-medium">Nenhum registro encontrado</p>
+                                            <p class="text-sm mt-1">Os registros aparecerão aqui quando forem cadastrados</p>
+                                        </div>
+                                    </td>
+                                </tr>
+                            `;
                             // Atualiza métricas com zero
                             const totalMesEl = document.getElementById('total-mes');
                             const totalRegEl = document.getElementById('total-registros');
@@ -514,26 +564,35 @@ $totalGeral = array_sum(array_column($totaisMes, 'total_custos'));
                             const dataFormatada = new Date(custo.data).toLocaleDateString('pt-BR');
                             const escolaNome = custo.escola_nome || (custo.escola_id === null ? 'Compra Centralizada' : '-');
                             const tipoClass = custo.tipo === 'COMPRA_PRODUTOS' && custo.escola_id === null 
-                                ? 'bg-blue-100 text-blue-800' 
-                                : 'bg-gray-100 text-gray-800';
+                                ? 'bg-blue-100 text-blue-800 border border-blue-200' 
+                                : 'bg-gray-100 text-gray-800 border border-gray-200';
                             tbody.innerHTML += `
-                                <tr class="border-b border-gray-100 hover:bg-gray-50">
-                                    <td class="py-3 px-4">
+                                <tr class="border-b border-gray-100 hover:bg-gray-50 transition-colors duration-150">
+                                    <td class="py-4 px-4 text-center text-sm text-gray-700 font-medium whitespace-nowrap">
                                         ${dataFormatada}
                                     </td>
-                                    <td class="py-3 px-4">${custo.escola_nome || '-'}</td>
-                                    <td class="py-3 px-4">
-                                        ${escolaNome}
-                                        ${custo.escola_id === null ? '<span class="ml-2 text-xs text-blue-600">(Central)</span>' : ''}
+                                    <td class="py-4 px-4 text-center">
+                                        <div class="flex flex-col items-center justify-center">
+                                            <span class="text-sm font-medium text-gray-900">
+                                                ${escolaNome}
+                                            </span>
+                                            ${custo.escola_id === null ? '<span class="mt-1 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800">Central</span>' : ''}
+                                        </div>
                                     </td>
-                                    <td class="py-3 px-4">
-                                        <span class="px-2 py-1 rounded text-xs ${tipoClass}">
+                                    <td class="py-4 px-4 text-center">
+                                        <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold ${tipoClass}">
                                             ${custo.tipo || 'OUTROS'}
                                         </span>
                                     </td>
-                                    <td class="py-3 px-4">${custo.descricao || '-'}</td>
-                                    <td class="py-3 px-4 text-right font-medium">
-                                        R$ ${parseFloat(custo.valor_total || 0).toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}
+                                    <td class="py-4 px-4 text-sm text-gray-700">
+                                        <div class="max-w-md">
+                                            ${custo.descricao || '-'}
+                                        </div>
+                                    </td>
+                                    <td class="py-4 px-4 text-center">
+                                        <span class="text-sm font-bold text-gray-900">
+                                            R$ ${parseFloat(custo.valor_total || 0).toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}
+                                        </span>
                                     </td>
                                 </tr>
                             `;

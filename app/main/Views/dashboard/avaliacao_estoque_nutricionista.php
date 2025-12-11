@@ -122,7 +122,12 @@ $consumo = $stmtConsumo->fetchAll(PDO::FETCH_ASSOC);
                                     <tr>
                                         <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900"><?= htmlspecialchars($item['nome']) ?></td>
                                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500"><?= htmlspecialchars($item['unidade_medida']) ?></td>
-                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900"><?= number_format($item['quantidade_total'], 2, ',', '.') ?></td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900"><?php
+                                            $unidade = strtoupper(trim($item['unidade_medida'] ?? ''));
+                                            $permiteDecimal = in_array($unidade, ['ML', 'L', 'G', 'KG', 'LT', 'LITRO', 'LITROS', 'MILILITRO', 'MILILITROS', 'GRAMA', 'GRAMAS', 'QUILO', 'QUILOS']);
+                                            $casasDecimais = $permiteDecimal ? 3 : 0;
+                                            echo number_format($item['quantidade_total'], $casasDecimais, ',', '.');
+                                        ?></td>
                                         <td class="px-6 py-4 whitespace-nowrap">
                                             <span class="px-2 py-1 text-xs font-semibold rounded-full <?= $statusClass ?>"><?= $statusText ?></span>
                                         </td>
@@ -155,7 +160,12 @@ $consumo = $stmtConsumo->fetchAll(PDO::FETCH_ASSOC);
                                         <?php foreach ($consumo as $c): ?>
                                             <tr>
                                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900"><?= date('d/m/Y', strtotime($c['data'])) ?></td>
-                                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900"><?= number_format($c['quantidade_total'], 2, ',', '.') ?></td>
+                                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900"><?php
+                                                    $unidade = strtoupper(trim($c['unidade_medida'] ?? ''));
+                                                    $permiteDecimal = in_array($unidade, ['ML', 'L', 'G', 'KG', 'LT', 'LITRO', 'LITROS', 'MILILITRO', 'MILILITROS', 'GRAMA', 'GRAMAS', 'QUILO', 'QUILOS']);
+                                                    $casasDecimais = $permiteDecimal ? 3 : 0;
+                                                    echo number_format($c['quantidade_total'], $casasDecimais, ',', '.');
+                                                ?></td>
                                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500"><?= $c['escolas'] ?> escola(s)</td>
                                             </tr>
                                         <?php endforeach; ?>
