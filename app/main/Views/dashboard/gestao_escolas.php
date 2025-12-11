@@ -648,6 +648,73 @@ $escolas = listarEscolas($busca);
         });
 
         // Função toggleSidebar já definida globalmente
+        
+        // Definir funções de modal no escopo global imediatamente
+        // Isso garante que as funções estejam disponíveis quando o HTML for renderizado
+        window.abrirModalEdicaoEscola = function(id, nome) {
+            try {
+                // Aguardar DOM estar pronto se necessário
+                if (document.readyState === 'loading') {
+                    document.addEventListener('DOMContentLoaded', function() {
+                        abrirModalEdicaoEscola(id, nome);
+                    });
+                    return;
+                }
+                
+                const editEscolaId = document.getElementById('edit_escola_id');
+                const tituloModal = document.getElementById('tituloModalEdicao');
+                const modalEdicao = document.getElementById('modalEdicaoEscola');
+                
+                if (!editEscolaId || !tituloModal || !modalEdicao) {
+                    console.error('Elementos do modal de edição não encontrados');
+                    alert('Erro ao abrir modal de edição. Elementos não encontrados.');
+                    return;
+                }
+                
+                editEscolaId.value = id;
+                tituloModal.textContent = `Editar Escola - ${nome}`;
+                modalEdicao.classList.remove('hidden');
+                
+                // Carregar dados da escola
+                if (typeof carregarDadosEscola === 'function') {
+                    carregarDadosEscola(id);
+                } else {
+                    console.error('Função carregarDadosEscola não encontrada');
+                }
+            } catch (error) {
+                console.error('Erro ao abrir modal de edição:', error);
+                alert('Erro ao abrir modal de edição. Por favor, tente novamente.');
+            }
+        };
+        
+        window.abrirModalExclusaoEscola = function(id, nome) {
+            try {
+                // Aguardar DOM estar pronto se necessário
+                if (document.readyState === 'loading') {
+                    document.addEventListener('DOMContentLoaded', function() {
+                        abrirModalExclusaoEscola(id, nome);
+                    });
+                    return;
+                }
+                
+                const idEscolaExclusao = document.getElementById('idEscolaExclusao');
+                const nomeEscolaExclusao = document.getElementById('nomeEscolaExclusao');
+                const modalExclusao = document.getElementById('modalExclusaoEscola');
+                
+                if (!idEscolaExclusao || !nomeEscolaExclusao || !modalExclusao) {
+                    console.error('Elementos do modal de exclusão não encontrados');
+                    alert('Erro ao abrir modal de exclusão. Elementos não encontrados.');
+                    return;
+                }
+                
+                idEscolaExclusao.value = id;
+                nomeEscolaExclusao.textContent = nome;
+                modalExclusao.classList.remove('hidden');
+            } catch (error) {
+                console.error('Erro ao abrir modal de exclusão:', error);
+                alert('Erro ao abrir modal de exclusão. Por favor, tente novamente.');
+            }
+        };
     </script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link href="global-theme.css" rel="stylesheet">
@@ -2658,13 +2725,59 @@ if ($_SESSION['tipo'] === 'ADM') {
     </div>
     
     <script>
+        // Definir funções no escopo global imediatamente para garantir disponibilidade
+        // Isso garante que as funções estejam disponíveis quando o HTML for renderizado
+        
+        // Função para abrir modal de edição de escola
+        window.abrirModalEdicaoEscola = function(id, nome) {
+            try {
+                const editEscolaId = document.getElementById('edit_escola_id');
+                const tituloModal = document.getElementById('tituloModalEdicao');
+                const modalEdicao = document.getElementById('modalEdicaoEscola');
+                
+                if (!editEscolaId || !tituloModal || !modalEdicao) {
+                    console.error('Elementos do modal de edição não encontrados');
+                    alert('Erro ao abrir modal de edição. Elementos não encontrados.');
+                    return;
+                }
+                
+                editEscolaId.value = id;
+                tituloModal.textContent = `Editar Escola - ${nome}`;
+                modalEdicao.classList.remove('hidden');
+                
+                // Carregar dados da escola
+                if (typeof carregarDadosEscola === 'function') {
+                    carregarDadosEscola(id);
+                } else {
+                    console.error('Função carregarDadosEscola não encontrada');
+                }
+            } catch (error) {
+                console.error('Erro ao abrir modal de edição:', error);
+                alert('Erro ao abrir modal de edição. Por favor, tente novamente.');
+            }
+        };
         
         // Função para abrir modal de exclusão de escola
-        function abrirModalExclusaoEscola(id, nome) {
-            document.getElementById('idEscolaExclusao').value = id;
-            document.getElementById('nomeEscolaExclusao').textContent = nome;
-            document.getElementById('modalExclusaoEscola').classList.remove('hidden');
-        }
+        window.abrirModalExclusaoEscola = function(id, nome) {
+            try {
+                const idEscolaExclusao = document.getElementById('idEscolaExclusao');
+                const nomeEscolaExclusao = document.getElementById('nomeEscolaExclusao');
+                const modalExclusao = document.getElementById('modalExclusaoEscola');
+                
+                if (!idEscolaExclusao || !nomeEscolaExclusao || !modalExclusao) {
+                    console.error('Elementos do modal de exclusão não encontrados');
+                    alert('Erro ao abrir modal de exclusão. Elementos não encontrados.');
+                    return;
+                }
+                
+                idEscolaExclusao.value = id;
+                nomeEscolaExclusao.textContent = nome;
+                modalExclusao.classList.remove('hidden');
+            } catch (error) {
+                console.error('Erro ao abrir modal de exclusão:', error);
+                alert('Erro ao abrir modal de exclusão. Por favor, tente novamente.');
+            }
+        };
         
         // Função para fechar modal de exclusão de escola
         function fecharModalExclusaoEscola() {
@@ -2672,11 +2785,14 @@ if ($_SESSION['tipo'] === 'ADM') {
         }
         
         // Fechar modal clicando fora dele
-        document.getElementById('modalExclusaoEscola').addEventListener('click', function(e) {
-            if (e.target === this) {
-                fecharModalExclusaoEscola();
-            }
-        });
+        const modalExclusao = document.getElementById('modalExclusaoEscola');
+        if (modalExclusao) {
+            modalExclusao.addEventListener('click', function(e) {
+                if (e.target === this) {
+                    fecharModalExclusaoEscola();
+                }
+            });
+        }
         
         // Função para buscar gestores
         function buscarGestores(termo) {
@@ -2730,15 +2846,8 @@ if ($_SESSION['tipo'] === 'ADM') {
             document.getElementById('gestor_selected').classList.add('hidden');
         }
         
-        // Funções do Modal de Edição
-        function abrirModalEdicaoEscola(id, nome) {
-            document.getElementById('edit_escola_id').value = id;
-            document.getElementById('tituloModalEdicao').textContent = `Editar Escola - ${nome}`;
-            document.getElementById('modalEdicaoEscola').classList.remove('hidden');
-            
-            // Carregar dados da escola
-            carregarDadosEscola(id);
-        }
+        // Funções do Modal de Edição (já definida acima no escopo global)
+        // A função abrirModalEdicaoEscola já está definida no início do script
         
         function fecharModalEdicaoEscola() {
             document.getElementById('modalEdicaoEscola').classList.add('hidden');
