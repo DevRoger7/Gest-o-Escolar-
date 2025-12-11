@@ -65,7 +65,94 @@ Class ModelLogin {
             $_SESSION['cpf'] = $resultado['cpf'];
             $_SESSION['telefone'] = $resultado['telefone'] ?? '';
             $_SESSION['tipo'] = $resultado['role'] ?? 'Professor';
-            $_SESSION['escola_atual'] = 'Escola Municipal';
+            
+            // Buscar escola do gestor se for tipo GESTAO
+            $escolaSelecionadaId = null;
+            $escolaSelecionadaNome = null;
+            
+            if (strtoupper($resultado['role'] ?? '') === 'GESTAO') {
+                try {
+                    $pessoaId = $resultado['pessoa_id'] ?? null;
+                    error_log("DEBUG LOGIN - Buscando gestor para pessoa_id: " . $pessoaId);
+                    
+                    if (!$pessoaId) {
+                        error_log("DEBUG LOGIN - pessoa_id não encontrado no resultado do login");
+                    } else {
+                        // Buscar o ID do gestor usando pessoa_id (não usuario_id)
+                        $sqlGestor = "SELECT g.id as gestor_id
+                                      FROM gestor g
+                                      WHERE g.pessoa_id = :pessoa_id AND g.ativo = 1
+                                      LIMIT 1";
+                        $stmtGestor = $conn->prepare($sqlGestor);
+                        $stmtGestor->bindParam(':pessoa_id', $pessoaId);
+                        $stmtGestor->execute();
+                        $gestorData = $stmtGestor->fetch(PDO::FETCH_ASSOC);
+                        
+                        error_log("DEBUG LOGIN - SQL gestor: " . $sqlGestor);
+                        error_log("DEBUG LOGIN - pessoa_id usado: " . $pessoaId);
+                        error_log("DEBUG LOGIN - Resultado busca gestor: " . json_encode($gestorData));
+                        
+                        if ($gestorData && isset($gestorData['gestor_id'])) {
+                            $gestorId = (int)$gestorData['gestor_id'];
+                            error_log("DEBUG LOGIN - Gestor encontrado, ID: " . $gestorId);
+                            
+                            // Buscar TODAS as escolas ativas do gestor (sem LIMIT para ver todas)
+                            $sqlEscolas = "SELECT DISTINCT 
+                                             gl.escola_id, 
+                                             e.nome as escola_nome, 
+                                             MAX(gl.responsavel) as responsavel,
+                                             MAX(gl.inicio) as inicio
+                                           FROM gestor_lotacao gl
+                                           INNER JOIN escola e ON gl.escola_id = e.id
+                                           WHERE gl.gestor_id = :gestor_id
+                                           AND (gl.fim IS NULL OR gl.fim = '' OR gl.fim = '0000-00-00' OR gl.fim >= CURDATE())
+                                           AND e.ativo = 1
+                                           GROUP BY gl.escola_id, e.nome
+                                           ORDER BY 
+                                             MAX(gl.responsavel) DESC,
+                                             MAX(gl.inicio) DESC,
+                                             e.nome ASC";
+                            $stmtEscolas = $conn->prepare($sqlEscolas);
+                            $stmtEscolas->bindParam(':gestor_id', $gestorId);
+                            $stmtEscolas->execute();
+                            $todasEscolas = $stmtEscolas->fetchAll(PDO::FETCH_ASSOC);
+                            
+                            error_log("DEBUG LOGIN - SQL escolas: " . $sqlEscolas);
+                            error_log("DEBUG LOGIN - Gestor ID usado: " . $gestorId);
+                            error_log("DEBUG LOGIN - Total de escolas encontradas: " . count($todasEscolas));
+                            error_log("DEBUG LOGIN - Todas as escolas do gestor: " . json_encode($todasEscolas, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
+                            
+                            // Pegar a primeira escola (já está ordenada por responsável)
+                            if (!empty($todasEscolas)) {
+                                $escolaData = $todasEscolas[0];
+                                $escolaSelecionadaId = (int)$escolaData['escola_id'];
+                                $escolaSelecionadaNome = $escolaData['escola_nome'];
+                                error_log("DEBUG LOGIN - Escola selecionada: ID=" . $escolaSelecionadaId . ", Nome=" . $escolaSelecionadaNome);
+                            } else {
+                                error_log("DEBUG LOGIN - Nenhuma escola ativa encontrada para o gestor ID=" . $gestorId);
+                            }
+                        } else {
+                            error_log("DEBUG LOGIN - Gestor não encontrado para pessoa_id=" . $pessoaId);
+                        }
+                    }
+                } catch (Exception $e) {
+                    error_log("ERRO ao buscar escola do gestor no login: " . $e->getMessage());
+                    error_log("ERRO - Stack trace: " . $e->getTraceAsString());
+                }
+            } else {
+                error_log("DEBUG LOGIN - Usuário não é GESTAO, role: " . ($resultado['role'] ?? 'NULL'));
+            }
+            
+            // Definir escola na sessão
+            if ($escolaSelecionadaId && $escolaSelecionadaNome) {
+                $_SESSION['escola_atual'] = $escolaSelecionadaNome;
+                $_SESSION['escola_selecionada_id'] = $escolaSelecionadaId;
+                $_SESSION['escola_selecionada_nome'] = $escolaSelecionadaNome;
+            } else {
+                $_SESSION['escola_atual'] = 'Escola Municipal';
+                $_SESSION['escola_selecionada_id'] = null;
+                $_SESSION['escola_selecionada_nome'] = null;
+            }
             
             // Definir permissões baseadas no tipo de usuário usando PermissionManager
             require_once("../../Models/permissions/PermissionManager.php");
