@@ -17,3 +17,4 @@ CREATE TABLE IF NOT EXISTS `escola_programa` (
   CONSTRAINT `fk_escola_programa_programa` FOREIGN KEY (`programa_id`) REFERENCES `programa` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
+

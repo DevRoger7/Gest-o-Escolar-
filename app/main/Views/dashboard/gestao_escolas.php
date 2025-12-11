@@ -1,4 +1,4 @@
-<?php
+ <?php
 require_once('../../Models/sessao/sessions.php');
 require_once('../../config/permissions_helper.php');
 require_once('../../Models/academico/ProgramaModel.php');

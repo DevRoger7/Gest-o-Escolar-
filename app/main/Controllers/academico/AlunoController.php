@@ -134,6 +134,58 @@ try {
             echo json_encode(['success' => true, 'data' => $alunos]);
             break;
             
+        case 'buscar_por_escola':
+            $escolaId = $_GET['escola_id'] ?? null;
+            if (!$escolaId) {
+                throw new Exception('ID da escola não informado');
+            }
+            $filtros = [
+                'situacao' => $_GET['situacao'] ?? 'MATRICULADO',
+                'busca' => $_GET['busca'] ?? ''
+            ];
+            $alunos = $model->buscarPorEscola($escolaId, $filtros);
+            echo json_encode(['success' => true, 'data' => $alunos]);
+            break;
+            
+        case 'transferir_escola':
+            $alunoId = $_POST['aluno_id'] ?? null;
+            $escolaOrigemId = $_POST['escola_origem_id'] ?? null;
+            $escolaDestinoId = $_POST['escola_destino_id'] ?? null;
+            $dataTransferencia = $_POST['data_transferencia'] ?? date('Y-m-d');
+            if (!$alunoId || !$escolaOrigemId || !$escolaDestinoId) {
+                throw new Exception('Dados incompletos');
+            }
+            $result = $model->transferirEscola($alunoId, $escolaOrigemId, $escolaDestinoId, $dataTransferencia);
+            echo json_encode($result);
+            break;
+            
+        case 'aceitar_transferencia':
+            $alunoId = $_POST['aluno_id'] ?? null;
+            if (!$alunoId) {
+                throw new Exception('ID do aluno não informado');
+            }
+            $result = $model->aceitarTransferencia($alunoId);
+            echo json_encode($result);
+            break;
+            
+        case 'recusar_transferencia':
+            $alunoId = $_POST['aluno_id'] ?? null;
+            if (!$alunoId) {
+                throw new Exception('ID do aluno não informado');
+            }
+            $result = $model->recusarTransferencia($alunoId);
+            echo json_encode($result);
+            break;
+            
+        case 'buscar_transferidos_pendentes':
+            $escolaId = $_GET['escola_id'] ?? null;
+            if (!$escolaId) {
+                throw new Exception('ID da escola não informado');
+            }
+            $alunos = $model->buscarTransferidosPendentes($escolaId);
+            echo json_encode(['success' => true, 'data' => $alunos]);
+            break;
+            
         default:
             throw new Exception('Ação não reconhecida');
     }
