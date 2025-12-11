@@ -54,29 +54,32 @@ if (isset($_SESSION['tipo']) && strtoupper($_SESSION['tipo']) === 'GESTAO') {
                 if ($lotacaoAtiva) {
                     $escolaGestorId = (int)$gestorEscola['escola_id'];
                     $escolaGestor = $gestorEscola['escola_nome'];
-                } else {
-                    // Tentar buscar sem a condição de fim (caso o campo esteja com valor diferente)
-                    $sqlGestor2 = "SELECT g.id as gestor_id, gl.escola_id, e.nome as escola_nome, gl.responsavel, gl.fim, gl.inicio
-                                   FROM gestor g
-                                   INNER JOIN usuario u ON g.pessoa_id = u.pessoa_id
-                                   INNER JOIN gestor_lotacao gl ON g.id = gl.gestor_id
-                                   INNER JOIN escola e ON gl.escola_id = e.id
-                                   WHERE u.id = :usuario_id AND g.ativo = 1
-                                   ORDER BY gl.responsavel DESC, gl.inicio DESC, gl.id DESC
-                                   LIMIT 1";
-                    $stmtGestor2 = $conn->prepare($sqlGestor2);
-                    $stmtGestor2->bindParam(':usuario_id', $usuarioId);
-                    $stmtGestor2->execute();
-                    $gestorEscola2 = $stmtGestor2->fetch(PDO::FETCH_ASSOC);
+                }
+            }
+            
+            // Se ainda não encontrou, tentar query alternativa
+            if (!$escolaGestorId) {
+                // Tentar buscar sem a condição de fim (caso o campo esteja com valor diferente)
+                $sqlGestor2 = "SELECT g.id as gestor_id, gl.escola_id, e.nome as escola_nome, gl.responsavel, gl.fim, gl.inicio
+                               FROM gestor g
+                               INNER JOIN usuario u ON g.pessoa_id = u.pessoa_id
+                               INNER JOIN gestor_lotacao gl ON g.id = gl.gestor_id
+                               INNER JOIN escola e ON gl.escola_id = e.id
+                               WHERE u.id = :usuario_id AND g.ativo = 1
+                               ORDER BY gl.responsavel DESC, gl.inicio DESC, gl.id DESC
+                               LIMIT 1";
+                $stmtGestor2 = $conn->prepare($sqlGestor2);
+                $stmtGestor2->bindParam(':usuario_id', $usuarioId);
+                $stmtGestor2->execute();
+                $gestorEscola2 = $stmtGestor2->fetch(PDO::FETCH_ASSOC);
+                
+                if ($gestorEscola2) {
+                    $fimLotacao2 = $gestorEscola2['fim'];
+                    $lotacaoAtiva2 = ($fimLotacao2 === null || $fimLotacao2 === '' || $fimLotacao2 === '0000-00-00' || (strtotime($fimLotacao2) !== false && strtotime($fimLotacao2) >= strtotime('today')));
                     
-                    if ($gestorEscola2) {
-                        $fimLotacao2 = $gestorEscola2['fim'];
-                        $lotacaoAtiva2 = ($fimLotacao2 === null || $fimLotacao2 === '' || $fimLotacao2 === '0000-00-00' || (strtotime($fimLotacao2) !== false && strtotime($fimLotacao2) >= strtotime('today')));
-                        
-                        if ($lotacaoAtiva2) {
-                            $escolaGestorId = (int)$gestorEscola2['escola_id'];
-                            $escolaGestor = $gestorEscola2['escola_nome'];
-                        }
+                    if ($lotacaoAtiva2) {
+                        $escolaGestorId = (int)$gestorEscola2['escola_id'];
+                        $escolaGestor = $gestorEscola2['escola_nome'];
                     }
                 }
             }
