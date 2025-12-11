@@ -648,6 +648,234 @@ $escolas = listarEscolas($busca);
         });
 
         // Função toggleSidebar já definida globalmente
+        
+        // Definir funções de modal no escopo global imediatamente
+        // Isso garante que as funções estejam disponíveis quando o HTML for renderizado
+        window.abrirModalEdicaoEscola = function(id, nome) {
+            console.log('abrirModalEdicaoEscola chamado com id:', id, 'nome:', nome);
+            
+            function abrirModal() {
+                const editEscolaId = document.getElementById('edit_escola_id');
+                const tituloModal = document.getElementById('tituloModalEdicao');
+                const modalEdicao = document.getElementById('modalEdicaoEscola');
+                
+                console.log('Buscando elementos:', {
+                    editEscolaId: !!editEscolaId,
+                    tituloModal: !!tituloModal,
+                    modalEdicao: !!modalEdicao
+                });
+                
+                if (editEscolaId && tituloModal && modalEdicao) {
+                    editEscolaId.value = id;
+                    tituloModal.textContent = `Editar Escola - ${nome}`;
+                    
+                    // Remover hidden e garantir que está visível
+                    modalEdicao.classList.remove('hidden');
+                    // Forçar display block/flex para garantir visibilidade
+                    modalEdicao.style.display = 'block';
+                    modalEdicao.style.visibility = 'visible';
+                    modalEdicao.style.opacity = '1';
+                    modalEdicao.style.zIndex = '9999';
+                    
+                    console.log('Modal aberto. Classes:', modalEdicao.className);
+                    console.log('Estilo display:', window.getComputedStyle(modalEdicao).display);
+                    console.log('Estilo z-index:', window.getComputedStyle(modalEdicao).zIndex);
+                    
+                    if (typeof carregarDadosEscola === 'function') {
+                        carregarDadosEscola(id);
+                    }
+                    return true;
+                }
+                return false;
+            }
+            
+            // Tentar imediatamente
+            if (abrirModal()) {
+                console.log('Modal aberto imediatamente');
+                return;
+            }
+            
+            // Aguardar carregamento completo
+            const tentarAposCarregamento = () => {
+                let tentativas = 0;
+                const maxTentativas = 20;
+                const intervalId = setInterval(() => {
+                    tentativas++;
+                    if (abrirModal()) {
+                        console.log('Modal aberto após', tentativas, 'tentativas');
+                        clearInterval(intervalId);
+                    } else if (tentativas >= maxTentativas) {
+                        console.error('Não foi possível abrir o modal após', maxTentativas, 'tentativas');
+                        clearInterval(intervalId);
+                    }
+                }, 50);
+            };
+            
+            if (document.readyState === 'complete') {
+                tentarAposCarregamento();
+            } else {
+                window.addEventListener('load', tentarAposCarregamento, {once: true});
+                document.addEventListener('DOMContentLoaded', tentarAposCarregamento, {once: true});
+            }
+        };
+        
+        window.abrirModalExclusaoEscola = function(id, nome) {
+            console.log('abrirModalExclusaoEscola chamado com id:', id, 'nome:', nome);
+            
+            function abrirModal() {
+                const idEscolaExclusao = document.getElementById('idEscolaExclusao');
+                const nomeEscolaExclusao = document.getElementById('nomeEscolaExclusao');
+                const modalExclusao = document.getElementById('modalExclusaoEscola');
+                
+                console.log('Buscando elementos:', {
+                    idEscolaExclusao: !!idEscolaExclusao,
+                    nomeEscolaExclusao: !!nomeEscolaExclusao,
+                    modalExclusao: !!modalExclusao
+                });
+                
+                if (idEscolaExclusao && nomeEscolaExclusao && modalExclusao) {
+                    idEscolaExclusao.value = id;
+                    nomeEscolaExclusao.textContent = nome;
+                    
+                    // Remover hidden e garantir que está visível
+                    modalExclusao.classList.remove('hidden');
+                    modalExclusao.style.display = 'flex';
+                    modalExclusao.style.visibility = 'visible';
+                    modalExclusao.style.opacity = '1';
+                    modalExclusao.style.zIndex = '9999';
+                    
+                    console.log('Modal aberto. Classes:', modalExclusao.className);
+                    console.log('Estilo display:', window.getComputedStyle(modalExclusao).display);
+                    console.log('Estilo z-index:', window.getComputedStyle(modalExclusao).zIndex);
+                    
+                    return true;
+                }
+                return false;
+            }
+            
+            // Tentar imediatamente
+            if (abrirModal()) {
+                console.log('Modal aberto imediatamente');
+                return;
+            }
+            
+            // Aguardar carregamento completo
+            const tentarAposCarregamento = () => {
+                let tentativas = 0;
+                const maxTentativas = 20;
+                const intervalId = setInterval(() => {
+                    tentativas++;
+                    if (abrirModal()) {
+                        console.log('Modal aberto após', tentativas, 'tentativas');
+                        clearInterval(intervalId);
+                    } else if (tentativas >= maxTentativas) {
+                        console.error('Não foi possível abrir o modal após', maxTentativas, 'tentativas');
+                        clearInterval(intervalId);
+                    }
+                }, 50);
+            };
+            
+            if (document.readyState === 'complete') {
+                tentarAposCarregamento();
+            } else {
+                window.addEventListener('load', tentarAposCarregamento, {once: true});
+                document.addEventListener('DOMContentLoaded', tentarAposCarregamento, {once: true});
+            }
+        };
+        
+        // Função para mostrar tab - definida no escopo global para garantir disponibilidade
+        window.showTab = function(tabId) {
+            try {
+                // Esconder todas as tabs
+                document.querySelectorAll('.tab-content').forEach(tab => {
+                    tab.classList.remove('active');
+                    tab.classList.add('hidden');
+                });
+                
+                // Remover classe ativa de todos os botões
+                document.querySelectorAll('.tab-btn').forEach(btn => {
+                    btn.classList.remove('tab-active');
+                });
+                
+                // Mostrar a tab selecionada
+                const tabSelecionada = document.getElementById(tabId);
+                if (tabSelecionada) {
+                    tabSelecionada.classList.remove('hidden');
+                    tabSelecionada.classList.add('active');
+                }
+                
+                // Adicionar classe ativa ao botão clicado
+                if (event && event.currentTarget) {
+                    event.currentTarget.classList.add('tab-active');
+                }
+                
+                // Resetar formulário quando mudar para a aba de adicionar gestor
+                if (tabId === 'tab-adicionar-gestor') {
+                    setTimeout(() => {
+                        try {
+                            const elementosGestor = [
+                                'escola_gestor',
+                                'buscar_escola_gestor',
+                                'info-escola-gestor', 
+                                'passo-selecionar-gestor'
+                            ];
+                            
+                            elementosGestor.forEach(id => {
+                                const elemento = document.getElementById(id);
+                                if (elemento) {
+                                    if (id === 'escola_gestor' || id === 'buscar_escola_gestor') {
+                                        elemento.value = '';
+                                        if (id === 'escola_gestor') {
+                                            elemento.size = 1;
+                                        }
+                                    } else {
+                                        elemento.classList.add('hidden');
+                                    }
+                                }
+                            });
+                            
+                            if (document.getElementById('buscar_gestor') && typeof limparSelecaoGestor === 'function') {
+                                limparSelecaoGestor();
+                            }
+                        } catch (e) {
+                            console.log('Elementos de gestor ainda não carregados');
+                        }
+                    }, 100);
+                }
+                
+                // Resetar formulário quando mudar para a aba de lotação
+                if (tabId === 'tab-lotacao') {
+                    setTimeout(() => {
+                        try {
+                            const elementosLotacao = [
+                                'escola_lotacao',
+                                'buscar_escola_lotacao',
+                                'info-escola-lotacao',
+                                'secao-lotacao'
+                            ];
+                            
+                            elementosLotacao.forEach(id => {
+                                const elemento = document.getElementById(id);
+                                if (elemento) {
+                                    if (id === 'escola_lotacao' || id === 'buscar_escola_lotacao') {
+                                        elemento.value = '';
+                                        if (id === 'escola_lotacao') {
+                                            elemento.size = 1;
+                                        }
+                                    } else {
+                                        elemento.classList.add('hidden');
+                                    }
+                                }
+                            });
+                        } catch (e) {
+                            console.log('Elementos de lotação ainda não carregados');
+                        }
+                    }, 100);
+                }
+            } catch (error) {
+                console.error('Erro na função showTab:', error);
+            }
+        };
     </script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link href="global-theme.css" rel="stylesheet">
@@ -2267,7 +2495,7 @@ if ($_SESSION['tipo'] === 'ADM') {
             <div class="flex-1 overflow-y-auto p-6 flex flex-col">
                 <form id="formEdicaoEscola" method="POST" class="flex flex-col flex-1 space-y-8">
                     <input type="hidden" name="acao" value="editar">
-                    <input type="hidden" name="id" id="edit_escola_id">
+                    <input type="hidden" name="id" id="edit_escola_id" value="">
                     
                     <!-- Tabs de Navegação -->
                     <div class="border-b border-gray-200">
@@ -2658,13 +2886,144 @@ if ($_SESSION['tipo'] === 'ADM') {
     </div>
     
     <script>
+        // Definir funções no escopo global imediatamente para garantir disponibilidade
+        // Isso garante que as funções estejam disponíveis quando o HTML for renderizado
+        
+        // Função para abrir modal de edição de escola (já definida no início do script)
+        // Sobrescrever com a versão melhorada que aguarda o DOM
+        window.abrirModalEdicaoEscola = function(id, nome) {
+            console.log('abrirModalEdicaoEscola chamado com id:', id, 'nome:', nome);
+            
+            function abrirModal() {
+                const editEscolaId = document.getElementById('edit_escola_id');
+                const tituloModal = document.getElementById('tituloModalEdicao');
+                const modalEdicao = document.getElementById('modalEdicaoEscola');
+                
+                console.log('Buscando elementos:', {
+                    editEscolaId: !!editEscolaId,
+                    tituloModal: !!tituloModal,
+                    modalEdicao: !!modalEdicao
+                });
+                
+                if (editEscolaId && tituloModal && modalEdicao) {
+                    editEscolaId.value = id;
+                    tituloModal.textContent = `Editar Escola - ${nome}`;
+                    
+                    // Remover hidden e garantir que está visível
+                    modalEdicao.classList.remove('hidden');
+                    // Forçar display block/flex para garantir visibilidade
+                    modalEdicao.style.display = 'block';
+                    modalEdicao.style.visibility = 'visible';
+                    modalEdicao.style.opacity = '1';
+                    modalEdicao.style.zIndex = '9999';
+                    
+                    console.log('Modal aberto. Classes:', modalEdicao.className);
+                    console.log('Estilo display:', window.getComputedStyle(modalEdicao).display);
+                    console.log('Estilo z-index:', window.getComputedStyle(modalEdicao).zIndex);
+                    
+                    if (typeof carregarDadosEscola === 'function') {
+                        carregarDadosEscola(id);
+                    }
+                    return true;
+                }
+                return false;
+            }
+            
+            // Tentar imediatamente
+            if (abrirModal()) {
+                console.log('Modal aberto imediatamente');
+                return;
+            }
+            
+            // Aguardar carregamento completo
+            const tentarAposCarregamento = () => {
+                let tentativas = 0;
+                const maxTentativas = 20;
+                const intervalId = setInterval(() => {
+                    tentativas++;
+                    if (abrirModal()) {
+                        console.log('Modal aberto após', tentativas, 'tentativas');
+                        clearInterval(intervalId);
+                    } else if (tentativas >= maxTentativas) {
+                        console.error('Não foi possível abrir o modal após', maxTentativas, 'tentativas');
+                        clearInterval(intervalId);
+                    }
+                }, 50);
+            };
+            
+            if (document.readyState === 'complete') {
+                tentarAposCarregamento();
+            } else {
+                window.addEventListener('load', tentarAposCarregamento, {once: true});
+                document.addEventListener('DOMContentLoaded', tentarAposCarregamento, {once: true});
+            }
+        };
         
         // Função para abrir modal de exclusão de escola
-        function abrirModalExclusaoEscola(id, nome) {
-            document.getElementById('idEscolaExclusao').value = id;
-            document.getElementById('nomeEscolaExclusao').textContent = nome;
-            document.getElementById('modalExclusaoEscola').classList.remove('hidden');
-        }
+        // Sobrescrever com a versão melhorada que aguarda o DOM
+        window.abrirModalExclusaoEscola = function(id, nome) {
+            console.log('abrirModalExclusaoEscola chamado com id:', id, 'nome:', nome);
+            
+            function abrirModal() {
+                const idEscolaExclusao = document.getElementById('idEscolaExclusao');
+                const nomeEscolaExclusao = document.getElementById('nomeEscolaExclusao');
+                const modalExclusao = document.getElementById('modalExclusaoEscola');
+                
+                console.log('Buscando elementos:', {
+                    idEscolaExclusao: !!idEscolaExclusao,
+                    nomeEscolaExclusao: !!nomeEscolaExclusao,
+                    modalExclusao: !!modalExclusao
+                });
+                
+                if (idEscolaExclusao && nomeEscolaExclusao && modalExclusao) {
+                    idEscolaExclusao.value = id;
+                    nomeEscolaExclusao.textContent = nome;
+                    
+                    // Remover hidden e garantir que está visível
+                    modalExclusao.classList.remove('hidden');
+                    modalExclusao.style.display = 'flex';
+                    modalExclusao.style.visibility = 'visible';
+                    modalExclusao.style.opacity = '1';
+                    modalExclusao.style.zIndex = '9999';
+                    
+                    console.log('Modal aberto. Classes:', modalExclusao.className);
+                    console.log('Estilo display:', window.getComputedStyle(modalExclusao).display);
+                    console.log('Estilo z-index:', window.getComputedStyle(modalExclusao).zIndex);
+                    
+                    return true;
+                }
+                return false;
+            }
+            
+            // Tentar imediatamente
+            if (abrirModal()) {
+                console.log('Modal aberto imediatamente');
+                return;
+            }
+            
+            // Aguardar carregamento completo
+            const tentarAposCarregamento = () => {
+                let tentativas = 0;
+                const maxTentativas = 20;
+                const intervalId = setInterval(() => {
+                    tentativas++;
+                    if (abrirModal()) {
+                        console.log('Modal aberto após', tentativas, 'tentativas');
+                        clearInterval(intervalId);
+                    } else if (tentativas >= maxTentativas) {
+                        console.error('Não foi possível abrir o modal após', maxTentativas, 'tentativas');
+                        clearInterval(intervalId);
+                    }
+                }, 50);
+            };
+            
+            if (document.readyState === 'complete') {
+                tentarAposCarregamento();
+            } else {
+                window.addEventListener('load', tentarAposCarregamento, {once: true});
+                document.addEventListener('DOMContentLoaded', tentarAposCarregamento, {once: true});
+            }
+        };
         
         // Função para fechar modal de exclusão de escola
         function fecharModalExclusaoEscola() {
@@ -2672,11 +3031,14 @@ if ($_SESSION['tipo'] === 'ADM') {
         }
         
         // Fechar modal clicando fora dele
-        document.getElementById('modalExclusaoEscola').addEventListener('click', function(e) {
-            if (e.target === this) {
-                fecharModalExclusaoEscola();
-            }
-        });
+        const modalExclusao = document.getElementById('modalExclusaoEscola');
+        if (modalExclusao) {
+            modalExclusao.addEventListener('click', function(e) {
+                if (e.target === this) {
+                    fecharModalExclusaoEscola();
+                }
+            });
+        }
         
         // Função para buscar gestores
         function buscarGestores(termo) {
@@ -2730,15 +3092,8 @@ if ($_SESSION['tipo'] === 'ADM') {
             document.getElementById('gestor_selected').classList.add('hidden');
         }
         
-        // Funções do Modal de Edição
-        function abrirModalEdicaoEscola(id, nome) {
-            document.getElementById('edit_escola_id').value = id;
-            document.getElementById('tituloModalEdicao').textContent = `Editar Escola - ${nome}`;
-            document.getElementById('modalEdicaoEscola').classList.remove('hidden');
-            
-            // Carregar dados da escola
-            carregarDadosEscola(id);
-        }
+        // Funções do Modal de Edição (já definida acima no escopo global)
+        // A função abrirModalEdicaoEscola já está definida no início do script
         
         function fecharModalEdicaoEscola() {
             document.getElementById('modalEdicaoEscola').classList.add('hidden');
@@ -5337,94 +5692,102 @@ if ($_SESSION['tipo'] === 'ADM') {
             }
         }
 
-        // Função para mostrar tab (atualizada para incluir nova aba)
-        function showTab(tabId) {
-            try {
-                // Esconder todas as tabs
-                document.querySelectorAll('.tab-content').forEach(tab => {
-                    tab.classList.remove('active');
-                    tab.classList.add('hidden');
-                });
-                
-                // Remover classe ativa de todos os botões
-                document.querySelectorAll('.tab-btn').forEach(btn => {
-                    btn.classList.remove('tab-active');
-                });
-                
-                // Mostrar a tab selecionada
-                const tabSelecionada = document.getElementById(tabId);
-                if (tabSelecionada) {
-                    tabSelecionada.classList.remove('hidden');
-                    tabSelecionada.classList.add('active');
-                }
-                
-                // Adicionar classe ativa ao botão clicado
-                if (event && event.currentTarget) {
-                    event.currentTarget.classList.add('tab-active');
-                }
-                
-                // Resetar formulário quando mudar para a aba de adicionar gestor
-                if (tabId === 'tab-adicionar-gestor') {
-                    // Verificar se os elementos existem antes de tentar acessá-los
-                    const elementosGestor = [
-                        'escola_gestor',
-                        'buscar_escola_gestor',
-                        'info-escola-gestor', 
-                        'passo-selecionar-gestor'
-                    ];
-                    
-                    elementosGestor.forEach(id => {
-                        const elemento = document.getElementById(id);
-                        if (elemento) {
-                            if (id === 'escola_gestor' || id === 'buscar_escola_gestor') {
-                                elemento.value = '';
-                                if (id === 'escola_gestor') {
-                                    elemento.size = 1; // Resetar tamanho do select
-                                }
-                            } else {
-                                elemento.classList.add('hidden');
-                            }
-                        }
+        // Função para mostrar tab (já definida no início do script no escopo global)
+        // A função principal está definida no primeiro script para garantir disponibilidade imediata
+        // Esta definição serve apenas como backup/atualização se necessário
+        if (typeof window.showTab === 'undefined') {
+            window.showTab = function(tabId) {
+                try {
+                    // Esconder todas as tabs
+                    document.querySelectorAll('.tab-content').forEach(tab => {
+                        tab.classList.remove('active');
+                        tab.classList.add('hidden');
                     });
                     
-                    // Chamar limparSelecaoGestor apenas se os elementos existirem
-                    setTimeout(() => {
-                        try {
-                            if (document.getElementById('buscar_gestor')) {
-                                limparSelecaoGestor();
-                            }
-                        } catch (e) {
-                            console.log('Elementos de gestor ainda não carregados');
-                        }
-                    }, 100);
-                }
-                
-                // Resetar formulário quando mudar para a aba de lotação
-                if (tabId === 'tab-lotacao') {
-                    const elementosLotacao = [
-                        'escola_lotacao',
-                        'buscar_escola_lotacao',
-                        'info-escola-lotacao',
-                        'secao-lotacao'
-                    ];
-                    
-                    elementosLotacao.forEach(id => {
-                        const elemento = document.getElementById(id);
-                        if (elemento) {
-                            if (id === 'escola_lotacao' || id === 'buscar_escola_lotacao') {
-                                elemento.value = '';
-                                if (id === 'escola_lotacao') {
-                                    elemento.size = 1; // Resetar tamanho do select
-                                }
-                            } else {
-                                elemento.classList.add('hidden');
-                            }
-                        }
+                    // Remover classe ativa de todos os botões
+                    document.querySelectorAll('.tab-btn').forEach(btn => {
+                        btn.classList.remove('tab-active');
                     });
+                    
+                    // Mostrar a tab selecionada
+                    const tabSelecionada = document.getElementById(tabId);
+                    if (tabSelecionada) {
+                        tabSelecionada.classList.remove('hidden');
+                        tabSelecionada.classList.add('active');
+                    }
+                    
+                    // Adicionar classe ativa ao botão clicado
+                    if (event && event.currentTarget) {
+                        event.currentTarget.classList.add('tab-active');
+                    }
+                    
+                    // Resetar formulário quando mudar para a aba de adicionar gestor
+                    if (tabId === 'tab-adicionar-gestor') {
+                        setTimeout(() => {
+                            try {
+                                const elementosGestor = [
+                                    'escola_gestor',
+                                    'buscar_escola_gestor',
+                                    'info-escola-gestor', 
+                                    'passo-selecionar-gestor'
+                                ];
+                                
+                                elementosGestor.forEach(id => {
+                                    const elemento = document.getElementById(id);
+                                    if (elemento) {
+                                        if (id === 'escola_gestor' || id === 'buscar_escola_gestor') {
+                                            elemento.value = '';
+                                            if (id === 'escola_gestor') {
+                                                elemento.size = 1;
+                                            }
+                                        } else {
+                                            elemento.classList.add('hidden');
+                                        }
+                                    }
+                                });
+                                
+                                if (document.getElementById('buscar_gestor') && typeof limparSelecaoGestor === 'function') {
+                                    limparSelecaoGestor();
+                                }
+                            } catch (e) {
+                                console.log('Elementos de gestor ainda não carregados');
+                            }
+                        }, 100);
+                    }
+                    
+                    // Resetar formulário quando mudar para a aba de lotação
+                    if (tabId === 'tab-lotacao') {
+                        setTimeout(() => {
+                            try {
+                                const elementosLotacao = [
+                                    'escola_lotacao',
+                                    'buscar_escola_lotacao',
+                                    'info-escola-lotacao',
+                                    'secao-lotacao'
+                                ];
+                                
+                                elementosLotacao.forEach(id => {
+                                    const elemento = document.getElementById(id);
+                                    if (elemento) {
+                                        if (id === 'escola_lotacao' || id === 'buscar_escola_lotacao') {
+                                            elemento.value = '';
+                                            if (id === 'escola_lotacao') {
+                                                elemento.size = 1;
+                                            }
+                                        } else {
+                                            elemento.classList.add('hidden');
+                                        }
+                                    }
+                                });
+                            } catch (e) {
+                                console.log('Elementos de lotação ainda não carregados');
+                            }
+                        }, 100);
+                    }
+                } catch (error) {
+                    console.error('Erro na função showTab:', error);
                 }
-            } catch (error) {
-                console.error('Erro na função showTab:', error);
-            }
+            };
         }
     </script>
 

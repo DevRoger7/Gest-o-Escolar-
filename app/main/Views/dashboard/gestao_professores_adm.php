@@ -464,56 +464,77 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['acao'])) {
     header('Content-Type: application/json');
     
     if ($_GET['acao'] === 'buscar_professor') {
-        $professorId = $_GET['id'] ?? null;
-        if (empty($professorId)) {
-            echo json_encode(['success' => false, 'message' => 'ID do professor não informado']);
-            exit;
-        }
-        
-        $sql = "SELECT pr.*, p.id as pessoa_id, p.nome, p.cpf, p.email, p.telefone, p.data_nascimento, p.sexo, u.username
-                FROM professor pr
-                INNER JOIN pessoa p ON pr.pessoa_id = p.id
-                LEFT JOIN usuario u ON u.pessoa_id = p.id
-                WHERE pr.id = :id";
-        $stmt = $conn->prepare($sql);
-        $stmt->bindParam(':id', $professorId);
-        $stmt->execute();
-        $professor = $stmt->fetch(PDO::FETCH_ASSOC);
-        
-        if ($professor) {
-            // Formatar CPF e telefone para exibição
-            if (!empty($professor['cpf']) && strlen($professor['cpf']) === 11) {
-                $professor['cpf_formatado'] = substr($professor['cpf'], 0, 3) . '.' . substr($professor['cpf'], 3, 3) . '.' . substr($professor['cpf'], 6, 3) . '-' . substr($professor['cpf'], 9, 2);
+        try {
+            $professorId = $_GET['id'] ?? null;
+            if (empty($professorId)) {
+                echo json_encode(['success' => false, 'message' => 'ID do professor não informado']);
+                exit;
             }
-            if (!empty($professor['telefone'])) {
-                $tel = $professor['telefone'];
-                if (strlen($tel) === 11) {
-                    $professor['telefone_formatado'] = '(' . substr($tel, 0, 2) . ') ' . substr($tel, 2, 5) . '-' . substr($tel, 7);
-                } elseif (strlen($tel) === 10) {
-                    $professor['telefone_formatado'] = '(' . substr($tel, 0, 2) . ') ' . substr($tel, 2, 4) . '-' . substr($tel, 6);
+            
+            // Validar que o ID é numérico
+            if (!is_numeric($professorId)) {
+                echo json_encode(['success' => false, 'message' => 'ID do professor inválido']);
+                exit;
+            }
+            
+            $professorId = (int)$professorId;
+            
+            $sql = "SELECT pr.*, p.id as pessoa_id, p.nome, p.cpf, p.email, p.telefone, p.data_nascimento, p.sexo, u.username
+                    FROM professor pr
+                    INNER JOIN pessoa p ON pr.pessoa_id = p.id
+                    LEFT JOIN usuario u ON u.pessoa_id = p.id
+                    WHERE pr.id = :id";
+            $stmt = $conn->prepare($sql);
+            $stmt->bindParam(':id', $professorId, PDO::PARAM_INT);
+            $stmt->execute();
+            $professor = $stmt->fetch(PDO::FETCH_ASSOC);
+            
+            if ($professor) {
+                // Formatar CPF e telefone para exibição
+                if (!empty($professor['cpf']) && strlen($professor['cpf']) === 11) {
+                    $professor['cpf_formatado'] = substr($professor['cpf'], 0, 3) . '.' . substr($professor['cpf'], 3, 3) . '.' . substr($professor['cpf'], 6, 3) . '-' . substr($professor['cpf'], 9, 2);
                 }
+                if (!empty($professor['telefone'])) {
+                    $tel = $professor['telefone'];
+                    if (strlen($tel) === 11) {
+                        $professor['telefone_formatado'] = '(' . substr($tel, 0, 2) . ') ' . substr($tel, 2, 5) . '-' . substr($tel, 7);
+                    } elseif (strlen($tel) === 10) {
+                        $professor['telefone_formatado'] = '(' . substr($tel, 0, 2) . ') ' . substr($tel, 2, 4) . '-' . substr($tel, 6);
+                    }
+                }
+                
+                // Buscar lotação atual
+                try {
+                    $sqlLotacao = "SELECT pl.*, e.nome as escola_nome
+                                  FROM professor_lotacao pl
+                                  LEFT JOIN escola e ON pl.escola_id = e.id
+                                  WHERE pl.professor_id = :professor_id AND pl.fim IS NULL
+                                  LIMIT 1";
+                    $stmtLotacao = $conn->prepare($sqlLotacao);
+                    $stmtLotacao->bindParam(':professor_id', $professorId, PDO::PARAM_INT);
+                    $stmtLotacao->execute();
+                    $lotacao = $stmtLotacao->fetch(PDO::FETCH_ASSOC);
+                    
+                    if ($lotacao) {
+                        $professor['lotacao_escola_id'] = $lotacao['escola_id'];
+                        $professor['lotacao_carga_horaria'] = $lotacao['carga_horaria'];
+                        $professor['lotacao_observacao'] = $lotacao['observacao'];
+                    }
+                } catch (PDOException $e) {
+                    // Log do erro mas continua sem lotação
+                    error_log("Erro ao buscar lotação do professor: " . $e->getMessage());
+                }
+                
+                echo json_encode(['success' => true, 'professor' => $professor]);
+            } else {
+                echo json_encode(['success' => false, 'message' => 'Professor não encontrado']);
             }
-            
-            // Buscar lotação atual
-            $sqlLotacao = "SELECT pl.*, e.nome as escola_nome
-                          FROM professor_lotacao pl
-                          LEFT JOIN escola e ON pl.escola_id = e.id
-                          WHERE pl.professor_id = :professor_id AND pl.fim IS NULL
-                          LIMIT 1";
-            $stmtLotacao = $conn->prepare($sqlLotacao);
-            $stmtLotacao->bindParam(':professor_id', $professorId);
-            $stmtLotacao->execute();
-            $lotacao = $stmtLotacao->fetch(PDO::FETCH_ASSOC);
-            
-            if ($lotacao) {
-                $professor['lotacao_escola_id'] = $lotacao['escola_id'];
-                $professor['lotacao_carga_horaria'] = $lotacao['carga_horaria'];
-                $professor['lotacao_observacao'] = $lotacao['observacao'];
-            }
-            
-            echo json_encode(['success' => true, 'professor' => $professor]);
-        } else {
-            echo json_encode(['success' => false, 'message' => 'Professor não encontrado']);
+        } catch (PDOException $e) {
+            error_log("Erro ao buscar professor: " . $e->getMessage());
+            echo json_encode(['success' => false, 'message' => 'Erro ao carregar dados do professor. Por favor, tente novamente.']);
+        } catch (Exception $e) {
+            error_log("Erro ao buscar professor: " . $e->getMessage());
+            echo json_encode(['success' => false, 'message' => 'Erro ao carregar dados do professor. Por favor, tente novamente.']);
         }
         exit;
     }
@@ -1434,6 +1455,11 @@ $professores = $stmtProfessores->fetchAll(PDO::FETCH_ASSOC);
             try {
                 // Buscar dados do professor
                 const response = await fetch('?acao=buscar_professor&id=' + id);
+                
+                if (!response.ok) {
+                    throw new Error('Erro na resposta do servidor: ' + response.status);
+                }
+                
                 const data = await response.json();
                 
                 if (!data.success || !data.professor) {
@@ -1443,130 +1469,145 @@ $professores = $stmtProfessores->fetchAll(PDO::FETCH_ASSOC);
                 
                 const prof = data.professor;
                 
+                // Função auxiliar para definir valor de elemento de forma segura
+                function setValueSafely(elementId, value) {
+                    const element = document.getElementById(elementId);
+                    if (element) {
+                        element.value = value || '';
+                    }
+                }
+                
                 // Preencher formulário
-                document.getElementById('editar_professor_id').value = prof.id;
-                document.getElementById('editar_nome').value = prof.nome || '';
-                document.getElementById('editar_cpf').value = prof.cpf_formatado || prof.cpf || '';
-                document.getElementById('editar_data_nascimento').value = prof.data_nascimento || '';
-                document.getElementById('editar_sexo').value = prof.sexo || '';
-                document.getElementById('editar_email').value = prof.email || '';
-                document.getElementById('editar_telefone').value = prof.telefone_formatado || prof.telefone || '';
-                document.getElementById('editar_matricula').value = prof.matricula || '';
+                setValueSafely('editar_professor_id', prof.id);
+                setValueSafely('editar_nome', prof.nome);
+                setValueSafely('editar_cpf', prof.cpf_formatado || prof.cpf);
+                setValueSafely('editar_data_nascimento', prof.data_nascimento);
+                setValueSafely('editar_sexo', prof.sexo);
+                setValueSafely('editar_email', prof.email);
+                setValueSafely('editar_telefone', prof.telefone_formatado || prof.telefone);
+                setValueSafely('editar_matricula', prof.matricula);
                 
                 // Carregar formações (JSON)
                 const formacoesContainer = document.getElementById('editar-formacoes-container');
-                formacoesContainer.innerHTML = '';
-                formacaoEdicaoCount = 0;
-                if (prof.formacao) {
-                    try {
-                        const formacoes = JSON.parse(prof.formacao);
-                        if (Array.isArray(formacoes)) {
-                            formacoes.forEach(form => {
-                                if (form && form.trim()) {
-                                    const div = document.createElement('div');
-                                    div.className = 'flex items-center space-x-2';
-                                    div.id = `editar-formacao-${formacaoEdicaoCount}`;
-                                    div.innerHTML = `
-                                        <input type="text" name="formacoes[]" value="${form.replace(/"/g, '&quot;')}"
-                                               class="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent">
-                                        <button type="button" onclick="removerFormacaoEdicao(${formacaoEdicaoCount})" class="text-red-600 hover:text-red-700 p-2">
-                                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-                                            </svg>
-                                        </button>
-                                    `;
-                                    formacoesContainer.appendChild(div);
-                                    formacaoEdicaoCount++;
-                                }
-                            });
-                        }
-                    } catch (e) {
-                        // Se não for JSON, tratar como string única
-                        if (prof.formacao.trim()) {
-                            const div = document.createElement('div');
-                            div.className = 'flex items-center space-x-2';
-                            div.id = `editar-formacao-${formacaoEdicaoCount}`;
-                            div.innerHTML = `
-                                <input type="text" name="formacoes[]" value="${prof.formacao.replace(/"/g, '&quot;')}"
-                                       class="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent">
-                                <button type="button" onclick="removerFormacaoEdicao(${formacaoEdicaoCount})" class="text-red-600 hover:text-red-700 p-2">
-                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-                                    </svg>
-                                </button>
-                            `;
-                            formacoesContainer.appendChild(div);
-                            formacaoEdicaoCount++;
+                if (formacoesContainer) {
+                    formacoesContainer.innerHTML = '';
+                    formacaoEdicaoCount = 0;
+                    if (prof.formacao) {
+                        try {
+                            const formacoes = JSON.parse(prof.formacao);
+                            if (Array.isArray(formacoes)) {
+                                formacoes.forEach(form => {
+                                    if (form && form.trim()) {
+                                        const div = document.createElement('div');
+                                        div.className = 'flex items-center space-x-2';
+                                        div.id = `editar-formacao-${formacaoEdicaoCount}`;
+                                        div.innerHTML = `
+                                            <input type="text" name="formacoes[]" value="${form.replace(/"/g, '&quot;')}"
+                                                   class="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent">
+                                            <button type="button" onclick="removerFormacaoEdicao(${formacaoEdicaoCount})" class="text-red-600 hover:text-red-700 p-2">
+                                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                                                </svg>
+                                            </button>
+                                        `;
+                                        formacoesContainer.appendChild(div);
+                                        formacaoEdicaoCount++;
+                                    }
+                                });
+                            }
+                        } catch (e) {
+                            // Se não for JSON, tratar como string única
+                            if (prof.formacao && prof.formacao.trim()) {
+                                const div = document.createElement('div');
+                                div.className = 'flex items-center space-x-2';
+                                div.id = `editar-formacao-${formacaoEdicaoCount}`;
+                                div.innerHTML = `
+                                    <input type="text" name="formacoes[]" value="${prof.formacao.replace(/"/g, '&quot;')}"
+                                           class="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent">
+                                    <button type="button" onclick="removerFormacaoEdicao(${formacaoEdicaoCount})" class="text-red-600 hover:text-red-700 p-2">
+                                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                                        </svg>
+                                    </button>
+                                `;
+                                formacoesContainer.appendChild(div);
+                                formacaoEdicaoCount++;
+                            }
                         }
                     }
                 }
                 
                 // Carregar especializações (JSON)
                 const especializacoesContainer = document.getElementById('editar-especializacoes-container');
-                especializacoesContainer.innerHTML = '';
-                especializacaoEdicaoCount = 0;
-                if (prof.especializacao) {
-                    try {
-                        const especializacoes = JSON.parse(prof.especializacao);
-                        if (Array.isArray(especializacoes)) {
-                            especializacoes.forEach(esp => {
-                                if (esp && esp.trim()) {
-                                    const div = document.createElement('div');
-                                    div.className = 'flex items-center space-x-2';
-                                    div.id = `editar-especializacao-${especializacaoEdicaoCount}`;
-                                    div.innerHTML = `
-                                        <input type="text" name="especializacoes[]" value="${esp.replace(/"/g, '&quot;')}"
-                                               class="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent">
-                                        <button type="button" onclick="removerEspecializacaoEdicao(${especializacaoEdicaoCount})" class="text-red-600 hover:text-red-700 p-2">
-                                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-                                            </svg>
-                                        </button>
-                                    `;
-                                    especializacoesContainer.appendChild(div);
-                                    especializacaoEdicaoCount++;
-                                }
-                            });
-                        }
-                    } catch (e) {
-                        // Se não for JSON, tratar como string única
-                        if (prof.especializacao.trim()) {
-                            const div = document.createElement('div');
-                            div.className = 'flex items-center space-x-2';
-                            div.id = `editar-especializacao-${especializacaoEdicaoCount}`;
-                            div.innerHTML = `
-                                <input type="text" name="especializacoes[]" value="${prof.especializacao.replace(/"/g, '&quot;')}"
-                                       class="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent">
-                                <button type="button" onclick="removerEspecializacaoEdicao(${especializacaoEdicaoCount})" class="text-red-600 hover:text-red-700 p-2">
-                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-                                    </svg>
-                                </button>
-                            `;
-                            especializacoesContainer.appendChild(div);
-                            especializacaoEdicaoCount++;
+                if (especializacoesContainer) {
+                    especializacoesContainer.innerHTML = '';
+                    especializacaoEdicaoCount = 0;
+                    if (prof.especializacao) {
+                        try {
+                            const especializacoes = JSON.parse(prof.especializacao);
+                            if (Array.isArray(especializacoes)) {
+                                especializacoes.forEach(esp => {
+                                    if (esp && esp.trim()) {
+                                        const div = document.createElement('div');
+                                        div.className = 'flex items-center space-x-2';
+                                        div.id = `editar-especializacao-${especializacaoEdicaoCount}`;
+                                        div.innerHTML = `
+                                            <input type="text" name="especializacoes[]" value="${esp.replace(/"/g, '&quot;')}"
+                                                   class="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent">
+                                            <button type="button" onclick="removerEspecializacaoEdicao(${especializacaoEdicaoCount})" class="text-red-600 hover:text-red-700 p-2">
+                                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                                                </svg>
+                                            </button>
+                                        `;
+                                        especializacoesContainer.appendChild(div);
+                                        especializacaoEdicaoCount++;
+                                    }
+                                });
+                            }
+                        } catch (e) {
+                            // Se não for JSON, tratar como string única
+                            if (prof.especializacao && prof.especializacao.trim()) {
+                                const div = document.createElement('div');
+                                div.className = 'flex items-center space-x-2';
+                                div.id = `editar-especializacao-${especializacaoEdicaoCount}`;
+                                div.innerHTML = `
+                                    <input type="text" name="especializacoes[]" value="${prof.especializacao.replace(/"/g, '&quot;')}"
+                                           class="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent">
+                                    <button type="button" onclick="removerEspecializacaoEdicao(${especializacaoEdicaoCount})" class="text-red-600 hover:text-red-700 p-2">
+                                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                                        </svg>
+                                    </button>
+                                `;
+                                especializacoesContainer.appendChild(div);
+                                especializacaoEdicaoCount++;
+                            }
                         }
                     }
                 }
                 
-                document.getElementById('editar_registro_profissional').value = prof.registro_profissional || '';
-                document.getElementById('editar_data_admissao').value = prof.data_admissao || '';
-                document.getElementById('editar_ativo').value = prof.ativo !== undefined ? prof.ativo : 1;
-                document.getElementById('editar_username_preview').value = prof.username || '';
+                setValueSafely('editar_registro_profissional', prof.registro_profissional);
+                setValueSafely('editar_data_admissao', prof.data_admissao);
+                setValueSafely('editar_ativo', prof.ativo !== undefined ? prof.ativo : 1);
+                setValueSafely('editar_username_preview', prof.username);
                 
-                // Preencher endereço
-                document.getElementById('editar_endereco').value = prof.endereco || '';
-                document.getElementById('editar_numero').value = prof.numero || '';
-                document.getElementById('editar_complemento').value = prof.complemento || '';
-                document.getElementById('editar_bairro').value = prof.bairro || '';
-                document.getElementById('editar_cidade').value = prof.cidade || '';
-                document.getElementById('editar_estado').value = prof.estado || 'CE';
+                // Preencher endereço (se os campos existirem)
+                setValueSafely('editar_endereco', prof.endereco);
+                setValueSafely('editar_numero', prof.numero);
+                setValueSafely('editar_complemento', prof.complemento);
+                setValueSafely('editar_bairro', prof.bairro);
+                setValueSafely('editar_cidade', prof.cidade);
+                setValueSafely('editar_estado', prof.estado || 'CE');
                 if (prof.cep) {
                     const cep = prof.cep.replace(/\D/g, '');
-                    if (cep.length === 8) {
-                        document.getElementById('editar_cep').value = cep.slice(0, 5) + '-' + cep.slice(5);
-                    } else {
-                        document.getElementById('editar_cep').value = prof.cep;
+                    const cepElement = document.getElementById('editar_cep');
+                    if (cepElement) {
+                        if (cep.length === 8) {
+                            cepElement.value = cep.slice(0, 5) + '-' + cep.slice(5);
+                        } else {
+                            cepElement.value = prof.cep;
+                        }
                     }
                 }
                 
@@ -1977,13 +2018,24 @@ $professores = $stmtProfessores->fetchAll(PDO::FETCH_ASSOC);
         async function excluirProfessor(id) {
             try {
                 const response = await fetch('?acao=buscar_professor&id=' + id);
+                
+                if (!response.ok) {
+                    throw new Error('Erro na resposta do servidor: ' + response.status);
+                }
+                
                 const data = await response.json();
-                const nomeProfessor = data.success && data.professor ? data.professor.nome : 'este professor';
+                
+                if (!data.success) {
+                    alert('Erro ao carregar dados do professor: ' + (data.message || 'Professor não encontrado'));
+                    return;
+                }
+                
+                const nomeProfessor = data.professor && data.professor.nome ? data.professor.nome : 'este professor';
                 
                 abrirModalConfirmarExclusao(id, nomeProfessor);
             } catch (error) {
                 console.error('Erro ao buscar dados do professor:', error);
-                alert('Erro ao carregar dados do professor. Tente novamente.');
+                alert('Erro ao carregar dados do professor. Por favor, tente novamente.');
             }
         }
     </script>

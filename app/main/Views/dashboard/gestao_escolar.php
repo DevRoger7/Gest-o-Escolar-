@@ -78,10 +78,22 @@ if (isset($_SESSION['tipo']) && strtoupper($_SESSION['tipo']) === 'GESTAO') {
             error_log("DEBUG GESTOR - Query 1 resultado: " . json_encode($gestorEscola));
 
             if ($gestorEscola) {
-                $escolaGestorId = (int)$gestorEscola['escola_id'];
-                $escolaGestor = $gestorEscola['escola_nome'];
-                error_log("DEBUG GESTOR - Escola encontrada (Query 1): ID=" . $escolaGestorId . ", Nome=" . $escolaGestor);
-            } else {
+                // Verificar se a lotação está realmente ativa
+                $fimLotacao = $gestorEscola['fim'];
+                $lotacaoAtiva = ($fimLotacao === null || $fimLotacao === '' || $fimLotacao === '0000-00-00' || (strtotime($fimLotacao) !== false && strtotime($fimLotacao) >= strtotime('today')));
+                
+                if ($lotacaoAtiva) {
+                    $escolaGestorId = (int)$gestorEscola['escola_id'];
+                    $escolaGestor = $gestorEscola['escola_nome'];
+                    error_log("DEBUG GESTOR - Escola encontrada (Query 1): ID=" . $escolaGestorId . ", Nome=" . $escolaGestor);
+                } else {
+                    error_log("DEBUG GESTOR - Lotação encontrada mas não está ativa (fim: " . var_export($fimLotacao, true) . ")");
+                    // Continuar para a próxima query
+                }
+            }
+            
+            // Se ainda não encontrou, tentar query alternativa
+            if (!$escolaGestorId) {
                 // Tentar buscar sem a condição de fim (caso o campo esteja com valor diferente)
                 $sqlGestor2 = "SELECT g.id as gestor_id, gl.escola_id, e.nome as escola_nome, gl.responsavel, gl.fim, gl.inicio
                                FROM gestor g
@@ -99,20 +111,20 @@ if (isset($_SESSION['tipo']) && strtoupper($_SESSION['tipo']) === 'GESTAO') {
 
                 if ($gestorEscola2) {
                     // Verificar se a lotação está realmente ativa (fim é NULL ou data futura)
-                    $fimLotacao = $gestorEscola2['fim'];
-                    $lotacaoAtiva = ($fimLotacao === null || $fimLotacao === '' || $fimLotacao === '0000-00-00' || strtotime($fimLotacao) >= strtotime('today'));
-                    error_log("DEBUG GESTOR - Fim lotação: " . var_export($fimLotacao, true) . ", Ativa: " . ($lotacaoAtiva ? 'SIM' : 'NÃO'));
+                    $fimLotacao2 = $gestorEscola2['fim'];
+                    $lotacaoAtiva2 = ($fimLotacao2 === null || $fimLotacao2 === '' || $fimLotacao2 === '0000-00-00' || (strtotime($fimLotacao2) !== false && strtotime($fimLotacao2) >= strtotime('today')));
+                    error_log("DEBUG GESTOR - Fim lotação: " . var_export($fimLotacao2, true) . ", Ativa: " . ($lotacaoAtiva2 ? 'SIM' : 'NÃO'));
 
-                    if ($lotacaoAtiva) {
+                    if ($lotacaoAtiva2) {
                         $escolaGestorId = (int)$gestorEscola2['escola_id'];
                         $escolaGestor = $gestorEscola2['escola_nome'];
                         error_log("DEBUG GESTOR - Escola encontrada (Query 2): ID=" . $escolaGestorId . ", Nome=" . $escolaGestor);
                     } else {
-                        $escolaGestorId = null;
-                        $escolaGestor = null;
-                        error_log("DEBUG GESTOR - Lotação encontrada mas não está ativa (fim: " . var_export($fimLotacao, true) . ")");
+                        error_log("DEBUG GESTOR - Lotação encontrada mas não está ativa (fim: " . var_export($fimLotacao2, true) . ")");
                     }
-                } else {
+                }
+                
+                if (!$escolaGestorId) {
                     // Verificar se existe lotação mesmo que inativa
                     $sqlCheckLotacao = "SELECT gl.*, e.nome as escola_nome
                                         FROM gestor g
@@ -1296,6 +1308,7 @@ if (!empty($_GET['acao']) && $_GET['acao'] === 'buscar_turma' && !empty($_GET['i
 // Buscar detalhes do professor
 if (!empty($_GET['acao']) && $_GET['acao'] === 'buscar_professor' && !empty($_GET['id'])) {
     header('Content-Type: application/json');
+<<<<<<< HEAD
 
     $professorId = $_GET['id'];
 
@@ -1341,12 +1354,21 @@ if (!empty($_GET['acao']) && $_GET['acao'] === 'buscar_professor' && !empty($_GE
 
         // Se for gestor e o professor não tiver atribuições na escola dele, negar acesso
         if ($_SESSION['tipo'] === 'GESTAO' && $escolaGestorId && empty($atribuicoes)) {
+=======
+    
+    try {
+        $professorId = $_GET['id'];
+        
+        // Validar que o ID é numérico
+        if (!is_numeric($professorId)) {
+>>>>>>> 2f93e86a3c3e96b125007b901691880461eb3389
             echo json_encode([
                 'success' => false,
-                'message' => 'Você não tem permissão para visualizar este professor.'
+                'message' => 'ID do professor inválido'
             ]);
             exit;
         }
+<<<<<<< HEAD
 
         echo json_encode([
             'success' => true,
@@ -1354,9 +1376,88 @@ if (!empty($_GET['acao']) && $_GET['acao'] === 'buscar_professor' && !empty($_GE
             'atribuicoes' => $atribuicoes
         ]);
     } else {
+=======
+        
+        $professorId = (int)$professorId;
+        
+        $sql = "SELECT pr.id, p.nome, p.email, p.telefone, pr.matricula
+                FROM professor pr
+                INNER JOIN pessoa p ON pr.pessoa_id = p.id
+                WHERE pr.id = :professor_id AND pr.ativo = 1";
+        
+        $stmt = $conn->prepare($sql);
+        $stmt->bindParam(':professor_id', $professorId, PDO::PARAM_INT);
+        $stmt->execute();
+        $professor = $stmt->fetch(PDO::FETCH_ASSOC);
+        
+        if ($professor) {
+            // Buscar atribuições do professor
+            try {
+                $sqlAtribuicoes = "SELECT 
+                                    CONCAT(t.serie, ' ', t.letra) as turma,
+                                    d.nome as disciplina,
+                                    tp.regime,
+                                    DATE_FORMAT(tp.inicio, '%d/%m/%Y') as inicio,
+                                    e.nome as escola_nome,
+                                    t.escola_id
+                                  FROM turma_professor tp
+                                  INNER JOIN turma t ON tp.turma_id = t.id
+                                  INNER JOIN disciplina d ON tp.disciplina_id = d.id
+                                  INNER JOIN escola e ON t.escola_id = e.id
+                                  WHERE tp.professor_id = :professor_id AND tp.fim IS NULL";
+                
+                // Filtrar por escola do gestor se necessário
+                if ($_SESSION['tipo'] === 'GESTAO' && isset($escolaGestorId) && $escolaGestorId) {
+                    $sqlAtribuicoes .= " AND t.escola_id = :escola_id";
+                }
+                
+                $sqlAtribuicoes .= " ORDER BY t.serie, t.letra, d.nome";
+                
+                $stmtAtrib = $conn->prepare($sqlAtribuicoes);
+                $stmtAtrib->bindParam(':professor_id', $professorId, PDO::PARAM_INT);
+                if ($_SESSION['tipo'] === 'GESTAO' && isset($escolaGestorId) && $escolaGestorId) {
+                    $stmtAtrib->bindParam(':escola_id', $escolaGestorId, PDO::PARAM_INT);
+                }
+                $stmtAtrib->execute();
+                $atribuicoes = $stmtAtrib->fetchAll(PDO::FETCH_ASSOC);
+                
+                // Se for gestor e o professor não tiver atribuições na escola dele, negar acesso
+                if ($_SESSION['tipo'] === 'GESTAO' && isset($escolaGestorId) && $escolaGestorId && empty($atribuicoes)) {
+                    echo json_encode([
+                        'success' => false,
+                        'message' => 'Você não tem permissão para visualizar este professor.'
+                    ]);
+                    exit;
+                }
+            } catch (PDOException $e) {
+                // Se houver erro ao buscar atribuições, retornar professor sem atribuições
+                error_log("Erro ao buscar atribuições do professor: " . $e->getMessage());
+                $atribuicoes = [];
+            }
+            
+            echo json_encode([
+                'success' => true,
+                'professor' => $professor,
+                'atribuicoes' => $atribuicoes ?? []
+            ]);
+        } else {
+            echo json_encode([
+                'success' => false,
+                'message' => 'Professor não encontrado'
+            ]);
+        }
+    } catch (PDOException $e) {
+        error_log("Erro ao buscar professor: " . $e->getMessage());
+>>>>>>> 2f93e86a3c3e96b125007b901691880461eb3389
         echo json_encode([
             'success' => false,
-            'message' => 'Professor não encontrado'
+            'message' => 'Erro ao carregar dados do professor. Por favor, tente novamente.'
+        ]);
+    } catch (Exception $e) {
+        error_log("Erro ao buscar professor: " . $e->getMessage());
+        echo json_encode([
+            'success' => false,
+            'message' => 'Erro ao carregar dados do professor. Por favor, tente novamente.'
         ]);
     }
     exit;
@@ -4615,6 +4716,7 @@ if (!defined('BASE_URL')) {
                     formData.append('professor_id', professorId);
                     formData.append('disciplina_id', disciplinaId);
 
+<<<<<<< HEAD
                     fetch('gestao_escolar.php', {
                             method: 'POST',
                             body: formData
@@ -4639,6 +4741,23 @@ if (!defined('BASE_URL')) {
                                 const atribuicoes = data.atribuicoes || [];
 
                                 let html = `
+=======
+        function verDetalhesProfessor(professorId) {
+            // Buscar detalhes do professor e suas atribuições
+            fetch(`gestao_escolar.php?acao=buscar_professor&id=${professorId}`)
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Erro na resposta do servidor: ' + response.status);
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    if (data.success) {
+                        const prof = data.professor;
+                        const atribuicoes = data.atribuicoes || [];
+                        
+                        let html = `
+>>>>>>> 2f93e86a3c3e96b125007b901691880461eb3389
                             <div class="space-y-6">
                                 <div class="bg-gray-50 rounded-lg p-6">
                                     <h4 class="text-lg font-semibold text-gray-900 mb-4">Informações do Professor</h4>

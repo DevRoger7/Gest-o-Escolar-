@@ -26,23 +26,64 @@ if (isset($_SESSION['tipo']) && strtoupper($_SESSION['tipo']) === 'GESTAO') {
     $usuarioId = $_SESSION['usuario_id'] ?? null;
     
     if ($usuarioId) {
-        $sqlGestor = "SELECT g.id as gestor_id, gl.escola_id, e.nome as escola_nome
-                      FROM gestor g
-                      INNER JOIN usuario u ON g.pessoa_id = u.pessoa_id
-                      INNER JOIN gestor_lotacao gl ON g.id = gl.gestor_id
-                      INNER JOIN escola e ON gl.escola_id = e.id
-                      WHERE u.id = :usuario_id AND g.ativo = 1
-                      AND (gl.fim IS NULL OR gl.fim = '' OR gl.fim = '0000-00-00')
-                      ORDER BY gl.responsavel DESC, gl.inicio DESC
-                      LIMIT 1";
-        $stmtGestor = $conn->prepare($sqlGestor);
-        $stmtGestor->bindParam(':usuario_id', $usuarioId);
-        $stmtGestor->execute();
-        $gestorEscola = $stmtGestor->fetch(PDO::FETCH_ASSOC);
-        
-        if ($gestorEscola) {
-            $escolaGestorId = (int)$gestorEscola['escola_id'];
-            $escolaGestor = $gestorEscola['escola_nome'];
+        try {
+            // Buscar gestor através do usuario_id
+            // Query simplificada - buscar qualquer lotação recente, priorizando as sem data de fim
+            $sqlGestor = "SELECT g.id as gestor_id, gl.escola_id, e.nome as escola_nome, gl.responsavel, gl.fim, gl.inicio
+                          FROM gestor g
+                          INNER JOIN usuario u ON g.pessoa_id = u.pessoa_id
+                          INNER JOIN gestor_lotacao gl ON g.id = gl.gestor_id
+                          INNER JOIN escola e ON gl.escola_id = e.id
+                          WHERE u.id = :usuario_id AND g.ativo = 1
+                          ORDER BY 
+                            CASE WHEN gl.fim IS NULL OR gl.fim = '' OR gl.fim = '0000-00-00' THEN 0 ELSE 1 END,
+                            gl.responsavel DESC, 
+                            gl.inicio DESC,
+                            gl.id DESC
+                          LIMIT 1";
+            $stmtGestor = $conn->prepare($sqlGestor);
+            $stmtGestor->bindParam(':usuario_id', $usuarioId);
+            $stmtGestor->execute();
+            $gestorEscola = $stmtGestor->fetch(PDO::FETCH_ASSOC);
+            
+            if ($gestorEscola) {
+                // Verificar se a lotação está realmente ativa
+                $fimLotacao = $gestorEscola['fim'];
+                $lotacaoAtiva = ($fimLotacao === null || $fimLotacao === '' || $fimLotacao === '0000-00-00' || (strtotime($fimLotacao) !== false && strtotime($fimLotacao) >= strtotime('today')));
+                
+                if ($lotacaoAtiva) {
+                    $escolaGestorId = (int)$gestorEscola['escola_id'];
+                    $escolaGestor = $gestorEscola['escola_nome'];
+                } else {
+                    // Tentar buscar sem a condição de fim (caso o campo esteja com valor diferente)
+                    $sqlGestor2 = "SELECT g.id as gestor_id, gl.escola_id, e.nome as escola_nome, gl.responsavel, gl.fim, gl.inicio
+                                   FROM gestor g
+                                   INNER JOIN usuario u ON g.pessoa_id = u.pessoa_id
+                                   INNER JOIN gestor_lotacao gl ON g.id = gl.gestor_id
+                                   INNER JOIN escola e ON gl.escola_id = e.id
+                                   WHERE u.id = :usuario_id AND g.ativo = 1
+                                   ORDER BY gl.responsavel DESC, gl.inicio DESC, gl.id DESC
+                                   LIMIT 1";
+                    $stmtGestor2 = $conn->prepare($sqlGestor2);
+                    $stmtGestor2->bindParam(':usuario_id', $usuarioId);
+                    $stmtGestor2->execute();
+                    $gestorEscola2 = $stmtGestor2->fetch(PDO::FETCH_ASSOC);
+                    
+                    if ($gestorEscola2) {
+                        $fimLotacao2 = $gestorEscola2['fim'];
+                        $lotacaoAtiva2 = ($fimLotacao2 === null || $fimLotacao2 === '' || $fimLotacao2 === '0000-00-00' || (strtotime($fimLotacao2) !== false && strtotime($fimLotacao2) >= strtotime('today')));
+                        
+                        if ($lotacaoAtiva2) {
+                            $escolaGestorId = (int)$gestorEscola2['escola_id'];
+                            $escolaGestor = $gestorEscola2['escola_nome'];
+                        }
+                    }
+                }
+            }
+        } catch (Exception $e) {
+            error_log("ERRO ao buscar escola do gestor: " . $e->getMessage());
+            $escolaGestorId = null;
+            $escolaGestor = null;
         }
     }
 }
