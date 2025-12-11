@@ -3750,8 +3750,10 @@ if (!defined('BASE_URL')) {
 
                     // Ativar tab
                     const tab = document.getElementById('tab-' + aba);
-                    tab.classList.remove('border-transparent', 'text-gray-500');
-                    tab.classList.add('border-primary-green', 'text-primary-green');
+                    if (tab) {
+                        tab.classList.remove('border-transparent', 'text-gray-500');
+                        tab.classList.add('border-primary-green', 'text-primary-green');
+                    }
 
                     // Carregar dados específicos da aba
                     if (aba === 'responsaveis') {
