@@ -38,44 +38,53 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao'])) {
                 $dadosTurmas = json_decode($backup['dados_turmas'], true) ?: [];
                 $dadosLotacoes = json_decode($backup['dados_lotacoes'], true) ?: [];
                 
-                // Verificar se a escola já existe (pode ter sido restaurada)
-                $stmtCheck = $conn->prepare("SELECT id FROM escola WHERE id = :id");
+                // Verificar se a escola já existe (pode ter sido restaurada ou apenas desativada)
+                $stmtCheck = $conn->prepare("SELECT id, ativo FROM escola WHERE id = :id");
                 $stmtCheck->bindParam(':id', $dadosEscola['id'], PDO::PARAM_INT);
                 $stmtCheck->execute();
+                $escolaExistente = $stmtCheck->fetch(PDO::FETCH_ASSOC);
                 
-                if ($stmtCheck->fetch()) {
-                    throw new Exception('Escola já existe no sistema. Pode ter sido restaurada anteriormente.');
+                if ($escolaExistente) {
+                    // Escola existe - apenas reativar (soft delete reverso)
+                    if ($escolaExistente['ativo'] == 0) {
+                        $stmtReativar = $conn->prepare("UPDATE escola SET ativo = 1 WHERE id = :id");
+                        $stmtReativar->bindParam(':id', $dadosEscola['id'], PDO::PARAM_INT);
+                        $stmtReativar->execute();
+                    } else {
+                        // Escola já está ativa, não precisa fazer nada
+                    }
+                } else {
+                    // Escola não existe - inserir nova (caso tenha sido excluída permanentemente antes)
+                    $sqlEscola = "INSERT INTO escola (id, codigo, nome, endereco, numero, complemento, bairro, municipio, estado, cep, telefone, telefone_secundario, email, site, cnpj, diretor_id, qtd_salas, obs, ativo, criado_em, atualizado_em, atualizado_por) 
+                                 VALUES (:id, :codigo, :nome, :endereco, :numero, :complemento, :bairro, :municipio, :estado, :cep, :telefone, :telefone_secundario, :email, :site, :cnpj, :diretor_id, :qtd_salas, :obs, :ativo, :criado_em, :atualizado_em, :atualizado_por)";
+                    $stmtEscola = $conn->prepare($sqlEscola);
+                    $stmtEscola->bindValue(':id', $dadosEscola['id'] ?? null, PDO::PARAM_INT);
+                    $stmtEscola->bindValue(':codigo', $dadosEscola['codigo'] ?? null);
+                    $stmtEscola->bindValue(':nome', $dadosEscola['nome'] ?? null);
+                    $stmtEscola->bindValue(':endereco', $dadosEscola['endereco'] ?? null);
+                    $stmtEscola->bindValue(':numero', $dadosEscola['numero'] ?? null);
+                    $stmtEscola->bindValue(':complemento', $dadosEscola['complemento'] ?? null);
+                    $stmtEscola->bindValue(':bairro', $dadosEscola['bairro'] ?? null);
+                    $stmtEscola->bindValue(':municipio', $dadosEscola['municipio'] ?? null);
+                    $stmtEscola->bindValue(':estado', $dadosEscola['estado'] ?? null);
+                    $stmtEscola->bindValue(':cep', $dadosEscola['cep'] ?? null);
+                    $stmtEscola->bindValue(':telefone', $dadosEscola['telefone'] ?? null);
+                    $stmtEscola->bindValue(':telefone_secundario', $dadosEscola['telefone_secundario'] ?? null);
+                    $stmtEscola->bindValue(':email', $dadosEscola['email'] ?? null);
+                    $stmtEscola->bindValue(':site', $dadosEscola['site'] ?? null);
+                    $stmtEscola->bindValue(':cnpj', $dadosEscola['cnpj'] ?? null);
+                    $stmtEscola->bindValue(':diretor_id', $dadosEscola['diretor_id'] ?? null, PDO::PARAM_INT);
+                    $stmtEscola->bindValue(':qtd_salas', $dadosEscola['qtd_salas'] ?? null, PDO::PARAM_INT);
+                    $stmtEscola->bindValue(':obs', $dadosEscola['obs'] ?? null);
+                    $stmtEscola->bindValue(':ativo', 1, PDO::PARAM_INT);
+                    $stmtEscola->bindValue(':criado_em', $dadosEscola['criado_em'] ?? date('Y-m-d H:i:s'));
+                    $stmtEscola->bindValue(':atualizado_em', $dadosEscola['atualizado_em'] ?? date('Y-m-d H:i:s'));
+                    $stmtEscola->bindValue(':atualizado_por', $dadosEscola['atualizado_por'] ?? null, PDO::PARAM_INT);
+                    $stmtEscola->execute();
                 }
                 
-                // Restaurar escola
-                $sqlEscola = "INSERT INTO escola (id, codigo, nome, endereco, numero, complemento, bairro, municipio, estado, cep, telefone, telefone_secundario, email, site, cnpj, diretor_id, qtd_salas, obs, ativo, criado_em, atualizado_em, atualizado_por) 
-                             VALUES (:id, :codigo, :nome, :endereco, :numero, :complemento, :bairro, :municipio, :estado, :cep, :telefone, :telefone_secundario, :email, :site, :cnpj, :diretor_id, :qtd_salas, :obs, :ativo, :criado_em, :atualizado_em, :atualizado_por)";
-                $stmtEscola = $conn->prepare($sqlEscola);
-                $stmtEscola->bindValue(':id', $dadosEscola['id'] ?? null, PDO::PARAM_INT);
-                $stmtEscola->bindValue(':codigo', $dadosEscola['codigo'] ?? null);
-                $stmtEscola->bindValue(':nome', $dadosEscola['nome'] ?? null);
-                $stmtEscola->bindValue(':endereco', $dadosEscola['endereco'] ?? null);
-                $stmtEscola->bindValue(':numero', $dadosEscola['numero'] ?? null);
-                $stmtEscola->bindValue(':complemento', $dadosEscola['complemento'] ?? null);
-                $stmtEscola->bindValue(':bairro', $dadosEscola['bairro'] ?? null);
-                $stmtEscola->bindValue(':municipio', $dadosEscola['municipio'] ?? null);
-                $stmtEscola->bindValue(':estado', $dadosEscola['estado'] ?? null);
-                $stmtEscola->bindValue(':cep', $dadosEscola['cep'] ?? null);
-                $stmtEscola->bindValue(':telefone', $dadosEscola['telefone'] ?? null);
-                $stmtEscola->bindValue(':telefone_secundario', $dadosEscola['telefone_secundario'] ?? null);
-                $stmtEscola->bindValue(':email', $dadosEscola['email'] ?? null);
-                $stmtEscola->bindValue(':site', $dadosEscola['site'] ?? null);
-                $stmtEscola->bindValue(':cnpj', $dadosEscola['cnpj'] ?? null);
-                $stmtEscola->bindValue(':diretor_id', $dadosEscola['diretor_id'] ?? null, PDO::PARAM_INT);
-                $stmtEscola->bindValue(':qtd_salas', $dadosEscola['qtd_salas'] ?? null, PDO::PARAM_INT);
-                $stmtEscola->bindValue(':obs', $dadosEscola['obs'] ?? null);
-                $stmtEscola->bindValue(':ativo', $dadosEscola['ativo'] ?? 1, PDO::PARAM_INT);
-                $stmtEscola->bindValue(':criado_em', $dadosEscola['criado_em'] ?? date('Y-m-d H:i:s'));
-                $stmtEscola->bindValue(':atualizado_em', $dadosEscola['atualizado_em'] ?? date('Y-m-d H:i:s'));
-                $stmtEscola->bindValue(':atualizado_por', $dadosEscola['atualizado_por'] ?? null, PDO::PARAM_INT);
-                $stmtEscola->execute();
-                
-                // Restaurar turmas
+                // Restaurar turmas (se não existirem)
+                // Como agora fazemos soft delete, as turmas já devem existir, mas verificamos mesmo assim
                 if (!empty($dadosTurmas) && is_array($dadosTurmas)) {
                     foreach ($dadosTurmas as $turma) {
                         if (!is_array($turma)) continue;
@@ -86,25 +95,33 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao'])) {
                         $stmtCheckTurma->execute();
                         
                         if (!$stmtCheckTurma->fetch()) {
+                            // Turma não existe - inserir (caso tenha sido excluída permanentemente antes)
                             try {
-                                $sqlTurma = "INSERT INTO turma (id, escola_id, nome, serie, turno, ano_letivo, ativo, criado_em, atualizado_em) 
-                                             VALUES (:id, :escola_id, :nome, :serie, :turno, :ano_letivo, :ativo, :criado_em, :atualizado_em)";
+                                $sqlTurma = "INSERT INTO turma (id, escola_id, serie_id, ano_letivo, serie, letra, turno, capacidade, sala, coordenador_id, observacoes, ativo, criado_em, atualizado_em, atualizado_por) 
+                                             VALUES (:id, :escola_id, :serie_id, :ano_letivo, :serie, :letra, :turno, :capacidade, :sala, :coordenador_id, :observacoes, :ativo, :criado_em, :atualizado_em, :atualizado_por)";
                                 $stmtTurma = $conn->prepare($sqlTurma);
                                 $stmtTurma->bindValue(':id', $turma['id'] ?? null, PDO::PARAM_INT);
                                 $stmtTurma->bindValue(':escola_id', $turma['escola_id'] ?? $dadosEscola['id'], PDO::PARAM_INT);
-                                $stmtTurma->bindValue(':nome', $turma['nome'] ?? null);
+                                $stmtTurma->bindValue(':serie_id', $turma['serie_id'] ?? null, PDO::PARAM_INT);
+                                $stmtTurma->bindValue(':ano_letivo', $turma['ano_letivo'] ?? null, PDO::PARAM_INT);
                                 $stmtTurma->bindValue(':serie', $turma['serie'] ?? null);
+                                $stmtTurma->bindValue(':letra', $turma['letra'] ?? null);
                                 $stmtTurma->bindValue(':turno', $turma['turno'] ?? null);
-                                $stmtTurma->bindValue(':ano_letivo', $turma['ano_letivo'] ?? null);
+                                $stmtTurma->bindValue(':capacidade', $turma['capacidade'] ?? null, PDO::PARAM_INT);
+                                $stmtTurma->bindValue(':sala', $turma['sala'] ?? null);
+                                $stmtTurma->bindValue(':coordenador_id', $turma['coordenador_id'] ?? null, PDO::PARAM_INT);
+                                $stmtTurma->bindValue(':observacoes', $turma['observacoes'] ?? null);
                                 $stmtTurma->bindValue(':ativo', $turma['ativo'] ?? 1, PDO::PARAM_INT);
                                 $stmtTurma->bindValue(':criado_em', $turma['criado_em'] ?? date('Y-m-d H:i:s'));
                                 $stmtTurma->bindValue(':atualizado_em', $turma['atualizado_em'] ?? date('Y-m-d H:i:s'));
+                                $stmtTurma->bindValue(':atualizado_por', $turma['atualizado_por'] ?? null, PDO::PARAM_INT);
                                 $stmtTurma->execute();
                             } catch (PDOException $e) {
-                                // Ignorar erros de turma (pode já existir)
-                                error_log("Erro ao restaurar turma: " . $e->getMessage());
+                                // Logar erro mas continuar
+                                error_log("Erro ao restaurar turma ID " . ($turma['id'] ?? 'N/A') . ": " . $e->getMessage());
                             }
                         }
+                        // Se a turma já existe, não precisa fazer nada - os dados já estão preservados
                     }
                 }
                 
@@ -130,10 +147,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao'])) {
                                 $stmtLotacao->bindValue(':carga_horaria', $lotacao['carga_horaria'] ?? null, PDO::PARAM_INT);
                                 $stmtLotacao->bindValue(':observacao', $lotacao['observacao'] ?? null);
                                 $stmtLotacao->execute();
+                            } else {
+                                // Se já existe, atualizar para garantir que fim seja NULL
+                                $stmtUpdate = $conn->prepare("UPDATE professor_lotacao SET fim = NULL WHERE professor_id = :professor_id AND escola_id = :escola_id");
+                                $stmtUpdate->bindValue(':professor_id', $lotacao['professor_id'] ?? null, PDO::PARAM_INT);
+                                $stmtUpdate->bindValue(':escola_id', $lotacao['escola_id'] ?? $dadosEscola['id'], PDO::PARAM_INT);
+                                $stmtUpdate->execute();
                             }
                         } catch (PDOException $e) {
-                            // Ignorar erros de lotação
-                            error_log("Erro ao restaurar lotação professor: " . $e->getMessage());
+                            // Logar erro mas continuar
+                            error_log("Erro ao restaurar lotação professor (professor_id: " . ($lotacao['professor_id'] ?? 'N/A') . ", escola_id: " . ($lotacao['escola_id'] ?? 'N/A') . "): " . $e->getMessage());
                         }
                     }
                 }
@@ -161,10 +184,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao'])) {
                                 $stmtLotacao->bindValue(':tipo', $lotacao['tipo'] ?? null);
                                 $stmtLotacao->bindValue(':observacoes', $lotacao['observacoes'] ?? null);
                                 $stmtLotacao->execute();
+                            } else {
+                                // Se já existe, atualizar para garantir que fim seja NULL
+                                $stmtUpdate = $conn->prepare("UPDATE gestor_lotacao SET fim = NULL WHERE gestor_id = :gestor_id AND escola_id = :escola_id");
+                                $stmtUpdate->bindValue(':gestor_id', $lotacao['gestor_id'] ?? null, PDO::PARAM_INT);
+                                $stmtUpdate->bindValue(':escola_id', $lotacao['escola_id'] ?? $dadosEscola['id'], PDO::PARAM_INT);
+                                $stmtUpdate->execute();
                             }
                         } catch (PDOException $e) {
-                            // Ignorar erros de lotação
-                            error_log("Erro ao restaurar lotação gestor: " . $e->getMessage());
+                            // Logar erro mas continuar
+                            error_log("Erro ao restaurar lotação gestor (gestor_id: " . ($lotacao['gestor_id'] ?? 'N/A') . ", escola_id: " . ($lotacao['escola_id'] ?? 'N/A') . "): " . $e->getMessage());
                         }
                     }
                 }
@@ -192,10 +221,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao'])) {
                                 $stmtLotacao->bindValue(':carga_horaria', $lotacao['carga_horaria'] ?? null, PDO::PARAM_INT);
                                 $stmtLotacao->bindValue(':observacoes', $lotacao['observacoes'] ?? null);
                                 $stmtLotacao->execute();
+                            } else {
+                                // Se já existe, atualizar para garantir que fim seja NULL
+                                $stmtUpdate = $conn->prepare("UPDATE nutricionista_lotacao SET fim = NULL WHERE nutricionista_id = :nutricionista_id AND escola_id = :escola_id");
+                                $stmtUpdate->bindValue(':nutricionista_id', $lotacao['nutricionista_id'] ?? null, PDO::PARAM_INT);
+                                $stmtUpdate->bindValue(':escola_id', $lotacao['escola_id'] ?? $dadosEscola['id'], PDO::PARAM_INT);
+                                $stmtUpdate->execute();
                             }
                         } catch (PDOException $e) {
-                            // Ignorar erros de lotação
-                            error_log("Erro ao restaurar lotação nutricionista: " . $e->getMessage());
+                            // Logar erro mas continuar
+                            error_log("Erro ao restaurar lotação nutricionista (nutricionista_id: " . ($lotacao['nutricionista_id'] ?? 'N/A') . ", escola_id: " . ($lotacao['escola_id'] ?? 'N/A') . "): " . $e->getMessage());
                         }
                     }
                 }

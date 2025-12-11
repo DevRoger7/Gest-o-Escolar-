@@ -446,306 +446,33 @@ function excluirEscolaForcado($id)
             $stmtBackup->bindParam(':excluido_por', $usuarioId, PDO::PARAM_INT);
             $stmtBackup->execute();
         } catch (PDOException $e) {
-            // Se a tabela não existir, apenas logar o erro mas continuar com a exclusão
+            // Se a tabela não existir, apenas logar o erro mas continuar
             error_log("Erro ao salvar backup da escola (tabela pode não existir): " . $e->getMessage());
         }
 
-        // 1. Excluir itens das entregas
-        try {
-            $stmt = $conn->prepare("DELETE ei FROM entrega_item ei 
-                                    INNER JOIN entrega e ON ei.entrega_id = e.id 
-                                    WHERE e.escola_id = :id");
-            $stmt->bindParam(':id', $id, PDO::PARAM_INT);
-            $stmt->execute();
-        } catch (PDOException $e) {
-            // Ignorar se não existir
-        }
-
-        // 2. Excluir entregas
-        try {
-            $stmt = $conn->prepare("DELETE FROM entrega WHERE escola_id = :id");
-            $stmt->bindParam(':id', $id, PDO::PARAM_INT);
-            $stmt->execute();
-        } catch (PDOException $e) {
-            // Ignorar se não existir
-        }
-
-        // 3. Excluir turmas e seus relacionamentos
-        // Primeiro, excluir relacionamentos das turmas
-        // Excluir notas relacionadas a turmas
-        try {
-            $stmt = $conn->prepare("DELETE n FROM nota n 
-                                    INNER JOIN turma t ON n.turma_id = t.id 
-                                    WHERE t.escola_id = :id");
-            $stmt->bindParam(':id', $id, PDO::PARAM_INT);
-            $stmt->execute();
-        } catch (PDOException $e) {
-            error_log("Erro ao excluir notas: " . $e->getMessage());
-        }
+        // IMPORTANTE: Não excluir dados relacionados! Apenas desativar a escola (soft delete)
+        // Todos os dados (turmas, notas, frequências, alunos, etc.) serão mantidos intactos
         
-        // Excluir observações de desempenho
+        // Desativar a escola (soft delete) - mantém todos os dados relacionados
         try {
-            $stmt = $conn->prepare("DELETE od FROM observacao_desempenho od 
-                                    INNER JOIN turma t ON od.turma_id = t.id 
-                                    WHERE t.escola_id = :id");
+            $stmt = $conn->prepare("UPDATE escola SET ativo = 0 WHERE id = :id");
             $stmt->bindParam(':id', $id, PDO::PARAM_INT);
             $stmt->execute();
         } catch (PDOException $e) {
-            error_log("Erro ao excluir observações: " . $e->getMessage());
+            error_log("Erro ao desativar escola: " . $e->getMessage());
+            throw $e;
         }
+
+        // NÃO EXCLUIR NADA MAIS - TODOS OS DADOS SÃO MANTIDOS
+        // As turmas, notas, frequências, alunos, lotações, etc. permanecem no banco
         
-        // Excluir planos de aula
-        try {
-            $stmt = $conn->prepare("DELETE pa FROM plano_aula pa 
-                                    INNER JOIN turma t ON pa.turma_id = t.id 
-                                    WHERE t.escola_id = :id");
-            $stmt->bindParam(':id', $id, PDO::PARAM_INT);
-            $stmt->execute();
-        } catch (PDOException $e) {
-            error_log("Erro ao excluir planos de aula: " . $e->getMessage());
-        }
-        
-        // Excluir turma_professor
-        try {
-            $stmt = $conn->prepare("DELETE tp FROM turma_professor tp 
-                                    INNER JOIN turma t ON tp.turma_id = t.id 
-                                    WHERE t.escola_id = :id");
-            $stmt->bindParam(':id', $id, PDO::PARAM_INT);
-            $stmt->execute();
-        } catch (PDOException $e) {
-            error_log("Erro ao excluir turma_professor: " . $e->getMessage());
-        }
-        
-        // Excluir aluno_turma
-        try {
-            $stmt = $conn->prepare("DELETE at FROM aluno_turma at 
-                                    INNER JOIN turma t ON at.turma_id = t.id 
-                                    WHERE t.escola_id = :id");
-            $stmt->bindParam(':id', $id, PDO::PARAM_INT);
-            $stmt->execute();
-        } catch (PDOException $e) {
-            error_log("Erro ao excluir aluno_turma: " . $e->getMessage());
-        }
-        
-        // Excluir itens de boletim
-        try {
-            $stmt = $conn->prepare("DELETE bi FROM boletim_item bi 
-                                    INNER JOIN boletim b ON bi.boletim_id = b.id 
-                                    INNER JOIN turma t ON b.turma_id = t.id 
-                                    WHERE t.escola_id = :id");
-            $stmt->bindParam(':id', $id, PDO::PARAM_INT);
-            $stmt->execute();
-        } catch (PDOException $e) {
-            error_log("Erro ao excluir boletim_item: " . $e->getMessage());
-        }
-        
-        // Excluir boletins
-        try {
-            $stmt = $conn->prepare("DELETE b FROM boletim b 
-                                    INNER JOIN turma t ON b.turma_id = t.id 
-                                    WHERE t.escola_id = :id");
-            $stmt->bindParam(':id', $id, PDO::PARAM_INT);
-            $stmt->execute();
-        } catch (PDOException $e) {
-            error_log("Erro ao excluir boletins: " . $e->getMessage());
-        }
-        
-        // Excluir avaliações das turmas
-        try {
-            $stmt = $conn->prepare("DELETE av FROM avaliacao av 
-                                    INNER JOIN turma t ON av.turma_id = t.id 
-                                    WHERE t.escola_id = :id");
-            $stmt->bindParam(':id', $id, PDO::PARAM_INT);
-            $stmt->execute();
-        } catch (PDOException $e) {
-            error_log("Erro ao excluir avaliações: " . $e->getMessage());
-        }
-        
-        // Excluir frequências relacionadas às turmas da escola
-        // Primeiro, buscar os IDs das turmas da escola
-        try {
-            $stmtTurmas = $conn->prepare("SELECT id FROM turma WHERE escola_id = :id");
-            $stmtTurmas->bindParam(':id', $id, PDO::PARAM_INT);
-            $stmtTurmas->execute();
-            $turmaIds = $stmtTurmas->fetchAll(PDO::FETCH_COLUMN);
-            
-            if (!empty($turmaIds)) {
-                $placeholders = implode(',', array_fill(0, count($turmaIds), '?'));
-                $stmt = $conn->prepare("DELETE FROM frequencia WHERE turma_id IN ($placeholders)");
-                $stmt->execute($turmaIds);
-            }
-        } catch (PDOException $e) {
-            error_log("Erro ao excluir frequências: " . $e->getMessage());
-            throw $e; // Relançar o erro para não continuar
-        }
-        
-        // Excluir comunicados relacionados a turmas
-        try {
-            $stmt = $conn->prepare("DELETE c FROM comunicado c 
-                                    INNER JOIN turma t ON c.turma_id = t.id 
-                                    WHERE t.escola_id = :id");
-            $stmt->bindParam(':id', $id, PDO::PARAM_INT);
-            $stmt->execute();
-        } catch (PDOException $e) {
-            error_log("Erro ao excluir comunicados: " . $e->getMessage());
-        }
-        
-        // Excluir itens de consumo diário
-        try {
-            $stmt = $conn->prepare("DELETE ci FROM consumo_item ci 
-                                    INNER JOIN consumo_diario cd ON ci.consumo_diario_id = cd.id 
-                                    WHERE cd.escola_id = :id");
-            $stmt->bindParam(':id', $id, PDO::PARAM_INT);
-            $stmt->execute();
-        } catch (PDOException $e) {
-            error_log("Erro ao excluir consumo_item: " . $e->getMessage());
-        }
-        
-        // Excluir consumo diário (todos, não apenas relacionados a turmas)
-        try {
-            $stmt = $conn->prepare("DELETE FROM consumo_diario WHERE escola_id = :id");
-            $stmt->bindParam(':id', $id, PDO::PARAM_INT);
-            $stmt->execute();
-        } catch (PDOException $e) {
-            error_log("Erro ao excluir consumo diário: " . $e->getMessage());
-        }
-        
-        // Excluir as turmas (DEVE SER O ÚLTIMO)
-        try {
-            $stmt = $conn->prepare("DELETE FROM turma WHERE escola_id = :id");
-            $stmt->bindParam(':id', $id, PDO::PARAM_INT);
-            $stmt->execute();
-        } catch (PDOException $e) {
-            error_log("Erro ao excluir turmas: " . $e->getMessage());
-            throw $e; // Relançar o erro para não continuar
-        }
-
-        // 4. Atualizar alunos para escola_id = NULL (não excluir alunos)
-        try {
-            $stmt = $conn->prepare("UPDATE aluno SET escola_id = NULL WHERE escola_id = :id");
-            $stmt->bindParam(':id', $id, PDO::PARAM_INT);
-            $stmt->execute();
-        } catch (PDOException $e) {
-            // Ignorar se não existir
-        }
-
-        // 5. Remover lotações de professores
-        try {
-            $stmt = $conn->prepare("DELETE FROM professor_lotacao WHERE escola_id = :id");
-            $stmt->bindParam(':id', $id, PDO::PARAM_INT);
-            $stmt->execute();
-        } catch (PDOException $e) {
-            // Ignorar se não existir
-        }
-
-        // 6. Remover lotações de gestores
-        try {
-            $stmt = $conn->prepare("DELETE FROM gestor_lotacao WHERE escola_id = :id");
-            $stmt->bindParam(':id', $id, PDO::PARAM_INT);
-            $stmt->execute();
-        } catch (PDOException $e) {
-            // Ignorar se não existir
-        }
-
-        // 7. Remover lotações de nutricionistas
-        try {
-            $stmt = $conn->prepare("DELETE FROM nutricionista_lotacao WHERE escola_id = :id");
-            $stmt->bindParam(':id', $id, PDO::PARAM_INT);
-            $stmt->execute();
-        } catch (PDOException $e) {
-            error_log("Erro ao excluir nutricionista_lotacao: " . $e->getMessage());
-        }
-
-        // 8. Remover lotações de funcionários
-        try {
-            $stmt = $conn->prepare("DELETE FROM funcionario_lotacao WHERE escola_id = :id");
-            $stmt->bindParam(':id', $id, PDO::PARAM_INT);
-            $stmt->execute();
-        } catch (PDOException $e) {
-            error_log("Erro ao excluir funcionario_lotacao: " . $e->getMessage());
-        }
-
-        // 9. Excluir cardápios e itens
-        try {
-            // Excluir itens de cardápio
-            $stmt = $conn->prepare("DELETE ci FROM cardapio_item ci 
-                                    INNER JOIN cardapio c ON ci.cardapio_id = c.id 
-                                    WHERE c.escola_id = :id");
-            $stmt->bindParam(':id', $id, PDO::PARAM_INT);
-            $stmt->execute();
-            
-            // Excluir cardápios
-            $stmt = $conn->prepare("DELETE FROM cardapio WHERE escola_id = :id");
-            $stmt->bindParam(':id', $id, PDO::PARAM_INT);
-            $stmt->execute();
-        } catch (PDOException $e) {
-            error_log("Erro ao excluir cardápios: " . $e->getMessage());
-        }
-
-        // 10. Excluir desperdícios
-        try {
-            $stmt = $conn->prepare("DELETE FROM desperdicio WHERE escola_id = :id");
-            $stmt->bindParam(':id', $id, PDO::PARAM_INT);
-            $stmt->execute();
-        } catch (PDOException $e) {
-            error_log("Erro ao excluir desperdícios: " . $e->getMessage());
-        }
-
-        // 11. Excluir histórico escolar
-        try {
-            $stmt = $conn->prepare("DELETE FROM historico_escolar WHERE escola_id = :id");
-            $stmt->bindParam(':id', $id, PDO::PARAM_INT);
-            $stmt->execute();
-        } catch (PDOException $e) {
-            error_log("Erro ao excluir histórico escolar: " . $e->getMessage());
-        }
-
-        // 12. Excluir itens de pedido de cesta
-        try {
-            $stmt = $conn->prepare("DELETE pi FROM pedido_item pi 
-                                    INNER JOIN pedido_cesta pc ON pi.pedido_id = pc.id 
-                                    WHERE pc.escola_id = :id");
-            $stmt->bindParam(':id', $id, PDO::PARAM_INT);
-            $stmt->execute();
-            
-            // Excluir pedidos de cesta
-            $stmt = $conn->prepare("DELETE FROM pedido_cesta WHERE escola_id = :id");
-            $stmt->bindParam(':id', $id, PDO::PARAM_INT);
-            $stmt->execute();
-        } catch (PDOException $e) {
-            error_log("Erro ao excluir pedidos de cesta: " . $e->getMessage());
-        }
-
-        // 13. Excluir comunicados gerais (não relacionados a turmas)
-        try {
-            $stmt = $conn->prepare("DELETE FROM comunicado WHERE escola_id = :id AND turma_id IS NULL");
-            $stmt->bindParam(':id', $id, PDO::PARAM_INT);
-            $stmt->execute();
-        } catch (PDOException $e) {
-            error_log("Erro ao excluir comunicados gerais: " . $e->getMessage());
-        }
-
-        // 14. Remover relações com programas
-        try {
-            $stmt = $conn->prepare("DELETE FROM escola_programa WHERE escola_id = :id");
-            $stmt->bindParam(':id', $id, PDO::PARAM_INT);
-            $stmt->execute();
-        } catch (PDOException $e) {
-            error_log("Erro ao excluir escola_programa: " . $e->getMessage());
-        }
-
-        // 15. Excluir a escola (DEVE SER O ÚLTIMO)
-        $stmt = $conn->prepare("DELETE FROM escola WHERE id = :id");
-        $stmt->bindParam(':id', $id, PDO::PARAM_INT);
-        $stmt->execute();
-
         $conn->commit();
 
-        return ['status' => true, 'mensagem' => 'Escola excluída com sucesso! Todas as turmas e dados relacionados foram removidos. Os alunos foram mantidos, mas desvinculados da escola.'];
+        return ['status' => true, 'mensagem' => 'Escola desativada com sucesso! Todos os dados relacionados foram preservados. A escola pode ser reativada através da reversão.'];
     } catch (PDOException $e) {
         $conn->rollBack();
-        error_log("Erro ao excluir escola forçadamente: " . $e->getMessage());
-        return ['status' => false, 'mensagem' => 'Erro ao excluir escola: ' . $e->getMessage()];
+        error_log("Erro ao desativar escola: " . $e->getMessage());
+        return ['status' => false, 'mensagem' => 'Erro ao desativar escola: ' . $e->getMessage()];
     }
 }
 
@@ -2919,8 +2646,8 @@ if ($_SESSION['tipo'] === 'ADM') {
                         <div class="flex-1">
                             <p class="text-xs font-semibold text-yellow-800">Excluir mesmo com dados relacionados</p>
                             <p class="text-xs text-yellow-700 mt-1">
-                                Se marcado, a escola será excluída mesmo tendo turmas, alunos ou outros dados. 
-                                As turmas serão excluídas, mas os alunos e usuários serão mantidos (apenas desvinculados).
+                                Se marcado, a escola será desativada (soft delete) mantendo todos os dados preservados. 
+                                Turmas, notas, frequências, alunos e todos os dados relacionados permanecerão no banco.
                             </p>
                         </div>
                     </label>
