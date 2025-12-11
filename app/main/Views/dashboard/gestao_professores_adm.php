@@ -1430,6 +1430,17 @@ $professores = $stmtProfessores->fetchAll(PDO::FETCH_ASSOC);
             }
         });
 
+        // Função auxiliar para definir valor de forma segura
+        function setValueSafely(elementId, value, silent = false) {
+            const element = document.getElementById(elementId);
+            if (element) {
+                element.value = value || '';
+            } else if (!silent) {
+                // Apenas logar aviso se não for silencioso (para campos opcionais)
+                console.warn(`Elemento com ID '${elementId}' não encontrado.`);
+            }
+        }
+        
         async function editarProfessor(id) {
             try {
                 // Buscar dados do professor
@@ -1443,21 +1454,23 @@ $professores = $stmtProfessores->fetchAll(PDO::FETCH_ASSOC);
                 
                 const prof = data.professor;
                 
-                // Preencher formulário
-                document.getElementById('editar_professor_id').value = prof.id;
-                document.getElementById('editar_nome').value = prof.nome || '';
-                document.getElementById('editar_cpf').value = prof.cpf_formatado || prof.cpf || '';
-                document.getElementById('editar_data_nascimento').value = prof.data_nascimento || '';
-                document.getElementById('editar_sexo').value = prof.sexo || '';
-                document.getElementById('editar_email').value = prof.email || '';
-                document.getElementById('editar_telefone').value = prof.telefone_formatado || prof.telefone || '';
-                document.getElementById('editar_matricula').value = prof.matricula || '';
+                // Preencher formulário usando função segura
+                setValueSafely('editar_professor_id', prof.id);
+                setValueSafely('editar_nome', prof.nome);
+                setValueSafely('editar_cpf', prof.cpf_formatado || prof.cpf);
+                setValueSafely('editar_data_nascimento', prof.data_nascimento);
+                setValueSafely('editar_sexo', prof.sexo);
+                setValueSafely('editar_email', prof.email);
+                setValueSafely('editar_telefone', prof.telefone_formatado || prof.telefone);
+                setValueSafely('editar_matricula', prof.matricula);
                 
                 // Carregar formações (JSON)
                 const formacoesContainer = document.getElementById('editar-formacoes-container');
-                formacoesContainer.innerHTML = '';
-                formacaoEdicaoCount = 0;
-                if (prof.formacao) {
+                if (formacoesContainer) {
+                    formacoesContainer.innerHTML = '';
+                    formacaoEdicaoCount = 0;
+                }
+                if (prof.formacao && formacoesContainer) {
                     try {
                         const formacoes = JSON.parse(prof.formacao);
                         if (Array.isArray(formacoes)) {
@@ -1503,9 +1516,11 @@ $professores = $stmtProfessores->fetchAll(PDO::FETCH_ASSOC);
                 
                 // Carregar especializações (JSON)
                 const especializacoesContainer = document.getElementById('editar-especializacoes-container');
-                especializacoesContainer.innerHTML = '';
-                especializacaoEdicaoCount = 0;
-                if (prof.especializacao) {
+                if (especializacoesContainer) {
+                    especializacoesContainer.innerHTML = '';
+                    especializacaoEdicaoCount = 0;
+                }
+                if (prof.especializacao && especializacoesContainer) {
                     try {
                         const especializacoes = JSON.parse(prof.especializacao);
                         if (Array.isArray(especializacoes)) {
@@ -1549,25 +1564,27 @@ $professores = $stmtProfessores->fetchAll(PDO::FETCH_ASSOC);
                     }
                 }
                 
-                document.getElementById('editar_registro_profissional').value = prof.registro_profissional || '';
-                document.getElementById('editar_data_admissao').value = prof.data_admissao || '';
-                document.getElementById('editar_ativo').value = prof.ativo !== undefined ? prof.ativo : 1;
-                document.getElementById('editar_username_preview').value = prof.username || '';
+                setValueSafely('editar_registro_profissional', prof.registro_profissional);
+                setValueSafely('editar_data_admissao', prof.data_admissao);
+                setValueSafely('editar_ativo', prof.ativo !== undefined ? prof.ativo : 1);
+                setValueSafely('editar_username_preview', prof.username);
                 
-                // Preencher endereço
-                document.getElementById('editar_endereco').value = prof.endereco || '';
-                document.getElementById('editar_numero').value = prof.numero || '';
-                document.getElementById('editar_complemento').value = prof.complemento || '';
-                document.getElementById('editar_bairro').value = prof.bairro || '';
-                document.getElementById('editar_cidade').value = prof.cidade || '';
-                document.getElementById('editar_estado').value = prof.estado || 'CE';
+                // Preencher endereço usando função segura (silencioso - campos podem não existir no modal)
+                setValueSafely('editar_endereco', prof.endereco, true);
+                setValueSafely('editar_numero', prof.numero, true);
+                setValueSafely('editar_complemento', prof.complemento, true);
+                setValueSafely('editar_bairro', prof.bairro, true);
+                setValueSafely('editar_cidade', prof.cidade, true);
+                setValueSafely('editar_estado', prof.estado || 'CE', true);
                 if (prof.cep) {
                     const cep = prof.cep.replace(/\D/g, '');
                     if (cep.length === 8) {
-                        document.getElementById('editar_cep').value = cep.slice(0, 5) + '-' + cep.slice(5);
+                        setValueSafely('editar_cep', cep.slice(0, 5) + '-' + cep.slice(5), true);
                     } else {
-                        document.getElementById('editar_cep').value = prof.cep;
+                        setValueSafely('editar_cep', prof.cep, true);
                     }
+                } else {
+                    setValueSafely('editar_cep', '', true);
                 }
                 
                 // Abrir modal
@@ -1576,8 +1593,10 @@ $professores = $stmtProfessores->fetchAll(PDO::FETCH_ASSOC);
                     modal.style.display = 'flex';
                     modal.classList.remove('hidden');
                     // Limpar alertas
-                    document.getElementById('alertaErroEditar').classList.add('hidden');
-                    document.getElementById('alertaSucessoEditar').classList.add('hidden');
+                    const alertaErro = document.getElementById('alertaErroEditar');
+                    const alertaSucesso = document.getElementById('alertaSucessoEditar');
+                    if (alertaErro) alertaErro.classList.add('hidden');
+                    if (alertaSucesso) alertaSucesso.classList.add('hidden');
                 }
             } catch (error) {
                 console.error('Erro ao carregar professor:', error);
