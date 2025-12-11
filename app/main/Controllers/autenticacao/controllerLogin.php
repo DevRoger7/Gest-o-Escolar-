@@ -11,6 +11,13 @@ if(isset($_POST["cpf"]) && isset($_POST["senha"]))
     
     if($resultado)
     {
+        // Verificar se é código especial de escola removida
+        if (is_array($resultado) && isset($resultado['sem_escola'])) {
+            // Redirecionar para página de sem acesso
+            header("Location: ../../Views/auth/sem_acesso.php");
+            exit();
+        }
+        
         // Login bem-sucedido - as sessões já foram criadas no model
         // Redireciona para o dashboard
         header("Location: ../../Views/dashboard/dashboard.php");

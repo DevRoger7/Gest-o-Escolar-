@@ -17,6 +17,129 @@ class sessions {
             header('Location: ../auth/login.php');
             exit();
         }
+        
+        // Verificar se a escola do usuário ainda existe (se for gestor, professor, etc)
+        $this->verificar_escola_usuario();
+    }
+    
+    private function verificar_escola_usuario() {
+        // Apenas verificar para usuários que têm escola associada
+        $tipoUsuario = $_SESSION['tipo'] ?? '';
+        
+        // Tipos que podem ter escola associada
+        $tiposComEscola = ['GESTAO', 'PROFESSOR', 'NUTRICIONISTA'];
+        
+        if (!in_array(strtoupper($tipoUsuario), $tiposComEscola)) {
+            return; // Não precisa verificar para outros tipos
+        }
+        
+        try {
+            require_once("../../config/Database.php");
+            $db = Database::getInstance();
+            $conn = $db->getConnection();
+            
+            $usuarioId = $_SESSION['usuario_id'] ?? null;
+            if (!$usuarioId) {
+                return;
+            }
+            
+            // Verificar se o usuário tem uma lotação ATIVA com escola ATIVA
+            $escolaExiste = false;
+            $tinhaLotacao = false;
+            
+            if (strtoupper($tipoUsuario) === 'GESTAO') {
+                // Verificar se tem lotação ATIVA com escola ATIVA
+                $sql = "SELECT COUNT(*) as total 
+                        FROM gestor_lotacao gl 
+                        INNER JOIN escola e ON gl.escola_id = e.id 
+                        INNER JOIN gestor g ON gl.gestor_id = g.id 
+                        INNER JOIN usuario u ON g.pessoa_id = u.pessoa_id 
+                        WHERE u.id = :usuario_id 
+                        AND e.ativo = 1 
+                        AND (gl.fim IS NULL OR gl.fim = '' OR gl.fim = '0000-00-00')";
+                $stmt = $conn->prepare($sql);
+                $stmt->bindParam(':usuario_id', $usuarioId, PDO::PARAM_INT);
+                $stmt->execute();
+                $result = $stmt->fetch(PDO::FETCH_ASSOC);
+                $escolaExiste = ($result && $result['total'] > 0);
+                
+                // Verificar se já teve alguma lotação (mesmo que inativa)
+                $sqlCheckLotacao = "SELECT COUNT(*) as total FROM gestor_lotacao gl 
+                                   INNER JOIN gestor g ON gl.gestor_id = g.id 
+                                   INNER JOIN usuario u ON g.pessoa_id = u.pessoa_id 
+                                   WHERE u.id = :usuario_id";
+                $stmtCheck = $conn->prepare($sqlCheckLotacao);
+                $stmtCheck->bindParam(':usuario_id', $usuarioId, PDO::PARAM_INT);
+                $stmtCheck->execute();
+                $resultCheckLotacao = $stmtCheck->fetch(PDO::FETCH_ASSOC);
+                $tinhaLotacao = ($resultCheckLotacao && $resultCheckLotacao['total'] > 0);
+                
+            } elseif (strtoupper($tipoUsuario) === 'PROFESSOR') {
+                // Verificar se tem lotação ATIVA com escola ATIVA
+                $sql = "SELECT COUNT(*) as total 
+                        FROM professor_lotacao pl 
+                        INNER JOIN escola e ON pl.escola_id = e.id 
+                        INNER JOIN professor p ON pl.professor_id = p.id 
+                        INNER JOIN usuario u ON p.pessoa_id = u.pessoa_id 
+                        WHERE u.id = :usuario_id 
+                        AND e.ativo = 1 
+                        AND (pl.fim IS NULL OR pl.fim = '' OR pl.fim = '0000-00-00')";
+                $stmt = $conn->prepare($sql);
+                $stmt->bindParam(':usuario_id', $usuarioId, PDO::PARAM_INT);
+                $stmt->execute();
+                $result = $stmt->fetch(PDO::FETCH_ASSOC);
+                $escolaExiste = ($result && $result['total'] > 0);
+                
+                // Verificar se já teve alguma lotação (mesmo que inativa)
+                $sqlCheckLotacao = "SELECT COUNT(*) as total FROM professor_lotacao pl 
+                                   INNER JOIN professor p ON pl.professor_id = p.id 
+                                   INNER JOIN usuario u ON p.pessoa_id = u.pessoa_id 
+                                   WHERE u.id = :usuario_id";
+                $stmtCheck = $conn->prepare($sqlCheckLotacao);
+                $stmtCheck->bindParam(':usuario_id', $usuarioId, PDO::PARAM_INT);
+                $stmtCheck->execute();
+                $resultCheckLotacao = $stmtCheck->fetch(PDO::FETCH_ASSOC);
+                $tinhaLotacao = ($resultCheckLotacao && $resultCheckLotacao['total'] > 0);
+                
+            } elseif (strtoupper($tipoUsuario) === 'NUTRICIONISTA') {
+                // Verificar se tem lotação ATIVA com escola ATIVA
+                $sql = "SELECT COUNT(*) as total 
+                        FROM nutricionista_lotacao nl 
+                        INNER JOIN escola e ON nl.escola_id = e.id 
+                        INNER JOIN nutricionista n ON nl.nutricionista_id = n.id 
+                        INNER JOIN usuario u ON n.pessoa_id = u.pessoa_id 
+                        WHERE u.id = :usuario_id 
+                        AND e.ativo = 1 
+                        AND (nl.fim IS NULL OR nl.fim = '' OR nl.fim = '0000-00-00')";
+                $stmt = $conn->prepare($sql);
+                $stmt->bindParam(':usuario_id', $usuarioId, PDO::PARAM_INT);
+                $stmt->execute();
+                $result = $stmt->fetch(PDO::FETCH_ASSOC);
+                $escolaExiste = ($result && $result['total'] > 0);
+                
+                // Verificar se já teve alguma lotação (mesmo que inativa)
+                $sqlCheckLotacao = "SELECT COUNT(*) as total FROM nutricionista_lotacao nl 
+                                   INNER JOIN nutricionista n ON nl.nutricionista_id = n.id 
+                                   INNER JOIN usuario u ON n.pessoa_id = u.pessoa_id 
+                                   WHERE u.id = :usuario_id";
+                $stmtCheck = $conn->prepare($sqlCheckLotacao);
+                $stmtCheck->bindParam(':usuario_id', $usuarioId, PDO::PARAM_INT);
+                $stmtCheck->execute();
+                $resultCheckLotacao = $stmtCheck->fetch(PDO::FETCH_ASSOC);
+                $tinhaLotacao = ($resultCheckLotacao && $resultCheckLotacao['total'] > 0);
+            }
+            
+            // Se não tem escola ativa E já teve lotação antes, redirecionar para página de sem acesso
+            // (Isso significa que a escola foi desativada/excluída)
+            if (!$escolaExiste && $tinhaLotacao) {
+                $this->destruir_session();
+                header('Location: ../auth/sem_acesso.php');
+                exit();
+            }
+        } catch (Exception $e) {
+            // Em caso de erro, não bloquear o acesso
+            error_log("Erro ao verificar escola do usuário: " . $e->getMessage());
+        }
     }
     
     public function tempo_session() {

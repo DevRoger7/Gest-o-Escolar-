@@ -7,9 +7,9 @@ $nomeSistema = getNomeSistemaCurto();
 <div id="mobileOverlay" class="fixed inset-0 bg-black bg-opacity-50 z-40 hidden mobile-menu-overlay lg:hidden"></div>
 
 <!-- Sidebar -->
-<aside id="sidebar" class="fixed left-0 top-0 h-full w-64 bg-white shadow-lg sidebar-transition z-50 lg:translate-x-0 sidebar-mobile">
+<aside id="sidebar" class="fixed left-0 top-0 h-full w-64 bg-white shadow-lg sidebar-transition z-50 lg:translate-x-0 sidebar-mobile flex flex-col">
     <!-- Logo e Header -->
-    <div class="p-6 border-b border-gray-200">
+    <div class="p-6 border-b border-gray-200 flex-shrink-0">
         <div class="flex items-center space-x-3">
             <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/1/19/Bras%C3%A3o_de_Maranguape.png/250px-Bras%C3%A3o_de_Maranguape.png" alt="Brasão de Maranguape" class="w-10 h-10 object-contain">
             <div>
@@ -20,7 +20,7 @@ $nomeSistema = getNomeSistemaCurto();
     </div>
 
     <!-- User Info -->
-    <div class="p-4 border-b border-gray-200">
+    <div class="p-4 border-b border-gray-200 flex-shrink-0">
         <button onclick="window.openUserProfile && window.openUserProfile()" class="w-full flex items-center space-x-3 hover:bg-gray-50 rounded-lg p-2 transition-colors cursor-pointer">
             <div class="w-10 h-10 bg-primary-green rounded-full flex items-center justify-center flex-shrink-0" style="aspect-ratio: 1; min-width: 2.5rem; min-height: 2.5rem; overflow: hidden;">
                 <span class="text-sm font-bold text-white">
@@ -48,7 +48,7 @@ $nomeSistema = getNomeSistemaCurto();
         </button>
     </div>
 
-    <nav class="p-4">
+    <nav class="flex-1 overflow-y-auto p-4 sidebar-nav" style="min-height: 0; scroll-behavior: smooth;">
         <ul class="space-y-2">
             <li>
                 <a href="dashboard.php" class="menu-item flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700 <?= basename($_SERVER['PHP_SELF']) === 'dashboard.php' ? 'active' : '' ?>">
@@ -149,12 +149,12 @@ $nomeSistema = getNomeSistemaCurto();
                 </a>
             </li>
             <!-- Removed other report items: Consumo, Desperdício, Custos, Entregas -->
-            
-            <!-- ... existing code continues ... -->
-
-            <!-- Logout Button -->
-    <div class="absolute bottom-0 left-0 right-0 p-4 border-t border-gray-200">
-        <button onclick="window.confirmLogout()" class="w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-red-600 hover:bg-red-50 transition-colors duration-200">
+        </ul>
+    </nav>
+    
+    <!-- Logout Button -->
+    <div class="flex-shrink-0 p-4 border-t border-gray-200 bg-white">
+        <button onclick="window.confirmLogout && window.confirmLogout()" class="w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-red-600 hover:bg-red-50 transition-colors duration-200">
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path>
             </svg>
