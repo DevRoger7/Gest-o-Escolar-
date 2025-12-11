@@ -1470,13 +1470,55 @@ $alunos = $stmtAlunos->fetchAll(PDO::FETCH_ASSOC);
         // Variável para armazenar o ID do aluno temporário (se já foi salvo)
         let alunoIdTemporario = null;
         
-        function abrirModalNovoResponsavel() {
+        async function abrirModalNovoResponsavel() {
+            // Se o aluno ainda não foi salvo, salvar primeiro
+            if (!alunoIdTemporario) {
+                // Validar campos obrigatórios do aluno antes de abrir modal de responsável
+                const nomeAluno = document.getElementById('nome').value.trim();
+                const cpfAluno = document.getElementById('cpf').value.replace(/\D/g, '');
+                const dataNascAluno = document.getElementById('data_nascimento').value;
+                const sexoAluno = document.getElementById('sexo').value;
+                
+                if (!nomeAluno || !cpfAluno || cpfAluno.length !== 11 || !dataNascAluno || !sexoAluno) {
+                    alert('Por favor, preencha todos os campos obrigatórios do aluno (Nome, CPF, Data de Nascimento e Sexo) antes de cadastrar o responsável.');
+                    return;
+                }
+                
+                // Salvar aluno primeiro
+                const formData = new FormData(document.getElementById('formNovoAluno'));
+                formData.append('acao', 'cadastrar_aluno');
+                
+                try {
+                    const response = await fetch('', {
+                        method: 'POST',
+                        body: formData
+                    });
+                    
+                    const data = await response.json();
+                    
+                    if (data.success) {
+                        alunoIdTemporario = data.id;
+                        // Continuar para abrir modal de responsável
+                    } else {
+                        alert('Erro ao salvar aluno: ' + (data.message || 'Erro desconhecido'));
+                        return;
+                    }
+                } catch (error) {
+                    console.error('Erro:', error);
+                    alert('Erro ao processar requisição. Por favor, tente novamente.');
+                    return;
+                }
+            }
+            
+            // Abrir modal de responsável
             const modal = document.getElementById('modalNovoResponsavel');
             if (modal) {
                 modal.style.display = 'flex';
                 modal.classList.remove('hidden');
                 // Limpar formulário
                 document.getElementById('formNovoResponsavel').reset();
+                // Definir parentesco padrão
+                document.getElementById('responsavel_parentesco_select').value = 'OUTRO';
                 // Limpar alertas
                 document.getElementById('alertaErroResponsavel').classList.add('hidden');
                 document.getElementById('alertaSucessoResponsavel').classList.add('hidden');
@@ -1537,9 +1579,10 @@ $alunos = $stmtAlunos->fetchAll(PDO::FETCH_ASSOC);
             const formData = new FormData(document.getElementById('formNovoResponsavel'));
             formData.append('acao', 'cadastrar_responsavel');
             
-            // Se o aluno já foi salvo, incluir o ID
+            // Se o aluno já foi salvo, incluir o ID e parentesco
             if (alunoIdTemporario) {
                 formData.append('aluno_id', alunoIdTemporario);
+                formData.append('parentesco', parentesco);
             }
             
             try {
@@ -1560,6 +1603,38 @@ $alunos = $stmtAlunos->fetchAll(PDO::FETCH_ASSOC);
                         if (campoResponsavelId) {
                             campoResponsavelId.value = data.responsavel_id;
                         }
+                    }
+                    
+                    // Se o aluno já foi salvo, atualizar o aluno com o responsavel_id
+                    if (alunoIdTemporario && data.responsavel_id) {
+                        // Atualizar o aluno com o responsavel_id
+                        const formDataUpdate = new FormData();
+                        formDataUpdate.append('acao', 'editar_aluno');
+                        formDataUpdate.append('aluno_id', alunoIdTemporario);
+                        formDataUpdate.append('responsavel_id', data.responsavel_id);
+                        // Manter outros campos do aluno
+                        const formAluno = document.getElementById('formNovoAluno');
+                        if (formAluno) {
+                            const formDataAluno = new FormData(formAluno);
+                            formDataUpdate.append('nome', formDataAluno.get('nome') || '');
+                            formDataUpdate.append('cpf', formDataAluno.get('cpf') || '');
+                            formDataUpdate.append('data_nascimento', formDataAluno.get('data_nascimento') || '');
+                            formDataUpdate.append('sexo', formDataAluno.get('sexo') || '');
+                            formDataUpdate.append('email', formDataAluno.get('email') || '');
+                            formDataUpdate.append('telefone', formDataAluno.get('telefone') || '');
+                            formDataUpdate.append('matricula', formDataAluno.get('matricula') || '');
+                            formDataUpdate.append('nis', formDataAluno.get('nis') || '');
+                            formDataUpdate.append('escola_id', formDataAluno.get('escola_id') || '');
+                            formDataUpdate.append('data_matricula', formDataAluno.get('data_matricula') || '');
+                            formDataUpdate.append('situacao', formDataAluno.get('situacao') || 'MATRICULADO');
+                            formDataUpdate.append('ativo', '1');
+                        }
+                        
+                        // Atualizar aluno em background (não bloquear UI)
+                        fetch('', {
+                            method: 'POST',
+                            body: formDataUpdate
+                        }).catch(err => console.error('Erro ao atualizar aluno com responsável:', err));
                     }
                     
                     // Fechar modal após 1.5 segundos e voltar para o modal de aluno
