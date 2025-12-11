@@ -1,3 +1,4 @@
+
 <?php
 // Habilitar exibição de erros para debug (remover em produção)
 error_reporting(E_ALL);
@@ -15,6 +16,7 @@ try {
     $session->autenticar_session();
     $session->tempo_session();
 
+    // Verificar se é ADM
     if (!eAdm()) {
         header('Location: ../auth/login.php?erro=sem_permissao');
         exit;
@@ -29,25 +31,30 @@ $db = Database::getInstance();
 $conn = $db->getConnection();
 $alunoModel = new AlunoModel();
 
+// Buscar escolas
 $sqlEscolas = "SELECT id, nome FROM escola WHERE ativo = 1 ORDER BY nome ASC";
 $stmtEscolas = $conn->prepare($sqlEscolas);
 $stmtEscolas->execute();
 $escolas = $stmtEscolas->fetchAll(PDO::FETCH_ASSOC);
 
+// Processar requisições AJAX
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao'])) {
     if (ob_get_level()) { ob_clean(); }
     header('Content-Type: application/json');
     
             if ($_POST['acao'] === 'cadastrar_aluno') {
                 try {
+                    // Preparar dados
                     $cpf = preg_replace('/[^0-9]/', '', $_POST['cpf'] ?? '');
                     $telefone = preg_replace('/[^0-9]/', '', $_POST['telefone'] ?? '');
                     $emailInformado = !empty($_POST['email']) ? trim($_POST['email']) : '';
             
+            // Validar CPF
             if (empty($cpf) || strlen($cpf) !== 11) {
                 throw new Exception('CPF inválido. Deve conter 11 dígitos.');
             }
             
+                    // Verificar se CPF já existe
                     $sqlVerificarCPF = "SELECT id FROM pessoa WHERE cpf = :cpf";
                     $stmtVerificar = $conn->prepare($sqlVerificarCPF);
                     $stmtVerificar->bindParam(':cpf', $cpf);

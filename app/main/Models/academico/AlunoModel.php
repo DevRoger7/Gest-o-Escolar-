@@ -73,7 +73,7 @@ class AlunoModel {
         
         $sql = "SELECT a.*, 
                        p.nome, p.cpf, p.email, p.telefone, p.data_nascimento, p.sexo,
-                       p.nome_social, p.cor,
+                       p.nome_social, p.raca,
                        p.endereco, p.numero, p.complemento, p.bairro, p.cidade, p.estado, p.cep,
                        e.nome as escola_nome, 
                        pes_resp.nome as responsavel_nome
@@ -108,7 +108,7 @@ class AlunoModel {
             }
             
             // 1. Criar pessoa
-            // Verificar se os campos nome_social e cor existem na tabela
+            // Verificar se os campos nome_social e raca existem na tabela
             $camposExtras = '';
             $valoresExtras = '';
             $paramsExtras = [];
@@ -117,20 +117,20 @@ class AlunoModel {
                 $stmtCheck = $conn->query("SHOW COLUMNS FROM pessoa LIKE 'nome_social'");
                 $temNomeSocial = $stmtCheck->rowCount() > 0;
                 
-                $stmtCheck = $conn->query("SHOW COLUMNS FROM pessoa LIKE 'cor'");
-                $temCor = $stmtCheck->rowCount() > 0;
+                $stmtCheck = $conn->query("SHOW COLUMNS FROM pessoa LIKE 'raca'");
+                $temRaca = $stmtCheck->rowCount() > 0;
             } catch (Exception $e) {
                 $temNomeSocial = false;
-                $temCor = false;
+                $temRaca = false;
             }
             
             if ($temNomeSocial) {
                 $camposExtras .= ', nome_social';
                 $valoresExtras .= ', :nome_social';
             }
-            if ($temCor) {
-                $camposExtras .= ', cor';
-                $valoresExtras .= ', :cor';
+            if ($temRaca) {
+                $camposExtras .= ', raca';
+                $valoresExtras .= ', :raca';
             }
             
             $sqlPessoa = "INSERT INTO pessoa (cpf, nome, data_nascimento, sexo, email, telefone, 
@@ -162,9 +162,9 @@ class AlunoModel {
                 $nomeSocial = isset($dados['nome_social']) && !empty($dados['nome_social']) ? $dados['nome_social'] : null;
                 $stmtPessoa->bindParam(':nome_social', $nomeSocial);
             }
-            if ($temCor) {
-                $cor = isset($dados['cor']) && !empty($dados['cor']) ? $dados['cor'] : null;
-                $stmtPessoa->bindParam(':cor', $cor);
+            if ($temRaca) {
+                $raca = isset($dados['raca']) && !empty($dados['raca']) ? $dados['raca'] : null;
+                $stmtPessoa->bindParam(':raca', $raca);
             }
             $stmtPessoa->bindParam(':criado_por', $_SESSION['usuario_id']);
             $stmtPessoa->execute();
@@ -230,24 +230,24 @@ class AlunoModel {
             }
             
             // 1. Atualizar pessoa
-            // Verificar se os campos nome_social e cor existem na tabela
+            // Verificar se os campos nome_social e raca existem na tabela
             $camposExtras = '';
             try {
                 $stmtCheck = $conn->query("SHOW COLUMNS FROM pessoa LIKE 'nome_social'");
                 $temNomeSocial = $stmtCheck->rowCount() > 0;
                 
-                $stmtCheck = $conn->query("SHOW COLUMNS FROM pessoa LIKE 'cor'");
-                $temCor = $stmtCheck->rowCount() > 0;
+                $stmtCheck = $conn->query("SHOW COLUMNS FROM pessoa LIKE 'raca'");
+                $temRaca = $stmtCheck->rowCount() > 0;
             } catch (Exception $e) {
                 $temNomeSocial = false;
-                $temCor = false;
+                $temRaca = false;
             }
             
             if ($temNomeSocial) {
                 $camposExtras .= ', nome_social = :nome_social';
             }
-            if ($temCor) {
-                $camposExtras .= ', cor = :cor';
+            if ($temRaca) {
+                $camposExtras .= ', raca = :raca';
             }
             
             $sqlPessoa = "UPDATE pessoa SET nome = :nome, data_nascimento = :data_nascimento, 
@@ -272,8 +272,8 @@ class AlunoModel {
             if ($temNomeSocial) {
                 $stmtPessoa->bindValue(':nome_social', isset($dados['nome_social']) && !empty($dados['nome_social']) ? $dados['nome_social'] : null, isset($dados['nome_social']) && !empty($dados['nome_social']) ? PDO::PARAM_STR : PDO::PARAM_NULL);
             }
-            if ($temCor) {
-                $stmtPessoa->bindValue(':cor', isset($dados['cor']) && !empty($dados['cor']) ? $dados['cor'] : null, isset($dados['cor']) && !empty($dados['cor']) ? PDO::PARAM_STR : PDO::PARAM_NULL);
+            if ($temRaca) {
+                $stmtPessoa->bindValue(':raca', isset($dados['raca']) && !empty($dados['raca']) ? $dados['raca'] : null, isset($dados['raca']) && !empty($dados['raca']) ? PDO::PARAM_STR : PDO::PARAM_NULL);
             }
             $stmtPessoa->bindValue(':pessoa_id', $pessoaId);
             $stmtPessoa->execute();
@@ -390,6 +390,268 @@ class AlunoModel {
         $stmt->execute();
         
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
+    
+    /**
+     * Transfere aluno entre escolas
+     */
+    public function transferirEscola($alunoId, $escolaOrigemId, $escolaDestinoId, $dataTransferencia = null) {
+        $conn = $this->db->getConnection();
+        
+        try {
+            $conn->beginTransaction();
+            
+            $dataTransferencia = $dataTransferencia ?? date('Y-m-d');
+            
+            // Verificar se o aluno existe e está na escola de origem
+            $aluno = $this->buscarPorId($alunoId);
+            if (!$aluno) {
+                throw new Exception('Aluno não encontrado');
+            }
+            
+            if ($aluno['escola_id'] != $escolaOrigemId) {
+                throw new Exception('Aluno não está matriculado na escola de origem informada');
+            }
+            
+            // Verificar se a escola de destino existe
+            $sqlEscola = "SELECT id, nome FROM escola WHERE id = :id AND ativo = 1";
+            $stmtEscola = $conn->prepare($sqlEscola);
+            $stmtEscola->bindParam(':id', $escolaDestinoId);
+            $stmtEscola->execute();
+            $escolaDestino = $stmtEscola->fetch(PDO::FETCH_ASSOC);
+            
+            if (!$escolaDestino) {
+                throw new Exception('Escola de destino não encontrada ou inativa');
+            }
+            
+            // Finalizar matrícula na turma atual (se houver)
+            $sqlTurma = "UPDATE aluno_turma SET fim = :data_fim, status = 'TRANSFERIDO' 
+                        WHERE aluno_id = :aluno_id AND fim IS NULL";
+            $stmtTurma = $conn->prepare($sqlTurma);
+            $stmtTurma->bindParam(':aluno_id', $alunoId);
+            $stmtTurma->bindParam(':data_fim', $dataTransferencia);
+            $stmtTurma->execute();
+            
+            // Salvar escola de origem no campo observacoes (formato: "TRANSFERENCIA_ORIGEM:ID_ESCOLA")
+            $observacoes = $aluno['observacoes'] ?? '';
+            $observacoesTransferencia = "TRANSFERENCIA_ORIGEM:{$escolaOrigemId}";
+            if (!empty($observacoes)) {
+                $observacoesTransferencia = $observacoes . " | " . $observacoesTransferencia;
+            }
+            
+            // Atualizar escola do aluno
+            $sqlUpdate = "UPDATE aluno SET escola_id = :escola_destino_id, 
+                         situacao = 'TRANSFERIDO', 
+                         data_matricula = :data_transferencia,
+                         observacoes = :observacoes
+                         WHERE id = :aluno_id";
+            $stmtUpdate = $conn->prepare($sqlUpdate);
+            $stmtUpdate->bindParam(':escola_destino_id', $escolaDestinoId);
+            $stmtUpdate->bindParam(':data_transferencia', $dataTransferencia);
+            $stmtUpdate->bindParam(':observacoes', $observacoesTransferencia);
+            $stmtUpdate->bindParam(':aluno_id', $alunoId);
+            $stmtUpdate->execute();
+            
+            $conn->commit();
+            return ['success' => true, 'message' => 'Aluno transferido com sucesso'];
+            
+        } catch (Exception $e) {
+            $conn->rollBack();
+            return ['success' => false, 'message' => $e->getMessage()];
+        }
+    }
+    
+    /**
+     * Busca alunos por escola
+     */
+    public function buscarPorEscola($escolaId, $filtros = []) {
+        $conn = $this->db->getConnection();
+        
+        $sql = "SELECT a.*, p.nome, p.cpf, p.data_nascimento, e.nome as escola_nome
+                FROM aluno a
+                INNER JOIN pessoa p ON a.pessoa_id = p.id
+                LEFT JOIN escola e ON a.escola_id = e.id
+                WHERE a.escola_id = :escola_id AND a.ativo = 1";
+        
+        if (!empty($filtros['busca'])) {
+            $sql .= " AND (p.nome LIKE :busca OR p.cpf LIKE :busca OR a.matricula LIKE :busca)";
+        }
+        
+        if (!empty($filtros['situacao'])) {
+            $sql .= " AND a.situacao = :situacao";
+        }
+        
+        $sql .= " ORDER BY p.nome ASC";
+        
+        $stmt = $conn->prepare($sql);
+        $stmt->bindParam(':escola_id', $escolaId);
+        
+        if (!empty($filtros['busca'])) {
+            $busca = "%{$filtros['busca']}%";
+            $stmt->bindParam(':busca', $busca);
+        }
+        
+        if (!empty($filtros['situacao'])) {
+            $stmt->bindParam(':situacao', $filtros['situacao']);
+        }
+        
+        $stmt->execute();
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
+    
+    /**
+     * Busca alunos transferidos pendentes de uma escola
+     */
+    public function buscarTransferidosPendentes($escolaId) {
+        $conn = $this->db->getConnection();
+        
+        $sql = "SELECT a.*, p.nome, p.cpf, p.data_nascimento, p.email, p.telefone,
+                       e_destino.nome as escola_destino_nome
+                FROM aluno a
+                INNER JOIN pessoa p ON a.pessoa_id = p.id
+                LEFT JOIN escola e_destino ON a.escola_id = e_destino.id
+                WHERE a.escola_id = :escola_id 
+                AND a.situacao = 'TRANSFERIDO' 
+                AND a.ativo = 1
+                AND a.observacoes LIKE '%TRANSFERENCIA_ORIGEM:%'
+                ORDER BY a.data_matricula DESC, p.nome ASC";
+        
+        $stmt = $conn->prepare($sql);
+        $stmt->bindParam(':escola_id', $escolaId);
+        $stmt->execute();
+        
+        $alunos = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        
+        // Extrair escola de origem do campo observacoes e buscar nome
+        foreach ($alunos as &$aluno) {
+            $observacoes = $aluno['observacoes'] ?? '';
+            if (preg_match('/TRANSFERENCIA_ORIGEM:(\d+)/', $observacoes, $matches)) {
+                $aluno['escola_origem_id'] = $matches[1];
+                
+                // Buscar nome da escola de origem
+                $sqlEscola = "SELECT nome FROM escola WHERE id = :id";
+                $stmtEscola = $conn->prepare($sqlEscola);
+                $stmtEscola->bindParam(':id', $aluno['escola_origem_id']);
+                $stmtEscola->execute();
+                $escolaOrigem = $stmtEscola->fetch(PDO::FETCH_ASSOC);
+                $aluno['escola_origem_nome'] = $escolaOrigem['nome'] ?? 'Escola não encontrada';
+            } else {
+                $aluno['escola_origem_id'] = null;
+                $aluno['escola_origem_nome'] = 'Não identificada';
+            }
+        }
+        
+        return $alunos;
+    }
+    
+    /**
+     * Aceita transferência de aluno
+     */
+    public function aceitarTransferencia($alunoId) {
+        $conn = $this->db->getConnection();
+        
+        try {
+            $conn->beginTransaction();
+            
+            // Buscar aluno
+            $aluno = $this->buscarPorId($alunoId);
+            if (!$aluno) {
+                throw new Exception('Aluno não encontrado');
+            }
+            
+            if ($aluno['situacao'] !== 'TRANSFERIDO') {
+                throw new Exception('Aluno não está com status de transferido');
+            }
+            
+            // Remover marcação de transferência do campo observacoes
+            $observacoes = $aluno['observacoes'] ?? '';
+            $observacoes = preg_replace('/\s*\|\s*TRANSFERENCIA_ORIGEM:\d+/', '', $observacoes);
+            $observacoes = preg_replace('/TRANSFERENCIA_ORIGEM:\d+\s*\|\s*/', '', $observacoes);
+            $observacoes = preg_replace('/TRANSFERENCIA_ORIGEM:\d+/', '', $observacoes);
+            $observacoes = trim($observacoes);
+            
+            // Atualizar status para MATRICULADO
+            $sqlUpdate = "UPDATE aluno SET situacao = 'MATRICULADO', observacoes = :observacoes WHERE id = :aluno_id";
+            $stmtUpdate = $conn->prepare($sqlUpdate);
+            $stmtUpdate->bindParam(':observacoes', $observacoes);
+            $stmtUpdate->bindParam(':aluno_id', $alunoId);
+            $stmtUpdate->execute();
+            
+            $conn->commit();
+            return ['success' => true, 'message' => 'Transferência aceita com sucesso. Aluno matriculado na escola.'];
+            
+        } catch (Exception $e) {
+            $conn->rollBack();
+            return ['success' => false, 'message' => $e->getMessage()];
+        }
+    }
+    
+    /**
+     * Recusa transferência de aluno (volta para escola de origem)
+     */
+    public function recusarTransferencia($alunoId) {
+        $conn = $this->db->getConnection();
+        
+        try {
+            $conn->beginTransaction();
+            
+            // Buscar aluno
+            $aluno = $this->buscarPorId($alunoId);
+            if (!$aluno) {
+                throw new Exception('Aluno não encontrado');
+            }
+            
+            if ($aluno['situacao'] !== 'TRANSFERIDO') {
+                throw new Exception('Aluno não está com status de transferido');
+            }
+            
+            // Extrair escola de origem do campo observacoes
+            $observacoes = $aluno['observacoes'] ?? '';
+            $escolaOrigemId = null;
+            
+            if (preg_match('/TRANSFERENCIA_ORIGEM:(\d+)/', $observacoes, $matches)) {
+                $escolaOrigemId = $matches[1];
+            }
+            
+            if (!$escolaOrigemId) {
+                throw new Exception('Não foi possível identificar a escola de origem');
+            }
+            
+            // Verificar se a escola de origem existe
+            $sqlEscola = "SELECT id, nome FROM escola WHERE id = :id AND ativo = 1";
+            $stmtEscola = $conn->prepare($sqlEscola);
+            $stmtEscola->bindParam(':id', $escolaOrigemId);
+            $stmtEscola->execute();
+            $escolaOrigem = $stmtEscola->fetch(PDO::FETCH_ASSOC);
+            
+            if (!$escolaOrigem) {
+                throw new Exception('Escola de origem não encontrada ou inativa');
+            }
+            
+            // Remover marcação de transferência do campo observacoes
+            $observacoes = preg_replace('/\s*\|\s*TRANSFERENCIA_ORIGEM:\d+/', '', $observacoes);
+            $observacoes = preg_replace('/TRANSFERENCIA_ORIGEM:\d+\s*\|\s*/', '', $observacoes);
+            $observacoes = preg_replace('/TRANSFERENCIA_ORIGEM:\d+/', '', $observacoes);
+            $observacoes = trim($observacoes);
+            
+            // Voltar aluno para escola de origem e mudar status para MATRICULADO
+            $sqlUpdate = "UPDATE aluno SET escola_id = :escola_origem_id, 
+                         situacao = 'MATRICULADO', 
+                         observacoes = :observacoes
+                         WHERE id = :aluno_id";
+            $stmtUpdate = $conn->prepare($sqlUpdate);
+            $stmtUpdate->bindParam(':escola_origem_id', $escolaOrigemId);
+            $stmtUpdate->bindParam(':observacoes', $observacoes);
+            $stmtUpdate->bindParam(':aluno_id', $alunoId);
+            $stmtUpdate->execute();
+            
+            $conn->commit();
+            return ['success' => true, 'message' => 'Transferência recusada. Aluno retornou para a escola de origem.'];
+            
+        } catch (Exception $e) {
+            $conn->rollBack();
+            return ['success' => false, 'message' => $e->getMessage()];
+        }
     }
 }
 

@@ -31,6 +31,8 @@ class Database {
                 $this->password
             );
             $this->connection->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+            // Garantir que autocommit está habilitado por padrão (será desabilitado nas transações)
+            $this->connection->setAttribute(PDO::ATTR_AUTOCOMMIT, true);
         } catch (PDOException $e) {
             die("Erro na conexão: " . $e->getMessage());
         }

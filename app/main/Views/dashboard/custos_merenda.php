@@ -111,19 +111,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao'])) {
                 $dataAtual = date('Y-m-d');
                 $mesAtual = date('n');
                 $anoAtual = date('Y');
-                $usuarioId = $_SESSION['usuario_id'] ?? null;
-                if ($usuarioId !== null && is_numeric($usuarioId)) {
-                    $usuarioId = (int)$usuarioId;
-                    $stmtUsu = $conn->prepare("SELECT id FROM usuario WHERE id = :id LIMIT 1");
-                    $stmtUsu->bindValue(':id', $usuarioId, PDO::PARAM_INT);
-                    $stmtUsu->execute();
-                    if (!$stmtUsu->fetch(PDO::FETCH_ASSOC)) {
-                        $usuarioId = null;
-                    }
-                } else {
-                    $usuarioId = null;
-                }
                 
+                // EDIT: validar e normalizar o usuário que está registrando
+                $usuarioId = null;
+                if (!empty($_SESSION['usuario_id']) && is_numeric($_SESSION['usuario_id'])) {
+                    $usuarioIdTmp = (int) $_SESSION['usuario_id'];
+                    $stmtUser = $conn->prepare("SELECT id FROM usuario WHERE id = :id LIMIT 1");
+                    $stmtUser->bindValue(':id', $usuarioIdTmp, PDO::PARAM_INT);
+                    $stmtUser->execute();
+                    if ($stmtUser->fetchColumn()) {
+                        $usuarioId = $usuarioIdTmp;
+                    }
+                }
                 $sqlCusto = "INSERT INTO custo_merenda (escola_id, tipo, descricao, produto_id, fornecedor_id,
                             quantidade, valor_unitario, valor_total, data, mes, ano, observacoes, registrado_por, registrado_em)
                             VALUES (NULL, 'COMPRA_PRODUTOS', :descricao, :produto_id, :fornecedor_id,
@@ -140,7 +139,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao'])) {
                 $stmtCusto = $conn->prepare($sqlCusto);
                 $stmtCusto->bindParam(':descricao', $descricao);
                 $stmtCusto->bindParam(':produto_id', $produtoId);
-                $stmtCusto->bindParam(':fornecedor_id', $fornecedorId);
+
+                // EDIT: fornecedor_id pode ser nulo; ajustar tipo de binding
+                if (!empty($fornecedorId) && is_numeric($fornecedorId)) {
+                    $stmtCusto->bindValue(':fornecedor_id', (int) $fornecedorId, PDO::PARAM_INT);
+                } else {
+                    $stmtCusto->bindValue(':fornecedor_id', null, PDO::PARAM_NULL);
+                }
+
                 $stmtCusto->bindParam(':quantidade', $quantidade);
                 $stmtCusto->bindParam(':valor_unitario', $valorUnitario);
                 $stmtCusto->bindParam(':valor_total', $valorTotal);
@@ -148,7 +154,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao'])) {
                 $stmtCusto->bindParam(':mes', $mesAtual, PDO::PARAM_INT);
                 $stmtCusto->bindParam(':ano', $anoAtual, PDO::PARAM_INT);
                 $stmtCusto->bindParam(':observacoes', $observacoes);
-                $stmtCusto->bindParam(':registrado_por', $usuarioId);
+
+                // EDIT: registrado_por com binding correto (INT ou NULL)
+                if ($usuarioId !== null) {
+                    $stmtCusto->bindValue(':registrado_por', $usuarioId, PDO::PARAM_INT);
+                } else {
+                    $stmtCusto->bindValue(':registrado_por', null, PDO::PARAM_NULL);
+                }
+
                 $stmtCusto->execute();
             }
             
@@ -505,14 +518,10 @@ $totalGeral = array_sum(array_column($totaisMes, 'total_custos'));
                                 : 'bg-gray-100 text-gray-800';
                             tbody.innerHTML += `
                                 <tr class="border-b border-gray-100 hover:bg-gray-50">
-<<<<<<< HEAD
                                     <td class="py-3 px-4">
                                         ${dataFormatada}
                                     </td>
                                     <td class="py-3 px-4">${custo.escola_nome || '-'}</td>
-=======
-                                    <td class="py-3 px-4">${dataFormatada}</td>
->>>>>>> 74135b614a664e3df6baad182beb5e5c05454218
                                     <td class="py-3 px-4">
                                         ${escolaNome}
                                         ${custo.escola_id === null ? '<span class="ml-2 text-xs text-blue-600">(Central)</span>' : ''}

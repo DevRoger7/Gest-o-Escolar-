@@ -178,6 +178,7 @@ foreach ($notas as $nota) {
                             <?= htmlspecialchars($aluno['aluno_nome']) ?> 
                             <?= $aluno['matricula'] ? ' (' . htmlspecialchars($aluno['matricula']) . ')' : '' ?>
                             <?= !empty($aluno['turma_nome']) ? ' - ' . htmlspecialchars($aluno['turma_nome']) : '' ?>
+                            <?= !empty($aluno['escola_nome']) ? ' - ' . htmlspecialchars($aluno['escola_nome']) : '' ?>
                         </option>
                     <?php endforeach; ?>
                 </select>
@@ -187,6 +188,7 @@ foreach ($notas as $nota) {
                     <p class="text-sm text-blue-800">
                         <strong>Aluno:</strong> <?= htmlspecialchars($alunos[0]['aluno_nome']) ?>
                         <?= !empty($alunos[0]['turma_nome']) ? ' - ' . htmlspecialchars($alunos[0]['turma_nome']) : '' ?>
+                        <?= !empty($alunos[0]['escola_nome']) ? ' - ' . htmlspecialchars($alunos[0]['escola_nome']) : '' ?>
                     </p>
                 </div>
             <?php endif; ?>

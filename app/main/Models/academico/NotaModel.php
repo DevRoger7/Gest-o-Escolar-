@@ -140,15 +140,18 @@ class NotaModel {
             }
         }
 
-        // Usar INSERT IGNORE ou verificação final antes de inserir
-        // Criar statement único para este INSERT - usar valores diretos para evitar problemas
+        // Usar INSERT simples e direto - sem subqueries complexas
+        // Verificação já foi feita antes, então podemos inserir diretamente
         $sql = "INSERT INTO nota (avaliacao_id, disciplina_id, turma_id, aluno_id, nota, bimestre, recuperacao, comentario, lancado_por, lancado_em)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())";
         
-        // Preparar statement com placeholders numéricos (mais seguro)
+        // Preparar statement
         $stmt = $conn->prepare($sql);
         
-        // Executar com valores diretos - uma única vez
+        // Log antes de executar
+        error_log("ANTES DO INSERT - aluno_id: {$alunoId}, avaliacao_id: {$avaliacaoId}, bimestre: {$bimestre}");
+        
+        // Executar UMA ÚNICA VEZ com valores diretos
         $resultado = $stmt->execute([
             $avaliacaoId,
             $disciplinaId,
@@ -161,22 +164,12 @@ class NotaModel {
             $lancadoPor
         ]);
         
-        // Verificar se realmente inseriu apenas uma linha
-        $rowsAffected = $stmt->rowCount();
-        if ($resultado) {
-            if ($rowsAffected !== 1) {
-                error_log("ERRO CRÍTICO: Inserção de nota retornou " . $rowsAffected . " linhas afetadas ao invés de 1 para aluno_id: {$alunoId}, avaliacao_id: {$avaliacaoId}, bimestre: {$bimestre}");
-                // Se inseriu mais de uma linha, fazer rollback se possível
-                if ($rowsAffected > 1) {
-                    try {
-                        $conn->rollBack();
-                    } catch (Exception $e) {
-                        // Ignorar se não estiver em transação
-                    }
-                    return false;
-                }
-            }
-        }
+        // Log após executar
+        error_log("APÓS EXECUTE - resultado: " . ($resultado ? 'true' : 'false') . ", rowCount: " . $stmt->rowCount());
+        
+        // Destruir statement imediatamente
+        $stmt = null;
+        unset($stmt);
         
         // Destruir o statement imediatamente após uso para evitar reutilização
         $stmt = null;

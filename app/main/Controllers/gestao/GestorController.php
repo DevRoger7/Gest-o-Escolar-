@@ -23,16 +23,16 @@ function buscarGestores($busca = '') {
     $db = Database::getInstance();
     $conn = $db->getConnection();
     
-    $sql = "SELECT u.id, p.nome, p.email, p.telefone, u.role
-            FROM usuario u 
-            JOIN pessoa p ON u.pessoa_id = p.id 
-            WHERE u.role = 'GESTAO' AND u.ativo = 1";
+    $sql = "SELECT g.id as gestor_id, p.nome, p.email, p.telefone, p.cpf, g.cargo
+            FROM gestor g
+            INNER JOIN pessoa p ON g.pessoa_id = p.id
+            WHERE g.ativo = 1";
     
     if (!empty($busca)) {
-        $sql .= " AND (p.nome LIKE :busca OR p.email LIKE :busca)";
+        $sql .= " AND (p.nome LIKE :busca OR p.email LIKE :busca OR p.cpf LIKE :busca)";
     }
     
-    $sql .= " ORDER BY p.nome ASC LIMIT 10";
+    $sql .= " ORDER BY p.nome ASC LIMIT 20";
     
     $stmt = $conn->prepare($sql);
     
@@ -45,12 +45,41 @@ function buscarGestores($busca = '') {
     return $stmt->fetchAll(PDO::FETCH_ASSOC);
 }
 
+// Função para buscar dados completos do gestor por ID
+function buscarGestorPorId($gestorId) {
+    $db = Database::getInstance();
+    $conn = $db->getConnection();
+    
+    $sql = "SELECT g.id as gestor_id, p.nome, p.email, p.telefone, p.cpf, g.cargo
+            FROM gestor g
+            INNER JOIN pessoa p ON g.pessoa_id = p.id
+            WHERE g.id = :gestor_id AND g.ativo = 1
+            LIMIT 1";
+    
+    $stmt = $conn->prepare($sql);
+    $stmt->bindParam(':gestor_id', $gestorId, PDO::PARAM_INT);
+    $stmt->execute();
+    
+    return $stmt->fetch(PDO::FETCH_ASSOC);
+}
+
 // Processar requisição
+$acao = $_GET['acao'] ?? '';
 $busca = $_GET['busca'] ?? '';
+$gestor_id = $_GET['gestor_id'] ?? '';
 
 try {
-    $gestores = buscarGestores($busca);
-    echo json_encode(['status' => true, 'gestores' => $gestores]);
+    if ($acao === 'buscar_por_id' && !empty($gestor_id)) {
+        $gestor = buscarGestorPorId($gestor_id);
+        if ($gestor) {
+            echo json_encode(['status' => true, 'gestor' => $gestor]);
+        } else {
+            echo json_encode(['status' => false, 'mensagem' => 'Gestor não encontrado.']);
+        }
+    } else {
+        $gestores = buscarGestores($busca);
+        echo json_encode(['status' => true, 'gestores' => $gestores]);
+    }
 } catch (Exception $e) {
     error_log("Erro ao buscar gestores: " . $e->getMessage());
     echo json_encode(['status' => false, 'mensagem' => 'Erro interno do servidor.']);
