@@ -389,7 +389,7 @@ function excluirEscolaForcado($id)
     try {
         $conn->beginTransaction();
         
-        // 0. Criar backup antes de excluir
+        // 0. Criar backup COMPLETO antes de excluir
         $usuarioId = $_SESSION['usuario_id'] ?? null;
         
         // Buscar dados completos da escola
@@ -403,19 +403,22 @@ function excluirEscolaForcado($id)
             return ['status' => false, 'mensagem' => 'Escola não encontrada.'];
         }
         
-        // Buscar turmas da escola
+        // Buscar TODOS os dados relacionados para backup
+        $backupData = [];
+        
+        // 1. Turmas
         $stmtTurmas = $conn->prepare("SELECT * FROM turma WHERE escola_id = :id");
         $stmtTurmas->bindParam(':id', $id, PDO::PARAM_INT);
         $stmtTurmas->execute();
-        $turmas = $stmtTurmas->fetchAll(PDO::FETCH_ASSOC);
+        $backupData['turmas'] = $stmtTurmas->fetchAll(PDO::FETCH_ASSOC);
         
-        // Buscar lotações
-        $lotacoes = [];
+        // 2. Lotações
+        $backupData['lotacoes'] = [];
         try {
             $stmtProfLotacao = $conn->prepare("SELECT * FROM professor_lotacao WHERE escola_id = :id");
             $stmtProfLotacao->bindParam(':id', $id, PDO::PARAM_INT);
             $stmtProfLotacao->execute();
-            $lotacoes['professores'] = $stmtProfLotacao->fetchAll(PDO::FETCH_ASSOC);
+            $backupData['lotacoes']['professores'] = $stmtProfLotacao->fetchAll(PDO::FETCH_ASSOC);
         } catch (PDOException $e) {
             error_log("Erro ao buscar professor_lotacao: " . $e->getMessage());
         }
@@ -424,55 +427,393 @@ function excluirEscolaForcado($id)
             $stmtGestorLotacao = $conn->prepare("SELECT * FROM gestor_lotacao WHERE escola_id = :id");
             $stmtGestorLotacao->bindParam(':id', $id, PDO::PARAM_INT);
             $stmtGestorLotacao->execute();
-            $lotacoes['gestores'] = $stmtGestorLotacao->fetchAll(PDO::FETCH_ASSOC);
+            $backupData['lotacoes']['gestores'] = $stmtGestorLotacao->fetchAll(PDO::FETCH_ASSOC);
         } catch (PDOException $e) {}
         
         try {
             $stmtNutricionistaLotacao = $conn->prepare("SELECT * FROM nutricionista_lotacao WHERE escola_id = :id");
             $stmtNutricionistaLotacao->bindParam(':id', $id, PDO::PARAM_INT);
             $stmtNutricionistaLotacao->execute();
-            $lotacoes['nutricionistas'] = $stmtNutricionistaLotacao->fetchAll(PDO::FETCH_ASSOC);
+            $backupData['lotacoes']['nutricionistas'] = $stmtNutricionistaLotacao->fetchAll(PDO::FETCH_ASSOC);
         } catch (PDOException $e) {}
         
-        // Salvar backup (verificar se tabela existe)
+        try {
+            $stmtFuncionarioLotacao = $conn->prepare("SELECT * FROM funcionario_lotacao WHERE escola_id = :id");
+            $stmtFuncionarioLotacao->bindParam(':id', $id, PDO::PARAM_INT);
+            $stmtFuncionarioLotacao->execute();
+            $backupData['lotacoes']['funcionarios'] = $stmtFuncionarioLotacao->fetchAll(PDO::FETCH_ASSOC);
+        } catch (PDOException $e) {}
+        
+        // 3. Alunos relacionados (apenas os que têm escola_id = esta escola)
+        try {
+            $stmtAlunos = $conn->prepare("SELECT * FROM aluno WHERE escola_id = :id");
+            $stmtAlunos->bindParam(':id', $id, PDO::PARAM_INT);
+            $stmtAlunos->execute();
+            $backupData['alunos'] = $stmtAlunos->fetchAll(PDO::FETCH_ASSOC);
+        } catch (PDOException $e) {
+            error_log("Erro ao buscar alunos: " . $e->getMessage());
+        }
+        
+        // 4. Buscar IDs das turmas para buscar dados relacionados
+        $turmaIds = array_column($backupData['turmas'], 'id');
+        
+        // 5. Dados relacionados às turmas (se houver turmas)
+        if (!empty($turmaIds)) {
+            $placeholders = implode(',', array_fill(0, count($turmaIds), '?'));
+            
+            try {
+                $stmtAlunoTurma = $conn->prepare("SELECT * FROM aluno_turma WHERE turma_id IN ($placeholders)");
+                $stmtAlunoTurma->execute($turmaIds);
+                $backupData['aluno_turma'] = $stmtAlunoTurma->fetchAll(PDO::FETCH_ASSOC);
+            } catch (PDOException $e) {}
+            
+            try {
+                $stmtNotas = $conn->prepare("SELECT * FROM nota WHERE turma_id IN ($placeholders)");
+                $stmtNotas->execute($turmaIds);
+                $backupData['notas'] = $stmtNotas->fetchAll(PDO::FETCH_ASSOC);
+            } catch (PDOException $e) {}
+            
+            try {
+                $stmtFrequencia = $conn->prepare("SELECT * FROM frequencia WHERE turma_id IN ($placeholders)");
+                $stmtFrequencia->execute($turmaIds);
+                $backupData['frequencia'] = $stmtFrequencia->fetchAll(PDO::FETCH_ASSOC);
+            } catch (PDOException $e) {}
+            
+            try {
+                $stmtAvaliacao = $conn->prepare("SELECT * FROM avaliacao WHERE turma_id IN ($placeholders)");
+                $stmtAvaliacao->execute($turmaIds);
+                $backupData['avaliacao'] = $stmtAvaliacao->fetchAll(PDO::FETCH_ASSOC);
+            } catch (PDOException $e) {}
+            
+            try {
+                $stmtBoletim = $conn->prepare("SELECT * FROM boletim WHERE turma_id IN ($placeholders)");
+                $stmtBoletim->execute($turmaIds);
+                $boletins = $stmtBoletim->fetchAll(PDO::FETCH_ASSOC);
+                $backupData['boletim'] = $boletins;
+                
+                // Buscar itens de boletim
+                if (!empty($boletins)) {
+                    $boletimIds = array_column($boletins, 'id');
+                    $boletimPlaceholders = implode(',', array_fill(0, count($boletimIds), '?'));
+                    $stmtBoletimItem = $conn->prepare("SELECT * FROM boletim_item WHERE boletim_id IN ($boletimPlaceholders)");
+                    $stmtBoletimItem->execute($boletimIds);
+                    $backupData['boletim_item'] = $stmtBoletimItem->fetchAll(PDO::FETCH_ASSOC);
+                }
+            } catch (PDOException $e) {}
+        }
+        
+        // 6. Dados relacionados diretamente à escola
+        try {
+            $stmtEntrega = $conn->prepare("SELECT * FROM entrega WHERE escola_id = :id");
+            $stmtEntrega->bindParam(':id', $id, PDO::PARAM_INT);
+            $stmtEntrega->execute();
+            $entregas = $stmtEntrega->fetchAll(PDO::FETCH_ASSOC);
+            $backupData['entrega'] = $entregas;
+            
+            // Buscar itens de entrega
+            if (!empty($entregas)) {
+                $entregaIds = array_column($entregas, 'id');
+                $entregaPlaceholders = implode(',', array_fill(0, count($entregaIds), '?'));
+                $stmtEntregaItem = $conn->prepare("SELECT * FROM entrega_item WHERE entrega_id IN ($entregaPlaceholders)");
+                $stmtEntregaItem->execute($entregaIds);
+                $backupData['entrega_item'] = $stmtEntregaItem->fetchAll(PDO::FETCH_ASSOC);
+            }
+        } catch (PDOException $e) {}
+        
+        try {
+            $stmtCardapio = $conn->prepare("SELECT * FROM cardapio WHERE escola_id = :id");
+            $stmtCardapio->bindParam(':id', $id, PDO::PARAM_INT);
+            $stmtCardapio->execute();
+            $cardapios = $stmtCardapio->fetchAll(PDO::FETCH_ASSOC);
+            $backupData['cardapio'] = $cardapios;
+            
+            // Buscar itens de cardápio
+            if (!empty($cardapios)) {
+                $cardapioIds = array_column($cardapios, 'id');
+                $cardapioPlaceholders = implode(',', array_fill(0, count($cardapioIds), '?'));
+                $stmtCardapioItem = $conn->prepare("SELECT * FROM cardapio_item WHERE cardapio_id IN ($cardapioPlaceholders)");
+                $stmtCardapioItem->execute($cardapioIds);
+                $backupData['cardapio_item'] = $stmtCardapioItem->fetchAll(PDO::FETCH_ASSOC);
+            }
+        } catch (PDOException $e) {}
+        
+        try {
+            $stmtConsumo = $conn->prepare("SELECT * FROM consumo_diario WHERE escola_id = :id");
+            $stmtConsumo->bindParam(':id', $id, PDO::PARAM_INT);
+            $stmtConsumo->execute();
+            $consumos = $stmtConsumo->fetchAll(PDO::FETCH_ASSOC);
+            $backupData['consumo_diario'] = $consumos;
+            
+            // Buscar itens de consumo
+            if (!empty($consumos)) {
+                $consumoIds = array_column($consumos, 'id');
+                $consumoPlaceholders = implode(',', array_fill(0, count($consumoIds), '?'));
+                $stmtConsumoItem = $conn->prepare("SELECT * FROM consumo_item WHERE consumo_diario_id IN ($consumoPlaceholders)");
+                $stmtConsumoItem->execute($consumoIds);
+                $backupData['consumo_item'] = $stmtConsumoItem->fetchAll(PDO::FETCH_ASSOC);
+            }
+        } catch (PDOException $e) {}
+        
+        // Salvar backup COMPLETO
         try {
             $stmtBackup = $conn->prepare("INSERT INTO escola_backup 
                                          (escola_id_original, dados_escola, dados_turmas, dados_lotacoes, excluido_por) 
                                          VALUES (:escola_id, :dados_escola, :dados_turmas, :dados_lotacoes, :excluido_por)");
             $stmtBackup->bindParam(':escola_id', $id, PDO::PARAM_INT);
             $stmtBackup->bindValue(':dados_escola', json_encode($dadosEscola, JSON_UNESCAPED_UNICODE));
-            $stmtBackup->bindValue(':dados_turmas', json_encode($turmas, JSON_UNESCAPED_UNICODE));
-            $stmtBackup->bindValue(':dados_lotacoes', json_encode($lotacoes, JSON_UNESCAPED_UNICODE));
+            // Salvar TODOS os dados no campo dados_turmas (incluindo dados relacionados)
+            $stmtBackup->bindValue(':dados_turmas', json_encode($backupData, JSON_UNESCAPED_UNICODE));
+            $stmtBackup->bindValue(':dados_lotacoes', json_encode($backupData['lotacoes'], JSON_UNESCAPED_UNICODE));
             $stmtBackup->bindParam(':excluido_por', $usuarioId, PDO::PARAM_INT);
             $stmtBackup->execute();
         } catch (PDOException $e) {
-            // Se a tabela não existir, apenas logar o erro mas continuar
-            error_log("Erro ao salvar backup da escola (tabela pode não existir): " . $e->getMessage());
+            error_log("Erro ao salvar backup da escola: " . $e->getMessage());
+            throw $e; // Se não conseguir salvar backup, não deve excluir
         }
 
-        // IMPORTANTE: Não excluir dados relacionados! Apenas desativar a escola (soft delete)
-        // Todos os dados (turmas, notas, frequências, alunos, etc.) serão mantidos intactos
+        // 1. EXCLUIR TODOS OS DADOS RELACIONADOS (HARD DELETE)
+        // Ordem de exclusão respeitando foreign keys
         
-        // Desativar a escola (soft delete) - mantém todos os dados relacionados
+        // Excluir itens relacionados primeiro
+        if (!empty($turmaIds)) {
+            $placeholders = implode(',', array_fill(0, count($turmaIds), '?'));
+            
+            // Excluir itens de boletim
+            try {
+                if (!empty($backupData['boletim_item'])) {
+                    $boletimItemIds = array_column($backupData['boletim_item'], 'id');
+                    if (!empty($boletimItemIds)) {
+                        $biPlaceholders = implode(',', array_fill(0, count($boletimItemIds), '?'));
+                        $stmt = $conn->prepare("DELETE FROM boletim_item WHERE id IN ($biPlaceholders)");
+                        $stmt->execute($boletimItemIds);
+                    }
+                }
+            } catch (PDOException $e) {}
+            
+            // Excluir boletins
+            try {
+                if (!empty($backupData['boletim'])) {
+                    $boletimIds = array_column($backupData['boletim'], 'id');
+                    if (!empty($boletimIds)) {
+                        $bPlaceholders = implode(',', array_fill(0, count($boletimIds), '?'));
+                        $stmt = $conn->prepare("DELETE FROM boletim WHERE id IN ($bPlaceholders)");
+                        $stmt->execute($boletimIds);
+                    }
+                }
+            } catch (PDOException $e) {}
+            
+            // Excluir notas
+            try {
+                $stmt = $conn->prepare("DELETE FROM nota WHERE turma_id IN ($placeholders)");
+                $stmt->execute($turmaIds);
+            } catch (PDOException $e) {}
+            
+            // Excluir frequências
+            try {
+                $stmt = $conn->prepare("DELETE FROM frequencia WHERE turma_id IN ($placeholders)");
+                $stmt->execute($turmaIds);
+            } catch (PDOException $e) {}
+            
+            // Excluir avaliações
+            try {
+                $stmt = $conn->prepare("DELETE FROM avaliacao WHERE turma_id IN ($placeholders)");
+                $stmt->execute($turmaIds);
+            } catch (PDOException $e) {}
+            
+            // Excluir aluno_turma
+            try {
+                $stmt = $conn->prepare("DELETE FROM aluno_turma WHERE turma_id IN ($placeholders)");
+                $stmt->execute($turmaIds);
+            } catch (PDOException $e) {}
+            
+            // Excluir outras tabelas relacionadas a turmas
+            try {
+                $stmt = $conn->prepare("DELETE FROM observacao_desempenho WHERE turma_id IN ($placeholders)");
+                $stmt->execute($turmaIds);
+            } catch (PDOException $e) {}
+            
+            try {
+                $stmt = $conn->prepare("DELETE FROM plano_aula WHERE turma_id IN ($placeholders)");
+                $stmt->execute($turmaIds);
+            } catch (PDOException $e) {}
+            
+            try {
+                $stmt = $conn->prepare("DELETE FROM turma_professor WHERE turma_id IN ($placeholders)");
+                $stmt->execute($turmaIds);
+            } catch (PDOException $e) {}
+            
+            try {
+                $stmt = $conn->prepare("DELETE FROM comunicado WHERE turma_id IN ($placeholders)");
+                $stmt->execute($turmaIds);
+            } catch (PDOException $e) {}
+        }
+        
+        // Excluir itens de entrega
         try {
-            $stmt = $conn->prepare("UPDATE escola SET ativo = 0 WHERE id = :id");
+            if (!empty($backupData['entrega_item'])) {
+                $entregaItemIds = array_column($backupData['entrega_item'], 'id');
+                if (!empty($entregaItemIds)) {
+                    $eiPlaceholders = implode(',', array_fill(0, count($entregaItemIds), '?'));
+                    $stmt = $conn->prepare("DELETE FROM entrega_item WHERE id IN ($eiPlaceholders)");
+                    $stmt->execute($entregaItemIds);
+                }
+            }
+        } catch (PDOException $e) {}
+        
+        // Excluir entregas
+        try {
+            $stmt = $conn->prepare("DELETE FROM entrega WHERE escola_id = :id");
+            $stmt->bindParam(':id', $id, PDO::PARAM_INT);
+            $stmt->execute();
+        } catch (PDOException $e) {}
+        
+        // Excluir itens de cardápio
+        try {
+            if (!empty($backupData['cardapio_item'])) {
+                $cardapioItemIds = array_column($backupData['cardapio_item'], 'id');
+                if (!empty($cardapioItemIds)) {
+                    $ciPlaceholders = implode(',', array_fill(0, count($cardapioItemIds), '?'));
+                    $stmt = $conn->prepare("DELETE FROM cardapio_item WHERE id IN ($ciPlaceholders)");
+                    $stmt->execute($cardapioItemIds);
+                }
+            }
+        } catch (PDOException $e) {}
+        
+        // Excluir cardápios
+        try {
+            $stmt = $conn->prepare("DELETE FROM cardapio WHERE escola_id = :id");
+            $stmt->bindParam(':id', $id, PDO::PARAM_INT);
+            $stmt->execute();
+        } catch (PDOException $e) {}
+        
+        // Excluir itens de consumo
+        try {
+            if (!empty($backupData['consumo_item'])) {
+                $consumoItemIds = array_column($backupData['consumo_item'], 'id');
+                if (!empty($consumoItemIds)) {
+                    $cItemPlaceholders = implode(',', array_fill(0, count($consumoItemIds), '?'));
+                    $stmt = $conn->prepare("DELETE FROM consumo_item WHERE id IN ($cItemPlaceholders)");
+                    $stmt->execute($consumoItemIds);
+                }
+            }
+        } catch (PDOException $e) {}
+        
+        // Excluir consumo diário
+        try {
+            $stmt = $conn->prepare("DELETE FROM consumo_diario WHERE escola_id = :id");
+            $stmt->bindParam(':id', $id, PDO::PARAM_INT);
+            $stmt->execute();
+        } catch (PDOException $e) {}
+        
+        // Excluir outras tabelas relacionadas à escola
+        try {
+            $stmt = $conn->prepare("DELETE FROM desperdicio WHERE escola_id = :id");
+            $stmt->bindParam(':id', $id, PDO::PARAM_INT);
+            $stmt->execute();
+        } catch (PDOException $e) {}
+        
+        try {
+            $stmt = $conn->prepare("DELETE FROM historico_escolar WHERE escola_id = :id");
+            $stmt->bindParam(':id', $id, PDO::PARAM_INT);
+            $stmt->execute();
+        } catch (PDOException $e) {}
+        
+        try {
+            $stmt = $conn->prepare("DELETE FROM indicador_nutricional WHERE escola_id = :id");
+            $stmt->bindParam(':id', $id, PDO::PARAM_INT);
+            $stmt->execute();
+        } catch (PDOException $e) {}
+        
+        try {
+            $stmt = $conn->prepare("DELETE FROM parecer_tecnico WHERE escola_id = :id");
+            $stmt->bindParam(':id', $id, PDO::PARAM_INT);
+            $stmt->execute();
+        } catch (PDOException $e) {}
+        
+        try {
+            $stmt = $conn->prepare("DELETE FROM pedido_cesta WHERE escola_id = :id");
+            $stmt->bindParam(':id', $id, PDO::PARAM_INT);
+            $stmt->execute();
+        } catch (PDOException $e) {}
+        
+        try {
+            $stmt = $conn->prepare("DELETE FROM relatorio WHERE escola_id = :id");
+            $stmt->bindParam(':id', $id, PDO::PARAM_INT);
+            $stmt->execute();
+        } catch (PDOException $e) {}
+        
+        // Excluir turmas
+        try {
+            $stmt = $conn->prepare("DELETE FROM turma WHERE escola_id = :id");
             $stmt->bindParam(':id', $id, PDO::PARAM_INT);
             $stmt->execute();
         } catch (PDOException $e) {
-            error_log("Erro ao desativar escola: " . $e->getMessage());
+            error_log("Erro ao excluir turmas: " . $e->getMessage());
             throw $e;
         }
-
-        // NÃO EXCLUIR NADA MAIS - TODOS OS DADOS SÃO MANTIDOS
-        // As turmas, notas, frequências, alunos, lotações, etc. permanecem no banco
+        
+        // Atualizar alunos para escola_id = NULL (não excluir alunos, apenas desvincular)
+        try {
+            $stmt = $conn->prepare("UPDATE aluno SET escola_id = NULL WHERE escola_id = :id");
+            $stmt->bindParam(':id', $id, PDO::PARAM_INT);
+            $stmt->execute();
+        } catch (PDOException $e) {}
+        
+        // Excluir lotações
+        try {
+            $stmt = $conn->prepare("DELETE FROM professor_lotacao WHERE escola_id = :id");
+            $stmt->bindParam(':id', $id, PDO::PARAM_INT);
+            $stmt->execute();
+        } catch (PDOException $e) {}
+        
+        try {
+            $stmt = $conn->prepare("DELETE FROM gestor_lotacao WHERE escola_id = :id");
+            $stmt->bindParam(':id', $id, PDO::PARAM_INT);
+            $stmt->execute();
+        } catch (PDOException $e) {}
+        
+        try {
+            $stmt = $conn->prepare("DELETE FROM nutricionista_lotacao WHERE escola_id = :id");
+            $stmt->bindParam(':id', $id, PDO::PARAM_INT);
+            $stmt->execute();
+        } catch (PDOException $e) {}
+        
+        try {
+            $stmt = $conn->prepare("DELETE FROM funcionario_lotacao WHERE escola_id = :id");
+            $stmt->bindParam(':id', $id, PDO::PARAM_INT);
+            $stmt->execute();
+        } catch (PDOException $e) {}
+        
+        try {
+            $stmt = $conn->prepare("DELETE FROM escola_programa WHERE escola_id = :id");
+            $stmt->bindParam(':id', $id, PDO::PARAM_INT);
+            $stmt->execute();
+        } catch (PDOException $e) {}
+        
+        // Excluir comunicados gerais da escola
+        try {
+            $stmt = $conn->prepare("DELETE FROM comunicado WHERE escola_id = :id");
+            $stmt->bindParam(':id', $id, PDO::PARAM_INT);
+            $stmt->execute();
+        } catch (PDOException $e) {}
+        
+        // Por último, excluir a escola
+        try {
+            $stmt = $conn->prepare("DELETE FROM escola WHERE id = :id");
+            $stmt->bindParam(':id', $id, PDO::PARAM_INT);
+            $stmt->execute();
+        } catch (PDOException $e) {
+            error_log("Erro ao excluir escola: " . $e->getMessage());
+            throw $e;
+        }
         
         $conn->commit();
 
-        return ['status' => true, 'mensagem' => 'Escola desativada com sucesso! Todos os dados relacionados foram preservados. A escola pode ser reativada através da reversão.'];
+        return ['status' => true, 'mensagem' => 'Escola excluída com sucesso! Todos os dados foram movidos para backup e removidos das tabelas principais. A escola pode ser restaurada através da reversão.'];
     } catch (PDOException $e) {
         $conn->rollBack();
-        error_log("Erro ao desativar escola: " . $e->getMessage());
-        return ['status' => false, 'mensagem' => 'Erro ao desativar escola: ' . $e->getMessage()];
+        error_log("Erro ao excluir escola: " . $e->getMessage());
+        return ['status' => false, 'mensagem' => 'Erro ao excluir escola: ' . $e->getMessage()];
     }
 }
 
@@ -1892,7 +2233,7 @@ $escolas = listarEscolas($busca);
                                 if ($_SESSION['tipo'] === 'ADM') {
                                     echo 'Secretaria Municipal da Educação';
                                 } else {
-                                    echo $_SESSION['escola_atual'] ?? 'Escola Municipal';
+                                    echo !empty($_SESSION['escola_atual']) ? htmlspecialchars($_SESSION['escola_atual']) : 'N/A';
                                 }
 ?>
                             </p>
@@ -3380,13 +3721,24 @@ if ($_SESSION['tipo'] === 'ADM') {
                     
                     if (!data.success) {
                         console.error('Erro na resposta:', data.message || 'Erro desconhecido');
+                        
+                        // Se a escola está inativa ou não encontrada, redirecionar para sem_acesso.php
+                        if (data.escolaInativa === true || 
+                            (data.message && (data.message.includes('Escola não encontrada') || data.message.includes('escola não encontrada')))) {
+                            // Destruir sessão e redirecionar
+                            window.location.href = '../../Views/auth/sem_acesso.php';
+                            return;
+                        }
+                        
                         alert('Erro ao carregar dados da escola: ' + (data.message || 'Erro desconhecido'));
                         return;
                     }
                     
                     if (!data.escola) {
                         console.error('Escola não encontrada nos dados');
-                        alert('Escola não encontrada.');
+                        // Se escola não encontrada, pode ser que foi desativada
+                        // Redirecionar para página de sem acesso
+                        window.location.href = '../../Views/auth/sem_acesso.php';
                         return;
                     }
                     const escola = data.escola;

@@ -44,8 +44,10 @@ class sessions {
             }
             
             // Verificar se o usuário tem uma lotação ATIVA com escola ATIVA
+            // IMPORTANTE: Verificar tanto nas tabelas principais quanto no backup
             $escolaExiste = false;
             $tinhaLotacao = false;
+            $estaNoBackup = false;
             
             if (strtoupper($tipoUsuario) === 'GESTAO') {
                 // Verificar se tem lotação ATIVA com escola ATIVA
@@ -74,8 +76,31 @@ class sessions {
                 $resultCheckLotacao = $stmtCheck->fetch(PDO::FETCH_ASSOC);
                 $tinhaLotacao = ($resultCheckLotacao && $resultCheckLotacao['total'] > 0);
                 
+                // Se não tem escola ativa, verificar se está no backup
+                if (!$escolaExiste) {
+                    $sqlPessoa = "SELECT g.pessoa_id FROM gestor g 
+                                 INNER JOIN usuario u ON g.pessoa_id = u.pessoa_id 
+                                 WHERE u.id = :usuario_id LIMIT 1";
+                    $stmtPessoa = $conn->prepare($sqlPessoa);
+                    $stmtPessoa->bindParam(':usuario_id', $usuarioId, PDO::PARAM_INT);
+                    $stmtPessoa->execute();
+                    $pessoaData = $stmtPessoa->fetch(PDO::FETCH_ASSOC);
+                    
+                    if ($pessoaData && isset($pessoaData['pessoa_id'])) {
+                        // Verificar backup de forma simplificada
+                        $sqlBackup = "SELECT COUNT(*) as total FROM escola_backup eb
+                                     WHERE eb.revertido = 0 
+                                     AND eb.excluido_permanentemente = 0
+                                     AND eb.dados_lotacoes LIKE CONCAT('%', :pessoa_id, '%')";
+                        $stmtBackup = $conn->prepare($sqlBackup);
+                        $stmtBackup->bindParam(':pessoa_id', $pessoaData['pessoa_id'], PDO::PARAM_INT);
+                        $stmtBackup->execute();
+                        $resultBackup = $stmtBackup->fetch(PDO::FETCH_ASSOC);
+                        $estaNoBackup = ($resultBackup && $resultBackup['total'] > 0);
+                    }
+                }
+                
             } elseif (strtoupper($tipoUsuario) === 'PROFESSOR') {
-                // Verificar se tem lotação ATIVA com escola ATIVA
                 $sql = "SELECT COUNT(*) as total 
                         FROM professor_lotacao pl 
                         INNER JOIN escola e ON pl.escola_id = e.id 
@@ -90,7 +115,6 @@ class sessions {
                 $result = $stmt->fetch(PDO::FETCH_ASSOC);
                 $escolaExiste = ($result && $result['total'] > 0);
                 
-                // Verificar se já teve alguma lotação (mesmo que inativa)
                 $sqlCheckLotacao = "SELECT COUNT(*) as total FROM professor_lotacao pl 
                                    INNER JOIN professor p ON pl.professor_id = p.id 
                                    INNER JOIN usuario u ON p.pessoa_id = u.pessoa_id 
@@ -101,8 +125,30 @@ class sessions {
                 $resultCheckLotacao = $stmtCheck->fetch(PDO::FETCH_ASSOC);
                 $tinhaLotacao = ($resultCheckLotacao && $resultCheckLotacao['total'] > 0);
                 
+                // Verificar backup
+                if (!$escolaExiste) {
+                    $sqlPessoa = "SELECT p.pessoa_id FROM professor p 
+                                 INNER JOIN usuario u ON p.pessoa_id = u.pessoa_id 
+                                 WHERE u.id = :usuario_id LIMIT 1";
+                    $stmtPessoa = $conn->prepare($sqlPessoa);
+                    $stmtPessoa->bindParam(':usuario_id', $usuarioId, PDO::PARAM_INT);
+                    $stmtPessoa->execute();
+                    $pessoaData = $stmtPessoa->fetch(PDO::FETCH_ASSOC);
+                    
+                    if ($pessoaData && isset($pessoaData['pessoa_id'])) {
+                        $sqlBackup = "SELECT COUNT(*) as total FROM escola_backup eb
+                                     WHERE eb.revertido = 0 
+                                     AND eb.excluido_permanentemente = 0
+                                     AND eb.dados_lotacoes LIKE CONCAT('%', :pessoa_id, '%')";
+                        $stmtBackup = $conn->prepare($sqlBackup);
+                        $stmtBackup->bindParam(':pessoa_id', $pessoaData['pessoa_id'], PDO::PARAM_INT);
+                        $stmtBackup->execute();
+                        $resultBackup = $stmtBackup->fetch(PDO::FETCH_ASSOC);
+                        $estaNoBackup = ($resultBackup && $resultBackup['total'] > 0);
+                    }
+                }
+                
             } elseif (strtoupper($tipoUsuario) === 'NUTRICIONISTA') {
-                // Verificar se tem lotação ATIVA com escola ATIVA
                 $sql = "SELECT COUNT(*) as total 
                         FROM nutricionista_lotacao nl 
                         INNER JOIN escola e ON nl.escola_id = e.id 
@@ -117,7 +163,6 @@ class sessions {
                 $result = $stmt->fetch(PDO::FETCH_ASSOC);
                 $escolaExiste = ($result && $result['total'] > 0);
                 
-                // Verificar se já teve alguma lotação (mesmo que inativa)
                 $sqlCheckLotacao = "SELECT COUNT(*) as total FROM nutricionista_lotacao nl 
                                    INNER JOIN nutricionista n ON nl.nutricionista_id = n.id 
                                    INNER JOIN usuario u ON n.pessoa_id = u.pessoa_id 
@@ -127,18 +172,52 @@ class sessions {
                 $stmtCheck->execute();
                 $resultCheckLotacao = $stmtCheck->fetch(PDO::FETCH_ASSOC);
                 $tinhaLotacao = ($resultCheckLotacao && $resultCheckLotacao['total'] > 0);
+                
+                // Verificar backup
+                if (!$escolaExiste) {
+                    $sqlPessoa = "SELECT n.pessoa_id FROM nutricionista n 
+                                 INNER JOIN usuario u ON n.pessoa_id = u.pessoa_id 
+                                 WHERE u.id = :usuario_id LIMIT 1";
+                    $stmtPessoa = $conn->prepare($sqlPessoa);
+                    $stmtPessoa->bindParam(':usuario_id', $usuarioId, PDO::PARAM_INT);
+                    $stmtPessoa->execute();
+                    $pessoaData = $stmtPessoa->fetch(PDO::FETCH_ASSOC);
+                    
+                    if ($pessoaData && isset($pessoaData['pessoa_id'])) {
+                        $sqlBackup = "SELECT COUNT(*) as total FROM escola_backup eb
+                                     WHERE eb.revertido = 0 
+                                     AND eb.excluido_permanentemente = 0
+                                     AND eb.dados_lotacoes LIKE CONCAT('%', :pessoa_id, '%')";
+                        $stmtBackup = $conn->prepare($sqlBackup);
+                        $stmtBackup->bindParam(':pessoa_id', $pessoaData['pessoa_id'], PDO::PARAM_INT);
+                        $stmtBackup->execute();
+                        $resultBackup = $stmtBackup->fetch(PDO::FETCH_ASSOC);
+                        $estaNoBackup = ($resultBackup && $resultBackup['total'] > 0);
+                    }
+                }
             }
             
-            // Se não tem escola ativa E já teve lotação antes, redirecionar para página de sem acesso
-            // (Isso significa que a escola foi desativada/excluída)
-            if (!$escolaExiste && $tinhaLotacao) {
+            // Se não tem escola ativa E (já teve lotação OU está no backup), redirecionar para página de sem acesso
+            if (!$escolaExiste && ($tinhaLotacao || $estaNoBackup)) {
+                error_log("VERIFICAÇÃO SESSAO - Escola inativa ou no backup detectada para usuário ID: " . $usuarioId . ", Tipo: " . $tipoUsuario);
                 $this->destruir_session();
                 header('Location: ../auth/sem_acesso.php');
                 exit();
             }
         } catch (Exception $e) {
-            // Em caso de erro, não bloquear o acesso
+            // Em caso de erro, logar mas não bloquear o acesso
             error_log("Erro ao verificar escola do usuário: " . $e->getMessage());
+            // Mas se conseguir detectar que não tem escola, ainda assim redirecionar
+            try {
+                // Verificação simplificada em caso de erro
+                if (isset($escolaExiste) && !$escolaExiste && isset($tinhaLotacao) && $tinhaLotacao) {
+                    $this->destruir_session();
+                    header('Location: ../auth/sem_acesso.php');
+                    exit();
+                }
+            } catch (Exception $e2) {
+                error_log("Erro na verificação de fallback: " . $e2->getMessage());
+            }
         }
     }
     
