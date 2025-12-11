@@ -109,12 +109,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao'])) {
             $estado = 'CE'; // Sempre Ceará (Maranguape/CE)
             $cep = !empty($_POST['cep']) ? preg_replace('/[^0-9]/', '', $_POST['cep']) : null;
             $nomeSocial = !empty($_POST['nome_social']) ? trim($_POST['nome_social']) : null;
-            $cor = !empty($_POST['cor']) ? $_POST['cor'] : null;
             
             $sqlPessoa = "INSERT INTO pessoa (cpf, nome, data_nascimento, sexo, email, telefone, 
-                         nome_social, cor, endereco, numero, complemento, bairro, cidade, estado, cep, tipo, criado_por)
+                         nome_social, endereco, numero, complemento, bairro, cidade, estado, cep, tipo, criado_por)
                          VALUES (:cpf, :nome, :data_nascimento, :sexo, :email, :telefone,
-                         :nome_social, :cor, :endereco, :numero, :complemento, :bairro, :cidade, :estado, :cep, 'GESTOR', :criado_por)";
+                         :nome_social, :endereco, :numero, :complemento, :bairro, :cidade, :estado, :cep, 'GESTOR', :criado_por)";
             $stmtPessoa = $conn->prepare($sqlPessoa);
             $stmtPessoa->bindParam(':cpf', $cpf);
             $stmtPessoa->bindParam(':nome', $nome);
@@ -123,7 +122,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao'])) {
             $stmtPessoa->bindParam(':email', $email);
             $stmtPessoa->bindParam(':telefone', $telefoneVal);
             $stmtPessoa->bindParam(':nome_social', $nomeSocial);
-            $stmtPessoa->bindParam(':cor', $cor);
             $stmtPessoa->bindParam(':endereco', $endereco);
             $stmtPessoa->bindParam(':numero', $numero);
             $stmtPessoa->bindParam(':complemento', $complemento);
@@ -1035,7 +1033,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['acao'])) {
         $sql = "SELECT g.id, g.pessoa_id, g.cargo, g.formacao, g.especializacao, g.registro_profissional, 
                        g.observacoes, g.ativo, g.criado_por, g.criado_em,
                        p.id AS pessoa_id_explicit, p.cpf, p.nome, p.data_nascimento, p.sexo, p.email, 
-                       p.telefone, p.nome_social, p.cor, p.endereco, p.numero, p.complemento, 
+                       p.telefone, p.nome_social, p.endereco, p.numero, p.complemento, 
                        p.bairro, p.cidade, p.estado, p.cep
                 FROM gestor g
                 INNER JOIN pessoa p ON g.pessoa_id = p.id
@@ -1091,7 +1089,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['acao'])) {
                     $sqlGestorPorPessoa = "SELECT g.id, g.pessoa_id, g.cargo, g.formacao, g.especializacao, g.registro_profissional, 
                                                  g.observacoes, g.ativo, g.criado_por, g.criado_em,
                                                  p.id AS pessoa_id_explicit, p.cpf, p.nome, p.data_nascimento, p.sexo, p.email, 
-                                                 p.telefone, p.nome_social, p.cor, p.endereco, p.numero, p.complemento, 
+                                                 p.telefone, p.nome_social, p.endereco, p.numero, p.complemento, 
                                                  p.bairro, p.cidade, p.estado, p.cep
                                           FROM gestor g
                                           INNER JOIN pessoa p ON g.pessoa_id = p.id
