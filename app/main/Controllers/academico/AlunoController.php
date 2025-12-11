@@ -16,8 +16,8 @@ if (!isset($_SESSION['usuario_id'])) {
     exit;
 }
 
-// Verificar permissão
-if (!temPermissao('cadastrar_pessoas') && !eAdm()) {
+// Verificar permissão - permitir também para GESTAO
+if (!temPermissao('cadastrar_pessoas') && !eAdm() && $_SESSION['tipo'] !== 'GESTAO') {
     echo json_encode(['success' => false, 'message' => 'Sem permissão']);
     exit;
 }
