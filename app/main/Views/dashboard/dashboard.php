@@ -2845,7 +2845,13 @@ if (isset($_SESSION['tipo']) && strtolower($_SESSION['tipo']) === 'professor') {
                                 <?php endif; ?>
                             </div>
                             <?php 
-                            $totalAlunos = $stats->getTotalAlunos();
+                            // Filtrar por escola selecionada se for gestor
+                            $escolaIdGestor = null;
+                            if (isset($_SESSION['tipo']) && $_SESSION['tipo'] === 'GESTAO') {
+                                $escolaIdGestor = $_SESSION['escola_selecionada_id'] ?? $_SESSION['escola_id'] ?? null;
+                            }
+                            $totalAlunos = $stats->getTotalAlunos($escolaIdGestor);
+                            $crescimentoAlunos = $stats->getCrescimentoAlunos($escolaIdGestor);
                             ?>
                             <h3 class="text-xl md:text-2xl font-bold text-gray-800 mb-1"><?= $totalAlunos ?></h3>
                             <p class="text-gray-600 text-xs md:text-sm">Total de Alunos</p>
@@ -2864,7 +2870,7 @@ if (isset($_SESSION['tipo']) && strtolower($_SESSION['tipo']) === 'professor') {
                                 </div>
                             </div>
                             <?php 
-                            $totalTurmas = $stats->getTotalTurmas();
+                            $totalTurmas = $stats->getTotalTurmas($escolaIdGestor);
                             ?>
                             <h3 class="text-xl md:text-2xl font-bold text-gray-800 mb-1"><?= $totalTurmas ?></h3>
                             <p class="text-gray-600 text-xs md:text-sm">Turmas Ativas</p>
@@ -2883,7 +2889,7 @@ if (isset($_SESSION['tipo']) && strtolower($_SESSION['tipo']) === 'professor') {
                                 </div>
                             </div>
                             <?php 
-                            $frequenciaMedia = $stats->getFrequenciaMedia();
+                            $frequenciaMedia = $stats->getFrequenciaMedia($escolaIdGestor);
                             ?>
                             <h3 class="text-2xl font-bold text-gray-800 mb-1"><?= $frequenciaMedia ?>%</h3>
                             <p class="text-gray-600 text-sm">Frequência Média</p>
@@ -2902,7 +2908,7 @@ if (isset($_SESSION['tipo']) && strtolower($_SESSION['tipo']) === 'professor') {
                                 </div>
                             </div>
                             <?php 
-                            $mediaGeral = $stats->getMediaGeralNotas();
+                            $mediaGeral = $stats->getMediaGeralNotas($escolaIdGestor);
                             ?>
                             <h3 class="text-2xl font-bold text-gray-800 mb-1"><?= $mediaGeral ?></h3>
                             <p class="text-gray-600 text-sm">Média Geral</p>
@@ -3373,6 +3379,67 @@ if (isset($_SESSION['tipo']) && strtolower($_SESSION['tipo']) === 'professor') {
                                     <?php
                                 }
                             }
+                        } elseif (strtolower($userType) === 'gestao') {
+                            // Buscar atividades recentes do gestor filtradas por escola
+                            $escolaIdGestor = $_SESSION['escola_selecionada_id'] ?? $_SESSION['escola_id'] ?? null;
+                            
+                            if ($escolaIdGestor) {
+                                $atividadesRecentes = $stats->getAtividadesRecentesGestor($escolaIdGestor, 3);
+                            } else {
+                                $atividadesRecentes = [];
+                            }
+                            
+                            if (empty($atividadesRecentes)) {
+                                echo '<div class="text-center py-8 text-gray-500">Nenhuma atividade recente</div>';
+                            } else {
+                                foreach ($atividadesRecentes as $atividade) {
+                                    $iconColors = [
+                                        'blue' => 'from-blue-50 to-blue-100',
+                                        'green' => 'from-green-50 to-green-100',
+                                        'orange' => 'from-orange-50 to-orange-100',
+                                        'purple' => 'from-purple-50 to-purple-100'
+                                    ];
+                                    $bgColors = [
+                                        'blue' => 'bg-blue-500',
+                                        'green' => 'bg-green-500',
+                                        'orange' => 'bg-orange-500',
+                                        'purple' => 'bg-purple-500'
+                                    ];
+                                    $color = $atividade['color'] ?? 'blue';
+                                    $gradient = $iconColors[$color] ?? $iconColors['blue'];
+                                    $bgColor = $bgColors[$color] ?? $bgColors['blue'];
+                                    
+                                    // Calcular tempo relativo
+                                    $dataAtividade = new DateTime($atividade['data']);
+                                    $agora = new DateTime();
+                                    $diff = $agora->diff($dataAtividade);
+                                    
+                                    $tempoRelativo = '';
+                                    if ($diff->days > 0) {
+                                        $tempoRelativo = $diff->days == 1 ? 'Ontem' : 'Há ' . $diff->days . ' dias';
+                                    } elseif ($diff->h > 0) {
+                                        $tempoRelativo = 'Há ' . $diff->h . ' hora' . ($diff->h > 1 ? 's' : '');
+                                    } elseif ($diff->i > 0) {
+                                        $tempoRelativo = 'Há ' . $diff->i . ' minuto' . ($diff->i > 1 ? 's' : '');
+                                    } else {
+                                        $tempoRelativo = 'Agora mesmo';
+                                    }
+                                    ?>
+                                    <div class="flex items-start space-x-4 p-4 bg-gradient-to-r <?= $gradient ?> rounded-xl">
+                                        <div class="p-2 <?= $bgColor ?> rounded-lg">
+                                            <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z"></path>
+                                            </svg>
+                                        </div>
+                                        <div class="flex-1">
+                                            <p class="text-sm font-medium text-gray-800"><?= htmlspecialchars($atividade['titulo']) ?></p>
+                                            <p class="text-xs text-gray-600"><?= htmlspecialchars($atividade['descricao']) ?></p>
+                                            <p class="text-xs text-gray-500 mt-1"><?= $tempoRelativo ?></p>
+                                        </div>
+                                    </div>
+                                    <?php
+                                }
+                            }
                         } else { 
                             // Buscar atividades recentes do banco (para outros tipos de usuário)
                             $atividadesRecentes = $stats->getAtividadesRecentes(3);
@@ -3541,7 +3608,16 @@ if (isset($_SESSION['tipo']) && strtolower($_SESSION['tipo']) === 'professor') {
                                     </div>
                                     <div class="text-right">
                                         <div class="text-xs opacity-80">Total</div>
-                                        <div class="text-sm font-bold"><?= $stats->getTotalAlunos() ?></div>
+                                        <div class="text-sm font-bold">
+                                            <?php 
+                                            // Filtrar por escola selecionada se for gestor
+                                            $escolaIdAcessoRapido = null;
+                                            if (isset($_SESSION['tipo']) && $_SESSION['tipo'] === 'GESTAO') {
+                                                $escolaIdAcessoRapido = $_SESSION['escola_selecionada_id'] ?? $_SESSION['escola_id'] ?? null;
+                                            }
+                                            echo $stats->getTotalAlunos($escolaIdAcessoRapido);
+                                            ?>
+                                        </div>
                                     </div>
                                 </div>
                                 <svg class="w-4 h-4 ml-2 opacity-70 group-hover:opacity-100 transition-opacity" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -3564,7 +3640,16 @@ if (isset($_SESSION['tipo']) && strtolower($_SESSION['tipo']) === 'professor') {
                                     </div>
                                     <div class="text-right">
                                         <div class="text-xs opacity-80">Hoje</div>
-                                        <div class="text-sm font-bold"><?= $stats->getFrequenciasHoje() ?></div>
+                                        <div class="text-sm font-bold">
+                                            <?php 
+                                            // Filtrar por escola selecionada se for gestor
+                                            $escolaIdAcessoRapido = null;
+                                            if (isset($_SESSION['tipo']) && $_SESSION['tipo'] === 'GESTAO') {
+                                                $escolaIdAcessoRapido = $_SESSION['escola_selecionada_id'] ?? $_SESSION['escola_id'] ?? null;
+                                            }
+                                            echo $stats->getFrequenciasHoje($escolaIdAcessoRapido);
+                                            ?>
+                                        </div>
                                     </div>
                                 </div>
                                 <svg class="w-4 h-4 ml-2 opacity-70 group-hover:opacity-100 transition-opacity" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -3587,7 +3672,16 @@ if (isset($_SESSION['tipo']) && strtolower($_SESSION['tipo']) === 'professor') {
                                     </div>
                                     <div class="text-right">
                                         <div class="text-xs opacity-80">Pendentes</div>
-                                        <div class="text-sm font-bold"><?= $stats->getNotasPendentes() ?></div>
+                                        <div class="text-sm font-bold">
+                                            <?php 
+                                            // Filtrar por escola selecionada se for gestor
+                                            $escolaIdAcessoRapido = null;
+                                            if (isset($_SESSION['tipo']) && $_SESSION['tipo'] === 'GESTAO') {
+                                                $escolaIdAcessoRapido = $_SESSION['escola_selecionada_id'] ?? $_SESSION['escola_id'] ?? null;
+                                            }
+                                            echo $stats->getNotasPendentes($escolaIdAcessoRapido);
+                                            ?>
+                                        </div>
                                     </div>
                                 </div>
                                 <svg class="w-4 h-4 ml-2 opacity-70 group-hover:opacity-100 transition-opacity" fill="none" stroke="currentColor" viewBox="0 0 24 24">

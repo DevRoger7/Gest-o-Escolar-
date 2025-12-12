@@ -50,7 +50,40 @@ if (isset($_SESSION['tipo']) && strtoupper($_SESSION['tipo']) === 'GESTAO') {
     $usuarioId = $_SESSION['usuario_id'] ?? null;
     error_log("DEBUG GESTOR - usuario_id: " . ($usuarioId ?? 'NULL'));
     
-    if ($usuarioId) {
+    // Primeiro, verificar se há escola selecionada na sessão
+    $escolaIdSessao = $_SESSION['escola_selecionada_id'] ?? $_SESSION['escola_id'] ?? null;
+    
+    if ($escolaIdSessao) {
+        // Verificar se a escola da sessão é válida e pertence ao gestor
+        try {
+            $sqlVerificarEscola = "SELECT e.id, e.nome, e.ativo
+                                   FROM escola e
+                                   INNER JOIN gestor_lotacao gl ON e.id = gl.escola_id
+                                   INNER JOIN gestor g ON gl.gestor_id = g.id
+                                   INNER JOIN usuario u ON g.pessoa_id = u.pessoa_id
+                                   WHERE u.id = :usuario_id 
+                                   AND e.id = :escola_id 
+                                   AND e.ativo = 1
+                                   AND (gl.fim IS NULL OR gl.fim = '' OR gl.fim = '0000-00-00' OR gl.fim >= CURDATE())
+                                   LIMIT 1";
+            $stmtVerificar = $conn->prepare($sqlVerificarEscola);
+            $stmtVerificar->bindParam(':usuario_id', $usuarioId);
+            $stmtVerificar->bindParam(':escola_id', $escolaIdSessao, PDO::PARAM_INT);
+            $stmtVerificar->execute();
+            $escolaValida = $stmtVerificar->fetch(PDO::FETCH_ASSOC);
+            
+            if ($escolaValida) {
+                $escolaGestorId = (int)$escolaValida['id'];
+                $escolaGestor = $escolaValida['nome'];
+                error_log("DEBUG GESTOR - Escola da sessão validada: ID=" . $escolaGestorId . ", Nome=" . $escolaGestor);
+            }
+        } catch (Exception $e) {
+            error_log("DEBUG GESTOR - Erro ao validar escola da sessão: " . $e->getMessage());
+        }
+    }
+    
+    // Se não encontrou escola válida na sessão, buscar do banco
+    if (!$escolaGestorId && $usuarioId) {
         try {
             // Log: Verificar se existe gestor para este usuario
             $sqlCheckGestor = "SELECT g.id as gestor_id, g.pessoa_id, g.ativo
@@ -70,7 +103,7 @@ if (isset($_SESSION['tipo']) && strtoupper($_SESSION['tipo']) === 'GESTAO') {
                           INNER JOIN usuario u ON g.pessoa_id = u.pessoa_id
                           INNER JOIN gestor_lotacao gl ON g.id = gl.gestor_id
                           INNER JOIN escola e ON gl.escola_id = e.id
-                          WHERE u.id = :usuario_id AND g.ativo = 1
+                          WHERE u.id = :usuario_id AND g.ativo = 1 AND e.ativo = 1
                           ORDER BY 
                             CASE WHEN gl.fim IS NULL OR gl.fim = '' OR gl.fim = '0000-00-00' THEN 0 ELSE 1 END,
                             gl.responsavel DESC, 
@@ -86,6 +119,13 @@ if (isset($_SESSION['tipo']) && strtoupper($_SESSION['tipo']) === 'GESTAO') {
             if ($gestorEscola) {
                 $escolaGestorId = (int)$gestorEscola['escola_id'];
                 $escolaGestor = $gestorEscola['escola_nome'];
+                
+                // Atualizar sessão com a escola encontrada
+                $_SESSION['escola_selecionada_id'] = $escolaGestorId;
+                $_SESSION['escola_selecionada_nome'] = $escolaGestor;
+                $_SESSION['escola_id'] = $escolaGestorId;
+                $_SESSION['escola_atual'] = $escolaGestor;
+                
                 error_log("DEBUG GESTOR - Escola encontrada (Query 1): ID=" . $escolaGestorId . ", Nome=" . $escolaGestor);
             } else {
                 // Tentar buscar sem a condição de fim (caso o campo esteja com valor diferente)
@@ -94,7 +134,7 @@ if (isset($_SESSION['tipo']) && strtoupper($_SESSION['tipo']) === 'GESTAO') {
                                INNER JOIN usuario u ON g.pessoa_id = u.pessoa_id
                                INNER JOIN gestor_lotacao gl ON g.id = gl.gestor_id
                                INNER JOIN escola e ON gl.escola_id = e.id
-                               WHERE u.id = :usuario_id AND g.ativo = 1
+                               WHERE u.id = :usuario_id AND g.ativo = 1 AND e.ativo = 1
                                ORDER BY gl.responsavel DESC, gl.inicio DESC, gl.id DESC
                                LIMIT 1";
                 $stmtGestor2 = $conn->prepare($sqlGestor2);
@@ -112,6 +152,13 @@ if (isset($_SESSION['tipo']) && strtoupper($_SESSION['tipo']) === 'GESTAO') {
                     if ($lotacaoAtiva) {
                         $escolaGestorId = (int)$gestorEscola2['escola_id'];
                         $escolaGestor = $gestorEscola2['escola_nome'];
+                        
+                        // Atualizar sessão com a escola encontrada
+                        $_SESSION['escola_selecionada_id'] = $escolaGestorId;
+                        $_SESSION['escola_selecionada_nome'] = $escolaGestor;
+                        $_SESSION['escola_id'] = $escolaGestorId;
+                        $_SESSION['escola_atual'] = $escolaGestor;
+                        
                         error_log("DEBUG GESTOR - Escola encontrada (Query 2): ID=" . $escolaGestorId . ", Nome=" . $escolaGestor);
                     } else {
                         $escolaGestorId = null;
@@ -125,7 +172,7 @@ if (isset($_SESSION['tipo']) && strtoupper($_SESSION['tipo']) === 'GESTAO') {
                                         INNER JOIN usuario u ON g.pessoa_id = u.pessoa_id
                                         INNER JOIN gestor_lotacao gl ON g.id = gl.gestor_id
                                         INNER JOIN escola e ON gl.escola_id = e.id
-                                        WHERE u.id = :usuario_id
+                                        WHERE u.id = :usuario_id AND e.ativo = 1
                                         ORDER BY gl.id DESC
                                         LIMIT 5";
                     $stmtCheckLot = $conn->prepare($sqlCheckLotacao);
@@ -150,6 +197,58 @@ if (isset($_SESSION['tipo']) && strtoupper($_SESSION['tipo']) === 'GESTAO') {
     }
 } else {
     error_log("DEBUG GESTOR - Tipo de usuário não é GESTAO: " . ($_SESSION['tipo'] ?? 'NULL'));
+}
+
+// Garantir que sempre temos uma escola válida para o gestor
+if ($_SESSION['tipo'] === 'GESTAO' && !$escolaGestorId) {
+    // Se não encontrou escola, tentar usar da sessão
+    $escolaIdSessao = $_SESSION['escola_selecionada_id'] ?? $_SESSION['escola_id'] ?? null;
+    if ($escolaIdSessao) {
+        try {
+            $sqlBuscarEscola = "SELECT id, nome FROM escola WHERE id = :escola_id AND ativo = 1 LIMIT 1";
+            $stmtBuscarEscola = $conn->prepare($sqlBuscarEscola);
+            $stmtBuscarEscola->bindParam(':escola_id', $escolaIdSessao, PDO::PARAM_INT);
+            $stmtBuscarEscola->execute();
+            $escolaEncontrada = $stmtBuscarEscola->fetch(PDO::FETCH_ASSOC);
+            if ($escolaEncontrada) {
+                $escolaGestorId = (int)$escolaEncontrada['id'];
+                $escolaGestor = $escolaEncontrada['nome'];
+            }
+        } catch (Exception $e) {
+            error_log("Erro ao buscar escola da sessão: " . $e->getMessage());
+        }
+    }
+}
+
+// Variável auxiliar que sempre retorna a escola correta (prioriza sessão, depois variável)
+$escolaIdAtual = $_SESSION['escola_selecionada_id'] ?? $_SESSION['escola_id'] ?? $escolaGestorId ?? null;
+$escolaNomeAtual = $_SESSION['escola_selecionada_nome'] ?? $_SESSION['escola_atual'] ?? $escolaGestor ?? null;
+
+// Se temos ID mas não temos nome, buscar o nome
+if ($escolaIdAtual && !$escolaNomeAtual) {
+    try {
+        $sqlBuscarNome = "SELECT nome FROM escola WHERE id = :escola_id AND ativo = 1 LIMIT 1";
+        $stmtBuscarNome = $conn->prepare($sqlBuscarNome);
+        $stmtBuscarNome->bindParam(':escola_id', $escolaIdAtual, PDO::PARAM_INT);
+        $stmtBuscarNome->execute();
+        $resultNome = $stmtBuscarNome->fetch(PDO::FETCH_ASSOC);
+        if ($resultNome && !empty($resultNome['nome'])) {
+            $escolaNomeAtual = $resultNome['nome'];
+            $escolaGestor = $resultNome['nome'];
+            $_SESSION['escola_selecionada_nome'] = $resultNome['nome'];
+            $_SESSION['escola_atual'] = $resultNome['nome'];
+        }
+    } catch (Exception $e) {
+        error_log("Erro ao buscar nome da escola: " . $e->getMessage());
+    }
+}
+
+// Atualizar variáveis principais se necessário
+if ($escolaIdAtual && !$escolaGestorId) {
+    $escolaGestorId = $escolaIdAtual;
+}
+if ($escolaNomeAtual && !$escolaGestor) {
+    $escolaGestor = $escolaNomeAtual;
 }
 
 // Buscar produtos para o modal de desperdício
@@ -193,7 +292,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && !empty($_GET['acao'])) {
                 }
                 
                 // Verificar se o gestor tem acesso a esta escola
-                if ($_SESSION['tipo'] === 'GESTAO' && $escolaGestorId && $escolaId != $escolaGestorId) {
+                if ($_SESSION['tipo'] === 'GESTAO' && $escolaIdAtual && $escolaId != $escolaIdAtual) {
                     throw new Exception('Você não tem permissão para acessar esta escola.');
                 }
                 
@@ -231,7 +330,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $escolaIdTurma = $_POST['escola_id'] ?? null;
             
             // Validar permissão: gestor só pode criar turmas na sua escola
-            if ($_SESSION['tipo'] === 'GESTAO' && $escolaGestorId && $escolaIdTurma != $escolaGestorId) {
+            if ($_SESSION['tipo'] === 'GESTAO' && $escolaIdAtual && $escolaIdTurma != $escolaIdAtual) {
                 $_SESSION['mensagem_erro'] = 'Você não tem permissão para criar turmas nesta escola.';
                 header('Location: gestao_escolar.php');
                 exit;
@@ -298,21 +397,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $turmaId = $_POST['turma_id'] ?? null;
             if ($turmaId) {
                 // Validar permissão: gestor só pode editar turmas da sua escola
-                if ($_SESSION['tipo'] === 'GESTAO' && $escolaGestorId) {
+                if ($_SESSION['tipo'] === 'GESTAO' && $escolaIdAtual) {
                     $turma = $turmaModel->buscarPorId($turmaId);
-                    if (!$turma || $turma['escola_id'] != $escolaGestorId) {
+                    if (!$turma || $turma['escola_id'] != $escolaIdAtual) {
                         $_SESSION['mensagem_erro'] = 'Você não tem permissão para editar esta turma.';
                         header('Location: gestao_escolar.php');
                         exit;
                     }
                     // Forçar escola_id para a escola do gestor
-                    $_POST['escola_id'] = $escolaGestorId;
+                    $_POST['escola_id'] = $escolaIdAtual;
                 }
                 
                 $escolaIdTurma = $_POST['escola_id'] ?? null;
                 
                 // Validar se gestor está tentando mudar para outra escola
-                if ($_SESSION['tipo'] === 'GESTAO' && $escolaGestorId && $escolaIdTurma != $escolaGestorId) {
+                if ($_SESSION['tipo'] === 'GESTAO' && $escolaIdAtual && $escolaIdTurma != $escolaIdAtual) {
                     $_SESSION['mensagem_erro'] = 'Você não tem permissão para alterar a escola desta turma.';
                     header('Location: gestao_escolar.php');
                     exit;
@@ -1102,10 +1201,14 @@ $escolas = $stmtEscolas->fetchAll(PDO::FETCH_ASSOC);
 
 // Buscar turmas
 $filtrosTurma = ['ativo' => 1];
-// Se for gestor, forçar filtro pela escola dele
-if ($_SESSION['tipo'] === 'GESTAO' && $escolaGestorId) {
-    $filtrosTurma['escola_id'] = $escolaGestorId;
-    error_log("DEBUG TURMAS - Filtro escola_id para gestor: " . $escolaGestorId);
+// Se for gestor, forçar filtro pela escola selecionada
+if ($_SESSION['tipo'] === 'GESTAO') {
+    // Priorizar escola selecionada na sessão
+    $escolaIdTurmas = $_SESSION['escola_selecionada_id'] ?? $_SESSION['escola_id'] ?? $escolaGestorId ?? null;
+    if ($escolaIdTurmas) {
+        $filtrosTurma['escola_id'] = $escolaIdTurmas;
+        error_log("DEBUG TURMAS - Filtro escola_id para gestor: " . $escolaIdTurmas);
+    }
 } elseif (!empty($_GET['escola_id'])) {
     // Admin pode filtrar por escola específica
     $filtrosTurma['escola_id'] = $_GET['escola_id'];
@@ -1170,8 +1273,9 @@ function buscarProfessoresComAtribuicoes($escolaId = null) {
 
 // Filtrar professores pela escola do gestor se necessário
 $escolaIdProfessores = null;
-if ($_SESSION['tipo'] === 'GESTAO' && $escolaGestorId) {
-    $escolaIdProfessores = $escolaGestorId;
+if ($_SESSION['tipo'] === 'GESTAO') {
+    // Priorizar escola selecionada na sessão
+    $escolaIdProfessores = $_SESSION['escola_selecionada_id'] ?? $_SESSION['escola_id'] ?? $escolaGestorId ?? null;
 } elseif (!empty($_GET['escola_id'])) {
     $escolaIdProfessores = $_GET['escola_id'];
 }
@@ -1283,8 +1387,9 @@ function buscarEstatisticasAcompanhamento($turmaId = null, $escolaId = null) {
 $filtroTurmaAcompanhamento = !empty($_GET['turma_acompanhamento']) ? $_GET['turma_acompanhamento'] : null;
 // Filtrar acompanhamento acadêmico pela escola do gestor se necessário
 $escolaIdAcompanhamento = null;
-if ($_SESSION['tipo'] === 'GESTAO' && $escolaGestorId) {
-    $escolaIdAcompanhamento = $escolaGestorId;
+if ($_SESSION['tipo'] === 'GESTAO') {
+    // Priorizar escola selecionada na sessão
+    $escolaIdAcompanhamento = $_SESSION['escola_selecionada_id'] ?? $_SESSION['escola_id'] ?? $escolaGestorId ?? null;
 } elseif (!empty($_GET['escola_id'])) {
     $escolaIdAcompanhamento = $_GET['escola_id'];
 }
@@ -1885,39 +1990,75 @@ if (!defined('BASE_URL')) {
                                         </svg>
                                         <span class="text-sm font-semibold">
                                             <?php 
-                                            if (!empty($escolaGestor)) {
-                                                echo htmlspecialchars($escolaGestor);
+                                            // Priorizar escola da sessão, depois variável, depois buscar
+                                            $escolaNomeExibir = $_SESSION['escola_selecionada_nome'] ?? $_SESSION['escola_atual'] ?? $escolaGestor ?? null;
+                                            
+                                            if (!empty($escolaNomeExibir)) {
+                                                echo htmlspecialchars($escolaNomeExibir);
                                             } else {
-                                                // Debug: tentar buscar diretamente
-                                                $usuarioIdDebug = $_SESSION['usuario_id'] ?? null;
-                                                if ($usuarioIdDebug) {
+                                                // Se ainda não tem, buscar da sessão escola_id
+                                                $escolaIdSessao = $_SESSION['escola_selecionada_id'] ?? $_SESSION['escola_id'] ?? null;
+                                                if ($escolaIdSessao) {
                                                     try {
-                                                        $sqlDebug = "SELECT e.nome as escola_nome
-                                                                     FROM gestor g
-                                                                     INNER JOIN usuario u ON g.pessoa_id = u.pessoa_id
-                                                                     INNER JOIN gestor_lotacao gl ON g.id = gl.gestor_id
-                                                                     INNER JOIN escola e ON gl.escola_id = e.id
-                                                                     WHERE u.id = :usuario_id AND g.ativo = 1
-                                                                     ORDER BY gl.id DESC
-                                                                     LIMIT 1";
-                                                        $stmtDebug = $conn->prepare($sqlDebug);
-                                                        $stmtDebug->bindParam(':usuario_id', $usuarioIdDebug);
-                                                        $stmtDebug->execute();
-                                                        $resultDebug = $stmtDebug->fetch(PDO::FETCH_ASSOC);
-                                                        if ($resultDebug && !empty($resultDebug['escola_nome'])) {
-                                                            echo htmlspecialchars($resultDebug['escola_nome']);
-                                                            error_log("DEBUG HEADER - Escola encontrada diretamente: " . $resultDebug['escola_nome']);
+                                                        $sqlBuscarNome = "SELECT nome FROM escola WHERE id = :escola_id AND ativo = 1 LIMIT 1";
+                                                        $stmtBuscarNome = $conn->prepare($sqlBuscarNome);
+                                                        $stmtBuscarNome->bindParam(':escola_id', $escolaIdSessao, PDO::PARAM_INT);
+                                                        $stmtBuscarNome->execute();
+                                                        $resultNome = $stmtBuscarNome->fetch(PDO::FETCH_ASSOC);
+                                                        if ($resultNome && !empty($resultNome['nome'])) {
+                                                            echo htmlspecialchars($resultNome['nome']);
+                                                            // Atualizar variáveis e sessão
+                                                            $escolaGestor = $resultNome['nome'];
+                                                            $escolaGestorId = (int)$escolaIdSessao;
+                                                            $_SESSION['escola_selecionada_nome'] = $resultNome['nome'];
+                                                            $_SESSION['escola_atual'] = $resultNome['nome'];
                                                         } else {
                                                             echo 'Escola não encontrada';
-                                                            error_log("DEBUG HEADER - Nenhuma escola encontrada para usuario_id: " . $usuarioIdDebug);
                                                         }
                                                     } catch (Exception $e) {
                                                         echo 'Erro ao buscar escola';
                                                         error_log("DEBUG HEADER - Erro: " . $e->getMessage());
                                                     }
                                                 } else {
-                                                    echo 'Escola Municipal';
-                                                    error_log("DEBUG HEADER - usuario_id é NULL");
+                                                    // Última tentativa: buscar qualquer escola do gestor
+                                                    $usuarioIdDebug = $_SESSION['usuario_id'] ?? null;
+                                                    if ($usuarioIdDebug) {
+                                                        try {
+                                                            $sqlDebug = "SELECT e.nome as escola_nome, e.id as escola_id
+                                                                         FROM gestor g
+                                                                         INNER JOIN usuario u ON g.pessoa_id = u.pessoa_id
+                                                                         INNER JOIN gestor_lotacao gl ON g.id = gl.gestor_id
+                                                                         INNER JOIN escola e ON gl.escola_id = e.id
+                                                                         WHERE u.id = :usuario_id AND g.ativo = 1 AND e.ativo = 1
+                                                                         AND (gl.fim IS NULL OR gl.fim = '' OR gl.fim = '0000-00-00' OR gl.fim >= CURDATE())
+                                                                         ORDER BY gl.responsavel DESC, gl.inicio DESC
+                                                                         LIMIT 1";
+                                                            $stmtDebug = $conn->prepare($sqlDebug);
+                                                            $stmtDebug->bindParam(':usuario_id', $usuarioIdDebug);
+                                                            $stmtDebug->execute();
+                                                            $resultDebug = $stmtDebug->fetch(PDO::FETCH_ASSOC);
+                                                            if ($resultDebug && !empty($resultDebug['escola_nome'])) {
+                                                                echo htmlspecialchars($resultDebug['escola_nome']);
+                                                                // Atualizar variáveis e sessão
+                                                                $escolaGestor = $resultDebug['escola_nome'];
+                                                                $escolaGestorId = (int)$resultDebug['escola_id'];
+                                                                $_SESSION['escola_selecionada_id'] = $escolaGestorId;
+                                                                $_SESSION['escola_selecionada_nome'] = $resultDebug['escola_nome'];
+                                                                $_SESSION['escola_id'] = $escolaGestorId;
+                                                                $_SESSION['escola_atual'] = $resultDebug['escola_nome'];
+                                                                error_log("DEBUG HEADER - Escola encontrada diretamente: " . $resultDebug['escola_nome']);
+                                                            } else {
+                                                                echo 'Escola não encontrada';
+                                                                error_log("DEBUG HEADER - Nenhuma escola encontrada para usuario_id: " . $usuarioIdDebug);
+                                                            }
+                                                        } catch (Exception $e) {
+                                                            echo 'Erro ao buscar escola';
+                                                            error_log("DEBUG HEADER - Erro: " . $e->getMessage());
+                                                        }
+                                                    } else {
+                                                        echo 'Escola não encontrada';
+                                                        error_log("DEBUG HEADER - usuario_id é NULL");
+                                                    }
                                                 }
                                             }
                                             ?>
