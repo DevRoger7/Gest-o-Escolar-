@@ -77,6 +77,58 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['acao'])) {
 $db = Database::getInstance();
 $conn = $db->getConnection();
 
+// Buscar escola selecionada da sessão (selecionada no dashboard)
+$escolaId = null;
+$escolaNome = null;
+
+// Verificar se há escola selecionada na sessão
+if (isset($_SESSION['escola_selecionada_nutricionista_id']) && !empty($_SESSION['escola_selecionada_nutricionista_id'])) {
+    $escolaId = (int)$_SESSION['escola_selecionada_nutricionista_id'];
+    $escolaNome = $_SESSION['escola_selecionada_nutricionista_nome'] ?? 'Escola não encontrada';
+    
+    // Verificar se a escola ainda existe no banco
+    try {
+        $sql = "SELECT id, nome FROM escola WHERE id = :escola_id";
+        $stmt = $conn->prepare($sql);
+        $stmt->bindParam(':escola_id', $escolaId, PDO::PARAM_INT);
+        $stmt->execute();
+        $escola = $stmt->fetch(PDO::FETCH_ASSOC);
+        
+        if ($escola) {
+            $escolaNome = $escola['nome'];
+        } else {
+            // Escola não encontrada, limpar sessão
+            unset($_SESSION['escola_selecionada_nutricionista_id']);
+            unset($_SESSION['escola_selecionada_nutricionista_nome']);
+            $escolaId = null;
+            $escolaNome = 'Nenhuma escola selecionada';
+        }
+    } catch (Exception $e) {
+        error_log("Erro ao verificar escola: " . $e->getMessage());
+    }
+} else {
+    // Se não há escola selecionada, buscar a primeira ativa
+    try {
+        $sql = "SELECT id, nome FROM escola WHERE ativo = 1 ORDER BY nome ASC LIMIT 1";
+        $stmt = $conn->query($sql);
+        $escola = $stmt->fetch(PDO::FETCH_ASSOC);
+        
+        if ($escola) {
+            $escolaId = (int)$escola['id'];
+            $escolaNome = $escola['nome'];
+            
+            // Salvar na sessão
+            $_SESSION['escola_selecionada_nutricionista_id'] = $escolaId;
+            $_SESSION['escola_selecionada_nutricionista_nome'] = $escolaNome;
+        } else {
+            $escolaNome = 'Nenhuma escola disponível';
+        }
+    } catch (Exception $e) {
+        error_log("Erro ao buscar primeira escola: " . $e->getMessage());
+        $escolaNome = 'Erro ao carregar escola';
+    }
+}
+
 $sqlEscolas = "SELECT id, nome FROM escola WHERE ativo = 1 ORDER BY nome ASC";
 $stmtEscolas = $conn->prepare($sqlEscolas);
 $stmtEscolas->execute();
@@ -139,11 +191,9 @@ $pedidos = $stmtPedidos->fetchAll(PDO::FETCH_ASSOC);
                         <h1 class="text-xl font-semibold text-gray-800">Meus Pedidos</h1>
                     </div>
                     <div class="flex items-center space-x-4">
-                        <div class="hidden lg:block">
-                            <div class="text-right px-4 py-2">
-                                <p class="text-sm font-medium text-gray-800">Secretaria Municipal da Educação</p>
-                                <p class="text-xs text-gray-500">Órgão Central</p>
-                            </div>
+                        <!-- Mostrar apenas o nome da escola selecionada (sem dropdown) -->
+                        <div class="bg-primary-green text-white px-5 py-2.5 rounded-lg shadow-md text-sm font-semibold">
+                            <span><?= htmlspecialchars($escolaNome ?? 'Nenhuma escola selecionada') ?></span>
                         </div>
                     </div>
                 </div>
