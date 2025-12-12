@@ -526,6 +526,124 @@ if (($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['acao'])) ||
         }
         exit;
     }
+    
+    if ($_POST['acao'] === 'lotar_professor') {
+        try {
+            $professorId = $_POST['professor_id'] ?? null;
+            $escolaId = $_POST['escola_id'] ?? null;
+            $dataInicio = $_POST['data_inicio'] ?? null;
+            $cargaHoraria = !empty($_POST['carga_horaria']) ? (int)$_POST['carga_horaria'] : null;
+            $observacao = !empty($_POST['observacao']) ? trim($_POST['observacao']) : null;
+            
+            if (empty($professorId) || empty($escolaId) || empty($dataInicio)) {
+                throw new Exception('Professor, escola e data de início são obrigatórios.');
+            }
+            
+            // Verificar se o professor já está lotado na escola (lotação ativa)
+            $sqlVerificar = "SELECT id FROM professor_lotacao 
+                            WHERE professor_id = :professor_id 
+                            AND escola_id = :escola_id 
+                            AND fim IS NULL";
+            $stmtVerificar = $conn->prepare($sqlVerificar);
+            $stmtVerificar->bindParam(':professor_id', $professorId, PDO::PARAM_INT);
+            $stmtVerificar->bindParam(':escola_id', $escolaId, PDO::PARAM_INT);
+            $stmtVerificar->execute();
+            
+            if ($stmtVerificar->fetch()) {
+                throw new Exception('Professor já está lotado nesta escola.');
+            }
+            
+            $conn->beginTransaction();
+            
+            // Inserir nova lotação
+            $sqlLotacao = "INSERT INTO professor_lotacao (professor_id, escola_id, inicio, carga_horaria, observacao, criado_em) 
+                          VALUES (:professor_id, :escola_id, :inicio, :carga_horaria, :observacao, NOW())";
+            $stmtLotacao = $conn->prepare($sqlLotacao);
+            $stmtLotacao->bindParam(':professor_id', $professorId, PDO::PARAM_INT);
+            $stmtLotacao->bindParam(':escola_id', $escolaId, PDO::PARAM_INT);
+            $stmtLotacao->bindParam(':inicio', $dataInicio);
+            $stmtLotacao->bindParam(':carga_horaria', $cargaHoraria, PDO::PARAM_INT);
+            $stmtLotacao->bindParam(':observacao', $observacao);
+            $stmtLotacao->execute();
+            
+            $conn->commit();
+            
+            echo json_encode([
+                'success' => true,
+                'message' => 'Professor lotado com sucesso!'
+            ], JSON_UNESCAPED_UNICODE);
+        } catch (Exception $e) {
+            if ($conn->inTransaction()) {
+                $conn->rollBack();
+            }
+            error_log("Erro ao lotar professor: " . $e->getMessage());
+            echo json_encode([
+                'success' => false,
+                'message' => $e->getMessage()
+            ], JSON_UNESCAPED_UNICODE);
+        }
+        exit;
+    }
+    
+    if ($_POST['acao'] === 'remover_lotacao') {
+        try {
+            $professorId = $_POST['professor_id'] ?? null;
+            $escolaId = $_POST['escola_id'] ?? null;
+            
+            if (empty($professorId) || empty($escolaId)) {
+                throw new Exception('ID do professor e da escola são obrigatórios.');
+            }
+            
+            // Verificar se a lotação existe e está ativa
+            $sqlVerificar = "SELECT id FROM professor_lotacao 
+                            WHERE professor_id = :professor_id 
+                            AND escola_id = :escola_id 
+                            AND fim IS NULL";
+            $stmtVerificar = $conn->prepare($sqlVerificar);
+            $stmtVerificar->bindParam(':professor_id', $professorId, PDO::PARAM_INT);
+            $stmtVerificar->bindParam(':escola_id', $escolaId, PDO::PARAM_INT);
+            $stmtVerificar->execute();
+            $lotacao = $stmtVerificar->fetch(PDO::FETCH_ASSOC);
+            
+            if (!$lotacao) {
+                throw new Exception('Lotação não encontrada ou já foi removida.');
+            }
+            
+            $conn->beginTransaction();
+            
+            // Finalizar a lotação (definir data de fim como hoje)
+            $sqlRemover = "UPDATE professor_lotacao 
+                          SET fim = CURDATE() 
+                          WHERE professor_id = :professor_id 
+                          AND escola_id = :escola_id 
+                          AND fim IS NULL";
+            $stmtRemover = $conn->prepare($sqlRemover);
+            $stmtRemover->bindParam(':professor_id', $professorId, PDO::PARAM_INT);
+            $stmtRemover->bindParam(':escola_id', $escolaId, PDO::PARAM_INT);
+            $stmtRemover->execute();
+            
+            if ($stmtRemover->rowCount() === 0) {
+                throw new Exception('Erro ao remover lotação. Nenhuma lotação foi atualizada.');
+            }
+            
+            $conn->commit();
+            
+            echo json_encode([
+                'success' => true,
+                'message' => 'Lotação removida com sucesso!'
+            ], JSON_UNESCAPED_UNICODE);
+        } catch (Exception $e) {
+            if ($conn->inTransaction()) {
+                $conn->rollBack();
+            }
+            error_log("Erro ao remover lotação: " . $e->getMessage());
+            echo json_encode([
+                'success' => false,
+                'message' => $e->getMessage()
+            ], JSON_UNESCAPED_UNICODE);
+        }
+        exit;
+    }
     }
     
     // Processar requisições GET AJAX
@@ -1965,15 +2083,15 @@ $professores = $stmtProfessores->fetchAll(PDO::FETCH_ASSOC);
                     throw new Error(`HTTP error! status: ${response.status}`);
                 }
                 
-                const text = await response.text();
-                let data;
-                
-                try {
-                    data = JSON.parse(text);
-                } catch (parseError) {
-                    console.error('Resposta não é JSON válido:', text.substring(0, 200));
-                    throw new Error('Resposta do servidor não é JSON válido. Verifique o console para mais detalhes.');
+                // Verificar se a resposta é JSON (mesma lógica da página de diagnóstico)
+                const contentType = response.headers.get('content-type');
+                if (!contentType || !contentType.includes('application/json')) {
+                    const text = await response.text();
+                    console.error('Resposta não é JSON:', text.substring(0, 500));
+                    throw new Error('Resposta do servidor não é válida. O servidor retornou HTML em vez de JSON. Verifique o console para mais detalhes.');
                 }
+                
+                const data = await response.json();
                 
                 if (!data.success || !data.professor) {
                     alert('Erro ao carregar dados do professor: ' + (data.message || 'Professor não encontrado'));
@@ -2046,15 +2164,15 @@ $professores = $stmtProfessores->fetchAll(PDO::FETCH_ASSOC);
                     throw new Error(`HTTP error! status: ${response.status}`);
                 }
                 
-                const text = await response.text();
-                let data;
-                
-                try {
-                    data = JSON.parse(text);
-                } catch (parseError) {
-                    console.error('Resposta não é JSON válido:', text);
-                    throw new Error('Resposta do servidor não é JSON válido');
+                // Verificar se a resposta é JSON (mesma lógica da página de diagnóstico)
+                const contentType = response.headers.get('content-type');
+                if (!contentType || !contentType.includes('application/json')) {
+                    const text = await response.text();
+                    console.error('Resposta não é JSON:', text.substring(0, 500));
+                    throw new Error('Resposta do servidor não é válida. O servidor retornou HTML em vez de JSON. Verifique o console para mais detalhes.');
                 }
+                
+                const data = await response.json();
                 
                 const container = document.getElementById('lotacoes-atuais-container');
                 const lista = document.getElementById('lista-lotacoes');
@@ -2111,12 +2229,12 @@ $professores = $stmtProfessores->fetchAll(PDO::FETCH_ASSOC);
                     body: formData
                 });
                 
-                // Verificar se a resposta é JSON
+                // Verificar se a resposta é JSON (mesma lógica da página de diagnóstico)
                 const contentType = response.headers.get('content-type');
                 if (!contentType || !contentType.includes('application/json')) {
                     const text = await response.text();
-                    console.error('Resposta não é JSON:', text.substring(0, 200));
-                    throw new Error('Resposta do servidor não é válida. Por favor, tente novamente.');
+                    console.error('Resposta não é JSON:', text.substring(0, 500));
+                    throw new Error('Resposta do servidor não é válida. O servidor retornou HTML em vez de JSON. Verifique o console para mais detalhes.');
                 }
                 
                 const data = await response.json();

@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1
--- Tempo de geração: 12/12/2025 às 02:17
+-- Tempo de geração: 12/12/2025 às 14:00
 -- Versão do servidor: 10.4.32-MariaDB
 -- Versão do PHP: 8.2.12
 
@@ -1306,7 +1306,8 @@ INSERT INTO `password_reset_tokens` (`id`, `usuario_id`, `token`, `email`, `expi
 (1, 8, 'c45a5968df80ab6a1f82a9538178eb1389fe8cb791e5c875a32a29f8103f5d54', 'gestor.teste@sigae.com', '2025-12-02 04:01:42', 1, '2025-12-01 03:01:42'),
 (2, 8, '0d30ccbc3111273eac40e711804eaadcb994a2cd4d006a3da15b31c209269a8c', 'gestor.teste@sigae.com', '2025-12-02 04:04:08', 1, '2025-12-01 03:04:08'),
 (3, 8, 'dd5b3610eae2ab0e20d79d9ca65e304c0def53a8aa6e0af5bef1d69964df6f8a', 'gestor.teste@sigae.com', '2025-12-02 04:30:21', 1, '2025-12-01 03:30:21'),
-(4, 8, '6c6c8de7bfb84ef7135960521ffe712c4ab8ac051e674bcb6b0a60507d2a21f2', 'gestor.teste@sigae.com', '2025-12-02 04:30:25', 0, '2025-12-01 03:30:25');
+(4, 8, '6c6c8de7bfb84ef7135960521ffe712c4ab8ac051e674bcb6b0a60507d2a21f2', 'gestor.teste@sigae.com', '2025-12-02 04:30:25', 0, '2025-12-01 03:30:25'),
+(5, 29, '2f57a54e0c95186bedc377bfa01b4b2e449e0f7e0ce17a436cb7dd770df2e8a2', 'nutricionista.teste@sigae.com', '2025-12-13 03:04:27', 1, '2025-12-12 02:04:27');
 
 -- --------------------------------------------------------
 
@@ -1848,7 +1849,7 @@ INSERT INTO `usuario` (`id`, `pessoa_id`, `username`, `senha_hash`, `role`, `ati
 (26, 41, 'otávio.ribeiro.campos', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'ALUNO', 1, 0, NULL, NULL, 0, NULL, NULL, NULL, '2025-12-01 04:11:43', '2025-12-01 04:11:43', NULL),
 (27, 42, 'paula.cristina.moreira', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'ALUNO', 1, 0, NULL, NULL, 0, NULL, NULL, NULL, '2025-12-01 04:11:43', '2025-12-01 04:11:43', NULL),
 (28, 46, 'merenda.teste', '$2y$10$t/nUJBD4VyWkx6YK5fcRAu3kaOFsMX0nZ9zWBdHvlqZQstiVAZCji', 'ADM_MERENDA', 1, 1, NULL, NULL, 0, NULL, '2025-12-10 16:35:00', NULL, '2025-12-02 00:08:28', '2025-12-10 16:35:00', NULL),
-(29, 47, 'nutricionista.teste', '1', 'NUTRICIONISTA', 1, 1, NULL, NULL, 0, NULL, NULL, NULL, '2025-12-08 13:12:49', '2025-12-08 13:12:49', NULL),
+(29, 47, 'nutricionista.teste', '$2y$10$MDKU1U5HUkVOcWh1yDOB1emNwjYG8PEYlOY0I4MDkDZ90q0y/fG1G', 'NUTRICIONISTA', 1, 1, NULL, NULL, 0, NULL, NULL, NULL, '2025-12-08 13:12:49', '2025-12-12 02:04:43', NULL),
 (30, 48, 'antoniosilva6723', '$2y$10$cL858W9Dyst4Jua46DJxLOxjqFB03IzY3eDZPTYInM21eAPsR6Kpy', 'RESPONSAVEL', 0, 0, NULL, NULL, 0, NULL, NULL, NULL, '2025-12-09 13:28:36', '2025-12-09 13:38:19', NULL),
 (31, 50, 'antoniosilva6728', '$2y$10$J/v3PtK5otOtvD13Yh7JgOlUusPhkl4nHhdbAHnONzuCetXfz1Fkq', 'RESPONSAVEL', 1, 0, NULL, NULL, 0, NULL, NULL, NULL, '2025-12-09 13:45:00', '2025-12-10 17:18:35', NULL),
 (32, 52, 'testeeeeeeeeee', '$2y$10$0gGssazv/8s8U0S94wizGuTeOOTL2539Ok9j8i8H5XkRcEPS9T2ie', 'PROFESSOR', 1, 0, NULL, NULL, 0, NULL, NULL, NULL, '2025-12-11 12:31:49', '2025-12-11 12:31:49', NULL),
@@ -2875,7 +2876,7 @@ ALTER TABLE `parecer_tecnico`
 -- AUTO_INCREMENT de tabela `password_reset_tokens`
 --
 ALTER TABLE `password_reset_tokens`
-  MODIFY `id` bigint(20) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=5;
+  MODIFY `id` bigint(20) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=6;
 
 --
 -- AUTO_INCREMENT de tabela `pedido_cesta`
