@@ -13,7 +13,6 @@ require_once('../../Models/dashboard/DashboardStats.php');
 require_once('../../Models/pessoas/FuncionarioModel.php');
 require_once('../../Models/pessoas/ResponsavelModel.php');
 require_once('../../Models/merenda/DesperdicioModel.php');
-require_once('../../Models/merenda/CardapioModel.php');
 
 $session = new sessions();
 $session->autenticar_session();
@@ -33,7 +32,6 @@ $funcionarioModel = new FuncionarioModel();
 $responsavelModel = new ResponsavelModel();
 $stats = new DashboardStats();
 $desperdicioModel = new DesperdicioModel();
-$cardapioModel = new CardapioModel();
 
 // Buscar escola do gestor logado
 $db = Database::getInstance();
@@ -82,10 +80,8 @@ if (isset($_SESSION['tipo']) && strtoupper($_SESSION['tipo']) === 'GESTAO') {
         }
     }
     
-    // Se não encontrou escola válida na sessão, buscar do banco
     if (!$escolaGestorId && $usuarioId) {
         try {
-            // Log: Verificar se existe gestor para este usuario
             $sqlCheckGestor = "SELECT g.id as gestor_id, g.pessoa_id, g.ativo
                                FROM gestor g
                                INNER JOIN usuario u ON g.pessoa_id = u.pessoa_id
@@ -95,9 +91,7 @@ if (isset($_SESSION['tipo']) && strtoupper($_SESSION['tipo']) === 'GESTAO') {
             $stmtCheck->execute();
             $checkGestor = $stmtCheck->fetch(PDO::FETCH_ASSOC);
             error_log("DEBUG GESTOR - Check gestor: " . json_encode($checkGestor));
-            
-            // Buscar gestor através do usuario_id
-            // Query simplificada - buscar qualquer lotação recente, priorizando as sem data de fim
+
             $sqlGestor = "SELECT g.id as gestor_id, gl.escola_id, e.nome as escola_nome, gl.responsavel, gl.fim, gl.inicio
                           FROM gestor g
                           INNER JOIN usuario u ON g.pessoa_id = u.pessoa_id
@@ -120,7 +114,6 @@ if (isset($_SESSION['tipo']) && strtoupper($_SESSION['tipo']) === 'GESTAO') {
                 $escolaGestorId = (int)$gestorEscola['escola_id'];
                 $escolaGestor = $gestorEscola['escola_nome'];
                 
-                // Atualizar sessão com a escola encontrada
                 $_SESSION['escola_selecionada_id'] = $escolaGestorId;
                 $_SESSION['escola_selecionada_nome'] = $escolaGestor;
                 $_SESSION['escola_id'] = $escolaGestorId;
@@ -128,7 +121,6 @@ if (isset($_SESSION['tipo']) && strtoupper($_SESSION['tipo']) === 'GESTAO') {
                 
                 error_log("DEBUG GESTOR - Escola encontrada (Query 1): ID=" . $escolaGestorId . ", Nome=" . $escolaGestor);
             } else {
-                // Tentar buscar sem a condição de fim (caso o campo esteja com valor diferente)
                 $sqlGestor2 = "SELECT g.id as gestor_id, gl.escola_id, e.nome as escola_nome, gl.responsavel, gl.fim, gl.inicio
                                FROM gestor g
                                INNER JOIN usuario u ON g.pessoa_id = u.pessoa_id
@@ -144,7 +136,6 @@ if (isset($_SESSION['tipo']) && strtoupper($_SESSION['tipo']) === 'GESTAO') {
                 error_log("DEBUG GESTOR - Query 2 resultado: " . json_encode($gestorEscola2));
                 
                 if ($gestorEscola2) {
-                    // Verificar se a lotação está realmente ativa (fim é NULL ou data futura)
                     $fimLotacao = $gestorEscola2['fim'];
                     $lotacaoAtiva = ($fimLotacao === null || $fimLotacao === '' || $fimLotacao === '0000-00-00' || strtotime($fimLotacao) >= strtotime('today'));
                     error_log("DEBUG GESTOR - Fim lotação: " . var_export($fimLotacao, true) . ", Ativa: " . ($lotacaoAtiva ? 'SIM' : 'NÃO'));
@@ -1141,45 +1132,6 @@ if (!empty($_GET['acao']) && $_GET['acao'] === 'buscar_alunos' && !empty($_GET['
     exit;
 }
 
-// Buscar cardápios da escola (AJAX)
-if (!empty($_GET['acao']) && $_GET['acao'] === 'buscar_cardapios' && !empty($_GET['escola_id'])) {
-    header('Content-Type: application/json');
-    
-    if ($_SESSION['tipo'] === 'GESTAO' && $escolaGestorId && $_GET['escola_id'] == $escolaGestorId) {
-        $filtros = [
-            'escola_id' => $escolaGestorId,
-            'mes' => $_GET['mes'] ?? null,
-            'ano' => $_GET['ano'] ?? null,
-            'status' => $_GET['status'] ?? null
-        ];
-        
-        $cardapios = $cardapioModel->listar($filtros);
-        echo json_encode(['success' => true, 'cardapios' => $cardapios]);
-    } else {
-        echo json_encode(['success' => false, 'message' => 'Acesso não autorizado']);
-    }
-    exit;
-}
-
-// Buscar detalhes de um cardápio (AJAX)
-if (!empty($_GET['acao']) && $_GET['acao'] === 'buscar_cardapio' && !empty($_GET['id'])) {
-    header('Content-Type: application/json');
-    
-    if ($_SESSION['tipo'] === 'GESTAO' && $escolaGestorId) {
-        $cardapio = $cardapioModel->buscarPorId($_GET['id']);
-        
-        // Verificar se o cardápio pertence à escola do gestor
-        if ($cardapio && $cardapio['escola_id'] == $escolaGestorId) {
-            echo json_encode(['success' => true, 'cardapio' => $cardapio]);
-        } else {
-            echo json_encode(['success' => false, 'message' => 'Cardápio não encontrado ou acesso não autorizado']);
-        }
-    } else {
-        echo json_encode(['success' => false, 'message' => 'Acesso não autorizado']);
-    }
-    exit;
-}
-
 // Buscar dados
 $db = Database::getInstance();
 $conn = $db->getConnection();
@@ -1855,6 +1807,22 @@ if (!defined('BASE_URL')) {
         .animate-slide-in {
             animation: slide-in 0.3s ease-out;
         }
+        
+        /* Corrigir setas duplicadas em selects */
+        select {
+            appearance: none;
+            -webkit-appearance: none;
+            -moz-appearance: none;
+            background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3E%3Cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 0.5rem center;
+            background-size: 1.5em 1.5em;
+            padding-right: 2.5rem;
+        }
+        
+        select:focus {
+            background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3E%3Cpath stroke='%23059669' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3E%3C/svg%3E");
+        }
     </style>
 </head>
 <body class="bg-gray-50">
@@ -1865,90 +1833,7 @@ if (!defined('BASE_URL')) {
     <?php if (isset($_SESSION['tipo']) && strtoupper($_SESSION['tipo']) === 'ADM') { ?>
         <?php include('components/sidebar_adm.php'); ?>
     <?php } else { ?>
-        <!-- Sidebar padrão para GESTAO -->
-        <aside id="sidebar" class="fixed left-0 top-0 h-full w-64 bg-white shadow-lg sidebar-transition z-50 lg:translate-x-0 sidebar-mobile flex flex-col">
-            <div class="p-6 border-b border-gray-200">
-                <div class="flex items-center space-x-3">
-                    <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/1/19/Bras%C3%A3o_de_Maranguape.png/250px-Bras%C3%A3o_de_Maranguape.png" alt="Brasão de Maranguape" class="w-10 h-10 object-contain">
-                    <div>
-                        <h1 class="text-lg font-bold text-gray-800">SIGEA</h1>
-                        <p class="text-xs text-gray-500">Gestão Escolar</p>
-                    </div>
-                </div>
-            </div>
-            <div class="p-4 border-b border-gray-200">
-                <div class="flex items-center space-x-3">
-                    <div class="w-10 h-10 bg-primary-green rounded-full flex items-center justify-center flex-shrink-0" style="aspect-ratio: 1; min-width: 2.5rem; min-height: 2.5rem; overflow: hidden;">
-                        <span class="text-sm font-bold text-white">
-                            <?php
-                            $nome = $_SESSION['nome'] ?? '';
-                            $iniciais = '';
-                            if (strlen($nome) >= 2) {
-                                $iniciais = strtoupper(substr($nome, 0, 2));
-                            } elseif (strlen($nome) == 1) {
-                                $iniciais = strtoupper($nome);
-                            } else {
-                                $iniciais = 'US';
-                            }
-                            echo $iniciais;
-                            ?>
-                        </span>
-                    </div>
-                    <div>
-                        <p class="text-sm font-medium text-gray-800"><?= $_SESSION['nome'] ?? 'Usuário' ?></p>
-                        <p class="text-xs text-gray-500"><?= $_SESSION['tipo'] ?? 'Gestão' ?></p>
-                    </div>
-                </div>
-            </div>
-            <nav class="p-4 overflow-y-auto flex-1" style="max-height: calc(100vh - 200px);">
-                <ul class="space-y-2">
-                    <li>
-                        <a href="dashboard.php" class="menu-item flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700 <?= basename($_SERVER['PHP_SELF']) === 'dashboard.php' ? 'active' : '' ?>">
-                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"></path>
-                            </svg>
-                            <span>Dashboard</span>
-                        </a>
-                    </li>
-                    <li>
-                        <a href="gestao_escolar.php" class="menu-item flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700 <?= basename($_SERVER['PHP_SELF']) === 'gestao_escolar.php' ? 'active' : '' ?>">
-                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"></path>
-                            </svg>
-                            <span>Gestão Escolar</span>
-                        </a>
-                    </li>
-                    <?php if ($_SESSION['tipo'] === 'GESTAO' && $escolaGestorId): ?>
-                    <li>
-                        <a href="gestao_escolar.php?aba=cardapio" class="menu-item flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700 <?= (basename($_SERVER['PHP_SELF']) === 'gestao_escolar.php' && isset($_GET['aba']) && $_GET['aba'] === 'cardapio') ? 'active' : '' ?>">
-                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"></path>
-                            </svg>
-                            <span>Cardápio</span>
-                        </a>
-                    </li>
-                    <li>
-                        <a href="gestao_escolar.php?acao=abrir_desperdicio" class="menu-item flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700">
-                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
-                            </svg>
-                            <span>Registrar Desperdício</span>
-                        </a>
-                    </li>
-                    <?php endif; ?>
-                </ul>
-            </nav>
-            
-            <!-- Logout Button -->
-            <div class="absolute bottom-0 left-0 right-0 p-4 border-t border-gray-200 bg-white">
-                <button onclick="window.confirmLogout()" class="w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-red-600 hover:bg-red-50 transition-colors">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path>
-                    </svg>
-                    <span>Sair</span>
-                </button>
-            </div>
-        </aside>
+        <?php include('components/sidebar_gestao.php'); ?>
     <?php } ?>
     
     <main class="content-transition ml-0 lg:ml-64 min-h-screen">
@@ -2120,11 +2005,6 @@ if (!defined('BASE_URL')) {
                 <button onclick="mostrarAba('relatorios')" id="tab-relatorios" class="tab-button py-4 px-1 border-b-2 border-transparent font-medium text-sm text-gray-500 hover:text-gray-700 hover:border-gray-300">
                     Relatórios
                 </button>
-                <?php if ($_SESSION['tipo'] === 'GESTAO' && $escolaGestorId): ?>
-                <button onclick="mostrarAba('cardapio')" id="tab-cardapio" class="tab-button py-4 px-1 border-b-2 border-transparent font-medium text-sm text-gray-500 hover:text-gray-700 hover:border-gray-300">
-                    Cardápio
-                </button>
-                <?php endif; ?>
             </nav>
         </div>
 
@@ -4289,60 +4169,6 @@ if (!defined('BASE_URL')) {
             </div>
         </div>
 
-        <?php if ($_SESSION['tipo'] === 'GESTAO' && $escolaGestorId): ?>
-        <!-- ABA: CARDÁPIO -->
-        <div id="conteudo-cardapio" class="aba-conteudo hidden">
-            <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-                <div class="flex justify-between items-center mb-6">
-                    <div>
-                        <h2 class="text-xl font-bold text-gray-800">Cardápio da Escola</h2>
-                        <p class="text-sm text-gray-600 mt-1">Visualize o cardápio da sua escola</p>
-                    </div>
-                </div>
-
-                <!-- Filtros -->
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-2">Mês</label>
-                        <select id="filtro-mes-cardapio" class="w-full px-4 py-2 border border-gray-300 rounded-lg" onchange="carregarCardapios()">
-                            <option value="">Todos</option>
-                            <option value="1">Janeiro</option>
-                            <option value="2">Fevereiro</option>
-                            <option value="3">Março</option>
-                            <option value="4">Abril</option>
-                            <option value="5">Maio</option>
-                            <option value="6">Junho</option>
-                            <option value="7">Julho</option>
-                            <option value="8">Agosto</option>
-                            <option value="9">Setembro</option>
-                            <option value="10">Outubro</option>
-                            <option value="11">Novembro</option>
-                            <option value="12">Dezembro</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-2">Ano</label>
-                        <input type="number" id="filtro-ano-cardapio" value="<?= date('Y') ?>" class="w-full px-4 py-2 border border-gray-300 rounded-lg" onchange="carregarCardapios()">
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-2">Status</label>
-                        <select id="filtro-status-cardapio" class="w-full px-4 py-2 border border-gray-300 rounded-lg" onchange="carregarCardapios()">
-                            <option value="">Todos</option>
-                            <option value="RASCUNHO">Rascunho</option>
-                            <option value="ENVIADO">Enviado</option>
-                            <option value="APROVADO">Aprovado</option>
-                            <option value="REJEITADO">Rejeitado</option>
-                        </select>
-                    </div>
-                </div>
-
-                <!-- Lista de Cardápios -->
-                <div id="lista-cardapios" class="space-y-4">
-                    <div class="text-center py-8 text-gray-500">Carregando cardápios...</div>
-                </div>
-            </div>
-        </div>
-        <?php endif; ?>
     </div>
 
     <script>
@@ -6041,7 +5867,14 @@ if (!defined('BASE_URL')) {
                 document.getElementById('desperdicio-escola-id').disabled = true;
                 document.getElementById('alertaErroDesperdicio').classList.add('hidden');
                 document.getElementById('alertaSucessoDesperdicio').classList.add('hidden');
-                document.getElementById('observacao-desperdicio-container').classList.add('hidden');
+                
+                // Resetar campo de observação
+                const observacaoContainer = document.getElementById('observacao-desperdicio-container');
+                const observacaoInput = document.getElementById('desperdicio-observacoes-outros');
+                observacaoContainer.classList.add('hidden');
+                observacaoInput.removeAttribute('required');
+                observacaoInput.classList.remove('border-red-300');
+                observacaoInput.value = '';
             }
         }
         
@@ -6060,10 +5893,12 @@ if (!defined('BASE_URL')) {
             
             if (motivo === 'OUTROS') {
                 container.classList.remove('hidden');
-                input.required = true;
+                input.setAttribute('required', 'required');
+                input.classList.add('border-red-300');
             } else {
                 container.classList.add('hidden');
-                input.required = false;
+                input.removeAttribute('required');
+                input.classList.remove('border-red-300');
                 input.value = '';
             }
         }
@@ -6073,12 +5908,18 @@ if (!defined('BASE_URL')) {
             const alertaSucesso = document.getElementById('alertaSucessoDesperdicio');
             const motivo = document.getElementById('desperdicio-motivo').value;
             
+            // Esconder alertas anteriores
+            alertaErro.classList.add('hidden');
+            alertaSucesso.classList.add('hidden');
+            
             // Validar observação se motivo for OUTROS
             if (motivo === 'OUTROS') {
                 const observacaoOutros = document.getElementById('desperdicio-observacoes-outros').value.trim();
                 if (!observacaoOutros) {
                     alertaErro.textContent = 'Por favor, descreva o motivo do desperdício quando selecionar "Outro".';
                     alertaErro.classList.remove('hidden');
+                    // Focar no campo de observação
+                    document.getElementById('desperdicio-observacoes-outros').focus();
                     return;
                 }
             }
@@ -6155,195 +5996,10 @@ if (!defined('BASE_URL')) {
     
     <?php if ($_SESSION['tipo'] === 'GESTAO' && $escolaGestorId): ?>
     <script>
-        // Função para carregar cardápios
-        function carregarCardapios() {
-            const mes = document.getElementById('filtro-mes-cardapio').value;
-            const ano = document.getElementById('filtro-ano-cardapio').value || new Date().getFullYear();
-            const status = document.getElementById('filtro-status-cardapio').value;
-            
-            const lista = document.getElementById('lista-cardapios');
-            lista.innerHTML = '<div class="text-center py-8 text-gray-500">Carregando...</div>';
-            
-            let url = `?acao=buscar_cardapios&escola_id=<?= $escolaGestorId ?>`;
-            if (mes) url += `&mes=${mes}`;
-            if (ano) url += `&ano=${ano}`;
-            if (status) url += `&status=${status}`;
-            
-            fetch(url)
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success && data.cardapios && data.cardapios.length > 0) {
-                        renderizarCardapios(data.cardapios);
-                    } else {
-                        lista.innerHTML = '<div class="text-center py-8 text-gray-500">Nenhum cardápio encontrado</div>';
-                    }
-                })
-                .catch(error => {
-                    console.error('Erro:', error);
-                    lista.innerHTML = '<div class="text-center py-8 text-red-500">Erro ao carregar cardápios</div>';
-                });
-        }
-        
-        function renderizarCardapios(cardapios) {
-            const lista = document.getElementById('lista-cardapios');
-            const meses = ['', 'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
-            
-            lista.innerHTML = cardapios.map(cardapio => {
-                const statusClass = {
-                    'RASCUNHO': 'bg-yellow-100 text-yellow-800',
-                    'ENVIADO': 'bg-blue-100 text-blue-800',
-                    'APROVADO': 'bg-green-100 text-green-800',
-                    'REJEITADO': 'bg-red-100 text-red-800'
-                }[cardapio.status] || 'bg-gray-100 text-gray-800';
-                
-                return `
-                    <div class="bg-white border border-gray-200 rounded-lg p-6 hover:shadow-md transition-shadow">
-                        <div class="flex justify-between items-start">
-                            <div>
-                                <h3 class="text-lg font-semibold text-gray-900">${meses[cardapio.mes] || cardapio.mes}/${cardapio.ano}</h3>
-                                <p class="text-sm text-gray-600 mt-1">${cardapio.escola_nome || 'Escola'}</p>
-                                <p class="text-xs text-gray-500 mt-1">Criado por: ${cardapio.criado_por_nome || 'N/A'}</p>
-                            </div>
-                            <div class="flex items-center space-x-3">
-                                <span class="px-3 py-1 rounded-full text-xs font-medium ${statusClass}">
-                                    ${cardapio.status || 'RASCUNHO'}
-                                </span>
-                                <button onclick="verDetalhesCardapio(${cardapio.id})" class="text-primary-green hover:text-green-700 font-medium text-sm">
-                                    Ver Detalhes
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                `;
-            }).join('');
-        }
-        
-        function verDetalhesCardapio(id) {
-            fetch(`?acao=buscar_cardapio&id=${id}`)
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success && data.cardapio) {
-                        mostrarModalDetalhesCardapio(data.cardapio);
-                    } else {
-                        alert('Erro ao carregar detalhes do cardápio');
-                    }
-                })
-                .catch(error => {
-                    console.error('Erro:', error);
-                    alert('Erro ao carregar detalhes do cardápio');
-                });
-        }
-        
-        function mostrarModalDetalhesCardapio(cardapio) {
-            const meses = ['', 'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
-            const statusClass = {
-                'RASCUNHO': 'bg-yellow-100 text-yellow-800',
-                'ENVIADO': 'bg-blue-100 text-blue-800',
-                'APROVADO': 'bg-green-100 text-green-800',
-                'REJEITADO': 'bg-red-100 text-red-800'
-            }[cardapio.status] || 'bg-gray-100 text-gray-800';
-            
-            const itensHtml = cardapio.itens && cardapio.itens.length > 0 
-                ? cardapio.itens.map(item => `
-                    <tr class="border-b border-gray-200">
-                        <td class="px-4 py-3">${item.produto_nome || '-'}</td>
-                        <td class="px-4 py-3">${item.quantidade || '-'} ${item.unidade_medida || ''}</td>
-                        <td class="px-4 py-3">${item.observacoes || '-'}</td>
-                    </tr>
-                `).join('')
-                : '<tr><td colspan="3" class="px-4 py-3 text-center text-gray-500">Nenhum item cadastrado</td></tr>';
-            
-            const modalHtml = `
-                <div id="modalDetalhesCardapio" class="fixed inset-0 bg-black bg-opacity-50 z-[70] flex items-center justify-center p-4">
-                    <div class="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
-                        <div class="bg-primary-green text-white p-6 flex justify-between items-center sticky top-0">
-                            <h3 class="text-2xl font-bold">Detalhes do Cardápio</h3>
-                            <button onclick="fecharModalDetalhesCardapio()" class="text-white hover:text-gray-200">
-                                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-                                </svg>
-                            </button>
-                        </div>
-                        <div class="p-6">
-                            <div class="mb-6">
-                                <div class="grid grid-cols-2 gap-4 mb-4">
-                                    <div>
-                                        <label class="text-sm font-medium text-gray-700">Período</label>
-                                        <p class="text-gray-900">${meses[cardapio.mes] || cardapio.mes}/${cardapio.ano}</p>
-                                    </div>
-                                    <div>
-                                        <label class="text-sm font-medium text-gray-700">Status</label>
-                                        <span class="px-3 py-1 rounded-full text-xs font-medium ${statusClass}">
-                                            ${cardapio.status || 'RASCUNHO'}
-                                        </span>
-                                    </div>
-                                    <div>
-                                        <label class="text-sm font-medium text-gray-700">Escola</label>
-                                        <p class="text-gray-900">${cardapio.escola_nome || '-'}</p>
-                                    </div>
-                                    <div>
-                                        <label class="text-sm font-medium text-gray-700">Criado por</label>
-                                        <p class="text-gray-900">${cardapio.criado_por_nome || 'N/A'}</p>
-                                    </div>
-                                </div>
-                            </div>
-                            <div>
-                                <h4 class="text-lg font-semibold mb-4">Itens do Cardápio</h4>
-                                <table class="w-full">
-                                    <thead class="bg-gray-50">
-                                        <tr>
-                                            <th class="px-4 py-3 text-left text-sm font-medium text-gray-700">Produto</th>
-                                            <th class="px-4 py-3 text-left text-sm font-medium text-gray-700">Quantidade</th>
-                                            <th class="px-4 py-3 text-left text-sm font-medium text-gray-700">Observações</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        ${itensHtml}
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
-                        <div class="bg-gray-50 p-6 flex justify-end">
-                            <button onclick="fecharModalDetalhesCardapio()" class="px-6 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700">
-                                Fechar
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            `;
-            
-            document.body.insertAdjacentHTML('beforeend', modalHtml);
-        }
-        
-        function fecharModalDetalhesCardapio() {
-            const modal = document.getElementById('modalDetalhesCardapio');
-            if (modal) {
-                modal.remove();
-            }
-        }
-        
-        // Carregar cardápios ao mostrar a aba
-        const originalMostrarAba = mostrarAba;
-        mostrarAba = function(aba) {
-            originalMostrarAba(aba);
-            if (aba === 'cardapio') {
-                carregarCardapios();
-            }
-        };
-        
-        // Verificar se deve abrir aba de cardápio ou modal de desperdício ao carregar a página
+        // Verificar se deve abrir modal de desperdício ao carregar a página
         window.addEventListener('load', function() {
             const urlParams = new URLSearchParams(window.location.search);
-            const aba = urlParams.get('aba');
             const acao = urlParams.get('acao');
-            
-            if (aba === 'cardapio') {
-                setTimeout(() => {
-                    if (typeof mostrarAba === 'function') {
-                        mostrarAba('cardapio');
-                    }
-                }, 200);
-            }
             
             if (acao === 'abrir_desperdicio') {
                 setTimeout(() => {
@@ -6432,8 +6088,8 @@ if (!defined('BASE_URL')) {
                         </div>
                     </div>
                     <div id="observacao-desperdicio-container" class="hidden">
-                        <label class="block text-sm font-medium text-gray-700 mb-2">Observação (Motivo "Outro") *</label>
-                        <textarea id="desperdicio-observacoes-outros" rows="3" placeholder="Descreva o motivo do desperdício..." required
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Observação (Motivo "Outro") <span class="text-red-500">*</span></label>
+                        <textarea id="desperdicio-observacoes-outros" rows="3" placeholder="Descreva o motivo do desperdício..."
                                   class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent"></textarea>
                     </div>
                     <div>
