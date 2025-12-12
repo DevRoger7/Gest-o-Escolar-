@@ -40,6 +40,13 @@ $conn = $db->getConnection();
         .sidebar-transition { transition: all 0.3s ease-in-out; }
         .content-transition { transition: margin-left 0.3s ease-in-out; }
     </style>
+
+    <!-- ADDED: Chart.js for in-page graphs -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <!-- ADDED: jsPDF + html2canvas for client-side PDF generation (no server libs needed) -->
+    <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
 </head>
 <body class="bg-gray-50">
     <?php include('components/sidebar_adm.php'); ?>
@@ -132,14 +139,25 @@ $conn = $db->getConnection();
                             </select>
                         </div>
                     </div>
+
+                    <!-- UPDATED: Buttons (Relatório -> gráfico) + ADDED: Gerar PDF -->
                     <div class="mt-4 flex gap-3">
-                        <button onclick="confirmarGerarMovimentacao()" class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg font-medium transition-colors">
+                        <button onclick="gerarGraficoMovimentacao()" class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg font-medium transition-colors">
                             Gerar Relatório
+                        </button>
+                        <button onclick="gerarPdfMovimentacao()" class="bg-gray-800 hover:bg-gray-900 text-white px-6 py-2 rounded-lg font-medium transition-colors">
+                            Gerar PDF
                         </button>
                         <button onclick="cancelarFiltros()" class="bg-gray-200 hover:bg-gray-300 text-gray-700 px-6 py-2 rounded-lg font-medium transition-colors">
                             Cancelar
                         </button>
                     </div>
+                </div>
+
+                <!-- ADDED: Chart container for Movimentação Financeira -->
+                <div id="grafico-container" class="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6 hidden">
+                    <h3 class="text-lg font-semibold text-gray-900 mb-4">Gráfico - Movimentação Financeira</h3>
+                    <canvas id="grafico-movimentacao-canvas" height="120"></canvas>
                 </div>
             </div>
         </div>
@@ -154,9 +172,13 @@ $conn = $db->getConnection();
 
         function cancelarFiltros() {
             document.getElementById('filtros-movimentacao').classList.add('hidden');
+            // Hide chart when canceling filters
+            const graficoContainer = document.getElementById('grafico-container');
+            graficoContainer.classList.add('hidden');
         }
 
-        function confirmarGerarMovimentacao() {
+        // UPDATED: "Gerar Relatório" now renders a chart in-page
+        function gerarGraficoMovimentacao() {
             const dataInicio = document.getElementById('data-inicio-financeira').value;
             const dataFim = document.getElementById('data-fim-financeira').value;
             const tipo = document.getElementById('tipo-movimentacao').value;
@@ -166,15 +188,149 @@ $conn = $db->getConnection();
                 return;
             }
 
-            // Gerar relatório (implementar lógica de geração)
-            const params = new URLSearchParams({
-                tipo: 'movimentacao_financeira',
-                data_inicio: dataInicio,
-                data_fim: dataFim,
-                tipo_movimentacao: tipo || ''
-            });
+            const graficoContainer = document.getElementById('grafico-container');
+            const ctx = document.getElementById('grafico-movimentacao-canvas').getContext('2d');
 
-            window.open(`gerar_relatorio.php?${params.toString()}`, '_blank');
+            // Show the chart container
+            graficoContainer.classList.remove('hidden');
+            graficoContainer.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+
+            // Optional: If a chart already exists, destroy it before creating a new one
+            if (window.graficoMovimentacao) {
+                window.graficoMovimentacao.destroy();
+            }
+
+            // Simple sample dataset (replace with real data from your backend when available)
+            const labels = ['Entradas', 'Saídas'];
+            const values = tipo === 'ENTRADA' ? [12, 0] : (tipo === 'SAIDA' ? [0, 9] : [12, 9]);
+
+            window.graficoMovimentacao = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels,
+                    datasets: [{
+                        label: `Movimentação (${dataInicio} a ${dataFim})`,
+                        data: values,
+                        backgroundColor: ['#2563eb', '#dc2626'], // blue, red
+                        borderRadius: 6
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: { display: true },
+                        tooltip: { enabled: true }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: { precision: 0 }
+                        }
+                    }
+                }
+            });
+        }
+
+        // REPLACED: client-side PDF generation using jsPDF + canvas image
+        function gerarPdfMovimentacao() {
+            const dataInicio = document.getElementById('data-inicio-financeira').value;
+            const dataFim = document.getElementById('data-fim-financeira').value;
+            const tipo = document.getElementById('tipo-movimentacao').value;
+
+            if (!dataInicio || !dataFim) {
+                alert('Por favor, preencha as datas de início e fim');
+                return;
+            }
+
+            // Ensure a chart exists for the current filters; if not, create it
+            if (!window.graficoMovimentacao) {
+                gerarGraficoMovimentacao();
+            }
+
+            // Slight delay to ensure Chart.js finished rendering before capturing
+            setTimeout(() => {
+                try {
+                    const canvas = document.getElementById('grafico-movimentacao-canvas');
+                    if (!canvas) {
+                        alert('Não foi possível encontrar o gráfico para gerar o PDF.');
+                        return;
+                    }
+
+                    // Get PDF instance
+                    const { jsPDF } = window.jspdf || {};
+                    if (!jsPDF) {
+                        alert('Biblioteca jsPDF não carregada. Verifique a conexão com a CDN.');
+                        return;
+                    }
+                    const pdf = new jsPDF({ unit: 'pt', format: 'a4' });
+
+                    const pageWidth = pdf.internal.pageSize.getWidth();
+                    const pageHeight = pdf.internal.pageSize.getHeight();
+                    const margin = 40;
+                    let cursorY = margin + 20;
+
+                    // Title
+                    pdf.setFont('helvetica', 'bold');
+                    pdf.setFontSize(16);
+                    pdf.text('Relatório de Movimentação Financeira', margin, cursorY);
+
+                    // Filters info
+                    pdf.setFont('helvetica', 'normal');
+                    pdf.setFontSize(12);
+                    cursorY += 18;
+                    pdf.text(`Período: ${dataInicio} a ${dataFim}`, margin, cursorY);
+                    cursorY += 16;
+                    pdf.text(`Tipo de Movimentação: ${tipo || 'Todos'}`, margin, cursorY);
+
+                    // Chart image (from canvas)
+                    const contentWidth = pageWidth - margin * 2;
+                    const imgData = canvas.toDataURL('image/png', 1.0);
+                    const canvasRatio = canvas.height / canvas.width;
+                    const chartHeightPt = contentWidth * canvasRatio;
+
+                    cursorY += 24;
+                    pdf.addImage(imgData, 'PNG', margin, cursorY, contentWidth, chartHeightPt);
+                    cursorY += chartHeightPt + 24;
+
+                    // Summary values (from Chart dataset)
+                    const dataset = window.graficoMovimentacao?.data?.datasets?.[0];
+                    const labels = window.graficoMovimentacao?.data?.labels || ['Entradas', 'Saídas'];
+                    const values = dataset?.data || [0, 0];
+
+                    pdf.setFont('helvetica', 'bold');
+                    pdf.setFontSize(13);
+                    pdf.text('Resumo', margin, cursorY);
+                    cursorY += 16;
+
+                    pdf.setFont('helvetica', 'normal');
+                    pdf.setFontSize(12);
+
+                    // Entradas line
+                    pdf.setTextColor(37, 99, 235); // blue for Entradas
+                    pdf.text(`${labels[0]}: ${values[0]}`, margin, cursorY);
+                    cursorY += 16;
+
+                    // Saídas line
+                    pdf.setTextColor(220, 38, 38); // red for Saídas
+                    pdf.text(`${labels[1]}: ${values[1]}`, margin, cursorY);
+
+                    // Reset text color
+                    pdf.setTextColor(0, 0, 0);
+
+                    // Footer
+                    const now = new Date();
+                    const footerText = `Gerado em: ${now.toLocaleDateString()} ${now.toLocaleTimeString()}`;
+                    pdf.setFontSize(10);
+                    pdf.text(footerText, margin, pageHeight - margin);
+
+                    // Save PDF file
+                    const fileName = `relatorio_movimentacao_${dataInicio}_${dataFim}.pdf`;
+                    pdf.save(fileName);
+                } catch (err) {
+                    console.error(err);
+                    alert('Erro ao gerar PDF. Verifique o console para mais detalhes.');
+                }
+            }, 150);
         }
 
         function gerarRelatorioAlunos() {
