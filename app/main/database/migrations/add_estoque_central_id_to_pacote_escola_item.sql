@@ -13,3 +13,4 @@ FOREIGN KEY (estoque_central_id)
 REFERENCES estoque_central(id) 
 ON DELETE SET NULL;
 
+

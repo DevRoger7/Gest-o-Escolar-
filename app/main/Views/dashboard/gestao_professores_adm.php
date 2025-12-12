@@ -1,32 +1,100 @@
 <?php
-require_once('../../Models/sessao/sessions.php');
-require_once('../../config/permissions_helper.php');
-require_once('../../config/Database.php');
-require_once('../../config/system_helper.php');
-
-$session = new sessions();
-$session->autenticar_session();
-$session->tempo_session();
-
-if (!eAdm()) {
-    header('Location: ../auth/login.php?erro=sem_permissao');
-    exit;
+// Iniciar output buffering para evitar problemas com headers
+if (!ob_get_level()) {
+    ob_start();
 }
 
-$db = Database::getInstance();
-$conn = $db->getConnection();
-
-// Buscar escolas
-$sqlEscolas = "SELECT id, nome FROM escola WHERE ativo = 1 ORDER BY nome ASC";
-$stmtEscolas = $conn->prepare($sqlEscolas);
-$stmtEscolas->execute();
-$escolas = $stmtEscolas->fetchAll(PDO::FETCH_ASSOC);
-
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao'])) {
-    header('Content-Type: application/json');
+// Verificar se é requisição AJAX (GET ou POST com ação) - processar ANTES de qualquer output
+if (($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['acao'])) || 
+    ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao']))) {
     
-    if ($_POST['acao'] === 'cadastrar_professor') {
-        try {
+    // Limpar TODOS os buffers
+    while (ob_get_level()) {
+        ob_end_clean();
+    }
+    ob_start();
+    
+    // Desabilitar exibição de erros ANTES de qualquer require
+    ini_set('display_errors', '0');
+    ini_set('log_errors', '1');
+    error_reporting(E_ALL);
+    
+    // Capturar qualquer output dos requires e métodos de sessão
+    ob_start();
+    require_once('../../Models/sessao/sessions.php');
+    require_once('../../config/permissions_helper.php');
+    require_once('../../config/Database.php');
+    require_once('../../config/system_helper.php');
+    ob_end_clean();
+    
+    // Capturar qualquer output dos métodos de sessão
+    // IMPORTANTE: Para requisições AJAX, não permitir redirects
+    try {
+        ob_start();
+        $session = new sessions();
+        
+        // Verificar autenticação manualmente para AJAX (sem redirects)
+        if (!isset($_SESSION['logado']) || $_SESSION['logado'] !== true) {
+            ob_end_clean();
+            ob_clean();
+            if (!headers_sent()) {
+                header('Content-Type: application/json; charset=utf-8');
+            }
+            echo json_encode(['success' => false, 'message' => 'Sessão não autenticada'], JSON_UNESCAPED_UNICODE);
+            exit;
+        }
+        
+        // Verificar tempo de sessão manualmente
+        $tempo_limite = 24 * 60 * 60;
+        if (isset($_SESSION['ultimo_acesso'])) {
+            $tempo_inativo = time() - $_SESSION['ultimo_acesso'];
+            if ($tempo_inativo > $tempo_limite) {
+                ob_end_clean();
+                ob_clean();
+                if (!headers_sent()) {
+                    header('Content-Type: application/json; charset=utf-8');
+                }
+                echo json_encode(['success' => false, 'message' => 'Sessão expirada'], JSON_UNESCAPED_UNICODE);
+                exit;
+            }
+        }
+        $_SESSION['ultimo_acesso'] = time();
+        
+        $output = ob_get_clean();
+        
+        // Se houver output inesperado, limpar
+        if (!empty($output)) {
+            ob_clean();
+        }
+    } catch (Exception $e) {
+        ob_end_clean();
+        ob_clean();
+        if (!headers_sent()) {
+            header('Content-Type: application/json; charset=utf-8');
+        }
+        echo json_encode(['success' => false, 'message' => 'Erro de autenticação'], JSON_UNESCAPED_UNICODE);
+        exit;
+    }
+    
+    if (!eAdm()) {
+        ob_clean();
+        if (!headers_sent()) {
+            header('Content-Type: application/json; charset=utf-8');
+        }
+        echo json_encode(['success' => false, 'message' => 'Sem permissão'], JSON_UNESCAPED_UNICODE);
+        exit;
+    }
+    
+    $db = Database::getInstance();
+    $conn = $db->getConnection();
+    
+    // Processar requisições POST AJAX
+    if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao'])) {
+        ob_clean();
+        header('Content-Type: application/json');
+        
+        if ($_POST['acao'] === 'cadastrar_professor') {
+            try {
             // Preparar dados
             $cpf = preg_replace('/[^0-9]/', '', $_POST['cpf'] ?? '');
             $telefone = preg_replace('/[^0-9]/', '', $_POST['telefone'] ?? '');
@@ -458,122 +526,178 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao'])) {
         }
         exit;
     }
-}
-
-if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['acao'])) {
-    header('Content-Type: application/json');
+    }
     
-    if ($_GET['acao'] === 'buscar_professor') {
-        try {
-            $professorId = $_GET['id'] ?? null;
-            if (empty($professorId)) {
-                echo json_encode(['success' => false, 'message' => 'ID do professor não informado']);
-                exit;
+    // Processar requisições GET AJAX
+    if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['acao'])) {
+        ob_clean();
+        if (!headers_sent()) {
+            header('Content-Type: application/json; charset=utf-8');
+            header('Cache-Control: no-cache, must-revalidate');
+        }
+        
+        if ($_GET['acao'] === 'buscar_professor') {
+            try {
+                $professorId = $_GET['id'] ?? null;
+                if (empty($professorId)) {
+                    echo json_encode(['success' => false, 'message' => 'ID do professor não informado'], JSON_UNESCAPED_UNICODE);
+                    exit;
+                }
+                
+                if (!is_numeric($professorId)) {
+                    echo json_encode(['success' => false, 'message' => 'ID do professor inválido'], JSON_UNESCAPED_UNICODE);
+                    exit;
+                }
+                
+                $professorId = (int)$professorId;
+                
+                $sql = "SELECT pr.*, p.id as pessoa_id, p.nome, p.cpf, p.email, p.telefone, p.data_nascimento, p.sexo, u.username
+                        FROM professor pr
+                        INNER JOIN pessoa p ON pr.pessoa_id = p.id
+                        LEFT JOIN usuario u ON u.pessoa_id = p.id
+                        WHERE pr.id = :id";
+                $stmt = $conn->prepare($sql);
+                $stmt->bindParam(':id', $professorId, PDO::PARAM_INT);
+                $stmt->execute();
+                $professor = $stmt->fetch(PDO::FETCH_ASSOC);
+                
+                if ($professor) {
+                    if (!empty($professor['cpf']) && strlen($professor['cpf']) === 11) {
+                        $professor['cpf_formatado'] = substr($professor['cpf'], 0, 3) . '.' . substr($professor['cpf'], 3, 3) . '.' . substr($professor['cpf'], 6, 3) . '-' . substr($professor['cpf'], 9, 2);
+                    }
+                    if (!empty($professor['telefone'])) {
+                        $tel = $professor['telefone'];
+                        if (strlen($tel) === 11) {
+                            $professor['telefone_formatado'] = '(' . substr($tel, 0, 2) . ') ' . substr($tel, 2, 5) . '-' . substr($tel, 7);
+                        } elseif (strlen($tel) === 10) {
+                            $professor['telefone_formatado'] = '(' . substr($tel, 0, 2) . ') ' . substr($tel, 2, 4) . '-' . substr($tel, 6);
+                        }
+                    }
+                    
+                    try {
+                        $sqlLotacao = "SELECT pl.*, e.nome as escola_nome
+                                      FROM professor_lotacao pl
+                                      LEFT JOIN escola e ON pl.escola_id = e.id
+                                      WHERE pl.professor_id = :professor_id AND pl.fim IS NULL
+                                      LIMIT 1";
+                        $stmtLotacao = $conn->prepare($sqlLotacao);
+                        $stmtLotacao->bindParam(':professor_id', $professorId, PDO::PARAM_INT);
+                        $stmtLotacao->execute();
+                        $lotacao = $stmtLotacao->fetch(PDO::FETCH_ASSOC);
+                        
+                        if ($lotacao) {
+                            $professor['lotacao_escola_id'] = $lotacao['escola_id'];
+                            $professor['lotacao_carga_horaria'] = $lotacao['carga_horaria'];
+                            $professor['lotacao_observacao'] = $lotacao['observacao'];
+                        }
+                    } catch (PDOException $e) {
+                        error_log("Erro ao buscar lotação do professor: " . $e->getMessage());
+                    }
+                    
+                    echo json_encode(['success' => true, 'professor' => $professor], JSON_UNESCAPED_UNICODE);
+                } else {
+                    echo json_encode(['success' => false, 'message' => 'Professor não encontrado'], JSON_UNESCAPED_UNICODE);
+                }
+            } catch (PDOException $e) {
+                error_log("Erro ao buscar professor: " . $e->getMessage());
+                echo json_encode(['success' => false, 'message' => 'Erro ao carregar dados do professor. Por favor, tente novamente.'], JSON_UNESCAPED_UNICODE);
+            } catch (Exception $e) {
+                error_log("Erro ao buscar professor: " . $e->getMessage());
+                echo json_encode(['success' => false, 'message' => 'Erro ao carregar dados do professor. Por favor, tente novamente.'], JSON_UNESCAPED_UNICODE);
             }
+            exit;
+        }
+        
+        if ($_GET['acao'] === 'listar_professores') {
+            $filtros = [];
+            if (!empty($_GET['escola_id'])) $filtros['escola_id'] = $_GET['escola_id'];
+            if (!empty($_GET['busca'])) $filtros['busca'] = $_GET['busca'];
             
-            // Validar que o ID é numérico
-            if (!is_numeric($professorId)) {
-                echo json_encode(['success' => false, 'message' => 'ID do professor inválido']);
-                exit;
-            }
-            
-            $professorId = (int)$professorId;
-            
-            $sql = "SELECT pr.*, p.id as pessoa_id, p.nome, p.cpf, p.email, p.telefone, p.data_nascimento, p.sexo, u.username
+            $sql = "SELECT pr.*, p.nome, p.cpf, p.email, p.telefone, p.data_nascimento, e.nome as escola_nome
                     FROM professor pr
                     INNER JOIN pessoa p ON pr.pessoa_id = p.id
-                    LEFT JOIN usuario u ON u.pessoa_id = p.id
-                    WHERE pr.id = :id";
-            $stmt = $conn->prepare($sql);
-            $stmt->bindParam(':id', $professorId, PDO::PARAM_INT);
-            $stmt->execute();
-            $professor = $stmt->fetch(PDO::FETCH_ASSOC);
+                    LEFT JOIN professor_lotacao pl ON pr.id = pl.professor_id AND pl.fim IS NULL
+                    LEFT JOIN escola e ON pl.escola_id = e.id
+                    WHERE pr.ativo = 1";
             
-            if ($professor) {
-                // Formatar CPF e telefone para exibição
-                if (!empty($professor['cpf']) && strlen($professor['cpf']) === 11) {
-                    $professor['cpf_formatado'] = substr($professor['cpf'], 0, 3) . '.' . substr($professor['cpf'], 3, 3) . '.' . substr($professor['cpf'], 6, 3) . '-' . substr($professor['cpf'], 9, 2);
-                }
-                if (!empty($professor['telefone'])) {
-                    $tel = $professor['telefone'];
-                    if (strlen($tel) === 11) {
-                        $professor['telefone_formatado'] = '(' . substr($tel, 0, 2) . ') ' . substr($tel, 2, 5) . '-' . substr($tel, 7);
-                    } elseif (strlen($tel) === 10) {
-                        $professor['telefone_formatado'] = '(' . substr($tel, 0, 2) . ') ' . substr($tel, 2, 4) . '-' . substr($tel, 6);
-                    }
-                }
-                
-                // Buscar lotação atual
-                try {
-                    $sqlLotacao = "SELECT pl.*, e.nome as escola_nome
-                                  FROM professor_lotacao pl
-                                  LEFT JOIN escola e ON pl.escola_id = e.id
-                                  WHERE pl.professor_id = :professor_id AND pl.fim IS NULL
-                                  LIMIT 1";
-                    $stmtLotacao = $conn->prepare($sqlLotacao);
-                    $stmtLotacao->bindParam(':professor_id', $professorId, PDO::PARAM_INT);
-                    $stmtLotacao->execute();
-                    $lotacao = $stmtLotacao->fetch(PDO::FETCH_ASSOC);
-                    
-                    if ($lotacao) {
-                        $professor['lotacao_escola_id'] = $lotacao['escola_id'];
-                        $professor['lotacao_carga_horaria'] = $lotacao['carga_horaria'];
-                        $professor['lotacao_observacao'] = $lotacao['observacao'];
-                    }
-                } catch (PDOException $e) {
-                    // Log do erro mas continua sem lotação
-                    error_log("Erro ao buscar lotação do professor: " . $e->getMessage());
-                }
-                
-                echo json_encode(['success' => true, 'professor' => $professor]);
-            } else {
-                echo json_encode(['success' => false, 'message' => 'Professor não encontrado']);
+            $params = [];
+            if (!empty($filtros['escola_id'])) {
+                $sql .= " AND pl.escola_id = :escola_id";
+                $params[':escola_id'] = $filtros['escola_id'];
             }
-        } catch (PDOException $e) {
-            error_log("Erro ao buscar professor: " . $e->getMessage());
-            echo json_encode(['success' => false, 'message' => 'Erro ao carregar dados do professor. Por favor, tente novamente.']);
-        } catch (Exception $e) {
-            error_log("Erro ao buscar professor: " . $e->getMessage());
-            echo json_encode(['success' => false, 'message' => 'Erro ao carregar dados do professor. Por favor, tente novamente.']);
-        }
-        exit;
-    }
-    
-    if ($_GET['acao'] === 'listar_professores') {
-        $filtros = [];
-        if (!empty($_GET['escola_id'])) $filtros['escola_id'] = $_GET['escola_id'];
-        if (!empty($_GET['busca'])) $filtros['busca'] = $_GET['busca'];
-        
-        $sql = "SELECT pr.*, p.nome, p.cpf, p.email, p.telefone, p.data_nascimento, e.nome as escola_nome
-                FROM professor pr
-                INNER JOIN pessoa p ON pr.pessoa_id = p.id
-                LEFT JOIN professor_lotacao pl ON pr.id = pl.professor_id AND pl.fim IS NULL
-                LEFT JOIN escola e ON pl.escola_id = e.id
-                WHERE pr.ativo = 1";
-        
-        $params = [];
-        if (!empty($filtros['escola_id'])) {
-            $sql .= " AND pl.escola_id = :escola_id";
-            $params[':escola_id'] = $filtros['escola_id'];
-        }
-        if (!empty($filtros['busca'])) {
-            $sql .= " AND (p.nome LIKE :busca OR p.cpf LIKE :busca OR pr.matricula LIKE :busca)";
-            $params[':busca'] = "%{$filtros['busca']}%";
+            if (!empty($filtros['busca'])) {
+                $sql .= " AND (p.nome LIKE :busca OR p.cpf LIKE :busca OR pr.matricula LIKE :busca)";
+                $params[':busca'] = "%{$filtros['busca']}%";
+            }
+            
+            $sql .= " GROUP BY pr.id ORDER BY p.nome ASC LIMIT 100";
+            
+            $stmt = $conn->prepare($sql);
+            foreach ($params as $key => $value) {
+                $stmt->bindValue($key, $value);
+            }
+            $stmt->execute();
+            $professores = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            
+            echo json_encode(['success' => true, 'professores' => $professores], JSON_UNESCAPED_UNICODE);
+            exit;
         }
         
-        $sql .= " GROUP BY pr.id ORDER BY p.nome ASC LIMIT 100";
-        
-        $stmt = $conn->prepare($sql);
-        foreach ($params as $key => $value) {
-            $stmt->bindValue($key, $value);
+        if ($_GET['acao'] === 'buscar_lotacoes') {
+            try {
+                $professor_id = $_GET['professor_id'] ?? null;
+                
+                if (empty($professor_id)) {
+                    throw new Exception('ID do professor é obrigatório.');
+                }
+                
+                $sql = "SELECT pl.*, e.nome as escola_nome, e.id as escola_id
+                        FROM professor_lotacao pl
+                        INNER JOIN escola e ON pl.escola_id = e.id
+                        WHERE pl.professor_id = :professor_id AND pl.fim IS NULL
+                        ORDER BY pl.inicio DESC";
+                $stmt = $conn->prepare($sql);
+                $stmt->bindParam(':professor_id', $professor_id);
+                $stmt->execute();
+                $lotacoes = $stmt->fetchAll(PDO::FETCH_ASSOC);
+                
+                echo json_encode(['success' => true, 'lotacoes' => $lotacoes], JSON_UNESCAPED_UNICODE);
+            } catch (Exception $e) {
+                error_log("Erro ao buscar lotações: " . $e->getMessage());
+                echo json_encode(['success' => false, 'message' => $e->getMessage(), 'lotacoes' => []], JSON_UNESCAPED_UNICODE);
+            }
+            exit;
         }
-        $stmt->execute();
-        $professores = $stmt->fetchAll(PDO::FETCH_ASSOC);
         
-        echo json_encode(['success' => true, 'professores' => $professores]);
+        // Se chegou aqui e é AJAX mas não processou nada, retornar erro
+        echo json_encode(['success' => false, 'message' => 'Ação não reconhecida'], JSON_UNESCAPED_UNICODE);
         exit;
     }
 }
+
+// Se chegou aqui, é uma requisição normal (não AJAX) - continuar com HTML
+require_once('../../Models/sessao/sessions.php');
+require_once('../../config/permissions_helper.php');
+require_once('../../config/Database.php');
+require_once('../../config/system_helper.php');
+
+$session = new sessions();
+$session->autenticar_session();
+$session->tempo_session();
+
+if (!eAdm()) {
+    header('Location: ../auth/login.php?erro=sem_permissao');
+    exit;
+}
+
+$db = Database::getInstance();
+$conn = $db->getConnection();
+
+// Buscar escolas
+$sqlEscolas = "SELECT id, nome FROM escola WHERE ativo = 1 ORDER BY nome ASC";
+$stmtEscolas = $conn->prepare($sqlEscolas);
+$stmtEscolas->execute();
+$escolas = $stmtEscolas->fetchAll(PDO::FETCH_ASSOC);
 
 // Buscar professores iniciais (apenas ativos)
 $sqlProfessores = "SELECT pr.*, p.nome, p.cpf, p.email, p.telefone, p.data_nascimento, e.nome as escola_nome
@@ -740,6 +864,9 @@ $professores = $stmtProfessores->fetchAll(PDO::FETCH_ASSOC);
                                                 <div class="flex space-x-2">
                                                     <button onclick="editarProfessor(<?= $prof['id'] ?>)" class="text-blue-600 hover:text-blue-700 font-medium text-sm">
                                                         Editar
+                                                    </button>
+                                                    <button onclick="lotarProfessor(<?= $prof['id'] ?>)" class="text-green-600 hover:text-green-700 font-medium text-sm">
+                                                        <?= !empty($prof['escola_nome']) ? 'Transferir' : 'Lotar' ?>
                                                     </button>
                                                     <button onclick="excluirProfessor(<?= $prof['id'] ?>)" class="text-red-600 hover:text-red-700 font-medium text-sm">
                                                         Excluir
@@ -1146,6 +1273,105 @@ $professores = $stmtProfessores->fetchAll(PDO::FETCH_ASSOC);
         </div>
     </div>
     
+    <!-- Modal de Lotação de Professor -->
+    <div id="modalLotarProfessor" class="fixed inset-0 bg-black bg-opacity-50 z-[60] hidden items-center justify-center" style="display: none;">
+        <div class="bg-white w-full h-full flex flex-col shadow-2xl">
+            <!-- Header do Modal -->
+            <div class="flex justify-between items-center p-6 border-b border-gray-200 bg-white sticky top-0 z-10">
+                <h2 class="text-2xl font-bold text-gray-900">Lotar Professor em Escola</h2>
+                <button onclick="fecharModalLotarProfessor()" class="text-gray-400 hover:text-gray-600 transition-colors p-2 hover:bg-gray-100 rounded-lg">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+            </div>
+            
+            <!-- Conteúdo do Modal (Scrollable) -->
+            <div class="flex-1 overflow-y-auto p-6">
+                <form id="formLotarProfessor" class="space-y-6 max-w-4xl mx-auto">
+                    <div id="alertaErroLotacao" class="hidden bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-lg"></div>
+                    <div id="alertaSucessoLotacao" class="hidden bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded-lg"></div>
+                    
+                    <input type="hidden" id="lotar_professor_id" name="professor_id">
+                    
+                    <!-- Informações do Professor -->
+                    <div>
+                        <h3 class="text-lg font-semibold text-gray-800 mb-4 pb-2 border-b border-gray-200">Informações do Professor</h3>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Nome do Professor</label>
+                                <input type="text" id="lotar_professor_nome" readonly
+                                       class="w-full px-4 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-700">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Dados da Lotação -->
+                    <div>
+                        <h3 class="text-lg font-semibold text-gray-800 mb-4 pb-2 border-b border-gray-200">Dados da Lotação</h3>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Escola *</label>
+                                <select id="lotar_escola_id" name="escola_id" required
+                                        class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent">
+                                    <option value="">Selecione uma escola...</option>
+                                    <?php foreach ($escolas as $escola): ?>
+                                        <option value="<?= $escola['id'] ?>"><?= htmlspecialchars($escola['nome']) ?></option>
+                                    <?php endforeach; ?>
+                                </select>
+                            </div>
+                            
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Data de Início *</label>
+                                <input type="date" id="lotar_data_inicio" name="data_inicio" required
+                                       value="<?= date('Y-m-d') ?>"
+                                       class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent">
+                            </div>
+                            
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Carga Horária</label>
+                                <input type="number" id="lotar_carga_horaria" name="carga_horaria" min="1" max="40"
+                                       placeholder="Ex: 20 horas semanais"
+                                       class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent">
+                                <p class="text-xs text-gray-500 mt-1">Carga horária semanal do professor</p>
+                            </div>
+                        </div>
+                        
+                        <div class="mt-4">
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Observação</label>
+                            <textarea id="lotar_observacao" name="observacao" rows="4"
+                                      placeholder="Observações sobre a lotação (opcional)..."
+                                      class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"></textarea>
+                        </div>
+                    </div>
+                    
+                    <!-- Lista de Lotações Atuais -->
+                    <div id="lotacoes-atuais-container" class="hidden">
+                        <h3 class="text-lg font-semibold text-gray-800 mb-4 pb-2 border-b border-gray-200">Lotações Atuais do Professor</h3>
+                        <div id="lista-lotacoes" class="space-y-3 max-h-96 overflow-y-auto border border-gray-200 rounded-lg p-4 bg-gray-50">
+                        </div>
+                    </div>
+                </form>
+            </div>
+            
+            <!-- Footer do Modal (Sticky) -->
+            <div class="flex justify-end space-x-3 p-6 border-t border-gray-200 bg-white sticky bottom-0 z-10">
+                <button type="button" onclick="fecharModalLotarProfessor()" 
+                        class="px-6 py-3 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg font-medium transition-colors duration-200">
+                    Cancelar
+                </button>
+                <button type="submit" form="formLotarProfessor" id="btnSalvarLotacao"
+                        class="px-6 py-3 text-white bg-green-600 hover:bg-green-700 rounded-lg font-medium transition-colors duration-200 flex items-center space-x-2">
+                    <span>Salvar Lotação</span>
+                    <svg id="spinnerLotacao" class="hidden animate-spin h-5 w-5 text-white" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                </button>
+            </div>
+        </div>
+    </div>
+    
     <div id="logoutModal" class="fixed inset-0 bg-black bg-opacity-50 z-[60] hidden items-center justify-center p-4" style="display: none;">
         <div class="bg-white rounded-2xl p-6 max-w-md w-full mx-4 shadow-2xl">
             <div class="flex items-center space-x-3 mb-4">
@@ -1413,6 +1639,14 @@ $professores = $stmtProfessores->fetchAll(PDO::FETCH_ASSOC);
                     body: formData
                 });
                 
+                // Verificar se a resposta é JSON
+                const contentType = response.headers.get('content-type');
+                if (!contentType || !contentType.includes('application/json')) {
+                    const text = await response.text();
+                    console.error('Resposta não é JSON:', text.substring(0, 200));
+                    throw new Error('Resposta do servidor não é válida. Por favor, tente novamente.');
+                }
+                
                 const data = await response.json();
                 
                 if (data.success) {
@@ -1436,7 +1670,7 @@ $professores = $stmtProfessores->fetchAll(PDO::FETCH_ASSOC);
                 }
             } catch (error) {
                 console.error('Erro:', error);
-                alertaErro.textContent = 'Erro ao processar requisição. Por favor, tente novamente.';
+                alertaErro.textContent = error.message || 'Erro ao processar requisição. Por favor, tente novamente.';
                 alertaErro.classList.remove('hidden');
             } finally {
                 btnSalvar.disabled = false;
@@ -1450,6 +1684,13 @@ $professores = $stmtProfessores->fetchAll(PDO::FETCH_ASSOC);
                 fecharModalNovoProfessor();
             }
         });
+        
+        // Fechar modal de lotação ao clicar fora
+        document.getElementById('modalLotarProfessor')?.addEventListener('click', function(e) {
+            if (e.target === this) {
+                fecharModalLotarProfessor();
+            }
+        });
 
         async function editarProfessor(id) {
             try {
@@ -1458,6 +1699,14 @@ $professores = $stmtProfessores->fetchAll(PDO::FETCH_ASSOC);
                 
                 if (!response.ok) {
                     throw new Error('Erro na resposta do servidor: ' + response.status);
+                }
+                
+                // Verificar se a resposta é JSON
+                const contentType = response.headers.get('content-type');
+                if (!contentType || !contentType.includes('application/json')) {
+                    const text = await response.text();
+                    console.error('Resposta não é JSON:', text.substring(0, 200));
+                    throw new Error('Resposta do servidor não é válida. Por favor, tente novamente.');
                 }
                 
                 const data = await response.json();
@@ -1617,8 +1866,14 @@ $professores = $stmtProfessores->fetchAll(PDO::FETCH_ASSOC);
                     modal.style.display = 'flex';
                     modal.classList.remove('hidden');
                     // Limpar alertas
-                    document.getElementById('alertaErroEditar').classList.add('hidden');
-                    document.getElementById('alertaSucessoEditar').classList.add('hidden');
+                    const alertaErro = document.getElementById('alertaErroEditar');
+                    const alertaSucesso = document.getElementById('alertaSucessoEditar');
+                    if (alertaErro) {
+                        alertaErro.classList.add('hidden');
+                    }
+                    if (alertaSucesso) {
+                        alertaSucesso.classList.add('hidden');
+                    }
                 }
             } catch (error) {
                 console.error('Erro ao carregar professor:', error);
@@ -1659,6 +1914,14 @@ $professores = $stmtProfessores->fetchAll(PDO::FETCH_ASSOC);
                     body: formData
                 });
                 
+                // Verificar se a resposta é JSON
+                const contentType = response.headers.get('content-type');
+                if (!contentType || !contentType.includes('application/json')) {
+                    const text = await response.text();
+                    console.error('Resposta não é JSON:', text.substring(0, 200));
+                    throw new Error('Resposta do servidor não é válida. Por favor, tente novamente.');
+                }
+                
                 const data = await response.json();
                 
                 if (data.success) {
@@ -1676,7 +1939,7 @@ $professores = $stmtProfessores->fetchAll(PDO::FETCH_ASSOC);
                 }
             } catch (error) {
                 console.error('Erro:', error);
-                alertaErro.textContent = 'Erro ao processar requisição. Por favor, tente novamente.';
+                alertaErro.textContent = error.message || 'Erro ao processar requisição. Por favor, tente novamente.';
                 alertaErro.classList.remove('hidden');
             } finally {
                 btnSalvar.disabled = false;
@@ -1692,6 +1955,266 @@ $professores = $stmtProfessores->fetchAll(PDO::FETCH_ASSOC);
         });
 
 
+        // Funções de Lotação
+        async function lotarProfessor(id) {
+            try {
+                // Buscar dados do professor
+                const response = await fetch('?acao=buscar_professor&id=' + id);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                const text = await response.text();
+                let data;
+                
+                try {
+                    data = JSON.parse(text);
+                } catch (parseError) {
+                    console.error('Resposta não é JSON válido:', text.substring(0, 200));
+                    throw new Error('Resposta do servidor não é JSON válido. Verifique o console para mais detalhes.');
+                }
+                
+                if (!data.success || !data.professor) {
+                    alert('Erro ao carregar dados do professor: ' + (data.message || 'Professor não encontrado'));
+                    return;
+                }
+                
+                const professor = data.professor;
+                
+                // Verificar se já está lotado
+                const jaLotado = professor.lotacao_escola_id ? true : false;
+                
+                // Atualizar título do modal
+                const tituloModal = document.querySelector('#modalLotarProfessor h2');
+                if (tituloModal) {
+                    tituloModal.textContent = jaLotado ? 'Transferir Professor de Escola' : 'Lotar Professor em Escola';
+                }
+                
+                // Atualizar texto do botão de salvar
+                const btnSalvar = document.getElementById('btnSalvarLotacao');
+                if (btnSalvar) {
+                    btnSalvar.textContent = jaLotado ? 'Transferir' : 'Lotar';
+                }
+                
+                // Preencher formulário
+                document.getElementById('lotar_professor_id').value = professor.id;
+                document.getElementById('lotar_professor_nome').value = professor.nome || '';
+                document.getElementById('lotar_escola_id').value = '';
+                document.getElementById('lotar_data_inicio').value = new Date().toISOString().split('T')[0];
+                document.getElementById('lotar_carga_horaria').value = '';
+                document.getElementById('lotar_observacao').value = '';
+                
+                // Limpar alertas
+                const alertaErroLotacao = document.getElementById('alertaErroLotacao');
+                const alertaSucessoLotacao = document.getElementById('alertaSucessoLotacao');
+                if (alertaErroLotacao) {
+                    alertaErroLotacao.classList.add('hidden');
+                }
+                if (alertaSucessoLotacao) {
+                    alertaSucessoLotacao.classList.add('hidden');
+                }
+                
+                // Carregar lotações atuais
+                await carregarLotacoesAtuais(id);
+                
+                // Abrir modal
+                const modal = document.getElementById('modalLotarProfessor');
+                if (modal) {
+                    modal.style.display = 'flex';
+                    modal.classList.remove('hidden');
+                }
+            } catch (error) {
+                console.error('Erro ao carregar professor:', error);
+                alert('Erro ao carregar dados do professor. Por favor, tente novamente.');
+            }
+        }
+        
+        function fecharModalLotarProfessor() {
+            const modal = document.getElementById('modalLotarProfessor');
+            if (modal) {
+                modal.style.display = 'none';
+                modal.classList.add('hidden');
+            }
+        }
+        
+        async function carregarLotacoesAtuais(professorId) {
+            try {
+                const response = await fetch('?acao=buscar_lotacoes&professor_id=' + professorId);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                const text = await response.text();
+                let data;
+                
+                try {
+                    data = JSON.parse(text);
+                } catch (parseError) {
+                    console.error('Resposta não é JSON válido:', text);
+                    throw new Error('Resposta do servidor não é JSON válido');
+                }
+                
+                const container = document.getElementById('lotacoes-atuais-container');
+                const lista = document.getElementById('lista-lotacoes');
+                
+                if (!container || !lista) {
+                    console.warn('Elementos de lotação não encontrados');
+                    return;
+                }
+                
+                if (data.success && data.lotacoes && data.lotacoes.length > 0) {
+                    container.classList.remove('hidden');
+                    lista.innerHTML = '';
+                    
+                    data.lotacoes.forEach(lotacao => {
+                        const div = document.createElement('div');
+                        div.className = 'flex items-center justify-between p-3 bg-white rounded-lg border border-gray-200';
+                        div.innerHTML = `
+                            <div class="flex-1">
+                                <p class="font-medium text-gray-900">${lotacao.escola_nome || 'Escola não informada'}</p>
+                                <p class="text-sm text-gray-500">Desde: ${lotacao.inicio || '-'}</p>
+                            </div>
+                            <button onclick="removerLotacao(${lotacao.professor_id}, ${lotacao.escola_id})" 
+                                    class="text-red-600 hover:text-red-700 font-medium text-sm px-3 py-1">
+                                Remover
+                            </button>
+                        `;
+                        lista.appendChild(div);
+                    });
+                } else {
+                    container.classList.add('hidden');
+                }
+            } catch (error) {
+                console.error('Erro ao carregar lotações:', error);
+                const container = document.getElementById('lotacoes-atuais-container');
+                if (container) {
+                    container.classList.add('hidden');
+                }
+            }
+        }
+        
+        async function removerLotacao(professorId, escolaId) {
+            if (!confirm('Tem certeza que deseja remover esta lotação?')) {
+                return;
+            }
+            
+            try {
+                const formData = new FormData();
+                formData.append('acao', 'remover_lotacao');
+                formData.append('professor_id', professorId);
+                formData.append('escola_id', escolaId);
+                
+                const response = await fetch('', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                // Verificar se a resposta é JSON
+                const contentType = response.headers.get('content-type');
+                if (!contentType || !contentType.includes('application/json')) {
+                    const text = await response.text();
+                    console.error('Resposta não é JSON:', text.substring(0, 200));
+                    throw new Error('Resposta do servidor não é válida. Por favor, tente novamente.');
+                }
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    alert('Lotação removida com sucesso!');
+                    await carregarLotacoesAtuais(professorId);
+                    filtrarProfessores();
+                } else {
+                    alert('Erro ao remover lotação: ' + (data.message || 'Erro desconhecido'));
+                }
+            } catch (error) {
+                console.error('Erro ao remover lotação:', error);
+                alert(error.message || 'Erro ao processar requisição. Por favor, tente novamente.');
+            }
+        }
+        
+        // Submissão do formulário de lotação
+        document.getElementById('formLotarProfessor')?.addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const btnSalvar = document.getElementById('btnSalvarLotacao');
+            const spinner = document.getElementById('spinnerLotacao');
+            const alertaErro = document.getElementById('alertaErroLotacao');
+            const alertaSucesso = document.getElementById('alertaSucessoLotacao');
+            
+            if (btnSalvar) {
+                btnSalvar.disabled = true;
+            }
+            if (spinner) {
+                spinner.classList.remove('hidden');
+            }
+            if (alertaErro) {
+                alertaErro.classList.add('hidden');
+            }
+            if (alertaSucesso) {
+                alertaSucesso.classList.add('hidden');
+            }
+            
+            const formData = new FormData(this);
+            formData.append('acao', 'lotar_professor');
+            
+            try {
+                const response = await fetch('', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                // Verificar se a resposta é JSON
+                const contentType = response.headers.get('content-type');
+                if (!contentType || !contentType.includes('application/json')) {
+                    const text = await response.text();
+                    console.error('Resposta não é JSON:', text.substring(0, 200));
+                    throw new Error('Resposta do servidor não é válida. Por favor, tente novamente.');
+                }
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    if (alertaSucesso) {
+                        alertaSucesso.textContent = data.message || 'Professor lotado com sucesso!';
+                        alertaSucesso.classList.remove('hidden');
+                    }
+                    
+                    // Recarregar lotações
+                    const professorId = document.getElementById('lotar_professor_id').value;
+                    await carregarLotacoesAtuais(professorId);
+                    
+                    // Limpar formulário
+                    this.reset();
+                    document.getElementById('lotar_data_inicio').value = new Date().toISOString().split('T')[0];
+                    
+                    // Recarregar lista após 1.5 segundos
+                    setTimeout(() => {
+                        filtrarProfessores();
+                    }, 1500);
+                } else {
+                    if (alertaErro) {
+                        alertaErro.textContent = data.message || 'Erro ao lotar professor.';
+                        alertaErro.classList.remove('hidden');
+                    }
+                }
+            } catch (error) {
+                console.error('Erro:', error);
+                if (alertaErro) {
+                    alertaErro.textContent = error.message || 'Erro ao processar requisição. Por favor, tente novamente.';
+                    alertaErro.classList.remove('hidden');
+                }
+            } finally {
+                if (btnSalvar) {
+                    btnSalvar.disabled = false;
+                }
+                if (spinner) {
+                    spinner.classList.add('hidden');
+                }
+            }
+        });
+        
         function filtrarProfessores() {
             const busca = document.getElementById('filtro-busca').value;
             const escolaId = document.getElementById('filtro-escola').value;
@@ -1701,7 +2224,16 @@ $professores = $stmtProfessores->fetchAll(PDO::FETCH_ASSOC);
             if (escolaId) url += '&escola_id=' + escolaId;
             
             fetch(url)
-                .then(response => response.json())
+                .then(async response => {
+                    // Verificar se a resposta é JSON
+                    const contentType = response.headers.get('content-type');
+                    if (!contentType || !contentType.includes('application/json')) {
+                        const text = await response.text();
+                        console.error('Resposta não é JSON:', text.substring(0, 200));
+                        throw new Error('Resposta do servidor não é válida. Por favor, tente novamente.');
+                    }
+                    return response.json();
+                })
                 .then(data => {
                     if (data.success) {
                         const tbody = document.getElementById('lista-professores');
@@ -1724,6 +2256,9 @@ $professores = $stmtProfessores->fetchAll(PDO::FETCH_ASSOC);
                                         <div class="flex space-x-2">
                                             <button onclick="editarProfessor(${prof.id})" class="text-blue-600 hover:text-blue-700 font-medium text-sm">
                                                 Editar
+                                            </button>
+                                            <button onclick="lotarProfessor(${prof.id})" class="text-green-600 hover:text-green-700 font-medium text-sm">
+                                                ${prof.escola_nome ? 'Transferir' : 'Lotar'}
                                             </button>
                                             <button onclick="excluirProfessor(${prof.id})" class="text-red-600 hover:text-red-700 font-medium text-sm">
                                                 Excluir
@@ -1882,7 +2417,16 @@ $professores = $stmtProfessores->fetchAll(PDO::FETCH_ASSOC);
                 method: 'POST',
                 body: formData
             })
-            .then(response => response.json())
+            .then(async response => {
+                // Verificar se a resposta é JSON
+                const contentType = response.headers.get('content-type');
+                if (!contentType || !contentType.includes('application/json')) {
+                    const text = await response.text();
+                    console.error('Resposta não é JSON:', text.substring(0, 200));
+                    throw new Error('Resposta do servidor não é válida. Por favor, tente novamente.');
+                }
+                return response.json();
+            })
             .then(data => {
                 fecharModalConfirmarExclusao();
                 
@@ -1896,7 +2440,7 @@ $professores = $stmtProfessores->fetchAll(PDO::FETCH_ASSOC);
             })
             .catch(error => {
                 console.error('Erro ao excluir professor:', error);
-                abrirModalErroExclusao('Erro ao processar requisição. Por favor, tente novamente.');
+                abrirModalErroExclusao(error.message || 'Erro ao processar requisição. Por favor, tente novamente.');
                 fecharModalConfirmarExclusao();
             });
         }
@@ -1997,7 +2541,16 @@ $professores = $stmtProfessores->fetchAll(PDO::FETCH_ASSOC);
                 method: 'POST',
                 body: formData
             })
-            .then(response => response.json())
+            .then(async response => {
+                // Verificar se a resposta é JSON
+                const contentType = response.headers.get('content-type');
+                if (!contentType || !contentType.includes('application/json')) {
+                    const text = await response.text();
+                    console.error('Resposta não é JSON:', text.substring(0, 200));
+                    throw new Error('Resposta do servidor não é válida. Por favor, tente novamente.');
+                }
+                return response.json();
+            })
             .then(data => {
                 fecharModalNotificacaoExclusao();
                 
@@ -2010,7 +2563,7 @@ $professores = $stmtProfessores->fetchAll(PDO::FETCH_ASSOC);
             })
             .catch(error => {
                 console.error('Erro ao reverter exclusão:', error);
-                abrirModalErroExclusao('Erro ao processar requisição. Por favor, tente novamente.');
+                abrirModalErroExclusao(error.message || 'Erro ao processar requisição. Por favor, tente novamente.');
             });
         }
         
@@ -2021,6 +2574,14 @@ $professores = $stmtProfessores->fetchAll(PDO::FETCH_ASSOC);
                 
                 if (!response.ok) {
                     throw new Error('Erro na resposta do servidor: ' + response.status);
+                }
+                
+                // Verificar se a resposta é JSON
+                const contentType = response.headers.get('content-type');
+                if (!contentType || !contentType.includes('application/json')) {
+                    const text = await response.text();
+                    console.error('Resposta não é JSON:', text.substring(0, 200));
+                    throw new Error('Resposta do servidor não é válida. Por favor, tente novamente.');
                 }
                 
                 const data = await response.json();

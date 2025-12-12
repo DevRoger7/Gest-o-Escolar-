@@ -1,4 +1,8 @@
 <?php
+// Iniciar output buffering para evitar problemas com headers
+if (!ob_get_level()) {
+    ob_start();
+}
 require_once('../../Models/sessao/sessions.php');
 require_once('../../config/permissions_helper.php');
 require_once('../../Models/academico/TurmaModel.php');
@@ -158,6 +162,67 @@ $produtos = $stmtProdutos->fetchAll(PDO::FETCH_ASSOC);
 $mensagem = '';
 $tipoMensagem = '';
 
+// Recuperar mensagens da sessão (após redirect)
+if (isset($_SESSION['mensagem_sucesso'])) {
+    $mensagem = $_SESSION['mensagem_sucesso'];
+    $tipoMensagem = 'success';
+    unset($_SESSION['mensagem_sucesso']);
+}
+if (isset($_SESSION['mensagem_erro'])) {
+    $mensagem = $_SESSION['mensagem_erro'];
+    $tipoMensagem = 'error';
+    unset($_SESSION['mensagem_erro']);
+}
+
+// Processar requisições GET (AJAX)
+if ($_SERVER['REQUEST_METHOD'] === 'GET' && !empty($_GET['acao'])) {
+    $acao = $_GET['acao'] ?? '';
+    
+    switch ($acao) {
+        case 'buscar_professores_escola':
+            // Limpar qualquer output anterior
+            if (ob_get_level()) {
+                ob_clean();
+            }
+            header('Content-Type: application/json');
+            try {
+                $escolaId = $_GET['escola_id'] ?? null;
+                
+                if (empty($escolaId)) {
+                    throw new Exception('ID da escola é obrigatório.');
+                }
+                
+                // Verificar se o gestor tem acesso a esta escola
+                if ($_SESSION['tipo'] === 'GESTAO' && $escolaGestorId && $escolaId != $escolaGestorId) {
+                    throw new Exception('Você não tem permissão para acessar esta escola.');
+                }
+                
+                // Buscar professores lotados na escola
+                $sql = "SELECT pl.professor_id, p.nome, p.email, p.telefone
+                        FROM professor_lotacao pl
+                        INNER JOIN professor pr ON pl.professor_id = pr.id
+                        INNER JOIN pessoa p ON pr.pessoa_id = p.id
+                        INNER JOIN usuario u ON u.pessoa_id = p.id
+                        WHERE pl.escola_id = :escola_id 
+                        AND pl.fim IS NULL 
+                        AND pr.ativo = 1 
+                        AND u.ativo = 1
+                        ORDER BY p.nome ASC";
+                
+                $stmt = $conn->prepare($sql);
+                $stmt->bindParam(':escola_id', $escolaId);
+                $stmt->execute();
+                $professores = $stmt->fetchAll(PDO::FETCH_ASSOC);
+                
+                echo json_encode(['success' => true, 'professores' => $professores]);
+            } catch (Exception $e) {
+                error_log("Erro ao buscar professores da escola: " . $e->getMessage());
+                echo json_encode(['success' => false, 'message' => $e->getMessage(), 'professores' => []]);
+            }
+            exit;
+    }
+}
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $acao = $_POST['acao'] ?? '';
     
@@ -167,28 +232,65 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             
             // Validar permissão: gestor só pode criar turmas na sua escola
             if ($_SESSION['tipo'] === 'GESTAO' && $escolaGestorId && $escolaIdTurma != $escolaGestorId) {
-                $mensagem = 'Você não tem permissão para criar turmas nesta escola.';
-                $tipoMensagem = 'error';
-                break;
+                $_SESSION['mensagem_erro'] = 'Você não tem permissão para criar turmas nesta escola.';
+                header('Location: gestao_escolar.php');
+                exit;
+            }
+
+            $serie = strtoupper(trim($_POST['serie'] ?? ''));
+            $letra = strtoupper(trim($_POST['letra'] ?? ''));
+            $turno = $_POST['turno'] ?? 'MANHA';
+            $anoLetivo = $_POST['ano_letivo'] ?? date('Y');
+
+            // Validar campos obrigatórios
+            if (empty($serie) || empty($letra) || empty($escolaIdTurma)) {
+                $_SESSION['mensagem_erro'] = 'Série, Letra e Escola são obrigatórios.';
+                header('Location: gestao_escolar.php');
+                exit;
+            }
+
+            // Verificar se já existe turma com os mesmos dados (escola, série, letra, turno, ano letivo)
+            $sqlVerificar = "SELECT id FROM turma 
+                            WHERE escola_id = :escola_id 
+                            AND UPPER(TRIM(serie)) = :serie 
+                            AND UPPER(TRIM(letra)) = :letra 
+                            AND turno = :turno 
+                            AND ano_letivo = :ano_letivo 
+                            AND ativo = 1";
+            $stmtVerificar = $conn->prepare($sqlVerificar);
+            $stmtVerificar->bindParam(':escola_id', $escolaIdTurma);
+            $stmtVerificar->bindParam(':serie', $serie);
+            $stmtVerificar->bindParam(':letra', $letra);
+            $stmtVerificar->bindParam(':turno', $turno);
+            $stmtVerificar->bindParam(':ano_letivo', $anoLetivo);
+            $stmtVerificar->execute();
+            
+            if ($stmtVerificar->fetch()) {
+                $_SESSION['mensagem_erro'] = "Já existe uma turma cadastrada com esses dados: {$serie} {$letra} - {$turno} no ano letivo {$anoLetivo}. Não é possível criar turmas duplicadas.";
+                header('Location: gestao_escolar.php');
+                exit;
             }
             
             $resultado = $turmaModel->criar([
                 'escola_id' => $escolaIdTurma,
                 'serie_id' => $_POST['serie_id'] ?? null,
-                'ano_letivo' => $_POST['ano_letivo'] ?? date('Y'),
-                'serie' => $_POST['serie'] ?? '',
-                'letra' => $_POST['letra'] ?? '',
-                'turno' => $_POST['turno'] ?? 'MANHA',
+                'ano_letivo' => $anoLetivo,
+                'serie' => $serie,
+                'letra' => $letra,
+                'turno' => $turno,
                 'capacidade' => $_POST['capacidade'] ?? null,
                 'sala' => $_POST['sala'] ?? null
             ]);
             
             if ($resultado['success']) {
-                $mensagem = 'Turma criada com sucesso!';
-                $tipoMensagem = 'success';
+                $_SESSION['mensagem_sucesso'] = 'Turma criada com sucesso!';
+                // POST-REDIRECT-GET: redirecionar para evitar reenvio de formulário
+                header('Location: gestao_escolar.php');
+                exit;
             } else {
-                $mensagem = $resultado['message'] ?? 'Erro ao criar turma.';
-                $tipoMensagem = 'error';
+                $_SESSION['mensagem_erro'] = $resultado['message'] ?? 'Erro ao criar turma.';
+                header('Location: gestao_escolar.php');
+                exit;
             }
             break;
             
@@ -199,9 +301,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 if ($_SESSION['tipo'] === 'GESTAO' && $escolaGestorId) {
                     $turma = $turmaModel->buscarPorId($turmaId);
                     if (!$turma || $turma['escola_id'] != $escolaGestorId) {
-                        $mensagem = 'Você não tem permissão para editar esta turma.';
-                        $tipoMensagem = 'error';
-                        break;
+                        $_SESSION['mensagem_erro'] = 'Você não tem permissão para editar esta turma.';
+                        header('Location: gestao_escolar.php');
+                        exit;
                     }
                     // Forçar escola_id para a escola do gestor
                     $_POST['escola_id'] = $escolaGestorId;
@@ -211,29 +313,67 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 
                 // Validar se gestor está tentando mudar para outra escola
                 if ($_SESSION['tipo'] === 'GESTAO' && $escolaGestorId && $escolaIdTurma != $escolaGestorId) {
-                    $mensagem = 'Você não tem permissão para alterar a escola desta turma.';
-                    $tipoMensagem = 'error';
-                    break;
+                    $_SESSION['mensagem_erro'] = 'Você não tem permissão para alterar a escola desta turma.';
+                    header('Location: gestao_escolar.php');
+                    exit;
+                }
+
+                $serie = strtoupper(trim($_POST['serie'] ?? ''));
+                $letra = strtoupper(trim($_POST['letra'] ?? ''));
+                $turno = $_POST['turno'] ?? 'MANHA';
+                $anoLetivo = $_POST['ano_letivo'] ?? date('Y');
+
+                // Validar campos obrigatórios
+                if (empty($serie) || empty($letra) || empty($escolaIdTurma)) {
+                    $_SESSION['mensagem_erro'] = 'Série, Letra e Escola são obrigatórios.';
+                    header('Location: gestao_escolar.php');
+                    exit;
+                }
+
+                // Verificar se já existe outra turma com os mesmos dados (exceto a atual)
+                $sqlVerificar = "SELECT id FROM turma 
+                                WHERE escola_id = :escola_id 
+                                AND UPPER(TRIM(serie)) = :serie 
+                                AND UPPER(TRIM(letra)) = :letra 
+                                AND turno = :turno 
+                                AND ano_letivo = :ano_letivo 
+                                AND ativo = 1
+                                AND id != :turma_id";
+                $stmtVerificar = $conn->prepare($sqlVerificar);
+                $stmtVerificar->bindParam(':escola_id', $escolaIdTurma);
+                $stmtVerificar->bindParam(':serie', $serie);
+                $stmtVerificar->bindParam(':letra', $letra);
+                $stmtVerificar->bindParam(':turno', $turno);
+                $stmtVerificar->bindParam(':ano_letivo', $anoLetivo);
+                $stmtVerificar->bindParam(':turma_id', $turmaId);
+                $stmtVerificar->execute();
+                
+                if ($stmtVerificar->fetch()) {
+                    $_SESSION['mensagem_erro'] = "Já existe outra turma cadastrada com esses dados: {$serie} {$letra} - {$turno} no ano letivo {$anoLetivo}. Não é possível ter turmas duplicadas.";
+                    header('Location: gestao_escolar.php');
+                    exit;
                 }
                 
                 $resultado = $turmaModel->atualizar($turmaId, [
                     'escola_id' => $escolaIdTurma,
                     'serie_id' => $_POST['serie_id'] ?? null,
-                    'ano_letivo' => $_POST['ano_letivo'] ?? date('Y'),
-                    'serie' => $_POST['serie'] ?? '',
-                    'letra' => $_POST['letra'] ?? '',
-                    'turno' => $_POST['turno'] ?? 'MANHA',
+                    'ano_letivo' => $anoLetivo,
+                    'serie' => $serie,
+                    'letra' => $letra,
+                    'turno' => $turno,
                     'capacidade' => $_POST['capacidade'] ?? null,
                     'sala' => $_POST['sala'] ?? null,
                     'ativo' => $_POST['ativo'] ?? 1
                 ]);
                 
                 if ($resultado) {
-                    $mensagem = 'Turma atualizada com sucesso!';
-                    $tipoMensagem = 'success';
+                    $_SESSION['mensagem_sucesso'] = 'Turma atualizada com sucesso!';
+                    header('Location: gestao_escolar.php');
+                    exit;
                 } else {
-                    $mensagem = 'Erro ao atualizar turma.';
-                    $tipoMensagem = 'error';
+                    $_SESSION['mensagem_erro'] = 'Erro ao atualizar turma.';
+                    header('Location: gestao_escolar.php');
+                    exit;
                 }
             }
             break;
@@ -965,6 +1105,7 @@ $filtrosTurma = ['ativo' => 1];
 // Se for gestor, forçar filtro pela escola dele
 if ($_SESSION['tipo'] === 'GESTAO' && $escolaGestorId) {
     $filtrosTurma['escola_id'] = $escolaGestorId;
+    error_log("DEBUG TURMAS - Filtro escola_id para gestor: " . $escolaGestorId);
 } elseif (!empty($_GET['escola_id'])) {
     // Admin pode filtrar por escola específica
     $filtrosTurma['escola_id'] = $_GET['escola_id'];
@@ -973,6 +1114,8 @@ if (!empty($_GET['ano_letivo'])) {
     $filtrosTurma['ano_letivo'] = $_GET['ano_letivo'];
 }
 $turmas = $turmaModel->listar($filtrosTurma);
+error_log("DEBUG TURMAS - Total de turmas encontradas: " . count($turmas));
+error_log("DEBUG TURMAS - Filtros aplicados: " . json_encode($filtrosTurma));
 
 // Buscar séries para os formulários
 $sqlSeries = "SELECT id, nome, codigo FROM serie WHERE ativo = 1 ORDER BY ordem ASC";
@@ -997,13 +1140,18 @@ function buscarProfessoresComAtribuicoes($escolaId = null) {
                 p.email,
                 p.telefone,
                 pr.matricula,
+                pl.inicio as lotacao_inicio,
+                pl.carga_horaria,
                 COALESCE(GROUP_CONCAT(DISTINCT CONCAT(t.serie, ' ', t.letra, ' - ', d.nome) SEPARATOR ', '), '') as atribuicoes,
                 COALESCE(COUNT(DISTINCT CASE WHEN tp.fim IS NULL THEN tp.turma_id END), 0) as total_turmas
             FROM professor pr
             INNER JOIN pessoa p ON pr.pessoa_id = p.id
             INNER JOIN usuario u ON u.pessoa_id = p.id
+            INNER JOIN professor_lotacao pl ON pl.professor_id = pr.id 
+                AND pl.escola_id = :escola_id 
+                AND pl.fim IS NULL
             LEFT JOIN turma_professor tp ON tp.professor_id = pr.id AND tp.fim IS NULL
-            LEFT JOIN turma t ON tp.turma_id = t.id
+            LEFT JOIN turma t ON tp.turma_id = t.id AND t.escola_id = :escola_id
             LEFT JOIN disciplina d ON tp.disciplina_id = d.id
             WHERE pr.ativo = 1 AND u.ativo = 1";
     
@@ -1015,9 +1163,7 @@ function buscarProfessoresComAtribuicoes($escolaId = null) {
               ORDER BY p.nome ASC";
     
     $stmt = $conn->prepare($sql);
-    if ($escolaId) {
-        $stmt->bindParam(':escola_id', $escolaId);
-    }
+    $stmt->bindParam(':escola_id', $escolaId);
     $stmt->execute();
     return $stmt->fetchAll(PDO::FETCH_ASSOC);
 }

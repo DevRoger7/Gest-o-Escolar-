@@ -74,6 +74,47 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['acao'])) {
         echo json_encode(['success' => true, 'cardapio' => $cardapio]);
         exit;
     }
+    
+    if ($_GET['acao'] === 'buscar_pacote_escola' && !empty($_GET['escola_id'])) {
+        $escolaId = $_GET['escola_id'];
+        
+        // Buscar o pacote mais recente da escola
+        $sqlPacote = "SELECT pe.*, e.nome as escola_nome
+                      FROM pacote_escola pe
+                      INNER JOIN escola e ON pe.escola_id = e.id
+                      WHERE pe.escola_id = :escola_id
+                      ORDER BY pe.criado_em DESC
+                      LIMIT 1";
+        $stmtPacote = $conn->prepare($sqlPacote);
+        $stmtPacote->bindParam(':escola_id', $escolaId);
+        $stmtPacote->execute();
+        $pacote = $stmtPacote->fetch(PDO::FETCH_ASSOC);
+        
+        if ($pacote) {
+            // Buscar itens do pacote
+            $sqlItens = "SELECT pei.*, pr.nome as produto_nome, pr.unidade_medida
+                        FROM pacote_escola_item pei
+                        INNER JOIN produto pr ON pei.produto_id = pr.id
+                        WHERE pei.pacote_id = :pacote_id
+                        ORDER BY pr.nome ASC";
+            $stmtItens = $conn->prepare($sqlItens);
+            $stmtItens->bindParam(':pacote_id', $pacote['id']);
+            $stmtItens->execute();
+            $itens = $stmtItens->fetchAll(PDO::FETCH_ASSOC);
+            
+            echo json_encode([
+                'success' => true,
+                'pacote' => $pacote,
+                'itens' => $itens
+            ]);
+        } else {
+            echo json_encode([
+                'success' => false,
+                'message' => 'Nenhum pacote encontrado para esta escola'
+            ]);
+        }
+        exit;
+    }
 }
 
 // Buscar escolas
@@ -283,7 +324,15 @@ $cardapios = $cardapioModel->listar($filtrosInicial);
             params.append('acao', 'listar_cardapios');
             
             fetch('cardapios_nutricionista.php?' + params.toString())
-                .then(response => response.json())
+                .then(async response => {
+                    const contentType = response.headers.get('content-type');
+                    if (!contentType || !contentType.includes('application/json')) {
+                        const text = await response.text();
+                        console.error('Resposta não é JSON:', text.substring(0, 200));
+                        throw new Error('Resposta do servidor não é válida.');
+                    }
+                    return response.json();
+                })
                 .then(data => {
                     if (data.success) {
                         renderizarCardapios(data.cardapios);
@@ -324,8 +373,184 @@ $cardapios = $cardapioModel->listar($filtrosInicial);
         }
         
         function abrirModalNovoCardapio() {
-            // Redirecionar para página de criação ou abrir modal
-            alert('Funcionalidade de criação de cardápio será implementada. Por enquanto, use o sistema de cardápios existente.');
+            document.getElementById('modalNovoCardapio').classList.remove('hidden');
+            document.getElementById('modalNovoCardapio').style.display = 'flex';
+            // Limpar formulário
+            document.getElementById('formNovoCardapio').reset();
+            document.getElementById('mes').value = new Date().getMonth() + 1;
+            document.getElementById('ano').value = new Date().getFullYear();
+            document.getElementById('pacote-info').classList.add('hidden');
+            document.getElementById('produtos-pacote').innerHTML = '';
+            document.getElementById('itens-cardapio').innerHTML = '';
+            itemIndex = 0;
+        }
+        
+        function fecharModalNovoCardapio() {
+            document.getElementById('modalNovoCardapio').classList.add('hidden');
+            document.getElementById('modalNovoCardapio').style.display = 'none';
+        }
+        
+        async function buscarPacoteEscola() {
+            const escolaId = document.getElementById('escola_id').value;
+            const pacoteInfo = document.getElementById('pacote-info');
+            const produtosPacote = document.getElementById('produtos-pacote');
+            
+            if (!escolaId) {
+                pacoteInfo.classList.add('hidden');
+                produtosPacote.innerHTML = '';
+                return;
+            }
+            
+            try {
+                const response = await fetch(`?acao=buscar_pacote_escola&escola_id=${escolaId}`);
+                
+                const contentType = response.headers.get('content-type');
+                if (!contentType || !contentType.includes('application/json')) {
+                    const text = await response.text();
+                    console.error('Resposta não é JSON:', text.substring(0, 200));
+                    throw new Error('Resposta do servidor não é válida.');
+                }
+                
+                const data = await response.json();
+                
+                if (data.success && data.pacote && data.itens) {
+                    pacoteInfo.classList.remove('hidden');
+                    document.getElementById('pacote-nome').textContent = data.pacote.descricao || 'Pacote da Escola';
+                    document.getElementById('pacote-data').textContent = new Date(data.pacote.data_envio).toLocaleDateString('pt-BR');
+                    
+                    // Exibir produtos do pacote
+                    produtosPacote.innerHTML = data.itens.map(item => `
+                        <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                            <div>
+                                <p class="font-medium text-gray-900">${item.produto_nome}</p>
+                                <p class="text-sm text-gray-500">${item.quantidade} ${item.unidade_medida || ''}</p>
+                            </div>
+                            <button onclick="adicionarProdutoAoCardapio(${item.produto_id}, '${item.produto_nome.replace(/'/g, "\\'")}', '${item.unidade_medida || ''}')" 
+                                    class="bg-pink-600 hover:bg-pink-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors">
+                                Adicionar
+                            </button>
+                        </div>
+                    `).join('');
+                } else {
+                    pacoteInfo.classList.add('hidden');
+                    produtosPacote.innerHTML = '<p class="text-gray-500 text-center py-4">Nenhum pacote encontrado para esta escola.</p>';
+                }
+            } catch (error) {
+                console.error('Erro ao buscar pacote:', error);
+                pacoteInfo.classList.add('hidden');
+                produtosPacote.innerHTML = '<p class="text-red-500 text-center py-4">Erro ao buscar pacote da escola.</p>';
+            }
+        }
+        
+        function adicionarProdutoAoCardapio(produtoId, produtoNome, unidadeMedida) {
+            const itensCardapio = document.getElementById('itens-cardapio');
+            const novoItem = document.createElement('div');
+            novoItem.className = 'flex items-center space-x-4 p-4 bg-white border border-gray-200 rounded-lg mb-3';
+            novoItem.innerHTML = `
+                <input type="hidden" name="itens[${itemIndex}][produto_id]" value="${produtoId}">
+                <div class="flex-1">
+                    <p class="font-medium text-gray-900">${produtoNome}</p>
+                    <p class="text-sm text-gray-500">${unidadeMedida}</p>
+                </div>
+                <div class="flex items-center space-x-2">
+                    <label class="text-sm text-gray-700">Quantidade:</label>
+                    <input type="number" name="itens[${itemIndex}][quantidade]" 
+                           step="0.001" min="0" value="1" 
+                           class="w-24 px-3 py-2 border border-gray-300 rounded-lg" required>
+                    <span class="text-sm text-gray-500">${unidadeMedida}</span>
+                </div>
+                <button type="button" onclick="this.parentElement.remove()" 
+                        class="text-red-600 hover:text-red-800">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+            `;
+            itensCardapio.appendChild(novoItem);
+            itemIndex++;
+        }
+        
+        function adicionarItemManual() {
+            const produtoSelect = document.getElementById('produto-manual');
+            const produtoId = produtoSelect.value;
+            const produtoOption = produtoSelect.options[produtoSelect.selectedIndex];
+            const produtoNome = produtoOption.text;
+            const unidadeMedida = produtoOption.getAttribute('data-unidade') || '';
+            
+            if (!produtoId) {
+                alert('Selecione um produto');
+                return;
+            }
+            
+            adicionarProdutoAoCardapio(produtoId, produtoNome, unidadeMedida);
+            produtoSelect.value = '';
+        }
+        
+        async function salvarCardapio() {
+            const form = document.getElementById('formNovoCardapio');
+            const formData = new FormData(form);
+            
+            // Coletar itens do cardápio
+            const itens = [];
+            const itemInputs = form.querySelectorAll('input[name^="itens["]');
+            const itemGroups = {};
+            
+            itemInputs.forEach(input => {
+                const name = input.name;
+                const match = name.match(/itens\[(\d+)\]\[(\w+)\]/);
+                if (match) {
+                    const index = match[1];
+                    const field = match[2];
+                    if (!itemGroups[index]) {
+                        itemGroups[index] = {};
+                    }
+                    itemGroups[index][field] = input.value;
+                }
+            });
+            
+            Object.values(itemGroups).forEach(item => {
+                if (item.produto_id && item.quantidade) {
+                    itens.push({
+                        produto_id: item.produto_id,
+                        quantidade: parseFloat(item.quantidade)
+                    });
+                }
+            });
+            
+            if (itens.length === 0) {
+                alert('Adicione pelo menos um item ao cardápio');
+                return;
+            }
+            
+            formData.append('acao', 'criar_cardapio');
+            formData.append('itens', JSON.stringify(itens));
+            
+            try {
+                const response = await fetch('', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const contentType = response.headers.get('content-type');
+                if (!contentType || !contentType.includes('application/json')) {
+                    const text = await response.text();
+                    console.error('Resposta não é JSON:', text.substring(0, 200));
+                    throw new Error('Resposta do servidor não é válida.');
+                }
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    alert('Cardápio criado com sucesso!');
+                    fecharModalNovoCardapio();
+                    filtrarCardapios();
+                } else {
+                    alert('Erro ao criar cardápio: ' + (data.message || 'Erro desconhecido'));
+                }
+            } catch (error) {
+                console.error('Erro:', error);
+                alert('Erro ao processar requisição. Por favor, tente novamente.');
+            }
         }
         
         function visualizarCardapio(id) {
@@ -339,6 +564,121 @@ $cardapios = $cardapioModel->listar($filtrosInicial);
         // Carregar cardápios ao iniciar
         filtrarCardapios();
     </script>
+    
+    <!-- Modal Novo Cardápio -->
+    <div id="modalNovoCardapio" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden items-center justify-center p-4" style="display: none;">
+        <div class="bg-white rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+            <div class="p-6">
+                <div class="flex justify-between items-center mb-6">
+                    <h3 class="text-2xl font-bold text-gray-900">Novo Cardápio</h3>
+                    <button onclick="fecharModalNovoCardapio()" class="text-gray-400 hover:text-gray-600">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                        </svg>
+                    </button>
+                </div>
+                
+                <form id="formNovoCardapio" onsubmit="event.preventDefault(); salvarCardapio();">
+                    <div class="space-y-6">
+                        <!-- Seleção de Escola -->
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Escola *</label>
+                            <select id="escola_id" name="escola_id" onchange="buscarPacoteEscola()" 
+                                    class="w-full px-4 py-2 border border-gray-300 rounded-lg" required>
+                                <option value="">Selecione uma escola</option>
+                                <?php foreach ($escolas as $escola): ?>
+                                    <option value="<?= $escola['id'] ?>"><?= htmlspecialchars($escola['nome']) ?></option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
+                        
+                        <!-- Informações do Pacote -->
+                        <div id="pacote-info" class="hidden bg-gradient-to-r from-pink-50 to-purple-50 rounded-xl p-4 border border-pink-200">
+                            <div class="flex items-center space-x-3 mb-3">
+                                <svg class="w-6 h-6 text-pink-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path>
+                                </svg>
+                                <div>
+                                    <h4 class="font-semibold text-gray-900">Pacote da Escola</h4>
+                                    <p class="text-sm text-gray-600" id="pacote-nome"></p>
+                                    <p class="text-xs text-gray-500">Data de envio: <span id="pacote-data"></span></p>
+                                </div>
+                            </div>
+                            
+                            <!-- Produtos do Pacote -->
+                            <div class="mt-4">
+                                <h5 class="text-sm font-medium text-gray-700 mb-3">Produtos Disponíveis no Pacote:</h5>
+                                <div id="produtos-pacote" class="space-y-2 max-h-60 overflow-y-auto">
+                                    <!-- Produtos serão carregados aqui -->
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Período -->
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Mês *</label>
+                                <select id="mes" name="mes" class="w-full px-4 py-2 border border-gray-300 rounded-lg" required>
+                                    <?php for ($i = 1; $i <= 12; $i++): ?>
+                                        <option value="<?= $i ?>" <?= $i == date('n') ? 'selected' : '' ?>>
+                                            <?= date('F', mktime(0, 0, 0, $i, 1)) ?>
+                                        </option>
+                                    <?php endfor; ?>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Ano *</label>
+                                <input type="number" id="ano" name="ano" 
+                                       value="<?= date('Y') ?>" min="2020" max="2100"
+                                       class="w-full px-4 py-2 border border-gray-300 rounded-lg" required>
+                            </div>
+                        </div>
+                        
+                        <!-- Adicionar Produto Manualmente -->
+                        <div class="border-t pt-4">
+                            <h4 class="text-lg font-semibold text-gray-900 mb-3">Adicionar Produto Manualmente</h4>
+                            <div class="flex space-x-2">
+                                <select id="produto-manual" class="flex-1 px-4 py-2 border border-gray-300 rounded-lg">
+                                    <option value="">Selecione um produto</option>
+                                    <?php foreach ($produtos as $produto): ?>
+                                        <option value="<?= $produto['id'] ?>" data-unidade="<?= htmlspecialchars($produto['unidade_medida'] ?? '') ?>">
+                                            <?= htmlspecialchars($produto['nome']) ?> 
+                                            <?= $produto['unidade_medida'] ? '(' . htmlspecialchars($produto['unidade_medida']) . ')' : '' ?>
+                                        </option>
+                                    <?php endforeach; ?>
+                                </select>
+                                <button type="button" onclick="adicionarItemManual()" 
+                                        class="bg-gray-600 hover:bg-gray-700 text-white px-6 py-2 rounded-lg font-medium">
+                                    Adicionar
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <!-- Itens do Cardápio -->
+                        <div class="border-t pt-4">
+                            <h4 class="text-lg font-semibold text-gray-900 mb-3">Itens do Cardápio</h4>
+                            <div id="itens-cardapio" class="space-y-3">
+                                <!-- Itens serão adicionados aqui -->
+                                <p class="text-gray-500 text-center py-4">Nenhum item adicionado ainda. Use os produtos do pacote ou adicione manualmente.</p>
+                            </div>
+                        </div>
+                        
+                        <!-- Botões -->
+                        <div class="flex justify-end space-x-3 pt-4 border-t">
+                            <button type="button" onclick="fecharModalNovoCardapio()" 
+                                    class="px-6 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 font-medium">
+                                Cancelar
+                            </button>
+                            <button type="submit" 
+                                    class="px-6 py-2 bg-pink-600 hover:bg-pink-700 text-white rounded-lg font-medium">
+                                Salvar Cardápio
+                            </button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
 </body>
 </html>
 

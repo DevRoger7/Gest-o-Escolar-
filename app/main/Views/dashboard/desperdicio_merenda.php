@@ -8,7 +8,12 @@ $session = new sessions();
 $session->autenticar_session();
 $session->tempo_session();
 
-if (!isset($_SESSION['tipo']) || strtolower($_SESSION['tipo']) !== 'adm_merenda') {
+// Verificar se é ADM_MERENDA ou GESTAO (gestor da merenda)
+$tipoUsuario = strtolower($_SESSION['tipo'] ?? '');
+$ehAdmMerenda = ($tipoUsuario === 'adm_merenda');
+$ehGestor = ($tipoUsuario === 'gestao');
+
+if (!$ehAdmMerenda && !$ehGestor) {
     header('Location: dashboard.php?erro=sem_permissao');
     exit;
 }
@@ -34,6 +39,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao'])) {
     header('Content-Type: application/json');
     
     if ($_POST['acao'] === 'registrar_desperdicio') {
+        // Apenas ADM_MERENDA pode registrar
+        if (!$ehAdmMerenda) {
+            echo json_encode(['success' => false, 'message' => 'Sem permissão para registrar desperdício']);
+            exit;
+        }
+        
         $dados = [
             'escola_id' => $_POST['escola_id'] ?? null,
             'data' => $_POST['data'] ?? date('Y-m-d'),
@@ -49,6 +60,30 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao'])) {
         
         $resultado = $desperdicioModel->registrar($dados);
         echo json_encode($resultado);
+        exit;
+    }
+    
+    if ($_POST['acao'] === 'adicionar_observacao') {
+        // Gestor e ADM_MERENDA podem adicionar observações
+        $desperdicioId = $_POST['desperdicio_id'] ?? null;
+        $observacoes = $_POST['observacoes'] ?? null;
+        
+        if (!$desperdicioId) {
+            echo json_encode(['success' => false, 'message' => 'ID do desperdício não informado']);
+            exit;
+        }
+        
+        try {
+            $sql = "UPDATE desperdicio SET observacoes = :observacoes WHERE id = :id";
+            $stmt = $conn->prepare($sql);
+            $stmt->bindParam(':observacoes', $observacoes);
+            $stmt->bindParam(':id', $desperdicioId);
+            $stmt->execute();
+            
+            echo json_encode(['success' => true, 'message' => 'Observação adicionada com sucesso']);
+        } catch (Exception $e) {
+            echo json_encode(['success' => false, 'message' => 'Erro ao adicionar observação: ' . $e->getMessage()]);
+        }
         exit;
     }
 }
@@ -160,12 +195,14 @@ $desperdiciosRecentes = $desperdicioModel->listar(['data_inicio' => date('Y-m-d'
                         <h2 class="text-2xl font-bold text-gray-900">Desperdício de Alimentos</h2>
                         <p class="text-gray-600 mt-1">Registre e monitore o desperdício de alimentos</p>
                     </div>
+                    <?php if ($ehAdmMerenda): ?>
                     <button onclick="abrirModalRegistrarDesperdicio()" class="bg-red-600 hover:bg-red-700 text-white px-6 py-2 rounded-lg font-medium transition-colors duration-200 flex items-center space-x-2">
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
                         </svg>
                         <span>Registrar Desperdício</span>
                     </button>
+                    <?php endif; ?>
                 </div>
                 
                 <div class="bg-white rounded-2xl p-6 shadow-lg mb-6">
@@ -213,12 +250,14 @@ $desperdiciosRecentes = $desperdicioModel->listar(['data_inicio' => date('Y-m-d'
                                     <th class="text-left py-3 px-4 font-semibold text-gray-700">Peso (kg)</th>
                                     <th class="text-left py-3 px-4 font-semibold text-gray-700">Motivo</th>
                                     <th class="text-left py-3 px-4 font-semibold text-gray-700">Turno</th>
+                                    <th class="text-left py-3 px-4 font-semibold text-gray-700">Observações</th>
+                                    <th class="text-left py-3 px-4 font-semibold text-gray-700">Ações</th>
                                 </tr>
                             </thead>
                             <tbody id="lista-desperdicio">
                                 <?php if (empty($desperdiciosRecentes)): ?>
                                     <tr>
-                                        <td colspan="7" class="text-center py-12 text-gray-600">
+                                        <td colspan="9" class="text-center py-12 text-gray-600">
                                             Nenhum registro de desperdício encontrado.
                                         </td>
                                     </tr>
@@ -249,6 +288,21 @@ $desperdiciosRecentes = $desperdicioModel->listar(['data_inicio' => date('Y-m-d'
                                                 </span>
                                             </td>
                                             <td class="py-3 px-4"><?= htmlspecialchars($desp['turno'] ?? '-') ?></td>
+                                            <td class="py-3 px-4">
+                                                <?php if (!empty($desp['observacoes'])): ?>
+                                                    <span class="text-sm text-gray-600" title="<?= htmlspecialchars($desp['observacoes']) ?>">
+                                                        <?= strlen($desp['observacoes']) > 50 ? htmlspecialchars(substr($desp['observacoes'], 0, 50)) . '...' : htmlspecialchars($desp['observacoes']) ?>
+                                                    </span>
+                                                <?php else: ?>
+                                                    <span class="text-sm text-gray-400">-</span>
+                                                <?php endif; ?>
+                                            </td>
+                                            <td class="py-3 px-4">
+                                                <button onclick="abrirModalObservacoes(<?= $desp['id'] ?>, '<?= htmlspecialchars(addslashes($desp['observacoes'] ?? '')) ?>')" 
+                                                        class="text-blue-600 hover:text-blue-800 text-sm font-medium">
+                                                    <?= !empty($desp['observacoes']) ? 'Editar' : 'Adicionar' ?> Observação
+                                                </button>
+                                            </td>
                                         </tr>
                                     <?php endforeach; ?>
                                 <?php endif; ?>
@@ -345,6 +399,44 @@ $desperdiciosRecentes = $desperdicioModel->listar(['data_inicio' => date('Y-m-d'
                 <button onclick="salvarDesperdicio()" class="flex-1 px-6 py-3 text-white bg-red-600 hover:bg-red-700 rounded-lg font-medium transition-colors">
                     Salvar Registro
                 </button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Modal Adicionar Observações -->
+    <div id="modal-observacoes" class="fixed inset-0 bg-black bg-opacity-50 z-[60] hidden items-center justify-center p-4" style="display: none;">
+        <div class="bg-white rounded-2xl shadow-2xl max-w-2xl w-full">
+            <div class="p-6">
+                <div class="flex justify-between items-center mb-6">
+                    <h3 class="text-2xl font-bold text-gray-900">Adicionar Observação</h3>
+                    <button onclick="fecharModalObservacoes()" class="text-gray-400 hover:text-gray-600">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                        </svg>
+                    </button>
+                </div>
+                
+                <form id="form-observacoes" onsubmit="event.preventDefault(); salvarObservacao();">
+                    <input type="hidden" id="observacao-desperdicio-id">
+                    <div class="mb-6">
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Observações</label>
+                        <textarea id="observacao-texto" rows="6" 
+                                  class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                  placeholder="Digite suas observações sobre este registro de desperdício..."></textarea>
+                        <p class="text-xs text-gray-500 mt-2">Você pode adicionar comentários, sugestões ou informações relevantes sobre este desperdício.</p>
+                    </div>
+                    
+                    <div class="flex justify-end space-x-3">
+                        <button type="button" onclick="fecharModalObservacoes()" 
+                                class="px-6 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 font-medium">
+                            Cancelar
+                        </button>
+                        <button type="submit" 
+                                class="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium">
+                            Salvar Observação
+                        </button>
+                    </div>
+                </form>
             </div>
         </div>
     </div>
@@ -446,7 +538,15 @@ $desperdiciosRecentes = $desperdicioModel->listar(['data_inicio' => date('Y-m-d'
                 method: 'POST',
                 body: formData
             })
-            .then(response => response.json())
+            .then(async response => {
+                const contentType = response.headers.get('content-type');
+                if (!contentType || !contentType.includes('application/json')) {
+                    const text = await response.text();
+                    console.error('Resposta não é JSON:', text.substring(0, 200));
+                    throw new Error('Resposta do servidor não é válida.');
+                }
+                return response.json();
+            })
             .then(data => {
                 if (data.success) {
                     alert('Desperdício registrado com sucesso!');
@@ -475,14 +575,22 @@ $desperdiciosRecentes = $desperdicioModel->listar(['data_inicio' => date('Y-m-d'
             if (motivo) url += '&motivo=' + motivo;
             
             fetch(url)
-                .then(response => response.json())
+                .then(async response => {
+                    const contentType = response.headers.get('content-type');
+                    if (!contentType || !contentType.includes('application/json')) {
+                        const text = await response.text();
+                        console.error('Resposta não é JSON:', text.substring(0, 200));
+                        throw new Error('Resposta do servidor não é válida.');
+                    }
+                    return response.json();
+                })
                 .then(data => {
                     if (data.success) {
                         const tbody = document.getElementById('lista-desperdicio');
                         tbody.innerHTML = '';
                         
                         if (data.desperdicios.length === 0) {
-                            tbody.innerHTML = '<tr><td colspan="7" class="text-center py-12 text-gray-600">Nenhum registro encontrado.</td></tr>';
+                            tbody.innerHTML = '<tr><td colspan="9" class="text-center py-12 text-gray-600">Nenhum registro encontrado.</td></tr>';
                             return;
                         }
                         
@@ -505,6 +613,20 @@ $desperdiciosRecentes = $desperdicioModel->listar(['data_inicio' => date('Y-m-d'
                                         </span>
                                     </td>
                                     <td class="py-3 px-4">${desp.turno || '-'}</td>
+                                    <td class="py-3 px-4">
+                                        ${desp.observacoes ? 
+                                            `<span class="text-sm text-gray-600" title="${desp.observacoes.replace(/"/g, '&quot;')}">
+                                                ${desp.observacoes.length > 50 ? desp.observacoes.substring(0, 50) + '...' : desp.observacoes}
+                                            </span>` : 
+                                            '<span class="text-sm text-gray-400">-</span>'
+                                        }
+                                    </td>
+                                    <td class="py-3 px-4">
+                                        <button onclick="abrirModalObservacoes(${desp.id}, '${(desp.observacoes || '').replace(/'/g, "\\'").replace(/"/g, '&quot;')}')" 
+                                                class="text-blue-600 hover:text-blue-800 text-sm font-medium">
+                                            ${desp.observacoes ? 'Editar' : 'Adicionar'} Observação
+                                        </button>
+                                    </td>
                                 </tr>
                             `;
                         });
@@ -513,6 +635,61 @@ $desperdiciosRecentes = $desperdicioModel->listar(['data_inicio' => date('Y-m-d'
                 .catch(error => {
                     console.error('Erro ao filtrar desperdício:', error);
                 });
+        }
+        
+        function abrirModalObservacoes(desperdicioId, observacoesAtuais) {
+            document.getElementById('observacao-desperdicio-id').value = desperdicioId;
+            document.getElementById('observacao-texto').value = observacoesAtuais || '';
+            document.getElementById('modal-observacoes').classList.remove('hidden');
+            document.getElementById('modal-observacoes').style.display = 'flex';
+        }
+        
+        function fecharModalObservacoes() {
+            document.getElementById('modal-observacoes').classList.add('hidden');
+            document.getElementById('modal-observacoes').style.display = 'none';
+            document.getElementById('form-observacoes').reset();
+        }
+        
+        async function salvarObservacao() {
+            const desperdicioId = document.getElementById('observacao-desperdicio-id').value;
+            const observacoes = document.getElementById('observacao-texto').value;
+            
+            if (!desperdicioId) {
+                alert('Erro: ID do desperdício não encontrado');
+                return;
+            }
+            
+            const formData = new FormData();
+            formData.append('acao', 'adicionar_observacao');
+            formData.append('desperdicio_id', desperdicioId);
+            formData.append('observacoes', observacoes);
+            
+            try {
+                const response = await fetch('', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const contentType = response.headers.get('content-type');
+                if (!contentType || !contentType.includes('application/json')) {
+                    const text = await response.text();
+                    console.error('Resposta não é JSON:', text.substring(0, 200));
+                    throw new Error('Resposta do servidor não é válida.');
+                }
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    alert('Observação salva com sucesso!');
+                    fecharModalObservacoes();
+                    filtrarDesperdicio();
+                } else {
+                    alert('Erro ao salvar observação: ' + (data.message || 'Erro desconhecido'));
+                }
+            } catch (error) {
+                console.error('Erro:', error);
+                alert('Erro ao processar requisição. Por favor, tente novamente.');
+            }
         }
     </script>
 </body>
