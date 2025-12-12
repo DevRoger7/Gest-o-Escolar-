@@ -1,4 +1,8 @@
 <?php
+// Iniciar output buffering para evitar problemas com headers
+if (!ob_get_level()) {
+    ob_start();
+}
 require_once('../../Models/sessao/sessions.php');
 require_once('../../config/permissions_helper.php');
 require_once('../../Models/academico/TurmaModel.php');
@@ -136,6 +140,67 @@ $produtos = $stmtProdutos->fetchAll(PDO::FETCH_ASSOC);
 $mensagem = '';
 $tipoMensagem = '';
 
+// Recuperar mensagens da sessão (após redirect)
+if (isset($_SESSION['mensagem_sucesso'])) {
+    $mensagem = $_SESSION['mensagem_sucesso'];
+    $tipoMensagem = 'success';
+    unset($_SESSION['mensagem_sucesso']);
+}
+if (isset($_SESSION['mensagem_erro'])) {
+    $mensagem = $_SESSION['mensagem_erro'];
+    $tipoMensagem = 'error';
+    unset($_SESSION['mensagem_erro']);
+}
+
+// Processar requisições GET (AJAX)
+if ($_SERVER['REQUEST_METHOD'] === 'GET' && !empty($_GET['acao'])) {
+    $acao = $_GET['acao'] ?? '';
+    
+    switch ($acao) {
+        case 'buscar_professores_escola':
+            // Limpar qualquer output anterior
+            if (ob_get_level()) {
+                ob_clean();
+            }
+            header('Content-Type: application/json');
+            try {
+                $escolaId = $_GET['escola_id'] ?? null;
+                
+                if (empty($escolaId)) {
+                    throw new Exception('ID da escola é obrigatório.');
+                }
+                
+                // Verificar se o gestor tem acesso a esta escola
+                if ($_SESSION['tipo'] === 'GESTAO' && $escolaGestorId && $escolaId != $escolaGestorId) {
+                    throw new Exception('Você não tem permissão para acessar esta escola.');
+                }
+                
+                // Buscar professores lotados na escola
+                $sql = "SELECT pl.professor_id, p.nome, p.email, p.telefone
+                        FROM professor_lotacao pl
+                        INNER JOIN professor pr ON pl.professor_id = pr.id
+                        INNER JOIN pessoa p ON pr.pessoa_id = p.id
+                        INNER JOIN usuario u ON u.pessoa_id = p.id
+                        WHERE pl.escola_id = :escola_id 
+                        AND pl.fim IS NULL 
+                        AND pr.ativo = 1 
+                        AND u.ativo = 1
+                        ORDER BY p.nome ASC";
+                
+                $stmt = $conn->prepare($sql);
+                $stmt->bindParam(':escola_id', $escolaId);
+                $stmt->execute();
+                $professores = $stmt->fetchAll(PDO::FETCH_ASSOC);
+                
+                echo json_encode(['success' => true, 'professores' => $professores]);
+            } catch (Exception $e) {
+                error_log("Erro ao buscar professores da escola: " . $e->getMessage());
+                echo json_encode(['success' => false, 'message' => $e->getMessage(), 'professores' => []]);
+            }
+            exit;
+    }
+}
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $acao = $_POST['acao'] ?? '';
 
@@ -145,28 +210,65 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             // Validar permissão: gestor só pode criar turmas na sua escola
             if ($_SESSION['tipo'] === 'GESTAO' && $escolaGestorId && $escolaIdTurma != $escolaGestorId) {
-                $mensagem = 'Você não tem permissão para criar turmas nesta escola.';
-                $tipoMensagem = 'error';
-                break;
+                $_SESSION['mensagem_erro'] = 'Você não tem permissão para criar turmas nesta escola.';
+                header('Location: gestao_escolar.php');
+                exit;
+            }
+
+            $serie = strtoupper(trim($_POST['serie'] ?? ''));
+            $letra = strtoupper(trim($_POST['letra'] ?? ''));
+            $turno = $_POST['turno'] ?? 'MANHA';
+            $anoLetivo = $_POST['ano_letivo'] ?? date('Y');
+
+            // Validar campos obrigatórios
+            if (empty($serie) || empty($letra) || empty($escolaIdTurma)) {
+                $_SESSION['mensagem_erro'] = 'Série, Letra e Escola são obrigatórios.';
+                header('Location: gestao_escolar.php');
+                exit;
+            }
+
+            // Verificar se já existe turma com os mesmos dados (escola, série, letra, turno, ano letivo)
+            $sqlVerificar = "SELECT id FROM turma 
+                            WHERE escola_id = :escola_id 
+                            AND UPPER(TRIM(serie)) = :serie 
+                            AND UPPER(TRIM(letra)) = :letra 
+                            AND turno = :turno 
+                            AND ano_letivo = :ano_letivo 
+                            AND ativo = 1";
+            $stmtVerificar = $conn->prepare($sqlVerificar);
+            $stmtVerificar->bindParam(':escola_id', $escolaIdTurma);
+            $stmtVerificar->bindParam(':serie', $serie);
+            $stmtVerificar->bindParam(':letra', $letra);
+            $stmtVerificar->bindParam(':turno', $turno);
+            $stmtVerificar->bindParam(':ano_letivo', $anoLetivo);
+            $stmtVerificar->execute();
+            
+            if ($stmtVerificar->fetch()) {
+                $_SESSION['mensagem_erro'] = "Já existe uma turma cadastrada com esses dados: {$serie} {$letra} - {$turno} no ano letivo {$anoLetivo}. Não é possível criar turmas duplicadas.";
+                header('Location: gestao_escolar.php');
+                exit;
             }
 
             $resultado = $turmaModel->criar([
                 'escola_id' => $escolaIdTurma,
                 'serie_id' => $_POST['serie_id'] ?? null,
-                'ano_letivo' => $_POST['ano_letivo'] ?? date('Y'),
-                'serie' => $_POST['serie'] ?? '',
-                'letra' => $_POST['letra'] ?? '',
-                'turno' => $_POST['turno'] ?? 'MANHA',
+                'ano_letivo' => $anoLetivo,
+                'serie' => $serie,
+                'letra' => $letra,
+                'turno' => $turno,
                 'capacidade' => $_POST['capacidade'] ?? null,
                 'sala' => $_POST['sala'] ?? null
             ]);
 
             if ($resultado['success']) {
-                $mensagem = 'Turma criada com sucesso!';
-                $tipoMensagem = 'success';
+                $_SESSION['mensagem_sucesso'] = 'Turma criada com sucesso!';
+                // POST-REDIRECT-GET: redirecionar para evitar reenvio de formulário
+                header('Location: gestao_escolar.php');
+                exit;
             } else {
-                $mensagem = $resultado['message'] ?? 'Erro ao criar turma.';
-                $tipoMensagem = 'error';
+                $_SESSION['mensagem_erro'] = $resultado['message'] ?? 'Erro ao criar turma.';
+                header('Location: gestao_escolar.php');
+                exit;
             }
             break;
 
@@ -177,9 +279,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 if ($_SESSION['tipo'] === 'GESTAO' && $escolaGestorId) {
                     $turma = $turmaModel->buscarPorId($turmaId);
                     if (!$turma || $turma['escola_id'] != $escolaGestorId) {
-                        $mensagem = 'Você não tem permissão para editar esta turma.';
-                        $tipoMensagem = 'error';
-                        break;
+                        $_SESSION['mensagem_erro'] = 'Você não tem permissão para editar esta turma.';
+                        header('Location: gestao_escolar.php');
+                        exit;
                     }
                     // Forçar escola_id para a escola do gestor
                     $_POST['escola_id'] = $escolaGestorId;
@@ -189,29 +291,67 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
                 // Validar se gestor está tentando mudar para outra escola
                 if ($_SESSION['tipo'] === 'GESTAO' && $escolaGestorId && $escolaIdTurma != $escolaGestorId) {
-                    $mensagem = 'Você não tem permissão para alterar a escola desta turma.';
-                    $tipoMensagem = 'error';
-                    break;
+                    $_SESSION['mensagem_erro'] = 'Você não tem permissão para alterar a escola desta turma.';
+                    header('Location: gestao_escolar.php');
+                    exit;
+                }
+
+                $serie = strtoupper(trim($_POST['serie'] ?? ''));
+                $letra = strtoupper(trim($_POST['letra'] ?? ''));
+                $turno = $_POST['turno'] ?? 'MANHA';
+                $anoLetivo = $_POST['ano_letivo'] ?? date('Y');
+
+                // Validar campos obrigatórios
+                if (empty($serie) || empty($letra) || empty($escolaIdTurma)) {
+                    $_SESSION['mensagem_erro'] = 'Série, Letra e Escola são obrigatórios.';
+                    header('Location: gestao_escolar.php');
+                    exit;
+                }
+
+                // Verificar se já existe outra turma com os mesmos dados (exceto a atual)
+                $sqlVerificar = "SELECT id FROM turma 
+                                WHERE escola_id = :escola_id 
+                                AND UPPER(TRIM(serie)) = :serie 
+                                AND UPPER(TRIM(letra)) = :letra 
+                                AND turno = :turno 
+                                AND ano_letivo = :ano_letivo 
+                                AND ativo = 1
+                                AND id != :turma_id";
+                $stmtVerificar = $conn->prepare($sqlVerificar);
+                $stmtVerificar->bindParam(':escola_id', $escolaIdTurma);
+                $stmtVerificar->bindParam(':serie', $serie);
+                $stmtVerificar->bindParam(':letra', $letra);
+                $stmtVerificar->bindParam(':turno', $turno);
+                $stmtVerificar->bindParam(':ano_letivo', $anoLetivo);
+                $stmtVerificar->bindParam(':turma_id', $turmaId);
+                $stmtVerificar->execute();
+                
+                if ($stmtVerificar->fetch()) {
+                    $_SESSION['mensagem_erro'] = "Já existe outra turma cadastrada com esses dados: {$serie} {$letra} - {$turno} no ano letivo {$anoLetivo}. Não é possível ter turmas duplicadas.";
+                    header('Location: gestao_escolar.php');
+                    exit;
                 }
 
                 $resultado = $turmaModel->atualizar($turmaId, [
                     'escola_id' => $escolaIdTurma,
                     'serie_id' => $_POST['serie_id'] ?? null,
-                    'ano_letivo' => $_POST['ano_letivo'] ?? date('Y'),
-                    'serie' => $_POST['serie'] ?? '',
-                    'letra' => $_POST['letra'] ?? '',
-                    'turno' => $_POST['turno'] ?? 'MANHA',
+                    'ano_letivo' => $anoLetivo,
+                    'serie' => $serie,
+                    'letra' => $letra,
+                    'turno' => $turno,
                     'capacidade' => $_POST['capacidade'] ?? null,
                     'sala' => $_POST['sala'] ?? null,
                     'ativo' => $_POST['ativo'] ?? 1
                 ]);
 
                 if ($resultado) {
-                    $mensagem = 'Turma atualizada com sucesso!';
-                    $tipoMensagem = 'success';
+                    $_SESSION['mensagem_sucesso'] = 'Turma atualizada com sucesso!';
+                    header('Location: gestao_escolar.php');
+                    exit;
                 } else {
-                    $mensagem = 'Erro ao atualizar turma.';
-                    $tipoMensagem = 'error';
+                    $_SESSION['mensagem_erro'] = 'Erro ao atualizar turma.';
+                    header('Location: gestao_escolar.php');
+                    exit;
                 }
             }
             break;
@@ -469,6 +609,243 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $tipoMensagem = 'error';
             }
             break;
+
+        case 'cadastrar_aluno':
+            header('Content-Type: application/json');
+            try {
+                // Preparar dados do aluno
+                $cpf = preg_replace('/[^0-9]/', '', $_POST['cpf'] ?? '');
+                $telefone = preg_replace('/[^0-9]/', '', $_POST['telefone'] ?? '');
+                $emailInformado = !empty($_POST['email']) ? trim($_POST['email']) : '';
+        
+                // Validar CPF
+                if (empty($cpf) || strlen($cpf) !== 11) {
+                    throw new Exception('CPF inválido. Deve conter 11 dígitos.');
+                }
+        
+                // Verificar se CPF já existe
+                $sqlVerificarCPF = "SELECT id FROM pessoa WHERE cpf = :cpf";
+                $stmtVerificar = $conn->prepare($sqlVerificarCPF);
+                $stmtVerificar->bindParam(':cpf', $cpf);
+                $stmtVerificar->execute();
+                if ($stmtVerificar->fetch()) {
+                    throw new Exception('CPF já cadastrado no sistema.');
+                }
+                if (!empty($emailInformado)) {
+                    $sqlVerificarEmail = "SELECT id FROM pessoa WHERE email = :email LIMIT 1";
+                    $stmtVerificarEmail = $conn->prepare($sqlVerificarEmail);
+                    $stmtVerificarEmail->bindParam(':email', $emailInformado);
+                    $stmtVerificarEmail->execute();
+                    if ($stmtVerificarEmail->fetch()) {
+                        throw new Exception('Email já cadastrado no sistema.');
+                    }
+                }
+        
+                // Gerar matrícula se não fornecida
+                $matricula = $_POST['matricula'] ?? '';
+                if (empty($matricula)) {
+                    $ano = date('Y');
+                    $sqlMatricula = "SELECT MAX(CAST(SUBSTRING(matricula, 5) AS UNSIGNED)) as ultima_matricula 
+                                    FROM aluno 
+                                    WHERE matricula LIKE :ano_prefix";
+                    $stmtMatricula = $conn->prepare($sqlMatricula);
+                    $anoPrefix = $ano . '%';
+                    $stmtMatricula->bindParam(':ano_prefix', $anoPrefix);
+                    $stmtMatricula->execute();
+                    $result = $stmtMatricula->fetch(PDO::FETCH_ASSOC);
+                    $proximoNumero = ($result['ultima_matricula'] ?? 0) + 1;
+                    $matricula = $ano . str_pad($proximoNumero, 4, '0', STR_PAD_LEFT);
+                }
+        
+                // Verificar se matrícula já existe
+                $sqlVerificarMatricula = "SELECT id FROM aluno WHERE matricula = :matricula";
+                $stmtVerificarMat = $conn->prepare($sqlVerificarMatricula);
+                $stmtVerificarMat->bindParam(':matricula', $matricula);
+                $stmtVerificarMat->execute();
+                if ($stmtVerificarMat->fetch()) {
+                    // Se a matrícula já existe, gerar uma nova
+                    $ano = date('Y');
+                    $sqlMatricula = "SELECT MAX(CAST(SUBSTRING(matricula, 5) AS UNSIGNED)) as ultima_matricula 
+                                    FROM aluno 
+                                    WHERE matricula LIKE :ano_prefix";
+                    $stmtMatricula = $conn->prepare($sqlMatricula);
+                    $anoPrefix = $ano . '%';
+                    $stmtMatricula->bindParam(':ano_prefix', $anoPrefix);
+                    $stmtMatricula->execute();
+                    $result = $stmtMatricula->fetch(PDO::FETCH_ASSOC);
+                    $proximoNumero = ($result['ultima_matricula'] ?? 0) + 1;
+                    $matricula = $ano . str_pad($proximoNumero, 4, '0', STR_PAD_LEFT);
+                }
+        
+                // Preparar dados para o model
+                $dados = [
+                    'cpf' => $cpf,
+                    'nome' => trim($_POST['nome'] ?? ''),
+                    'data_nascimento' => $_POST['data_nascimento'] ?? null,
+                    'sexo' => $_POST['sexo'] ?? null,
+                    'email' => !empty($emailInformado) ? $emailInformado : null,
+                    'telefone' => !empty($telefone) ? $telefone : null,
+                    'matricula' => $matricula,
+                    'nis' => !empty($_POST['nis']) ? preg_replace('/[^0-9]/', '', trim($_POST['nis'])) : null,
+                    'responsavel_id' => !empty($_POST['responsavel_id']) ? $_POST['responsavel_id'] : null,
+                    'escola_id' => !empty($_POST['escola_id']) ? $_POST['escola_id'] : ($escolaGestorId ?? null),
+                    'data_matricula' => $_POST['data_matricula'] ?? date('Y-m-d'),
+                    'situacao' => $_POST['situacao'] ?? 'MATRICULADO'
+                ];
+        
+                // Validar campos obrigatórios
+                if (empty($dados['nome'])) {
+                    throw new Exception('Nome é obrigatório.');
+                }
+                if (empty($dados['data_nascimento'])) {
+                    throw new Exception('Data de nascimento é obrigatória.');
+                }
+                if (empty($dados['sexo'])) {
+                    throw new Exception('Sexo é obrigatório.');
+                }
+                if (empty($dados['escola_id'])) {
+                    throw new Exception('Escola é obrigatória.');
+                }
+        
+                // Usar o model para criar o aluno
+                $result = $alunoModel->criar($dados);
+        
+                if ($result['success']) {
+                    $alunoId = $result['id'] ?? null;
+                    $mensagem = 'Aluno cadastrado com sucesso!';
+        
+                    // Verificar se deve criar responsável
+                    $criarResponsavel = isset($_POST['criar_responsavel']) && $_POST['criar_responsavel'] === '1';
+        
+                    if ($criarResponsavel && $alunoId) {
+                        // Preparar dados do responsável
+                        $responsavelCpf = preg_replace('/[^0-9]/', '', $_POST['responsavel_cpf'] ?? '');
+                        $responsavelTelefone = preg_replace('/[^0-9]/', '', $_POST['responsavel_telefone'] ?? '');
+                        $responsavelEmail = !empty($_POST['responsavel_email']) ? trim($_POST['responsavel_email']) : '';
+        
+                        // Validar dados do responsável
+                        if (empty($responsavelCpf) || strlen($responsavelCpf) !== 11) {
+                            throw new Exception('CPF do responsável inválido. Deve conter 11 dígitos.');
+                        }
+        
+                        if (empty($_POST['responsavel_nome'])) {
+                            throw new Exception('Nome do responsável é obrigatório.');
+                        }
+        
+                        if (empty($_POST['responsavel_senha']) || strlen($_POST['responsavel_senha']) < 6) {
+                            throw new Exception('Senha do responsável é obrigatória e deve ter no mínimo 6 caracteres.');
+                        }
+        
+                        if (empty($_POST['responsavel_parentesco'])) {
+                            throw new Exception('Parentesco é obrigatório.');
+                        }
+        
+                        // Verificar se CPF do responsável já existe
+                        $sqlVerificarCPFResp = "SELECT id FROM pessoa WHERE cpf = :cpf";
+                        $stmtVerificarResp = $conn->prepare($sqlVerificarCPFResp);
+                        $stmtVerificarResp->bindParam(':cpf', $responsavelCpf);
+                        $stmtVerificarResp->execute();
+                        if ($stmtVerificarResp->fetch()) {
+                            throw new Exception('CPF do responsável já cadastrado no sistema.');
+                        }
+        
+                        if (!empty($responsavelEmail)) {
+                            $sqlVerificarEmailResp = "SELECT id FROM pessoa WHERE email = :email LIMIT 1";
+                            $stmtVerificarEmailResp = $conn->prepare($sqlVerificarEmailResp);
+                            $stmtVerificarEmailResp->bindParam(':email', $responsavelEmail);
+                            $stmtVerificarEmailResp->execute();
+                            if ($stmtVerificarEmailResp->fetch()) {
+                                throw new Exception('Email do responsável já cadastrado no sistema.');
+                            }
+                        }
+        
+                        // Criar responsável
+                        $dadosResponsavel = [
+                            'nome' => trim($_POST['responsavel_nome'] ?? ''),
+                            'cpf' => $responsavelCpf,
+                            'data_nascimento' => !empty($_POST['responsavel_data_nascimento']) ? $_POST['responsavel_data_nascimento'] : null,
+                            'sexo' => $_POST['responsavel_sexo'] ?? null,
+                            'email' => !empty($responsavelEmail) ? $responsavelEmail : null,
+                            'telefone' => !empty($responsavelTelefone) ? $responsavelTelefone : null,
+                            'senha' => $_POST['responsavel_senha'] ?? ''
+                        ];
+        
+                        $resultadoResponsavel = $responsavelModel->criar($dadosResponsavel);
+        
+                        if ($resultadoResponsavel['success']) {
+                            // Associar responsável ao aluno
+                            $parentesco = $_POST['responsavel_parentesco'] ?? 'OUTRO';
+                            $associacao = $responsavelModel->associarAlunos($resultadoResponsavel['pessoa_id'], [$alunoId], $parentesco);
+        
+                            if ($associacao['success']) {
+                                $mensagem .= ' Responsável cadastrado e associado com sucesso!';
+                            } else {
+                                $mensagem .= ' Responsável cadastrado, mas houve erro ao associar: ' . ($associacao['message'] ?? 'Erro desconhecido');
+                            }
+                        } else {
+                            throw new Exception('Aluno cadastrado, mas erro ao criar responsável: ' . ($resultadoResponsavel['message'] ?? 'Erro desconhecido'));
+                        }
+                    }
+        
+                    echo json_encode([
+                        'success' => true,
+                        'message' => $mensagem,
+                        'id' => $alunoId,
+                        'matricula' => $matricula
+                    ]);
+                } else {
+                    echo json_encode([
+                        'success' => false,
+                        'message' => $result['message'] ?? 'Erro ao cadastrar aluno.'
+                    ]);
+                }
+            } catch (Exception $e) {
+                error_log("Erro ao cadastrar aluno (gestao_escolar.php): " . $e->getMessage());
+                echo json_encode([
+                    'success' => false,
+                    'message' => $e->getMessage()
+                ]);
+            }
+            exit;
+
+        case 'listar_alunos':
+            header('Content-Type: application/json');
+            try {
+                $filtros = [];
+                if (!empty($_GET['busca'])) $filtros['busca'] = $_GET['busca'];
+                $escolaId = $escolaGestorId ?? null;
+                
+                $sql = "SELECT a.*, p.nome, p.cpf, p.email, p.telefone, p.data_nascimento, e.nome as escola_nome
+                        FROM aluno a
+                        INNER JOIN pessoa p ON a.pessoa_id = p.id
+                        LEFT JOIN escola e ON a.escola_id = e.id
+                        WHERE a.ativo = 1";
+                
+                $params = [];
+                if ($escolaId) {
+                    $sql .= " AND a.escola_id = :escola_id";
+                    $params[':escola_id'] = $escolaId;
+                }
+                if (!empty($filtros['busca'])) {
+                    $sql .= " AND (p.nome LIKE :busca OR p.cpf LIKE :busca OR a.matricula LIKE :busca)";
+                    $params[':busca'] = "%{$filtros['busca']}%";
+                }
+                
+                $sql .= " ORDER BY p.nome ASC LIMIT 100";
+                
+                $stmt = $conn->prepare($sql);
+                foreach ($params as $key => $value) {
+                    $stmt->bindValue($key, $value);
+                }
+                $stmt->execute();
+                $alunos = $stmt->fetchAll(PDO::FETCH_ASSOC);
+                
+                echo json_encode(['success' => true, 'alunos' => $alunos]);
+            } catch (Exception $e) {
+                error_log("Erro ao listar alunos: " . $e->getMessage());
+                echo json_encode(['success' => false, 'message' => $e->getMessage(), 'alunos' => []]);
+            }
+            exit;
 
         case 'criar_responsavel':
             header('Content-Type: application/json');
@@ -901,6 +1278,7 @@ $filtrosTurma = ['ativo' => 1];
 // Se for gestor, forçar filtro pela escola dele
 if ($_SESSION['tipo'] === 'GESTAO' && $escolaGestorId) {
     $filtrosTurma['escola_id'] = $escolaGestorId;
+    error_log("DEBUG TURMAS - Filtro escola_id para gestor: " . $escolaGestorId);
 } elseif (!empty($_GET['escola_id'])) {
     // Admin pode filtrar por escola específica
     $filtrosTurma['escola_id'] = $_GET['escola_id'];
@@ -909,6 +1287,8 @@ if (!empty($_GET['ano_letivo'])) {
     $filtrosTurma['ano_letivo'] = $_GET['ano_letivo'];
 }
 $turmas = $turmaModel->listar($filtrosTurma);
+error_log("DEBUG TURMAS - Total de turmas encontradas: " . count($turmas));
+error_log("DEBUG TURMAS - Filtros aplicados: " . json_encode($filtrosTurma));
 
 // Buscar séries para os formulários
 $sqlSeries = "SELECT id, nome, codigo FROM serie WHERE ativo = 1 ORDER BY ordem ASC";
@@ -923,10 +1303,16 @@ $stmtDisciplinas->execute();
 $disciplinas = $stmtDisciplinas->fetchAll(PDO::FETCH_ASSOC);
 
 // Buscar professores com suas atribuições
+// IMPORTANTE: Só retorna professores que foram LOTADOS na escola (via professor_lotacao)
 function buscarProfessoresComAtribuicoes($escolaId = null)
 {
     $db = Database::getInstance();
     $conn = $db->getConnection();
+
+    // Se não há escolaId, retornar vazio (gestor precisa ter escola definida)
+    if (!$escolaId) {
+        return [];
+    }
 
     $sql = "SELECT 
                 pr.id as professor_id,
@@ -934,27 +1320,25 @@ function buscarProfessoresComAtribuicoes($escolaId = null)
                 p.email,
                 p.telefone,
                 pr.matricula,
+                pl.inicio as lotacao_inicio,
+                pl.carga_horaria,
                 COALESCE(GROUP_CONCAT(DISTINCT CONCAT(t.serie, ' ', t.letra, ' - ', d.nome) SEPARATOR ', '), '') as atribuicoes,
                 COALESCE(COUNT(DISTINCT CASE WHEN tp.fim IS NULL THEN tp.turma_id END), 0) as total_turmas
             FROM professor pr
             INNER JOIN pessoa p ON pr.pessoa_id = p.id
             INNER JOIN usuario u ON u.pessoa_id = p.id
+            INNER JOIN professor_lotacao pl ON pl.professor_id = pr.id 
+                AND pl.escola_id = :escola_id 
+                AND pl.fim IS NULL
             LEFT JOIN turma_professor tp ON tp.professor_id = pr.id AND tp.fim IS NULL
-            LEFT JOIN turma t ON tp.turma_id = t.id
+            LEFT JOIN turma t ON tp.turma_id = t.id AND t.escola_id = :escola_id
             LEFT JOIN disciplina d ON tp.disciplina_id = d.id
-            WHERE pr.ativo = 1 AND u.ativo = 1";
-
-    if ($escolaId) {
-        $sql .= " AND (t.escola_id = :escola_id OR t.escola_id IS NULL)";
-    }
-
-    $sql .= " GROUP BY pr.id, p.nome, p.email, p.telefone, pr.matricula
-              ORDER BY p.nome ASC";
+            WHERE pr.ativo = 1 AND u.ativo = 1
+            GROUP BY pr.id, p.nome, p.email, p.telefone, pr.matricula, pl.inicio, pl.carga_horaria
+            ORDER BY p.nome ASC";
 
     $stmt = $conn->prepare($sql);
-    if ($escolaId) {
-        $stmt->bindParam(':escola_id', $escolaId);
-    }
+    $stmt->bindParam(':escola_id', $escolaId);
     $stmt->execute();
     return $stmt->fetchAll(PDO::FETCH_ASSOC);
 }
@@ -1599,6 +1983,13 @@ if (!defined('BASE_URL')) {
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="global-theme.css">
     <style>
+        .etapa-conteudo {
+            animation: fadeIn 0.3s ease-in;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
         body {
             font-family: 'Inter', sans-serif;
         }
@@ -1804,6 +2195,9 @@ if (!defined('BASE_URL')) {
                         <button onclick="mostrarAba('validacao')" id="tab-validacao" class="tab-button py-4 px-1 border-b-2 border-transparent font-medium text-sm text-gray-500 hover:text-gray-700 hover:border-gray-300">
                             Validação
                         </button>
+                        <button onclick="mostrarAba('alunos')" id="tab-alunos" class="tab-button py-4 px-1 border-b-2 border-transparent font-medium text-sm text-gray-500 hover:text-gray-700 hover:border-gray-300">
+                            Alunos
+                        </button>
                         <button onclick="mostrarAba('cadastros')" id="tab-cadastros" class="tab-button py-4 px-1 border-b-2 border-transparent font-medium text-sm text-gray-500 hover:text-gray-700 hover:border-gray-300">
                             Cadastros
                         </button>
@@ -1861,7 +2255,9 @@ if (!defined('BASE_URL')) {
                             </div>
                             <div>
                                 <label class="block text-sm font-medium text-gray-700 mb-2">Buscar</label>
-                                <input type="text" id="busca-turma" placeholder="Buscar turma..." class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-green focus:border-transparent">
+                                <input type="text" id="busca-turma" placeholder="Buscar turma..." 
+                                       onkeyup="filtrarTurmas()" 
+                                       class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-green focus:border-transparent">
                             </div>
                         </div>
 
@@ -1878,10 +2274,15 @@ if (!defined('BASE_URL')) {
                                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ações</th>
                                     </tr>
                                 </thead>
-                                <tbody class="bg-white divide-y divide-gray-200">
+                                <tbody id="lista-turmas" class="bg-white divide-y divide-gray-200">
                                     <?php if (empty($turmas)): ?>
                                         <tr>
-                                            <td colspan="6" class="px-6 py-4 text-center text-gray-500">Nenhuma turma encontrada</td>
+                                            <td colspan="6" class="px-6 py-4 text-center text-gray-500">
+                                                Nenhuma turma encontrada.
+                                                <?php if ($_SESSION['tipo'] === 'GESTAO'): ?>
+                                                    <br><span class="text-sm text-gray-400 mt-2 block">Você pode criar uma nova turma clicando no botão "+ Nova Turma" acima.</span>
+                                                <?php endif; ?>
+                                            </td>
                                         </tr>
                                     <?php else: ?>
                                         <?php foreach ($turmas as $turma): ?>
@@ -1905,6 +2306,7 @@ if (!defined('BASE_URL')) {
                                                 </td>
                                                 <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
                                                     <button onclick="verDetalhesTurma(<?= $turma['id'] ?>)" class="text-primary-green hover:text-secondary-green mr-3">Ver</button>
+                                                    <button onclick="abrirModalAtribuirProfessor(<?= $turma['id'] ?>)" class="text-green-600 hover:text-green-800 mr-3 font-medium">Atribuir Professor</button>
                                                     <button onclick="editarTurma(<?= $turma['id'] ?>)" class="text-blue-600 hover:text-blue-800 mr-3">Editar</button>
                                                 </td>
                                             </tr>
@@ -2473,6 +2875,49 @@ if (!defined('BASE_URL')) {
                     </div>
                 </div>
 
+                <!-- ABA: ALUNOS -->
+                <div id="conteudo-alunos" class="aba-conteudo hidden">
+                    <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+                        <div class="flex justify-between items-center mb-6">
+                            <h2 class="text-xl font-bold text-gray-800">Gerenciamento de Alunos</h2>
+                            <button onclick="abrirModalNovoAluno()" class="bg-primary-green text-white px-4 py-2 rounded-lg hover:bg-secondary-green transition-colors">
+                                + Novo Aluno
+                            </button>
+                        </div>
+
+                        <!-- Filtros -->
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Buscar</label>
+                                <input type="text" id="busca-aluno-gestor" placeholder="Nome, CPF ou Matrícula..."
+                                    class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-green focus:border-transparent"
+                                    onkeyup="filtrarAlunosGestor()">
+                            </div>
+                        </div>
+
+                        <!-- Lista de Alunos -->
+                        <div class="overflow-x-auto">
+                            <table class="min-w-full divide-y divide-gray-200">
+                                <thead class="bg-gray-50">
+                                    <tr>
+                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Nome</th>
+                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Matrícula</th>
+                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">CPF</th>
+                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
+                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Situação</th>
+                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ações</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="lista-alunos-gestor" class="bg-white divide-y divide-gray-200">
+                                    <tr>
+                                        <td colspan="6" class="px-6 py-4 text-center text-gray-500">Carregando...</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- ABA: CADASTROS -->
                 <div id="conteudo-cadastros" class="aba-conteudo hidden">
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
@@ -2714,6 +3159,252 @@ if (!defined('BASE_URL')) {
                                 </button>
                             </div>
                         </form>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Modal Cadastrar Novo Aluno -->
+            <div id="modal-novo-aluno" class="hidden fixed inset-0 bg-black bg-opacity-50 z-[60] items-center justify-center" style="display: none;">
+                <div class="bg-white w-full h-full flex flex-col shadow-2xl">
+                    <!-- Header do Modal -->
+                    <div class="flex justify-between items-center p-6 border-b border-gray-200 bg-white sticky top-0 z-10">
+                        <div>
+                            <h2 class="text-2xl font-bold text-gray-900">Cadastrar Novo Aluno</h2>
+                            <!-- Indicador de Etapas -->
+                            <div class="flex items-center space-x-4 mt-4">
+                                <div class="flex items-center">
+                                    <div id="step-indicator-aluno-1" class="w-8 h-8 rounded-full bg-primary-green text-white flex items-center justify-center font-semibold">1</div>
+                                    <span class="ml-2 text-sm font-medium text-gray-700">Dados do Aluno</span>
+                                </div>
+                                <div class="w-12 h-0.5 bg-gray-300"></div>
+                                <div class="flex items-center">
+                                    <div id="step-indicator-aluno-2" class="w-8 h-8 rounded-full bg-gray-300 text-gray-600 flex items-center justify-center font-semibold">2</div>
+                                    <span class="ml-2 text-sm font-medium text-gray-500">Responsável (Opcional)</span>
+                                </div>
+                            </div>
+                        </div>
+                        <button onclick="fecharModalNovoAluno()" class="text-gray-400 hover:text-gray-600 transition-colors p-2 hover:bg-gray-100 rounded-lg">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                            </svg>
+                        </button>
+                    </div>
+                    
+                    <!-- Conteúdo do Modal (Scrollable) -->
+                    <div class="flex-1 overflow-y-auto p-6">
+                        <form id="formNovoAlunoGestor" class="space-y-6 max-w-6xl mx-auto">
+                        <div id="alertaErroAluno" class="hidden bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-lg"></div>
+                        <div id="alertaSucessoAluno" class="hidden bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded-lg"></div>
+                        
+                        <!-- ETAPA 1: Dados do Aluno -->
+                        <div id="etapa-aluno-gestor" class="etapa-conteudo">
+                        
+                        <!-- Informações Pessoais -->
+                        <div>
+                            <h3 class="text-lg font-semibold text-gray-800 mb-4 pb-2 border-b border-gray-200">Informações Pessoais</h3>
+                            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">Nome Completo *</label>
+                                    <input type="text" name="nome" id="aluno-nome" required 
+                                           class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-green focus:border-transparent">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">CPF *</label>
+                                    <input type="text" name="cpf" id="aluno-cpf" required maxlength="14"
+                                           placeholder="000.000.000-00"
+                                           class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-green focus:border-transparent"
+                                           oninput="formatarCPFAluno(this)">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">Data de Nascimento *</label>
+                                    <input type="date" name="data_nascimento" id="aluno-data-nascimento" required max="<?= date('Y-m-d') ?>"
+                                           class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-green focus:border-transparent">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">Sexo *</label>
+                                    <select name="sexo" id="aluno-sexo" required
+                                            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-green focus:border-transparent">
+                                        <option value="">Selecione...</option>
+                                        <option value="M">Masculino</option>
+                                        <option value="F">Feminino</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">Email</label>
+                                    <input type="email" name="email" id="aluno-email"
+                                           class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-green focus:border-transparent">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">Telefone</label>
+                                    <input type="text" name="telefone" id="aluno-telefone" maxlength="15"
+                                           placeholder="(00) 00000-0000"
+                                           class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-green focus:border-transparent"
+                                           oninput="formatarTelefoneAluno(this)">
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Informações Acadêmicas -->
+                        <div>
+                            <h3 class="text-lg font-semibold text-gray-800 mb-4 pb-2 border-b border-gray-200">Informações Acadêmicas</h3>
+                            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">Matrícula</label>
+                                    <input type="text" name="matricula" id="aluno-matricula" readonly
+                                           class="w-full px-4 py-2 border border-gray-300 rounded-lg bg-gray-50"
+                                           placeholder="Será gerada automaticamente">
+                                    <p class="text-xs text-gray-500 mt-1">A matrícula será gerada automaticamente se deixada em branco</p>
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">NIS (Número de Identificação Social)</label>
+                                    <input type="text" name="nis" id="aluno-nis" maxlength="11"
+                                           oninput="formatarNISAluno(this)"
+                                           class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-green focus:border-transparent">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">Escola</label>
+                                    <?php if ($escolaGestorId): ?>
+                                        <input type="hidden" name="escola_id" id="aluno-escola-id" value="<?= $escolaGestorId ?>">
+                                        <input type="text" value="<?= htmlspecialchars($escolaGestor) ?>" disabled
+                                               class="w-full px-4 py-2 border border-gray-300 rounded-lg bg-gray-100 text-gray-700">
+                                    <?php else: ?>
+                                        <select name="escola_id" id="aluno-escola-id"
+                                                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-green focus:border-transparent">
+                                            <option value="">Selecione uma escola...</option>
+                                            <?php foreach ($escolasGestor as $escola): ?>
+                                                <option value="<?= $escola['escola_id'] ?>"><?= htmlspecialchars($escola['escola_nome']) ?></option>
+                                            <?php endforeach; ?>
+                                        </select>
+                                    <?php endif; ?>
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">Data de Matrícula</label>
+                                    <input type="date" name="data_matricula" id="aluno-data-matricula"
+                                           value="<?= date('Y-m-d') ?>"
+                                           class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-green focus:border-transparent">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">Situação</label>
+                                    <select name="situacao" id="aluno-situacao"
+                                            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-green focus:border-transparent">
+                                        <option value="MATRICULADO" selected>Matriculado</option>
+                                        <option value="TRANSFERIDO">Transferido</option>
+                                        <option value="EVADIDO">Evadido</option>
+                                        <option value="CONCLUIDO">Concluído</option>
+                                        <option value="CANCELADO">Cancelado</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                        </div>
+                        
+                        <!-- ETAPA 2: Dados do Responsável (Opcional) -->
+                        <div id="etapa-responsavel-aluno" class="etapa-conteudo hidden">
+                            <div class="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                                <p class="text-sm text-blue-800">
+                                    <strong>Opcional:</strong> Você pode cadastrar um responsável para este aluno agora. Se preferir, pode fazer isso depois.
+                                </p>
+                            </div>
+                            
+                            <!-- Dados Pessoais do Responsável -->
+                            <div>
+                                <h3 class="text-lg font-semibold text-gray-800 mb-4 pb-2 border-b border-gray-200">Dados Pessoais do Responsável</h3>
+                                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-2">Nome Completo</label>
+                                        <input type="text" name="responsavel_nome" id="responsavel-nome-aluno"
+                                               class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-green focus:border-transparent">
+                                    </div>
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-2">CPF</label>
+                                        <input type="text" name="responsavel_cpf" id="responsavel-cpf-aluno" maxlength="14"
+                                               placeholder="000.000.000-00"
+                                               class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-green focus:border-transparent"
+                                               oninput="formatarCPFAluno(this)">
+                                    </div>
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-2">Data de Nascimento</label>
+                                        <input type="date" name="responsavel_data_nascimento" id="responsavel-data-nascimento-aluno" max="<?= date('Y-m-d') ?>"
+                                               class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-green focus:border-transparent">
+                                    </div>
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-2">Sexo</label>
+                                        <select name="responsavel_sexo" id="responsavel-sexo-aluno"
+                                                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-green focus:border-transparent">
+                                            <option value="">Selecione...</option>
+                                            <option value="M">Masculino</option>
+                                            <option value="F">Feminino</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-2">E-mail</label>
+                                        <input type="email" name="responsavel_email" id="responsavel-email-aluno"
+                                               class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-green focus:border-transparent">
+                                    </div>
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-2">Telefone</label>
+                                        <input type="text" name="responsavel_telefone" id="responsavel-telefone-aluno" maxlength="15"
+                                               placeholder="(00) 00000-0000"
+                                               class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-green focus:border-transparent"
+                                               oninput="formatarTelefoneAluno(this)">
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Acesso ao Sistema -->
+                            <div>
+                                <h3 class="text-lg font-semibold text-gray-800 mb-4 pb-2 border-b border-gray-200">Acesso ao Sistema</h3>
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-2">Senha</label>
+                                        <input type="password" name="responsavel_senha" id="responsavel-senha-aluno" minlength="6"
+                                               class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-green focus:border-transparent"
+                                               placeholder="Mínimo 6 caracteres">
+                                        <p class="text-xs text-gray-500 mt-1">A senha deve ter no mínimo 6 caracteres</p>
+                                    </div>
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-2">Parentesco</label>
+                                        <select name="responsavel_parentesco" id="responsavel-parentesco-aluno"
+                                                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-green focus:border-transparent">
+                                            <option value="">Selecione...</option>
+                                            <option value="PAI">Pai</option>
+                                            <option value="MAE">Mãe</option>
+                                            <option value="AVO">Avô/Avó</option>
+                                            <option value="TIO">Tio/Tia</option>
+                                            <option value="OUTRO">Outro</option>
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        </form>
+                    </div>
+                    
+                    <!-- Footer do Modal (Sticky) -->
+                    <div class="flex justify-between items-center p-6 border-t border-gray-200 bg-white sticky bottom-0 z-10">
+                        <button type="button" onclick="fecharModalNovoAluno()" 
+                                class="px-6 py-3 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg font-medium transition-colors duration-200">
+                            Cancelar
+                        </button>
+                        <div class="flex space-x-3">
+                            <button type="button" id="btnVoltarEtapaAluno" onclick="voltarEtapaAluno()" 
+                                    class="hidden px-6 py-3 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg font-medium transition-colors duration-200">
+                                Voltar
+                            </button>
+                            <button type="button" id="btnAvancarEtapaAluno" onclick="avancarEtapaAluno()" 
+                                    class="px-6 py-3 text-white bg-primary-green hover:bg-green-700 rounded-lg font-medium transition-colors duration-200">
+                                Avançar
+                            </button>
+                            <button type="submit" form="formNovoAlunoGestor" id="btnSalvarAlunoGestor"
+                                    class="hidden px-6 py-3 text-white bg-primary-green hover:bg-green-700 rounded-lg font-medium transition-colors duration-200 flex items-center space-x-2">
+                                <span>Salvar Aluno</span>
+                                <svg id="spinnerSalvarAlunoGestor" class="hidden animate-spin h-5 w-5 text-white" fill="none" viewBox="0 0 24 24">
+                                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                </svg>
+                            </button>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -2988,21 +3679,32 @@ if (!defined('BASE_URL')) {
                                             </div>
 
                                             <div>
-                                                <label class="block text-sm font-medium text-gray-700 mb-2">Série</label>
-                                                <select name="serie_id"
+                                                <label class="block text-sm font-medium text-gray-700 mb-2">
+                                                    Série <span class="text-red-500">*</span>
+                                                </label>
+                                                <select name="serie" required
                                                     class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-green focus:border-primary-green transition-colors">
                                                     <option value="">Selecione uma série...</option>
-                                                    <?php foreach ($series as $serie): ?>
-                                                        <option value="<?= $serie['id'] ?>"><?= htmlspecialchars($serie['nome']) ?></option>
-                                                    <?php endforeach; ?>
+                                                    <optgroup label="Ensino Fundamental - Anos Iniciais">
+                                                        <option value="1º Ano">1º Ano</option>
+                                                        <option value="2º Ano">2º Ano</option>
+                                                        <option value="3º Ano">3º Ano</option>
+                                                        <option value="4º Ano">4º Ano</option>
+                                                        <option value="5º Ano">5º Ano</option>
+                                                    </optgroup>
+                                                    <optgroup label="Ensino Fundamental - Anos Finais">
+                                                        <option value="6º Ano">6º Ano</option>
+                                                        <option value="7º Ano">7º Ano</option>
+                                                        <option value="8º Ano">8º Ano</option>
+                                                        <option value="9º Ano">9º Ano</option>
+                                                    </optgroup>
+                                                    <optgroup label="Ensino Médio">
+                                                        <option value="1º Ano">1º Ano (Ensino Médio)</option>
+                                                        <option value="2º Ano">2º Ano (Ensino Médio)</option>
+                                                        <option value="3º Ano">3º Ano (Ensino Médio)</option>
+                                                    </optgroup>
                                                 </select>
-                                            </div>
-
-                                            <div>
-                                                <label class="block text-sm font-medium text-gray-700 mb-2">Série (Texto)</label>
-                                                <input type="text" name="serie" placeholder="Ex: 1º Ano"
-                                                    class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-green focus:border-primary-green transition-colors">
-                                                <p class="text-xs text-gray-500 mt-1">Ou informe manualmente se não houver série cadastrada</p>
+                                                <p class="text-xs text-gray-500 mt-1">Selecione a série da turma</p>
                                             </div>
 
                                             <div>
@@ -3022,6 +3724,7 @@ if (!defined('BASE_URL')) {
                                                     <option value="MANHA">Manhã</option>
                                                     <option value="TARDE">Tarde</option>
                                                     <option value="NOITE">Noite</option>
+                                                    <option value="INTEGRAL">Integral</option>
                                                 </select>
                                             </div>
 
@@ -3173,6 +3876,7 @@ if (!defined('BASE_URL')) {
                                             <option value="MANHA">Manhã</option>
                                             <option value="TARDE">Tarde</option>
                                             <option value="NOITE">Noite</option>
+                                            <option value="INTEGRAL">Integral</option>
                                         </select>
                                     </div>
                                     <div>
@@ -3872,6 +4576,228 @@ if (!defined('BASE_URL')) {
 
             <script>
                 // Controle de abas
+                // Variáveis globais para cadastro de aluno
+                let etapaAtualAluno = 1;
+
+                // Funções de formatação
+                function formatarCPFAluno(input) {
+                    let value = input.value.replace(/\D/g, '');
+                    if (value.length <= 11) {
+                        value = value.replace(/(\d{3})(\d)/, '$1.$2');
+                        value = value.replace(/(\d{3})(\d)/, '$1.$2');
+                        value = value.replace(/(\d{3})(\d{1,2})$/, '$1-$2');
+                    }
+                    input.value = value;
+                }
+
+                function formatarTelefoneAluno(input) {
+                    let value = input.value.replace(/\D/g, '');
+                    if (value.length <= 11) {
+                        if (value.length <= 10) {
+                            value = value.replace(/(\d{2})(\d)/, '($1) $2');
+                            value = value.replace(/(\d{4})(\d)/, '$1-$2');
+                        } else {
+                            value = value.replace(/(\d{2})(\d)/, '($1) $2');
+                            value = value.replace(/(\d{5})(\d)/, '$1-$2');
+                        }
+                    }
+                    input.value = value;
+                }
+
+                function formatarNISAluno(input) {
+                    let value = input.value.replace(/\D/g, '');
+                    input.value = value.slice(0, 11);
+                }
+
+                // Funções do modal de aluno
+                function abrirModalNovoAluno() {
+                    const modal = document.getElementById('modal-novo-aluno');
+                    if (modal) {
+                        modal.style.display = 'flex';
+                        modal.classList.remove('hidden');
+                        etapaAtualAluno = 1;
+                        atualizarNavegacaoEtapasAluno();
+                        document.getElementById('formNovoAlunoGestor').reset();
+                        document.getElementById('aluno-data-matricula').value = new Date().toISOString().split('T')[0];
+                        document.getElementById('alertaErroAluno').classList.add('hidden');
+                        document.getElementById('alertaSucessoAluno').classList.add('hidden');
+                    }
+                }
+
+                function fecharModalNovoAluno() {
+                    const modal = document.getElementById('modal-novo-aluno');
+                    if (modal) {
+                        modal.style.display = 'none';
+                        modal.classList.add('hidden');
+                        etapaAtualAluno = 1;
+                        atualizarNavegacaoEtapasAluno();
+                    }
+                }
+
+                function atualizarNavegacaoEtapasAluno() {
+                    const etapaAluno = document.getElementById('etapa-aluno-gestor');
+                    const etapaResponsavel = document.getElementById('etapa-responsavel-aluno');
+                    const btnVoltar = document.getElementById('btnVoltarEtapaAluno');
+                    const btnAvancar = document.getElementById('btnAvancarEtapaAluno');
+                    const btnSalvar = document.getElementById('btnSalvarAlunoGestor');
+                    const stepIndicator1 = document.getElementById('step-indicator-aluno-1');
+                    const stepIndicator2 = document.getElementById('step-indicator-aluno-2');
+                    
+                    if (etapaAtualAluno === 1) {
+                        etapaAluno.classList.remove('hidden');
+                        etapaResponsavel.classList.add('hidden');
+                        btnVoltar.classList.add('hidden');
+                        btnAvancar.classList.remove('hidden');
+                        btnSalvar.classList.add('hidden');
+                        stepIndicator1.classList.remove('bg-gray-300', 'text-gray-600');
+                        stepIndicator1.classList.add('bg-primary-green', 'text-white');
+                        stepIndicator2.classList.remove('bg-primary-green', 'text-white');
+                        stepIndicator2.classList.add('bg-gray-300', 'text-gray-600');
+                    } else if (etapaAtualAluno === 2) {
+                        etapaAluno.classList.add('hidden');
+                        etapaResponsavel.classList.remove('hidden');
+                        btnVoltar.classList.remove('hidden');
+                        btnAvancar.classList.add('hidden');
+                        btnSalvar.classList.remove('hidden');
+                        stepIndicator1.classList.remove('bg-primary-green', 'text-white');
+                        stepIndicator1.classList.add('bg-green-500', 'text-white');
+                        stepIndicator2.classList.remove('bg-gray-300', 'text-gray-600');
+                        stepIndicator2.classList.add('bg-primary-green', 'text-white');
+                    }
+                }
+
+                function avancarEtapaAluno() {
+                    const nome = document.getElementById('aluno-nome').value.trim();
+                    const cpf = document.getElementById('aluno-cpf').value.replace(/\D/g, '');
+                    const dataNascimento = document.getElementById('aluno-data-nascimento').value;
+                    const sexo = document.getElementById('aluno-sexo').value;
+                    
+                    if (!nome || !cpf || cpf.length !== 11 || !dataNascimento || !sexo) {
+                        alert('Por favor, preencha todos os campos obrigatórios do aluno (Nome, CPF, Data de Nascimento e Sexo).');
+                        return;
+                    }
+                    
+                    etapaAtualAluno = 2;
+                    atualizarNavegacaoEtapasAluno();
+                }
+
+                function voltarEtapaAluno() {
+                    etapaAtualAluno = 1;
+                    atualizarNavegacaoEtapasAluno();
+                }
+
+                // Submissão do formulário de aluno
+                document.getElementById('formNovoAlunoGestor')?.addEventListener('submit', async function(e) {
+                    e.preventDefault();
+                    
+                    const btnSalvar = document.getElementById('btnSalvarAlunoGestor');
+                    const spinner = document.getElementById('spinnerSalvarAlunoGestor');
+                    const alertaErro = document.getElementById('alertaErroAluno');
+                    const alertaSucesso = document.getElementById('alertaSucessoAluno');
+                    
+                    // Verificar se há dados do responsável preenchidos
+                    const responsavelNome = document.getElementById('responsavel-nome-aluno').value.trim();
+                    const responsavelCpf = document.getElementById('responsavel-cpf-aluno').value.replace(/\D/g, '');
+                    const responsavelSenha = document.getElementById('responsavel-senha-aluno').value;
+                    const responsavelParentesco = document.getElementById('responsavel-parentesco-aluno').value;
+                    
+                    let criarResponsavel = false;
+                    if (responsavelNome && responsavelCpf && responsavelCpf.length === 11 && responsavelSenha && responsavelSenha.length >= 6 && responsavelParentesco) {
+                        criarResponsavel = true;
+                    } else if (responsavelNome || responsavelCpf || responsavelSenha || responsavelParentesco) {
+                        alert('Para cadastrar o responsável, é necessário preencher: Nome, CPF, Senha (mínimo 6 caracteres) e Parentesco.');
+                        return;
+                    }
+                    
+                    btnSalvar.disabled = true;
+                    spinner.classList.remove('hidden');
+                    alertaErro.classList.add('hidden');
+                    alertaSucesso.classList.add('hidden');
+                    
+                    const formData = new FormData(this);
+                    formData.append('acao', 'cadastrar_aluno');
+                    formData.append('criar_responsavel', criarResponsavel ? '1' : '0');
+                    
+                    try {
+                        const response = await fetch('', {
+                            method: 'POST',
+                            body: formData
+                        });
+                        
+                        const data = await response.json();
+                        
+                        if (data.success) {
+                            alertaSucesso.textContent = data.message || 'Aluno cadastrado com sucesso!';
+                            alertaSucesso.classList.remove('hidden');
+                            
+                            etapaAtualAluno = 1;
+                            atualizarNavegacaoEtapasAluno();
+                            this.reset();
+                            document.getElementById('aluno-data-matricula').value = new Date().toISOString().split('T')[0];
+                            
+                            setTimeout(() => {
+                                fecharModalNovoAluno();
+                                carregarAlunosGestor();
+                            }, 1500);
+                        } else {
+                            alertaErro.textContent = data.message || 'Erro ao cadastrar aluno.';
+                            alertaErro.classList.remove('hidden');
+                        }
+                    } catch (error) {
+                        console.error('Erro:', error);
+                        alertaErro.textContent = 'Erro ao processar requisição. Por favor, tente novamente.';
+                        alertaErro.classList.remove('hidden');
+                    } finally {
+                        btnSalvar.disabled = false;
+                        spinner.classList.add('hidden');
+                    }
+                });
+
+                // Funções de listagem de alunos
+                function carregarAlunosGestor() {
+                    const busca = document.getElementById('busca-aluno-gestor')?.value || '';
+                    let url = '?acao=listar_alunos';
+                    if (busca) url += '&busca=' + encodeURIComponent(busca);
+                    
+                    fetch(url)
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.success) {
+                                const tbody = document.getElementById('lista-alunos-gestor');
+                                tbody.innerHTML = '';
+                                
+                                if (data.alunos.length === 0) {
+                                    tbody.innerHTML = '<tr><td colspan="6" class="px-6 py-4 text-center text-gray-500">Nenhum aluno encontrado.</td></tr>';
+                                    return;
+                                }
+                                
+                                data.alunos.forEach(aluno => {
+                                    tbody.innerHTML += `
+                                        <tr class="hover:bg-gray-50">
+                                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${aluno.nome}</td>
+                                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${aluno.matricula || '-'}</td>
+                                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${aluno.cpf || '-'}</td>
+                                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${aluno.email || '-'}</td>
+                                            <td class="px-6 py-4 whitespace-nowrap">
+                                                <span class="px-2 py-1 text-xs font-semibold rounded-full ${aluno.situacao === 'MATRICULADO' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}">
+                                                    ${aluno.situacao || 'MATRICULADO'}
+                                                </span>
+                                            </td>
+                                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">-</td>
+                                        </tr>
+                                    `;
+                                });
+                            }
+                        })
+                        .catch(error => {
+                            console.error('Erro ao carregar alunos:', error);
+                        });
+                }
+
+                function filtrarAlunosGestor() {
+                    carregarAlunosGestor();
+                }
+
                 function mostrarAba(aba) {
                     // Esconder todos os conteúdos
                     document.querySelectorAll('.aba-conteudo').forEach(el => el.classList.add('hidden'));
@@ -3893,6 +4819,8 @@ if (!defined('BASE_URL')) {
                     // Carregar dados específicos da aba
                     if (aba === 'responsaveis') {
                         carregarResponsaveis();
+                    } else if (aba === 'alunos') {
+                        carregarAlunosGestor();
                     }
                 }
 
@@ -4546,38 +5474,71 @@ if (!defined('BASE_URL')) {
 
                 // Função para abrir modal de atribuir professor
                 function abrirModalAtribuirProfessor(turmaId) {
+                    const modal = document.getElementById('modal-atribuir-professor');
                     document.getElementById('atribuir-professor-turma-id').value = turmaId;
-                    document.getElementById('modal-atribuir-professor').classList.remove('hidden');
+                    modal.classList.remove('hidden');
+                    modal.style.display = 'flex';
                     carregarProfessoresDisponiveis();
                 }
 
                 function fecharModalAtribuirProfessor() {
-                    document.getElementById('modal-atribuir-professor').classList.add('hidden');
+                    const modal = document.getElementById('modal-atribuir-professor');
+                    modal.classList.add('hidden');
+                    modal.style.display = 'none';
                     document.getElementById('form-atribuir-professor').reset();
                 }
 
                 function carregarProfessoresDisponiveis() {
                     const select = document.getElementById('professor_id');
+                    if (!select) {
+                        console.error('Elemento professor_id não encontrado');
+                        return;
+                    }
+                    
                     select.innerHTML = '<option value="">Carregando professores...</option>';
 
-                    fetch('../../Controllers/gestao/ProfessorController.php')
-                        .then(resp => resp.json())
+                    // Buscar apenas professores lotados na escola do gestor
+                    const escolaId = <?= isset($escolaGestorId) && $escolaGestorId ? $escolaGestorId : 'null' ?>;
+                    
+                    console.log('Carregando professores para escola ID:', escolaId);
+                    
+                    if (!escolaId) {
+                        select.innerHTML = '<option value="">Nenhuma escola selecionada</option>';
+                        console.warn('Nenhuma escola selecionada');
+                        return;
+                    }
+                    
+                    // Buscar professores lotados na escola
+                    fetch(`gestao_escolar.php?acao=buscar_professores_escola&escola_id=${escolaId}`)
+                        .then(resp => {
+                            console.log('Resposta recebida:', resp.status, resp.statusText);
+                            if (!resp.ok) {
+                                throw new Error(`HTTP error! status: ${resp.status}`);
+                            }
+                            return resp.json();
+                        })
                         .then(data => {
-                            if (data && data.status && Array.isArray(data.professores)) {
+                            console.log('Dados recebidos:', data);
+                            if (data && data.success && Array.isArray(data.professores)) {
                                 select.innerHTML = '<option value="">Selecione um professor</option>';
                                 data.professores.forEach(prof => {
                                     const option = document.createElement('option');
-                                    option.value = prof.id;
+                                    option.value = prof.professor_id;
                                     option.textContent = prof.nome;
                                     select.appendChild(option);
                                 });
+                                
+                                if (data.professores.length === 0) {
+                                    select.innerHTML = '<option value="">Nenhum professor lotado nesta escola</option>';
+                                }
                             } else {
+                                console.warn('Resposta inválida ou sem professores:', data);
                                 select.innerHTML = '<option value="">Nenhum professor disponível</option>';
                             }
                         })
                         .catch(error => {
                             console.error('Erro ao carregar professores:', error);
-                            select.innerHTML = '<option value="">Erro ao carregar professores</option>';
+                            select.innerHTML = '<option value="">Erro ao carregar professores. Verifique o console.</option>';
                         });
                 }
 
@@ -4882,73 +5843,82 @@ if (!defined('BASE_URL')) {
             </script>
 
             <!-- Modal Atribuir Professor -->
-            <div id="modal-atribuir-professor" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden items-center justify-center p-4">
-                <div class="bg-white rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-                    <div class="bg-primary-green text-white p-6 rounded-t-xl">
-                        <div class="flex items-center justify-between">
-                            <div>
-                                <h3 class="text-2xl font-bold">Atribuir Professor à Turma</h3>
-                                <p class="text-green-100 text-sm mt-1">Selecione o professor e a disciplina</p>
-                            </div>
-                            <button onclick="fecharModalAtribuirProfessor()" class="text-white hover:text-gray-200 transition-colors">
-                                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-                                </svg>
-                            </button>
+            <div id="modal-atribuir-professor" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden items-center justify-center" style="display: none;">
+                <div class="bg-white w-full h-full flex flex-col shadow-2xl">
+                    <!-- Header do Modal -->
+                    <div class="flex justify-between items-center p-6 border-b border-gray-200 bg-primary-green text-white sticky top-0 z-10">
+                        <div>
+                            <h3 class="text-2xl font-bold">Atribuir Professor à Turma</h3>
+                            <p class="text-green-100 text-sm mt-1">Selecione o professor e a disciplina</p>
                         </div>
+                        <button onclick="fecharModalAtribuirProfessor()" class="text-white hover:text-gray-200 transition-colors p-2 hover:bg-green-700 rounded-lg">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                            </svg>
+                        </button>
                     </div>
 
-                    <form id="form-atribuir-professor" method="POST" class="p-6">
-                        <input type="hidden" name="acao" value="atribuir_professor">
-                        <input type="hidden" id="atribuir-professor-turma-id" name="turma_id">
-
-                        <div class="space-y-6">
-                            <div>
-                                <label for="professor_id" class="block text-sm font-medium text-gray-700 mb-2">
-                                    Professor *
-                                </label>
-                                <select id="professor_id" name="professor_id" required
-                                    class="block w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-primary-green focus:border-primary-green">
-                                    <option value="">Carregando professores...</option>
-                                </select>
-                            </div>
+                    <!-- Conteúdo do Modal (Scrollable) -->
+                    <div class="flex-1 overflow-y-auto p-6">
+                        <form id="form-atribuir-professor" method="POST" class="max-w-4xl mx-auto space-y-6">
+                            <input type="hidden" name="acao" value="atribuir_professor">
+                            <input type="hidden" id="atribuir-professor-turma-id" name="turma_id">
 
                             <div>
-                                <label for="disciplina_id" class="block text-sm font-medium text-gray-700 mb-2">
-                                    Disciplina *
-                                </label>
-                                <select id="disciplina_id" name="disciplina_id" required
-                                    class="block w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-primary-green focus:border-primary-green">
-                                    <option value="">Selecione uma disciplina</option>
-                                    <?php foreach ($disciplinas as $disciplina): ?>
-                                        <option value="<?= $disciplina['id'] ?>"><?= htmlspecialchars($disciplina['nome']) ?></option>
-                                    <?php endforeach; ?>
-                                </select>
-                            </div>
+                                <h3 class="text-lg font-semibold text-gray-800 mb-4 pb-2 border-b border-gray-200">Dados da Atribuição</h3>
+                                
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    <div>
+                                        <label for="professor_id" class="block text-sm font-medium text-gray-700 mb-2">
+                                            Professor *
+                                        </label>
+                                        <select id="professor_id" name="professor_id" required
+                                            class="block w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-primary-green focus:border-primary-green">
+                                            <option value="">Carregando professores...</option>
+                                        </select>
+                                        <p class="text-xs text-gray-500 mt-1">Apenas professores lotados nesta escola aparecerão na lista</p>
+                                    </div>
 
-                            <div>
-                                <label for="regime" class="block text-sm font-medium text-gray-700 mb-2">
-                                    Regime *
-                                </label>
-                                <select id="regime" name="regime" required
-                                    class="block w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-primary-green focus:border-primary-green">
-                                    <option value="REGULAR">Regular</option>
-                                    <option value="SUBSTITUTO">Substituto</option>
-                                </select>
-                            </div>
-                        </div>
+                                    <div>
+                                        <label for="disciplina_id" class="block text-sm font-medium text-gray-700 mb-2">
+                                            Disciplina *
+                                        </label>
+                                        <select id="disciplina_id" name="disciplina_id" required
+                                            class="block w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-primary-green focus:border-primary-green">
+                                            <option value="">Selecione uma disciplina</option>
+                                            <?php foreach ($disciplinas as $disciplina): ?>
+                                                <option value="<?= $disciplina['id'] ?>"><?= htmlspecialchars($disciplina['nome']) ?></option>
+                                            <?php endforeach; ?>
+                                        </select>
+                                    </div>
 
-                        <div class="flex justify-end space-x-3 mt-6 pt-6 border-t border-gray-200">
-                            <button type="button" onclick="fecharModalAtribuirProfessor()"
-                                class="px-6 py-3 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-green transition-colors font-medium">
-                                Cancelar
-                            </button>
-                            <button type="submit"
-                                class="px-6 py-3 bg-primary-green text-white rounded-lg hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-green transition-colors font-medium">
-                                Atribuir Professor
-                            </button>
-                        </div>
-                    </form>
+                                    <div>
+                                        <label for="regime" class="block text-sm font-medium text-gray-700 mb-2">
+                                            Regime *
+                                        </label>
+                                        <select id="regime" name="regime" required
+                                            class="block w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-primary-green focus:border-primary-green">
+                                            <option value="REGULAR">Regular</option>
+                                            <option value="SUBSTITUTO">Substituto</option>
+                                        </select>
+                                        <p class="text-xs text-gray-500 mt-1">Regular: professor titular | Substituto: professor temporário</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </form>
+                    </div>
+
+                    <!-- Footer do Modal (Sticky) -->
+                    <div class="flex justify-end space-x-3 p-6 border-t border-gray-200 bg-white sticky bottom-0 z-10">
+                        <button type="button" onclick="fecharModalAtribuirProfessor()"
+                            class="px-6 py-3 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-green transition-colors font-medium">
+                            Cancelar
+                        </button>
+                        <button type="submit" form="form-atribuir-professor"
+                            class="px-6 py-3 bg-primary-green text-white rounded-lg hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-green transition-colors font-medium">
+                            Atribuir Professor
+                        </button>
+                    </div>
                 </div>
             </div>
 
@@ -5941,6 +6911,7 @@ if (!defined('BASE_URL')) {
                                     <option value="MANHA">Manhã</option>
                                     <option value="TARDE">Tarde</option>
                                     <option value="NOITE">Noite</option>
+                                    <option value="INTEGRAL">Integral</option>
                                 </select>
                             </div>
                             <div>

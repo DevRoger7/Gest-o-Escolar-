@@ -21,10 +21,11 @@ class PlanoAulaModel {
         
         $sql = "SELECT pa.*, 
                 CONCAT(COALESCE(t.serie, ''), ' ', COALESCE(t.letra, ''), ' - ', COALESCE(t.turno, '')) as turma_nome, 
-                d.nome as disciplina_nome, p.nome as professor_nome
+                d.nome as disciplina_nome, p.nome as professor_nome, e.nome as escola_nome, e.id as escola_id
                 FROM plano_aula pa
                 INNER JOIN turma t ON pa.turma_id = t.id
                 INNER JOIN disciplina d ON pa.disciplina_id = d.id
+                INNER JOIN escola e ON t.escola_id = e.id
                 INNER JOIN professor prof ON pa.professor_id = prof.id
                 INNER JOIN pessoa p ON prof.pessoa_id = p.id
                 WHERE 1=1";
@@ -56,11 +57,28 @@ class PlanoAulaModel {
             $params[':data_aula'] = $filtros['data_aula'];
         }
         
+        if (!empty($filtros['escola_id'])) {
+            $sql .= " AND e.id = :escola_id";
+            $params[':escola_id'] = $filtros['escola_id'];
+        }
+        
+        if (!empty($filtros['mes'])) {
+            $sql .= " AND MONTH(pa.data_aula) = :mes";
+            $params[':mes'] = $filtros['mes'];
+        }
+        
         $sql .= " ORDER BY pa.data_aula DESC, pa.criado_em DESC";
+        
+        // Paginação
+        if (isset($filtros['limit']) && isset($filtros['offset'])) {
+            $sql .= " LIMIT :limit OFFSET :offset";
+            $params[':limit'] = (int)$filtros['limit'];
+            $params[':offset'] = (int)$filtros['offset'];
+        }
         
         $stmt = $conn->prepare($sql);
         foreach ($params as $key => $value) {
-            $stmt->bindValue($key, $value);
+            $stmt->bindValue($key, $value, is_int($value) ? PDO::PARAM_INT : PDO::PARAM_STR);
         }
         
         $stmt->execute();
@@ -74,9 +92,9 @@ class PlanoAulaModel {
         $conn = $this->db->getConnection();
         
         $sql = "INSERT INTO plano_aula (turma_id, disciplina_id, professor_id, titulo, conteudo, objetivos,
-                metodologia, recursos, avaliacao, data_aula, bimestre, status, criado_por, criado_em)
+                metodologia, recursos, avaliacao, data_aula, bimestre, observacoes, status, criado_por, criado_em)
                 VALUES (:turma_id, :disciplina_id, :professor_id, :titulo, :conteudo, :objetivos,
-                :metodologia, :recursos, :avaliacao, :data_aula, :bimestre, 'RASCUNHO', :criado_por, NOW())";
+                :metodologia, :recursos, :avaliacao, :data_aula, :bimestre, :observacoes, 'RASCUNHO', :criado_por, NOW())";
         
         $stmt = $conn->prepare($sql);
         $turmaId = $dados['turma_id'];
@@ -90,6 +108,7 @@ class PlanoAulaModel {
         $avaliacao = $dados['avaliacao'] ?? null;
         $dataAula = $dados['data_aula'];
         $bimestre = $dados['bimestre'] ?? null;
+        $observacoes = $dados['observacoes'] ?? null;
         $criadoPor = (isset($_SESSION['usuario_id']) && is_numeric($_SESSION['usuario_id'])) ? (int)$_SESSION['usuario_id'] : null;
         $stmt->bindParam(':turma_id', $turmaId);
         $stmt->bindParam(':disciplina_id', $disciplinaId);
@@ -102,6 +121,7 @@ class PlanoAulaModel {
         $stmt->bindParam(':avaliacao', $avaliacao);
         $stmt->bindParam(':data_aula', $dataAula);
         $stmt->bindParam(':bimestre', $bimestre);
+        $stmt->bindParam(':observacoes', $observacoes);
         $stmt->bindParam(':criado_por', $criadoPor);
         
         if ($stmt->execute()) {
