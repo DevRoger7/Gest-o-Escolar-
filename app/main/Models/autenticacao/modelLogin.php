@@ -20,23 +20,53 @@ Class ModelLogin {
         // Verificar se é email ou CPF
         $isEmail = filter_var($cpfOuEmail, FILTER_VALIDATE_EMAIL);
         
-        if ($isEmail) {
-            // Buscar por email
-            $sql = "SELECT u.*, p.* FROM usuario u 
-                    INNER JOIN pessoa p ON u.pessoa_id = p.id 
-                    WHERE p.email = ?";
-            $stmt = $conn->prepare($sql);
-            $stmt->execute([$cpfOuEmail]);
-        } else {
-            // Remove pontos e hífens do CPF, mantendo apenas números
-            $cpf = preg_replace('/[^0-9]/', '', $cpfOuEmail);
+        try {
+            if ($isEmail) {
+                // Buscar por email
+                $sql = "SELECT u.*, p.* FROM usuario u 
+                        INNER JOIN pessoa p ON u.pessoa_id = p.id 
+                        WHERE p.email = ?";
+                $stmt = $conn->prepare($sql);
+                $stmt->execute([$cpfOuEmail]);
+            } else {
+                // Remove pontos e hífens do CPF, mantendo apenas números
+                $cpf = preg_replace('/[^0-9]/', '', $cpfOuEmail);
+                
+                // Buscar por CPF
+                $sql = "SELECT u.*, p.* FROM usuario u 
+                        INNER JOIN pessoa p ON u.pessoa_id = p.id 
+                        WHERE p.cpf = ?";
+                $stmt = $conn->prepare($sql);
+                $stmt->execute([$cpf]);
+            }
+        } catch (PDOException $e) {
+            // Verificar se o erro é de tabela não encontrada
+            if (strpos($e->getMessage(), "doesn't exist") !== false || 
+                strpos($e->getMessage(), "Base table or view not found") !== false) {
+                $erroMsg = "ERRO CRÍTICO: Tabela 'usuario' não existe no banco de dados 'escola_merenda'. ";
+                $erroMsg .= "Erro PDO: " . $e->getMessage();
+                error_log($erroMsg);
+                
+                // Tentar verificar qual tabela está faltando
+                try {
+                    $sqlCheck = "SHOW TABLES LIKE 'usuario'";
+                    $stmtCheck = $conn->query($sqlCheck);
+                    if ($stmtCheck->rowCount() == 0) {
+                        throw new Exception("A tabela 'usuario' não foi encontrada no banco de dados 'escola_merenda'. Por favor, execute o script SQL de criação da tabela em: app/main/database/create_table_usuario.sql");
+                    }
+                } catch (Exception $checkEx) {
+                    throw new Exception("Erro ao verificar tabela: " . $checkEx->getMessage());
+                }
+                
+                // Se chegou aqui, a tabela existe mas há outro problema
+                throw new Exception("Erro ao acessar tabela 'usuario': " . $e->getMessage());
+            }
             
-            // Buscar por CPF
-            $sql = "SELECT u.*, p.* FROM usuario u 
-                    INNER JOIN pessoa p ON u.pessoa_id = p.id 
-                    WHERE p.cpf = ?";
-            $stmt = $conn->prepare($sql);
-            $stmt->execute([$cpf]);
+            // Log de outros erros PDO para debug
+            error_log("ERRO PDO no login: " . $e->getMessage() . " | Código: " . $e->getCode());
+            
+            // Re-lançar outros erros PDO
+            throw $e;
         }
         
         $resultado = $stmt->fetch(PDO::FETCH_ASSOC);
