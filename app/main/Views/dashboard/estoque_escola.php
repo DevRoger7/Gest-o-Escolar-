@@ -1,0 +1,707 @@
+<?php
+// Iniciar output buffering para evitar output antes do JSON
+ob_start();
+
+require_once('../../Models/sessao/sessions.php');
+require_once('../../config/permissions_helper.php');
+require_once('../../config/Database.php');
+
+$session = new sessions();
+$session->autenticar_session();
+$session->tempo_session();
+
+// Verificar se é GESTÃO e tem escola vinculada
+if ($_SESSION['tipo'] !== 'GESTAO') {
+    header('Location: dashboard.php?erro=sem_permissao');
+    exit;
+}
+
+$db = Database::getInstance();
+$conn = $db->getConnection();
+
+// Buscar escola do gestor logado
+$escolaGestorId = null;
+$escolaGestor = null;
+
+if (isset($_SESSION['tipo']) && strtoupper($_SESSION['tipo']) === 'GESTAO') {
+    $usuarioId = $_SESSION['usuario_id'] ?? null;
+    
+    if ($usuarioId) {
+        try {
+            $pessoaId = $_SESSION['pessoa_id'] ?? null;
+            
+            if ($pessoaId) {
+                $sqlBuscarGestor = "SELECT g.id as gestor_id
+                          FROM gestor g
+                          WHERE g.pessoa_id = :pessoa_id AND g.ativo = 1
+                          LIMIT 1";
+                $stmtBuscarGestor = $conn->prepare($sqlBuscarGestor);
+                $stmtBuscarGestor->bindParam(':pessoa_id', $pessoaId);
+                $stmtBuscarGestor->execute();
+                $gestorData = $stmtBuscarGestor->fetch(PDO::FETCH_ASSOC);
+            } else {
+                $gestorData = null;
+            }
+            
+            if ($gestorData && isset($gestorData['gestor_id'])) {
+                $gestorId = (int)$gestorData['gestor_id'];
+                
+                // Buscar todas as escolas do gestor
+                $sqlEscolas = "SELECT gl.escola_id, e.nome as escola_nome, gl.responsavel, gl.inicio
+                             FROM gestor_lotacao gl
+                             INNER JOIN escola e ON gl.escola_id = e.id
+                             WHERE gl.gestor_id = :gestor_id
+                             AND (gl.fim IS NULL OR gl.fim = '' OR gl.fim = '0000-00-00' OR gl.fim >= CURDATE())
+                             AND e.ativo = 1
+                             ORDER BY gl.responsavel DESC, gl.inicio DESC";
+                $stmtEscolas = $conn->prepare($sqlEscolas);
+                $stmtEscolas->bindParam(':gestor_id', $gestorId);
+                $stmtEscolas->execute();
+                $escolasGestor = $stmtEscolas->fetchAll(PDO::FETCH_ASSOC);
+                
+                // Verificar se há escola selecionada na sessão
+                if (isset($_SESSION['escola_selecionada_id']) && !empty($_SESSION['escola_selecionada_id'])) {
+                    $escolaSelecionadaId = (int)$_SESSION['escola_selecionada_id'];
+                    
+                    // Verificar se a escola selecionada está na lista de escolas do gestor
+                    foreach ($escolasGestor as $escola) {
+                        if ((int)$escola['escola_id'] === $escolaSelecionadaId) {
+                            $escolaGestorId = $escolaSelecionadaId;
+                            $escolaGestor = $_SESSION['escola_selecionada_nome'] ?? $escola['escola_nome'];
+                            break;
+                        }
+                    }
+                }
+                
+                // Se não há escola selecionada ou a selecionada não é válida, usar a primeira (priorizando responsável)
+                if (!$escolaGestorId && !empty($escolasGestor)) {
+                    $escolaGestorId = (int)$escolasGestor[0]['escola_id'];
+                    $escolaGestor = $escolasGestor[0]['escola_nome'];
+                    
+                    // Salvar na sessão
+                    $_SESSION['escola_selecionada_id'] = $escolaGestorId;
+                    $_SESSION['escola_selecionada_nome'] = $escolaGestor;
+                }
+            }
+        } catch (Exception $e) {
+            error_log("Erro ao buscar escola do gestor: " . $e->getMessage());
+        }
+    }
+}
+
+// Se não tem escola vinculada, redirecionar
+if (!$escolaGestorId) {
+    header('Location: dashboard.php?erro=sem_escola');
+    exit;
+}
+
+// Processar requisições AJAX
+if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['acao'])) {
+    // Limpar qualquer output anterior (incluindo warnings/notices)
+    while (ob_get_level()) {
+        ob_end_clean();
+    }
+    ob_start();
+    
+    // Desabilitar exibição de erros para não quebrar o JSON
+    error_reporting(E_ALL);
+    ini_set('display_errors', 0);
+    ini_set('log_errors', 1);
+    
+    header('Content-Type: application/json; charset=utf-8');
+    
+    if ($_GET['acao'] === 'verificar_escola') {
+        // Retornar a escola atual da sessão
+        $escolaId = isset($_SESSION['escola_selecionada_id']) && !empty($_SESSION['escola_selecionada_id']) 
+                    ? (int)$_SESSION['escola_selecionada_id'] 
+                    : (int)$escolaGestorId;
+        
+        $escolaNome = $_SESSION['escola_selecionada_nome'] ?? $escolaGestor ?? 'Escola não encontrada';
+        
+        echo json_encode([
+            'success' => true, 
+            'escola_id' => $escolaId,
+            'escola_nome' => $escolaNome
+        ]);
+        exit;
+    }
+    
+    if ($_GET['acao'] === 'listar_estoque') {
+        // Usar a escola selecionada na sessão, ou a escola do gestor como fallback
+        $escolaId = isset($_SESSION['escola_selecionada_id']) && !empty($_SESSION['escola_selecionada_id']) 
+                    ? (int)$_SESSION['escola_selecionada_id'] 
+                    : (int)$escolaGestorId;
+        
+        // Verificar se a coluna estoque_central_id existe
+        try {
+            $checkColumn = $conn->query("SHOW COLUMNS FROM pacote_escola_item LIKE 'estoque_central_id'");
+            $columnExists = $checkColumn->rowCount() > 0;
+        } catch (Exception $e) {
+            $columnExists = false;
+        }
+        
+        if ($columnExists) {
+            $sql = "SELECT 
+                        pei.produto_id,
+                        pei.estoque_central_id,
+                        p.nome as produto_nome,
+                        p.unidade_medida,
+                        SUM(pei.quantidade) as quantidade,
+                        COALESCE(ec1.validade, ec2.validade) as validade,
+                        COALESCE(ec1.lote, ec2.lote, 'Sem lote') as lote,
+                        COALESCE(f1.nome, f2.nome) as fornecedor_nome,
+                        MAX(pe.data_envio) as data_envio
+                    FROM pacote_escola_item pei
+                    INNER JOIN pacote_escola pe ON pei.pacote_id = pe.id
+                    INNER JOIN produto p ON pei.produto_id = p.id
+                    LEFT JOIN estoque_central ec1 ON pei.estoque_central_id = ec1.id
+                    LEFT JOIN fornecedor f1 ON ec1.fornecedor_id = f1.id
+                    LEFT JOIN estoque_central ec2 ON pei.produto_id = ec2.produto_id 
+                        AND ec2.quantidade > 0 
+                        AND pei.estoque_central_id IS NULL
+                        AND ec2.id = (
+                            SELECT ec3.id 
+                            FROM estoque_central ec3 
+                            WHERE ec3.produto_id = pei.produto_id 
+                            AND ec3.quantidade > 0 
+                            ORDER BY ec3.validade ASC 
+                            LIMIT 1
+                        )
+                    LEFT JOIN fornecedor f2 ON ec2.fornecedor_id = f2.id
+                    WHERE pe.escola_id = :escola_id";
+        } else {
+            $sql = "SELECT 
+                        pei.produto_id,
+                        ec.id as estoque_central_id,
+                        p.nome as produto_nome,
+                        p.unidade_medida,
+                        SUM(pei.quantidade) as quantidade,
+                        ec.validade,
+                        COALESCE(ec.lote, 'Sem lote') as lote,
+                        f.nome as fornecedor_nome,
+                        MAX(pe.data_envio) as data_envio
+                    FROM pacote_escola_item pei
+                    INNER JOIN pacote_escola pe ON pei.pacote_id = pe.id
+                    INNER JOIN produto p ON pei.produto_id = p.id
+                    LEFT JOIN estoque_central ec ON pei.produto_id = ec.produto_id AND ec.quantidade > 0
+                    LEFT JOIN fornecedor f ON ec.fornecedor_id = f.id
+                    WHERE pe.escola_id = :escola_id";
+        }
+        
+        $params = [':escola_id' => $escolaId];
+        
+        if (!empty($_GET['produto_id'])) {
+            $sql .= " AND pei.produto_id = :produto_id";
+            $params[':produto_id'] = $_GET['produto_id'];
+        }
+        
+        // Agrupar por produto_id + estoque_central_id (ou lote) para mostrar cada lote separadamente
+        if ($columnExists) {
+            $sql .= " GROUP BY pei.produto_id, pei.estoque_central_id, p.nome, p.unidade_medida, 
+                      COALESCE(ec1.validade, ec2.validade), COALESCE(ec1.lote, ec2.lote), COALESCE(f1.nome, f2.nome)
+                      ORDER BY p.nome ASC, COALESCE(ec1.validade, ec2.validade) ASC";
+        } else {
+            $sql .= " GROUP BY pei.produto_id, ec.id, p.nome, p.unidade_medida, ec.validade, ec.lote, f.nome
+                      ORDER BY p.nome ASC, ec.validade ASC";
+        }
+        
+        $stmt = $conn->prepare($sql);
+        foreach ($params as $key => $value) {
+            $stmt->bindValue($key, $value);
+        }
+        $stmt->execute();
+        $estoque = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        
+        // Limpar valores vazios
+        foreach ($estoque as &$item) {
+            if (isset($item['lote'])) {
+                $lote = trim($item['lote']);
+                if (empty($lote) || $lote === '' || $lote === 'Sem lote') {
+                    $item['lote'] = null;
+                }
+            }
+            if (empty($item['fornecedor_nome'])) {
+                $item['fornecedor_nome'] = null;
+            }
+            $item['id'] = null;
+            $item['total_produto'] = $item['quantidade'];
+            $item['criado_em'] = $item['data_envio'];
+        }
+        
+        echo json_encode(['success' => true, 'estoque' => $estoque]);
+        exit;
+    }
+}
+
+// Buscar produtos para filtro (usar a escola selecionada na sessão)
+$escolaIdParaProdutos = isset($_SESSION['escola_selecionada_id']) && !empty($_SESSION['escola_selecionada_id']) 
+                        ? (int)$_SESSION['escola_selecionada_id'] 
+                        : (int)$escolaGestorId;
+
+$sqlProdutos = "SELECT DISTINCT p.id, p.nome 
+                FROM produto p
+                INNER JOIN pacote_escola_item pei ON p.id = pei.produto_id
+                INNER JOIN pacote_escola pe ON pei.pacote_id = pe.id
+                WHERE pe.escola_id = :escola_id AND p.ativo = 1
+                ORDER BY p.nome ASC";
+$stmtProdutos = $conn->prepare($sqlProdutos);
+$stmtProdutos->bindParam(':escola_id', $escolaIdParaProdutos, PDO::PARAM_INT);
+$stmtProdutos->execute();
+$produtos = $stmtProdutos->fetchAll(PDO::FETCH_ASSOC);
+?>
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Estoque - SIGEA</title>
+    <link rel="icon" href="https://upload.wikimedia.org/wikipedia/commons/thumb/1/19/Bras%C3%A3o_de_Maranguape.png/250px-Bras%C3%A3o_de_Maranguape.png" type="image/png">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="global-theme.css">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        'primary-green': '#2D5A27',
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        .sidebar-transition { transition: all 0.3s ease-in-out; }
+        .content-transition { transition: margin-left 0.3s ease-in-out; }
+        .menu-item.active {
+            background: linear-gradient(90deg, rgba(45, 90, 39, 0.12) 0%, rgba(45, 90, 39, 0.06) 100%);
+            border-right: 3px solid #2D5A27;
+        }
+        .menu-item:hover {
+            background: linear-gradient(90deg, rgba(45, 90, 39, 0.08) 0%, rgba(45, 90, 39, 0.04) 100%);
+            transform: translateX(4px);
+        }
+        .mobile-menu-overlay { transition: opacity 0.3s ease-in-out; }
+        @media (max-width: 1023px) {
+            .sidebar-mobile { transform: translateX(-100%); }
+            .sidebar-mobile.open { transform: translateX(0); }
+        }
+    </style>
+</head>
+<body class="bg-gray-50">
+    <?php include 'components/sidebar_gestao.php'; ?>
+    
+    <!-- Main Content -->
+    <main class="content-transition ml-0 lg:ml-64 min-h-screen">
+        <!-- Header -->
+        <header class="bg-white shadow-sm border-b border-gray-200 sticky top-0 z-30">
+            <div class="px-4 sm:px-6 lg:px-8">
+                <div class="flex justify-between items-center h-16">
+                    <button onclick="window.toggleSidebar()" class="lg:hidden p-2 rounded-md text-gray-600 hover:text-gray-900 hover:bg-gray-100">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
+                        </svg>
+                    </button>
+                    <div class="flex-1 text-center lg:text-left">
+                        <h1 class="text-xl font-semibold text-gray-800">Estoque de Alimentos</h1>
+                    </div>
+                    <div class="flex items-center space-x-4">
+                        <div class="bg-primary-green text-white px-4 py-2 rounded-lg shadow-sm">
+                            <div class="flex items-center space-x-2">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path>
+                                </svg>
+                                <span id="nome-escola-estoque" class="text-sm font-semibold"><?= htmlspecialchars($escolaGestor) ?></span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </header>
+        
+        <div class="p-8">
+            <div class="max-w-[95%] mx-auto">
+                <div class="mb-6 flex justify-between items-center">
+                    <div>
+                        <h2 class="text-2xl font-bold text-gray-900">Estoque de Produtos</h2>
+                        <p id="subtitulo-estoque" class="text-gray-600 mt-1">Visualize os produtos disponíveis na sua escola</p>
+                    </div>
+                </div>
+                
+                <!-- Filtros -->
+                <div class="bg-white rounded-2xl p-6 shadow-lg mb-6">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Produto</label>
+                            <select id="filtro-produto" class="w-full px-4 py-2 border border-gray-300 rounded-lg" onchange="filtrarEstoque()">
+                                <option value="">Todos os produtos</option>
+                                <?php foreach ($produtos as $produto): ?>
+                                    <option value="<?= $produto['id'] ?>"><?= htmlspecialchars($produto['nome']) ?></option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Lista de Estoque -->
+                <div class="bg-white rounded-2xl shadow-lg overflow-hidden border border-gray-200">
+                    <div class="overflow-x-auto">
+                        <table class="w-full min-w-[1200px]">
+                            <thead>
+                                <tr class="bg-gradient-to-r from-primary-green to-green-700 text-white">
+                                    <th class="text-left py-4 px-6 font-bold text-sm uppercase tracking-wider">
+                                        <div class="flex items-center">
+                                            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path>
+                                            </svg>
+                                            Produto
+                                        </div>
+                                    </th>
+                                    <th class="text-center py-4 px-6 font-bold text-sm uppercase tracking-wider">
+                                        <div class="flex items-center justify-center">
+                                            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 7h6m0 10v-5m-6 5v-5m6 5h-3m-3 0h3m-3-10h3m-3 0H9m0 0V7m0 10v-5"></path>
+                                            </svg>
+                                            Quantidade
+                                        </div>
+                                    </th>
+                                    <th class="text-left py-4 px-6 font-bold text-sm uppercase tracking-wider">
+                                        <div class="flex items-center">
+                                            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                                            </svg>
+                                            Lote
+                                        </div>
+                                    </th>
+                                    <th class="text-left py-4 px-6 font-bold text-sm uppercase tracking-wider">
+                                        <div class="flex items-center">
+                                            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path>
+                                            </svg>
+                                            Fornecedor
+                                        </div>
+                                    </th>
+                                    <th class="text-center py-4 px-6 font-bold text-sm uppercase tracking-wider">
+                                        <div class="flex items-center justify-center">
+                                            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                                            </svg>
+                                            Validade
+                                        </div>
+                                    </th>
+                                    <th class="text-center py-4 px-6 font-bold text-sm uppercase tracking-wider">
+                                        <div class="flex items-center justify-center">
+                                            <svg class="w-5 h-5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                            </svg>
+                                            Data de Entrada
+                                        </div>
+                                    </th>
+                                </tr>
+                            </thead>
+                            <tbody id="lista-estoque" class="divide-y divide-gray-100">
+                                <tr>
+                                    <td colspan="6" class="text-center py-16">
+                                        <div class="flex flex-col items-center justify-center text-gray-400">
+                                            <svg class="w-20 h-20 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"></path>
+                                            </svg>
+                                            <p class="text-lg font-medium">Carregando estoque...</p>
+                                        </div>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        // Função para formatar quantidade baseado na unidade de medida
+        function formatarQuantidade(quantidade, unidadeMedida) {
+            if (!quantidade && quantidade !== 0) return '0';
+            
+            const unidade = (unidadeMedida || '').toUpperCase().trim();
+            // Unidades que permitem decimais (líquidas e de peso)
+            const permiteDecimal = ['ML', 'L', 'G', 'KG', 'LT', 'LITRO', 'LITROS', 'MILILITRO', 'MILILITROS', 'GRAMA', 'GRAMAS', 'QUILO', 'QUILOS'].includes(unidade);
+            const casasDecimais = permiteDecimal ? 3 : 0;
+            
+            return parseFloat(quantidade).toLocaleString('pt-BR', {
+                minimumFractionDigits: casasDecimais,
+                maximumFractionDigits: casasDecimais
+            });
+        }
+        
+        window.toggleSidebar = function() {
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.getElementById('mobileOverlay');
+            if (sidebar && overlay) {
+                sidebar.classList.toggle('open');
+                overlay.classList.toggle('hidden');
+            }
+        };
+        
+        window.confirmLogout = function() {
+            const modal = document.getElementById('logoutModal');
+            if (modal) {
+                modal.style.display = 'flex';
+                modal.classList.remove('hidden');
+            } else {
+                // Criar modal dinamicamente se não existir
+                createLogoutModal();
+            }
+        };
+        
+        window.createLogoutModal = function() {
+            let existingModal = document.getElementById('logoutModal');
+            if (existingModal) {
+                existingModal.style.display = 'flex';
+                existingModal.classList.remove('hidden');
+                return;
+            }
+            
+            const modal = document.createElement('div');
+            modal.id = 'logoutModal';
+            modal.className = 'fixed inset-0 bg-black bg-opacity-50 z-[60] items-center justify-center p-4';
+            modal.style.display = 'flex';
+            modal.innerHTML = `
+                <div class="bg-white rounded-2xl p-6 max-w-md w-full mx-4 shadow-2xl">
+                    <div class="flex items-center space-x-3 mb-4">
+                        <div class="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center">
+                            <svg class="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z"></path>
+                            </svg>
+                        </div>
+                        <div>
+                            <h3 class="text-lg font-semibold text-gray-900">Confirmar Saída</h3>
+                            <p class="text-sm text-gray-600">Tem certeza que deseja sair do sistema?</p>
+                        </div>
+                    </div>
+                    <div class="flex space-x-3">
+                        <button onclick="window.closeLogoutModal()" class="flex-1 px-4 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg font-medium transition-colors duration-200">
+                            Cancelar
+                        </button>
+                        <button onclick="window.logout()" class="flex-1 px-4 py-2 text-white bg-red-600 hover:bg-red-700 rounded-lg font-medium transition-colors duration-200">
+                            Sim, Sair
+                        </button>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(modal);
+        };
+        
+        window.closeLogoutModal = function() {
+            const modal = document.getElementById('logoutModal');
+            if (modal) {
+                modal.style.display = 'none';
+                modal.classList.add('hidden');
+            }
+        };
+        
+        window.logout = function() {
+            window.location.href = '../auth/logout.php';
+        };
+        
+        // Fechar sidebar ao clicar no overlay
+        document.addEventListener('DOMContentLoaded', function() {
+            const overlay = document.getElementById('mobileOverlay');
+            if (overlay) {
+                overlay.addEventListener('click', function() {
+                    window.toggleSidebar();
+                });
+            }
+            
+            // Atualizar nome da escola exibido
+            atualizarNomeEscola();
+            
+            // Carregar estoque inicial
+            filtrarEstoque();
+            
+            // Verificar mudanças na escola a cada 2 segundos (quando a escola é alterada no dashboard)
+            setInterval(function() {
+                verificarMudancaEscola();
+            }, 2000);
+        });
+        
+        let ultimaEscolaId = <?= $escolaGestorId ?>;
+        
+        function verificarMudancaEscola() {
+            // Buscar a escola atual da sessão via AJAX
+            fetch('estoque_escola.php?acao=verificar_escola')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success && data.escola_id && data.escola_id !== ultimaEscolaId) {
+                        ultimaEscolaId = data.escola_id;
+                        atualizarNomeEscola();
+                        filtrarEstoque();
+                    }
+                })
+                .catch(error => {
+                    // Silenciar erros de verificação
+                });
+        }
+        
+        function atualizarNomeEscola() {
+            const nomeEscola = document.getElementById('nome-escola-estoque');
+            const subtitulo = document.getElementById('subtitulo-estoque');
+            if (nomeEscola && subtitulo) {
+                fetch('estoque_escola.php?acao=verificar_escola')
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success && data.escola_nome) {
+                            nomeEscola.textContent = data.escola_nome;
+                            subtitulo.textContent = `Visualize os produtos disponíveis em: ${data.escola_nome}`;
+                            ultimaEscolaId = data.escola_id;
+                        }
+                    })
+                    .catch(error => {
+                        // Silenciar erros
+                    });
+            }
+        }
+        
+        function filtrarEstoque() {
+            const tbody = document.getElementById('lista-estoque');
+            const produtoId = document.getElementById('filtro-produto').value;
+            
+            tbody.innerHTML = '<tr><td colspan="6" class="text-center py-16"><div class="flex flex-col items-center justify-center text-gray-400"><svg class="w-20 h-20 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"></path></svg><p class="text-lg font-medium">Carregando estoque...</p></div></td></tr>';
+            
+            let url = 'estoque_escola.php?acao=listar_estoque';
+            if (produtoId) {
+                url += '&produto_id=' + produtoId;
+            }
+            
+            fetch(url)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success && data.estoque && data.estoque.length > 0) {
+                        tbody.innerHTML = '';
+                        data.estoque.forEach((item, index) => {
+                            const validade = item.validade ? new Date(item.validade + 'T00:00:00') : null;
+                            const hoje = new Date();
+                            hoje.setHours(0, 0, 0, 0);
+                            
+                            let corValidade = '';
+                            let iconeValidade = '';
+                            let textoValidade = item.validade ? new Date(item.validade + 'T00:00:00').toLocaleDateString('pt-BR') : '-';
+                            
+                            if (validade) {
+                                validade.setHours(0, 0, 0, 0);
+                                const diffTime = validade - hoje;
+                                const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                                
+                                if (diffDays < 0) {
+                                    corValidade = 'bg-red-100 text-red-800 border-red-200';
+                                    iconeValidade = '<svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>';
+                                } else if (diffDays <= 7) {
+                                    corValidade = 'bg-yellow-100 text-yellow-800 border-yellow-200';
+                                    iconeValidade = '<svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>';
+                                } else {
+                                    corValidade = 'bg-green-100 text-green-800 border-green-200';
+                                    iconeValidade = '<svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>';
+                                }
+                            } else {
+                                corValidade = 'bg-gray-100 text-gray-800 border-gray-200';
+                                iconeValidade = '';
+                            }
+                            
+                            const dataEntrada = item.data_envio ? new Date(item.data_envio + 'T00:00:00').toLocaleDateString('pt-BR') : '-';
+                            
+                            tbody.innerHTML += `
+                                <tr class="hover:bg-gray-50 transition-colors duration-150 ${index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}">
+                                    <td class="py-4 px-6">
+                                        <div class="flex items-center">
+                                            <div class="flex-shrink-0 w-10 h-10 bg-primary-green bg-opacity-10 rounded-lg flex items-center justify-center mr-3">
+                                                <svg class="w-5 h-5 text-primary-green" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path>
+                                                </svg>
+                                            </div>
+                                            <div>
+                                                <div class="font-semibold text-gray-900">${item.produto_nome || '-'}</div>
+                                                <div class="text-sm text-gray-500 mt-0.5">${item.unidade_medida || '-'}</div>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td class="py-4 px-6 text-center">
+                                        <span class="inline-flex items-center px-4 py-2 bg-blue-100 text-blue-800 rounded-lg font-bold text-sm border border-blue-200">
+                                            ${formatarQuantidade(item.quantidade || 0, item.unidade_medida)}
+                                        </span>
+                                    </td>
+                                    <td class="py-4 px-6">
+                                        ${item.lote ? `<span class="inline-flex items-center px-3 py-1 bg-gray-100 text-gray-800 rounded-lg text-sm font-medium">${item.lote}</span>` : '<span class="text-gray-400">-</span>'}
+                                    </td>
+                                    <td class="py-4 px-6">
+                                        ${item.fornecedor_nome ? `<span class="text-gray-700">${item.fornecedor_nome}</span>` : '<span class="text-gray-400">-</span>'}
+                                    </td>
+                                    <td class="py-4 px-6 text-center">
+                                        ${item.validade ? `<span class="inline-flex items-center px-3 py-1 rounded-lg text-sm font-medium border ${corValidade}">${iconeValidade}${textoValidade}</span>` : '<span class="inline-flex items-center px-3 py-1 bg-gray-100 text-gray-800 rounded-lg text-sm font-medium border border-gray-200">-</span>'}
+                                    </td>
+                                    <td class="py-4 px-6 text-center">
+                                        <span class="text-gray-600 font-medium">${dataEntrada}</span>
+                                    </td>
+                                </tr>
+                            `;
+                        });
+                    } else {
+                        tbody.innerHTML = `
+                            <tr>
+                                <td colspan="6" class="text-center py-16">
+                                    <div class="flex flex-col items-center justify-center text-gray-400">
+                                        <svg class="w-20 h-20 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"></path>
+                                        </svg>
+                                        <p class="text-lg font-medium">Nenhum produto encontrado no estoque</p>
+                                        <p class="text-sm mt-1">Os produtos aparecerão aqui quando pacotes forem enviados para sua escola</p>
+                                    </div>
+                                </td>
+                            </tr>
+                        `;
+                    }
+                })
+                .catch(error => {
+                    console.error('Erro ao carregar estoque:', error);
+                    tbody.innerHTML = `
+                        <tr>
+                            <td colspan="6" class="text-center py-16">
+                                <div class="flex flex-col items-center justify-center text-red-400">
+                                    <svg class="w-20 h-20 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                    </svg>
+                                    <p class="text-lg font-medium">Erro ao carregar estoque</p>
+                                    <p class="text-sm mt-1">Tente recarregar a página</p>
+                                </div>
+                            </td>
+                        </tr>
+                    `;
+                });
+        }
+    </script>
+    
+    <!-- Logout Confirmation Modal -->
+    <div id="logoutModal" class="fixed inset-0 bg-black bg-opacity-50 z-[60] hidden items-center justify-center p-4" style="display: none;">
+        <div class="bg-white rounded-2xl p-6 max-w-md w-full mx-4 shadow-2xl">
+            <div class="flex items-center space-x-3 mb-4">
+                <div class="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center">
+                    <svg class="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z"></path>
+                    </svg>
+                </div>
+                <div>
+                    <h3 class="text-lg font-semibold text-gray-900">Confirmar Saída</h3>
+                    <p class="text-sm text-gray-600">Tem certeza que deseja sair do sistema?</p>
+                </div>
+            </div>
+            <div class="flex space-x-3">
+                <button onclick="window.closeLogoutModal()" class="flex-1 px-4 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg font-medium transition-colors duration-200">
+                    Cancelar
+                </button>
+                <button onclick="window.logout()" class="flex-1 px-4 py-2 text-white bg-red-600 hover:bg-red-700 rounded-lg font-medium transition-colors duration-200">
+                    Sim, Sair
+                </button>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
+

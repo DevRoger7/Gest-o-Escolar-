@@ -4034,13 +4034,13 @@ if (!defined('BASE_URL')) {
                                     <div>
                                         <label class="block text-sm font-medium text-gray-700 mb-2">Bairro</label>
                                         <input type="text" name="bairro" 
-                                               class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-600 focus-border-green-600 transition-colors">
+                                               class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-600 focus:border-green-600 transition-colors">
                                     </div>
                                     <div>
                                         <label class="block text-sm font-medium text-gray-700 mb-2">CEP</label>
                                         <input type="text" name="cep" maxlength="9" 
                                                placeholder="00000-000"
-                                               class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-600 focus-border-green-600 transition-colors"
+                                               class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-600 focus:border-green-600 transition-colors"
                                                oninput="this.value = this.value.replace(/\\D/g, '').replace(/(\\d{5})(\\d)/, '$1-$2')">
                                     </div>
                                 </div>

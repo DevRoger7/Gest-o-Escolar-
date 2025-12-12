@@ -283,6 +283,86 @@ if (isset($_SESSION['tipo']) && strtoupper($_SESSION['tipo']) === 'GESTAO') {
     error_log("DEBUG DASHBOARD - Tipo de usuário não é GESTAO: " . ($_SESSION['tipo'] ?? 'NULL'));
 }
 
+// Processar mudança de escola do nutricionista
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'mudar_escola_nutricionista') {
+    header('Content-Type: application/json');
+    
+    if (!isset($_SESSION['tipo']) || strtoupper($_SESSION['tipo']) !== 'NUTRICIONISTA') {
+        echo json_encode(['success' => false, 'message' => 'Acesso não autorizado']);
+        exit;
+    }
+    
+    $escolaId = isset($_POST['escola_id']) ? (int)$_POST['escola_id'] : null;
+    
+    if (!$escolaId) {
+        echo json_encode(['success' => false, 'message' => 'ID da escola não fornecido']);
+        exit;
+    }
+    
+    try {
+        // Verificar se a escola existe
+        $sql = "SELECT id, nome FROM escola WHERE id = :escola_id";
+        $stmt = $conn->prepare($sql);
+        $stmt->bindParam(':escola_id', $escolaId, PDO::PARAM_INT);
+        $stmt->execute();
+        $escola = $stmt->fetch(PDO::FETCH_ASSOC);
+        
+        if ($escola) {
+            // Salvar na sessão
+            $_SESSION['escola_selecionada_nutricionista_id'] = $escolaId;
+            $_SESSION['escola_selecionada_nutricionista_nome'] = $escola['nome'];
+            
+            echo json_encode(['success' => true, 'message' => 'Escola alterada com sucesso', 'escola_nome' => $escola['nome']]);
+        } else {
+            echo json_encode(['success' => false, 'message' => 'Escola não encontrada']);
+        }
+    } catch (Exception $e) {
+        error_log("Erro ao mudar escola do nutricionista: " . $e->getMessage());
+        echo json_encode(['success' => false, 'message' => 'Erro ao alterar escola']);
+    }
+    exit;
+}
+
+// Processar mudança de escola do gestor da merenda
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'mudar_escola_merenda') {
+    header('Content-Type: application/json');
+    
+    if (!isset($_SESSION['tipo']) || strtoupper($_SESSION['tipo']) !== 'ADM_MERENDA') {
+        echo json_encode(['success' => false, 'message' => 'Acesso não autorizado']);
+        exit;
+    }
+    
+    $escolaId = isset($_POST['escola_id']) ? (int)$_POST['escola_id'] : null;
+    
+    if (!$escolaId) {
+        echo json_encode(['success' => false, 'message' => 'ID da escola não fornecido']);
+        exit;
+    }
+    
+    try {
+        // Verificar se a escola existe
+        $sql = "SELECT id, nome FROM escola WHERE id = :escola_id";
+        $stmt = $conn->prepare($sql);
+        $stmt->bindParam(':escola_id', $escolaId, PDO::PARAM_INT);
+        $stmt->execute();
+        $escola = $stmt->fetch(PDO::FETCH_ASSOC);
+        
+        if ($escola) {
+            // Salvar na sessão
+            $_SESSION['escola_selecionada_merenda_id'] = $escolaId;
+            $_SESSION['escola_selecionada_merenda_nome'] = $escola['nome'];
+            
+            echo json_encode(['success' => true, 'message' => 'Escola alterada com sucesso', 'escola_nome' => $escola['nome']]);
+        } else {
+            echo json_encode(['success' => false, 'message' => 'Escola não encontrada']);
+        }
+    } catch (Exception $e) {
+        error_log("Erro ao mudar escola do gestor da merenda: " . $e->getMessage());
+        echo json_encode(['success' => false, 'message' => 'Erro ao alterar escola']);
+    }
+    exit;
+}
+
 // Buscar escolas do professor logado (para mostrar no header)
 $escolasProfessor = [];
 $escolaProfessorId = null;
@@ -600,6 +680,105 @@ if (isset($_SESSION['tipo']) && strtolower($_SESSION['tipo']) === 'professor') {
                     main.classList.toggle('content-dimmed');
                 }
             }
+        };
+        
+        // Função para mudar a escola selecionada do nutricionista
+        window.mudarEscolaMerenda = function(escolaId) {
+            console.log('mudarEscolaMerenda chamado com escolaId:', escolaId);
+            if (!escolaId) {
+                console.error('escolaId não fornecido');
+                return;
+            }
+
+            const select = document.getElementById('select-escola-merenda');
+            if (select) {
+                select.disabled = true;
+                select.style.opacity = '0.6';
+                select.style.cursor = 'wait';
+            }
+
+            const formData = new FormData();
+            formData.append('action', 'mudar_escola_merenda');
+            formData.append('escola_id', escolaId);
+
+            fetch('dashboard.php', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    console.log('Escola do gestor da merenda alterada com sucesso:', data.escola_nome);
+                    window.location.reload(); // Recarregar a página para aplicar as mudanças
+                } else {
+                    console.error('Erro ao mudar escola do gestor da merenda:', data.message);
+                    alert('Erro ao mudar escola: ' + (data.message || 'Desconhecido'));
+                }
+            })
+            .catch(error => {
+                console.error('Erro na requisição AJAX para mudar escola do gestor da merenda:', error);
+                alert('Erro de rede ao mudar escola.');
+            })
+            .finally(() => {
+                if (select) {
+                    select.disabled = false;
+                    select.style.opacity = '1';
+                    select.style.cursor = 'pointer';
+                }
+            });
+        };
+
+        window.mudarEscolaNutricionista = function(escolaId) {
+            console.log('mudarEscolaNutricionista chamado com escolaId:', escolaId);
+            
+            if (!escolaId) {
+                console.error('escolaId não fornecido');
+                return;
+            }
+            
+            // Mostrar loading
+            const select = document.getElementById('select-escola-nutricionista');
+            if (select) {
+                const originalValue = select.value;
+                select.disabled = true;
+                select.style.opacity = '0.6';
+                select.style.cursor = 'wait';
+            }
+            
+            // Salvar na sessão via AJAX
+            const formData = new FormData();
+            formData.append('action', 'mudar_escola_nutricionista');
+            formData.append('escola_id', escolaId);
+            
+            fetch(window.location.href, {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Recarregar a página para atualizar todas as informações
+                    window.location.reload();
+                } else {
+                    console.error('Erro ao mudar escola:', data.message);
+                    if (select) {
+                        select.disabled = false;
+                        select.style.opacity = '1';
+                        select.style.cursor = 'pointer';
+                        select.value = originalValue;
+                    }
+                    alert('Erro ao mudar escola: ' + (data.message || 'Erro desconhecido'));
+                }
+            })
+            .catch(error => {
+                console.error('Erro na requisição:', error);
+                if (select) {
+                    select.disabled = false;
+                    select.style.opacity = '1';
+                    select.style.cursor = 'pointer';
+                }
+                alert('Erro ao mudar escola. Tente novamente.');
+            });
         };
         
         // Função para mudar a escola selecionada - DEFINIDA NO HEAD PARA ESTAR DISPONÍVEL
@@ -2788,6 +2967,115 @@ if (isset($_SESSION['tipo']) && strtolower($_SESSION['tipo']) === 'professor') {
                                         </div>
                                     </div>
                                 <?php endif; ?>
+                            <?php } elseif ($_SESSION['tipo'] === 'NUTRICIONISTA') { ?>
+                                <!-- Para NUTRICIONISTA, dropdown com todas as escolas -->
+                                <?php
+                                // Buscar todas as escolas do sistema
+                                $todasEscolasNutricionista = [];
+                                $escolaSelecionadaNutricionistaId = $_SESSION['escola_selecionada_nutricionista_id'] ?? null;
+                                $escolaSelecionadaNutricionistaNome = $_SESSION['escola_selecionada_nutricionista_nome'] ?? null;
+                                
+                                try {
+                                    $sql = "SELECT id, nome, ativo FROM escola ORDER BY ativo DESC, nome ASC";
+                                    $stmt = $conn->query($sql);
+                                    $todasEscolasNutricionista = $stmt->fetchAll(PDO::FETCH_ASSOC);
+                                    
+                                    // Se não há escola selecionada, usar a primeira ativa
+                                    if (!$escolaSelecionadaNutricionistaId && !empty($todasEscolasNutricionista)) {
+                                        foreach ($todasEscolasNutricionista as $escola) {
+                                            if ($escola['ativo'] == 1) {
+                                                $escolaSelecionadaNutricionistaId = $escola['id'];
+                                                $escolaSelecionadaNutricionistaNome = $escola['nome'];
+                                                $_SESSION['escola_selecionada_nutricionista_id'] = $escolaSelecionadaNutricionistaId;
+                                                $_SESSION['escola_selecionada_nutricionista_nome'] = $escolaSelecionadaNutricionistaNome;
+                                                break;
+                                            }
+                                        }
+                                    }
+                                } catch (Exception $e) {
+                                    error_log("Erro ao buscar escolas para nutricionista: " . $e->getMessage());
+                                }
+                                ?>
+                                <?php if (!empty($todasEscolasNutricionista)): ?>
+                                    <div class="relative group">
+                                        <select id="select-escola-nutricionista" 
+                                                onchange="mudarEscolaNutricionista(this.value)"
+                                                class="bg-primary-green hover:bg-opacity-90 text-white px-5 py-2.5 rounded-lg shadow-md text-sm font-semibold appearance-none cursor-pointer border-0 focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-primary-green pr-10 transition-all duration-200 min-w-[200px]">
+                                            <?php foreach ($todasEscolasNutricionista as $escola): ?>
+                                                <option value="<?= $escola['id'] ?>" 
+                                                        <?= ($escolaSelecionadaNutricionistaId == $escola['id']) ? 'selected' : '' ?>
+                                                        class="bg-white text-gray-800 py-2">
+                                                    <?= htmlspecialchars($escola['nome']) ?>
+                                                    <?= $escola['ativo'] == 0 ? ' (Inativa)' : '' ?>
+                                                </option>
+                                            <?php endforeach; ?>
+                                        </select>
+                                        <div class="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
+                                            <svg class="w-5 h-5 text-white transition-transform duration-200 group-hover:scale-110" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                                            </svg>
+                                        </div>
+                                    </div>
+                                <?php else: ?>
+                                    <div class="bg-primary-green text-white px-4 py-2 rounded-lg shadow-sm">
+                                        <span class="text-sm font-semibold">Nenhuma escola encontrada</span>
+                                    </div>
+                                <?php endif; ?>
+                            <?php } elseif (strtoupper($_SESSION['tipo']) === 'ADM_MERENDA') { ?>
+                                <!-- Para ADM_MERENDA, dropdown com todas as escolas -->
+                                <?php
+                                // Buscar todas as escolas do sistema
+                                $todasEscolasMerenda = [];
+                                $escolaSelecionadaMerendaId = $_SESSION['escola_selecionada_merenda_id'] ?? null;
+                                $escolaSelecionadaMerendaNome = $_SESSION['escola_selecionada_merenda_nome'] ?? null;
+                                
+                                try {
+                                    $sql = "SELECT id, nome, ativo FROM escola ORDER BY ativo DESC, nome ASC";
+                                    $stmt = $conn->query($sql);
+                                    $todasEscolasMerenda = $stmt->fetchAll(PDO::FETCH_ASSOC);
+                                    
+                                    // Se não há escola selecionada, usar a primeira ativa
+                                    if (!$escolaSelecionadaMerendaId && !empty($todasEscolasMerenda)) {
+                                        foreach ($todasEscolasMerenda as $escola) {
+                                            if ($escola['ativo'] == 1) {
+                                                $escolaSelecionadaMerendaId = $escola['id'];
+                                                $escolaSelecionadaMerendaNome = $escola['nome'];
+                                                $_SESSION['escola_selecionada_merenda_id'] = $escolaSelecionadaMerendaId;
+                                                $_SESSION['escola_selecionada_merenda_nome'] = $escolaSelecionadaMerendaNome;
+                                                break;
+                                            }
+                                        }
+                                    }
+                                } catch (Exception $e) {
+                                    error_log("Erro ao buscar escolas para gestor da merenda: " . $e->getMessage());
+                                }
+                                ?>
+                                <?php if (!empty($todasEscolasMerenda)): ?>
+                                    <div class="relative group">
+                                        <select id="select-escola-merenda" 
+                                                onchange="mudarEscolaMerenda(this.value)"
+                                                class="bg-primary-green hover:bg-opacity-90 text-white px-5 py-2.5 rounded-lg shadow-md text-sm font-semibold appearance-none cursor-pointer border-0 focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-primary-green pr-10 transition-all duration-200 min-w-[200px]">
+                                            <option value="">Selecione uma escola...</option>
+                                            <?php foreach ($todasEscolasMerenda as $escola): ?>
+                                                <option value="<?= $escola['id'] ?>" 
+                                                        <?= ($escolaSelecionadaMerendaId == $escola['id']) ? 'selected' : '' ?>
+                                                        class="bg-white text-gray-800 py-2">
+                                                    <?= htmlspecialchars($escola['nome']) ?>
+                                                    <?= $escola['ativo'] == 0 ? ' (Inativa)' : '' ?>
+                                                </option>
+                                            <?php endforeach; ?>
+                                        </select>
+                                        <div class="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
+                                            <svg class="w-5 h-5 text-white transition-transform duration-200 group-hover:scale-110" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                                            </svg>
+                                        </div>
+                                    </div>
+                                <?php else: ?>
+                                    <div class="bg-primary-green text-white px-4 py-2 rounded-lg shadow-sm">
+                                        <span class="text-sm font-semibold">Nenhuma escola encontrada</span>
+                                    </div>
+                                <?php endif; ?>
                             <?php } else { ?>
                                 <!-- Para outros usuários, card verde com ícone -->
                             <div class="bg-primary-green text-white px-4 py-2 rounded-lg shadow-sm">
@@ -2999,7 +3287,7 @@ if (isset($_SESSION['tipo']) && strtolower($_SESSION['tipo']) === 'professor') {
                     </div>
                     
                     <!-- Atividades Recentes de Merenda -->
-                    <div class="bg-white rounded-2xl p-6 shadow-lg border border-gray-100 mb-8">
+                    <div>
                         <div class="flex items-center justify-between mb-6">
                             <h3 class="text-lg font-semibold text-gray-800">Atividades Recentes de Merenda</h3>
                         </div>
@@ -3501,13 +3789,8 @@ if (isset($_SESSION['tipo']) && strtolower($_SESSION['tipo']) === 'professor') {
                 </div>
 
                 <!-- Quick Actions -->
-                <?php if (!isset($_SESSION['tipo']) || strtolower($_SESSION['tipo']) !== 'adm_merenda') { ?>
-                <div class="bg-white rounded-2xl p-6 shadow-lg border border-gray-100 mb-8">
-                    <div class="mb-6">
-                        <h3 class="text-xl font-bold text-gray-800">Acesso Rápido</h3>
-                        <p class="text-sm text-gray-600 mt-1">Acesse rapidamente as principais funcionalidades</p>
-                    </div>
-                    
+                
+                <div>
                     <div class="space-y-3">
                         <?php 
                         $userType = $_SESSION['tipo'] ?? '';
@@ -3739,7 +4022,6 @@ if (isset($_SESSION['tipo']) && strtolower($_SESSION['tipo']) === 'professor') {
                         </div>
                 </div>
                 <?php } ?>
-                <?php } ?>
             </section>
 
             <!-- === INTERFACES DINÂMICAS BASEADAS NO TIPO DE USUÁRIO === -->
@@ -3950,7 +4232,7 @@ if (isset($_SESSION['tipo']) && strtolower($_SESSION['tipo']) === 'professor') {
                         </div>
                     </div>
                     
-                    <a href="cardapios_merenda.php" class="w-full bg-blue-600 text-white py-2.5 px-4 rounded-lg hover:bg-blue-700 transition-colors duration-200 font-medium text-center block">
+                    <a href="#" class="w-full bg-blue-600 text-white py-2.5 px-4 rounded-lg hover:bg-blue-700 transition-colors duration-200 font-medium text-center block">
                         Gerenciar Cardápios
                     </a>
                 </div>';
