@@ -2211,6 +2211,8 @@ if (isset($_SESSION['tipo']) && strtoupper($_SESSION['tipo']) === 'GESTAO') {
         <?php include('components/sidebar_responsavel.php'); ?>
     <?php } elseif (isset($_SESSION['tipo']) && strtoupper($_SESSION['tipo']) === 'GESTAO') { ?>
         <?php include('components/sidebar_gestao.php'); ?>
+    <?php } elseif (isset($_SESSION['tipo']) && strtolower($_SESSION['tipo']) === 'professor') { ?>
+        <?php include('components/sidebar_professor.php'); ?>
     <?php } else { ?>
     <aside id="sidebar" class="fixed left-0 top-0 h-full w-64 bg-white shadow-lg sidebar-transition z-50 lg:translate-x-0 sidebar-mobile">
         <!-- Logo e Header -->
@@ -3241,6 +3243,29 @@ if (isset($_SESSION['tipo']) && strtoupper($_SESSION['tipo']) === 'GESTAO') {
                                     <div class="text-right">
                                         <div class="text-xs opacity-80">Pendentes</div>
                                         <div class="text-sm font-bold"><?= $stats->getNotasPendentes() ?></div>
+                                    </div>
+                                </div>
+                                <svg class="w-4 h-4 ml-2 opacity-70 group-hover:opacity-100 transition-opacity" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+                                </svg>
+                            </button>
+                            <?php } ?>
+
+                            <?php if (isset($_SESSION['lancar_nota']) || isset($_SESSION['acessar_registros']) || strtolower($_SESSION['tipo'] ?? '') === 'professor') { ?>
+                            <button onclick="window.location.href='plano_aula_professor.php'" class="group w-full flex items-center p-4 bg-gradient-to-r from-indigo-500 to-indigo-600 text-white rounded-xl hover:from-indigo-600 hover:to-indigo-700 transition-all duration-300 shadow-md hover:shadow-lg hover:scale-[1.02]">
+                                <div class="flex items-center space-x-4 flex-1">
+                                    <div class="p-2 bg-white/20 rounded-lg group-hover:bg-white/30 transition-all duration-300">
+                                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                                </svg>
+                                    </div>
+                                    <div class="flex-1 text-left">
+                                        <h4 class="font-semibold text-sm">Plano de Aula</h4>
+                                        <p class="text-xs opacity-90">Crie e gerencie seus planos de aula</p>
+                                    </div>
+                                    <div class="text-right">
+                                        <div class="text-xs opacity-80">Ativos</div>
+                                        <div class="text-sm font-bold">-</div>
                                     </div>
                                 </div>
                                 <svg class="w-4 h-4 ml-2 opacity-70 group-hover:opacity-100 transition-opacity" fill="none" stroke="currentColor" viewBox="0 0 24 24">
