@@ -2602,7 +2602,11 @@ $professores = $stmtProfessores->fetchAll(PDO::FETCH_ASSOC);
                 fecharModalNotificacaoExclusao();
                 
                 if (data.success) {
+<<<<<<< HEAD
                     alert('Exclusão revertida com sucesso! O professor foi reativado.');
+=======
+                    alert('Exclusão revertida com sucesso!');
+>>>>>>> parent of 5001811 (.)
                     filtrarProfessores();
                     professorIdExcluido = null;
                 } else {
