@@ -484,7 +484,21 @@ function excluirEscolaForcado($id)
             $stmtAlunos = $conn->prepare("SELECT * FROM aluno WHERE escola_id = :id");
             $stmtAlunos->bindParam(':id', $id, PDO::PARAM_INT);
             $stmtAlunos->execute();
-            $backupData['alunos'] = $stmtAlunos->fetchAll(PDO::FETCH_ASSOC);
+            $alunos = $stmtAlunos->fetchAll(PDO::FETCH_ASSOC);
+            $backupData['alunos'] = $alunos;
+            
+            // Buscar aluno_responsavel dos alunos desta escola
+            if (!empty($alunos)) {
+                $alunoIds = array_column($alunos, 'id');
+                $alunoPlaceholders = implode(',', array_fill(0, count($alunoIds), '?'));
+                try {
+                    $stmtAlunoResp = $conn->prepare("SELECT * FROM aluno_responsavel WHERE aluno_id IN ($alunoPlaceholders)");
+                    $stmtAlunoResp->execute($alunoIds);
+                    $backupData['aluno_responsavel'] = $stmtAlunoResp->fetchAll(PDO::FETCH_ASSOC);
+                } catch (PDOException $e) {
+                    error_log("Erro ao buscar aluno_responsavel: " . $e->getMessage());
+                }
+            }
         } catch (PDOException $e) {
             error_log("Erro ao buscar alunos: " . $e->getMessage());
         }
@@ -518,6 +532,24 @@ function excluirEscolaForcado($id)
                 $stmtAvaliacao = $conn->prepare("SELECT * FROM avaliacao WHERE turma_id IN ($placeholders)");
                 $stmtAvaliacao->execute($turmaIds);
                 $backupData['avaliacao'] = $stmtAvaliacao->fetchAll(PDO::FETCH_ASSOC);
+            } catch (PDOException $e) {}
+            
+            try {
+                $stmtTurmaProfessor = $conn->prepare("SELECT * FROM turma_professor WHERE turma_id IN ($placeholders)");
+                $stmtTurmaProfessor->execute($turmaIds);
+                $backupData['turma_professor'] = $stmtTurmaProfessor->fetchAll(PDO::FETCH_ASSOC);
+            } catch (PDOException $e) {}
+            
+            try {
+                $stmtObservacao = $conn->prepare("SELECT * FROM observacao_desempenho WHERE turma_id IN ($placeholders)");
+                $stmtObservacao->execute($turmaIds);
+                $backupData['observacao_desempenho'] = $stmtObservacao->fetchAll(PDO::FETCH_ASSOC);
+            } catch (PDOException $e) {}
+            
+            try {
+                $stmtPlanoAula = $conn->prepare("SELECT * FROM plano_aula WHERE turma_id IN ($placeholders)");
+                $stmtPlanoAula->execute($turmaIds);
+                $backupData['plano_aula'] = $stmtPlanoAula->fetchAll(PDO::FETCH_ASSOC);
             } catch (PDOException $e) {}
             
             try {
@@ -588,6 +620,150 @@ function excluirEscolaForcado($id)
                 $backupData['consumo_item'] = $stmtConsumoItem->fetchAll(PDO::FETCH_ASSOC);
             }
         } catch (PDOException $e) {}
+        
+        // 7. Desperdício
+        try {
+            $stmtDesperdicio = $conn->prepare("SELECT * FROM desperdicio WHERE escola_id = :id");
+            $stmtDesperdicio->bindParam(':id', $id, PDO::PARAM_INT);
+            $stmtDesperdicio->execute();
+            $backupData['desperdicio'] = $stmtDesperdicio->fetchAll(PDO::FETCH_ASSOC);
+        } catch (PDOException $e) {
+            error_log("Erro ao buscar desperdicio: " . $e->getMessage());
+        }
+        
+        // 8. Histórico escolar
+        try {
+            $stmtHistorico = $conn->prepare("SELECT * FROM historico_escolar WHERE escola_id = :id");
+            $stmtHistorico->bindParam(':id', $id, PDO::PARAM_INT);
+            $stmtHistorico->execute();
+            $backupData['historico_escolar'] = $stmtHistorico->fetchAll(PDO::FETCH_ASSOC);
+        } catch (PDOException $e) {}
+        
+        // 9. Indicadores nutricionais
+        try {
+            $stmtIndicador = $conn->prepare("SELECT * FROM indicador_nutricional WHERE escola_id = :id");
+            $stmtIndicador->bindParam(':id', $id, PDO::PARAM_INT);
+            $stmtIndicador->execute();
+            $backupData['indicador_nutricional'] = $stmtIndicador->fetchAll(PDO::FETCH_ASSOC);
+        } catch (PDOException $e) {}
+        
+        // 10. Pareceres técnicos
+        try {
+            $stmtParecer = $conn->prepare("SELECT * FROM parecer_tecnico WHERE escola_id = :id");
+            $stmtParecer->bindParam(':id', $id, PDO::PARAM_INT);
+            $stmtParecer->execute();
+            $backupData['parecer_tecnico'] = $stmtParecer->fetchAll(PDO::FETCH_ASSOC);
+        } catch (PDOException $e) {}
+        
+        // 11. Pedidos de cesta
+        try {
+            $stmtPedido = $conn->prepare("SELECT * FROM pedido_cesta WHERE escola_id = :id");
+            $stmtPedido->bindParam(':id', $id, PDO::PARAM_INT);
+            $stmtPedido->execute();
+            $pedidos = $stmtPedido->fetchAll(PDO::FETCH_ASSOC);
+            $backupData['pedido_cesta'] = $pedidos;
+            
+            // Buscar itens de pedido
+            if (!empty($pedidos)) {
+                $pedidoIds = array_column($pedidos, 'id');
+                $pedidoPlaceholders = implode(',', array_fill(0, count($pedidoIds), '?'));
+                $stmtPedidoItem = $conn->prepare("SELECT * FROM pedido_item WHERE pedido_id IN ($pedidoPlaceholders)");
+                $stmtPedidoItem->execute($pedidoIds);
+                $backupData['pedido_item'] = $stmtPedidoItem->fetchAll(PDO::FETCH_ASSOC);
+            }
+        } catch (PDOException $e) {}
+        
+        // 12. Relatórios
+        try {
+            $stmtRelatorio = $conn->prepare("SELECT * FROM relatorio WHERE escola_id = :id");
+            $stmtRelatorio->bindParam(':id', $id, PDO::PARAM_INT);
+            $stmtRelatorio->execute();
+            $backupData['relatorio'] = $stmtRelatorio->fetchAll(PDO::FETCH_ASSOC);
+        } catch (PDOException $e) {}
+        
+        // 13. Comunicados da escola
+        try {
+            $stmtComunicado = $conn->prepare("SELECT * FROM comunicado WHERE escola_id = :id");
+            $stmtComunicado->bindParam(':id', $id, PDO::PARAM_INT);
+            $stmtComunicado->execute();
+            $comunicados = $stmtComunicado->fetchAll(PDO::FETCH_ASSOC);
+            $backupData['comunicado'] = $comunicados;
+            
+            // Buscar respostas de comunicados
+            if (!empty($comunicados)) {
+                $comunicadoIds = array_column($comunicados, 'id');
+                $comunicadoPlaceholders = implode(',', array_fill(0, count($comunicadoIds), '?'));
+                $stmtComunicadoResp = $conn->prepare("SELECT * FROM comunicado_resposta WHERE comunicado_id IN ($comunicadoPlaceholders)");
+                $stmtComunicadoResp->execute($comunicadoIds);
+                $backupData['comunicado_resposta'] = $stmtComunicadoResp->fetchAll(PDO::FETCH_ASSOC);
+            }
+        } catch (PDOException $e) {}
+        
+        // 14. Escola programa
+        try {
+            $stmtEscolaPrograma = $conn->prepare("SELECT * FROM escola_programa WHERE escola_id = :id");
+            $stmtEscolaPrograma->bindParam(':id', $id, PDO::PARAM_INT);
+            $stmtEscolaPrograma->execute();
+            $backupData['escola_programa'] = $stmtEscolaPrograma->fetchAll(PDO::FETCH_ASSOC);
+        } catch (PDOException $e) {}
+        
+        // 15. Eventos do calendário (calendar_events)
+        try {
+            $stmtCalendarEvents = $conn->prepare("SELECT * FROM calendar_events WHERE school_id = :id");
+            $stmtCalendarEvents->bindParam(':id', $id, PDO::PARAM_INT);
+            $stmtCalendarEvents->execute();
+            $calendarEvents = $stmtCalendarEvents->fetchAll(PDO::FETCH_ASSOC);
+            $backupData['calendar_events'] = $calendarEvents;
+            
+            // Buscar participantes dos eventos
+            if (!empty($calendarEvents)) {
+                $eventIds = array_column($calendarEvents, 'id');
+                $eventPlaceholders = implode(',', array_fill(0, count($eventIds), '?'));
+                try {
+                    $stmtCalendarParticipants = $conn->prepare("SELECT * FROM calendar_event_participants WHERE event_id IN ($eventPlaceholders)");
+                    $stmtCalendarParticipants->execute($eventIds);
+                    $backupData['calendar_event_participants'] = $stmtCalendarParticipants->fetchAll(PDO::FETCH_ASSOC);
+                } catch (PDOException $e) {
+                    error_log("Erro ao buscar calendar_event_participants: " . $e->getMessage());
+                }
+            }
+        } catch (PDOException $e) {
+            error_log("Erro ao buscar calendar_events: " . $e->getMessage());
+        }
+        
+        // 16. Custo merenda
+        try {
+            $stmtCustoMerenda = $conn->prepare("SELECT * FROM custo_merenda WHERE escola_id = :id");
+            $stmtCustoMerenda->bindParam(':id', $id, PDO::PARAM_INT);
+            $stmtCustoMerenda->execute();
+            $backupData['custo_merenda'] = $stmtCustoMerenda->fetchAll(PDO::FETCH_ASSOC);
+        } catch (PDOException $e) {
+            error_log("Erro ao buscar custo_merenda: " . $e->getMessage());
+        }
+        
+        // 17. Pacotes da escola
+        try {
+            $stmtPacoteEscola = $conn->prepare("SELECT * FROM pacote_escola WHERE escola_id = :id");
+            $stmtPacoteEscola->bindParam(':id', $id, PDO::PARAM_INT);
+            $stmtPacoteEscola->execute();
+            $pacotesEscola = $stmtPacoteEscola->fetchAll(PDO::FETCH_ASSOC);
+            $backupData['pacote_escola'] = $pacotesEscola;
+            
+            // Buscar itens dos pacotes
+            if (!empty($pacotesEscola)) {
+                $pacoteIds = array_column($pacotesEscola, 'id');
+                $pacotePlaceholders = implode(',', array_fill(0, count($pacoteIds), '?'));
+                try {
+                    $stmtPacoteItem = $conn->prepare("SELECT * FROM pacote_escola_item WHERE pacote_id IN ($pacotePlaceholders)");
+                    $stmtPacoteItem->execute($pacoteIds);
+                    $backupData['pacote_escola_item'] = $stmtPacoteItem->fetchAll(PDO::FETCH_ASSOC);
+                } catch (PDOException $e) {
+                    error_log("Erro ao buscar pacote_escola_item: " . $e->getMessage());
+                }
+            }
+        } catch (PDOException $e) {
+            error_log("Erro ao buscar pacote_escola: " . $e->getMessage());
+        }
         
         // Salvar backup COMPLETO
         try {
@@ -765,6 +941,18 @@ function excluirEscolaForcado($id)
             $stmt->execute();
         } catch (PDOException $e) {}
         
+        // Excluir itens de pedido antes de excluir pedidos
+        try {
+            if (!empty($backupData['pedido_item'])) {
+                $pedidoItemIds = array_column($backupData['pedido_item'], 'id');
+                if (!empty($pedidoItemIds)) {
+                    $piPlaceholders = implode(',', array_fill(0, count($pedidoItemIds), '?'));
+                    $stmt = $conn->prepare("DELETE FROM pedido_item WHERE id IN ($piPlaceholders)");
+                    $stmt->execute($pedidoItemIds);
+                }
+            }
+        } catch (PDOException $e) {}
+        
         try {
             $stmt = $conn->prepare("DELETE FROM pedido_cesta WHERE escola_id = :id");
             $stmt->bindParam(':id', $id, PDO::PARAM_INT);
@@ -787,12 +975,29 @@ function excluirEscolaForcado($id)
             throw $e;
         }
         
-        // Atualizar alunos para escola_id = NULL (não excluir alunos, apenas desvincular)
+        // Excluir alunos da escola (já foram salvos no backup)
+        // IMPORTANTE: Os alunos são excluídos porque foram salvos no backup
+        // Quando reverter, serão restaurados do backup
         try {
-            $stmt = $conn->prepare("UPDATE aluno SET escola_id = NULL WHERE escola_id = :id");
-            $stmt->bindParam(':id', $id, PDO::PARAM_INT);
-            $stmt->execute();
-        } catch (PDOException $e) {}
+            if (!empty($backupData['alunos'])) {
+                $alunoIds = array_column($backupData['alunos'], 'id');
+                if (!empty($alunoIds)) {
+                    $alunoPlaceholders = implode(',', array_fill(0, count($alunoIds), '?'));
+                    
+                    // Excluir aluno_responsavel primeiro (foreign key)
+                    try {
+                        $stmt = $conn->prepare("DELETE FROM aluno_responsavel WHERE aluno_id IN ($alunoPlaceholders)");
+                        $stmt->execute($alunoIds);
+                    } catch (PDOException $e) {}
+                    
+                    // Excluir alunos
+                    $stmt = $conn->prepare("DELETE FROM aluno WHERE id IN ($alunoPlaceholders)");
+                    $stmt->execute($alunoIds);
+                }
+            }
+        } catch (PDOException $e) {
+            error_log("Erro ao excluir alunos: " . $e->getMessage());
+        }
         
         // Excluir lotações
         try {
@@ -825,12 +1030,79 @@ function excluirEscolaForcado($id)
             $stmt->execute();
         } catch (PDOException $e) {}
         
+        // Excluir respostas de comunicados ANTES de excluir comunicados (respeitando foreign key)
+        try {
+            if (!empty($backupData['comunicado_resposta'])) {
+                $comunicadoRespIds = array_column($backupData['comunicado_resposta'], 'id');
+                if (!empty($comunicadoRespIds)) {
+                    $crPlaceholders = implode(',', array_fill(0, count($comunicadoRespIds), '?'));
+                    $stmt = $conn->prepare("DELETE FROM comunicado_resposta WHERE id IN ($crPlaceholders)");
+                    $stmt->execute($comunicadoRespIds);
+                }
+            }
+        } catch (PDOException $e) {}
+        
         // Excluir comunicados gerais da escola
         try {
             $stmt = $conn->prepare("DELETE FROM comunicado WHERE escola_id = :id");
             $stmt->bindParam(':id', $id, PDO::PARAM_INT);
             $stmt->execute();
         } catch (PDOException $e) {}
+        
+        // Excluir participantes de eventos do calendário antes de excluir eventos
+        try {
+            if (!empty($backupData['calendar_event_participants'])) {
+                $participantIds = array_column($backupData['calendar_event_participants'], 'id');
+                if (!empty($participantIds)) {
+                    $participantPlaceholders = implode(',', array_fill(0, count($participantIds), '?'));
+                    $stmt = $conn->prepare("DELETE FROM calendar_event_participants WHERE id IN ($participantPlaceholders)");
+                    $stmt->execute($participantIds);
+                }
+            }
+        } catch (PDOException $e) {
+            error_log("Erro ao excluir calendar_event_participants: " . $e->getMessage());
+        }
+        
+        // Excluir eventos do calendário
+        try {
+            $stmt = $conn->prepare("DELETE FROM calendar_events WHERE school_id = :id");
+            $stmt->bindParam(':id', $id, PDO::PARAM_INT);
+            $stmt->execute();
+        } catch (PDOException $e) {
+            error_log("Erro ao excluir calendar_events: " . $e->getMessage());
+        }
+        
+        // Excluir custo merenda
+        try {
+            $stmt = $conn->prepare("DELETE FROM custo_merenda WHERE escola_id = :id");
+            $stmt->bindParam(':id', $id, PDO::PARAM_INT);
+            $stmt->execute();
+        } catch (PDOException $e) {
+            error_log("Erro ao excluir custo_merenda: " . $e->getMessage());
+        }
+        
+        // Excluir itens de pacote antes de excluir pacotes
+        try {
+            if (!empty($backupData['pacote_escola_item'])) {
+                $pacoteItemIds = array_column($backupData['pacote_escola_item'], 'id');
+                if (!empty($pacoteItemIds)) {
+                    $pacoteItemPlaceholders = implode(',', array_fill(0, count($pacoteItemIds), '?'));
+                    $stmt = $conn->prepare("DELETE FROM pacote_escola_item WHERE id IN ($pacoteItemPlaceholders)");
+                    $stmt->execute($pacoteItemIds);
+                }
+            }
+        } catch (PDOException $e) {
+            error_log("Erro ao excluir pacote_escola_item: " . $e->getMessage());
+        }
+        
+        // Excluir pacotes da escola
+        try {
+            $stmt = $conn->prepare("DELETE FROM pacote_escola WHERE escola_id = :id");
+            $stmt->bindParam(':id', $id, PDO::PARAM_INT);
+            $stmt->execute();
+        } catch (PDOException $e) {
+            error_log("Erro ao excluir pacote_escola: " . $e->getMessage());
+        }
         
         // Por último, excluir a escola
         try {
