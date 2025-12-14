@@ -504,17 +504,31 @@ if (($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['acao'])) ||
                 throw new Exception('ID do professor não informado.');
             }
             
+            // Verificar se o professor existe
+            $sqlBuscar = "SELECT pr.*, p.nome
+                         FROM professor pr
+                         INNER JOIN pessoa p ON pr.pessoa_id = p.id
+                         WHERE pr.id = :id";
+            $stmtBuscar = $conn->prepare($sqlBuscar);
+            $stmtBuscar->bindParam(':id', $professorId);
+            $stmtBuscar->execute();
+            $professor = $stmtBuscar->fetch(PDO::FETCH_ASSOC);
+            
+            if (!$professor) {
+                throw new Exception('Professor não encontrado.');
+            }
+            
             // Reverter soft delete (ativar novamente)
             $sqlReverter = "UPDATE professor SET ativo = 1 WHERE id = :id";
             $stmtReverter = $conn->prepare($sqlReverter);
-            $stmtReverter->bindParam(':id', $professorId);
+            $stmtReverter->bindParam(':id', $professorId, PDO::PARAM_INT);
             $result = $stmtReverter->execute();
             
             if ($result) {
                 echo json_encode([
                     'success' => true,
-                    'message' => 'Exclusão revertida com sucesso!'
-                ]);
+                    'message' => 'Exclusão revertida com sucesso! O professor foi reativado.'
+                ], JSON_UNESCAPED_UNICODE);
             } else {
                 throw new Exception('Erro ao reverter exclusão do professor.');
             }
@@ -522,124 +536,12 @@ if (($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['acao'])) ||
             echo json_encode([
                 'success' => false,
                 'message' => $e->getMessage()
-            ]);
-        }
-        exit;
-    }
-    
-    if ($_POST['acao'] === 'lotar_professor') {
-        try {
-            $professorId = $_POST['professor_id'] ?? null;
-            $escolaId = $_POST['escola_id'] ?? null;
-            $dataInicio = $_POST['data_inicio'] ?? null;
-            $cargaHoraria = !empty($_POST['carga_horaria']) ? (int)$_POST['carga_horaria'] : null;
-            $observacao = !empty($_POST['observacao']) ? trim($_POST['observacao']) : null;
-            
-            if (empty($professorId) || empty($escolaId) || empty($dataInicio)) {
-                throw new Exception('Professor, escola e data de início são obrigatórios.');
-            }
-            
-            // Verificar se o professor já está lotado na escola (lotação ativa)
-            $sqlVerificar = "SELECT id FROM professor_lotacao 
-                            WHERE professor_id = :professor_id 
-                            AND escola_id = :escola_id 
-                            AND fim IS NULL";
-            $stmtVerificar = $conn->prepare($sqlVerificar);
-            $stmtVerificar->bindParam(':professor_id', $professorId, PDO::PARAM_INT);
-            $stmtVerificar->bindParam(':escola_id', $escolaId, PDO::PARAM_INT);
-            $stmtVerificar->execute();
-            
-            if ($stmtVerificar->fetch()) {
-                throw new Exception('Professor já está lotado nesta escola.');
-            }
-            
-            $conn->beginTransaction();
-            
-            // Inserir nova lotação
-            $sqlLotacao = "INSERT INTO professor_lotacao (professor_id, escola_id, inicio, carga_horaria, observacao, criado_em) 
-                          VALUES (:professor_id, :escola_id, :inicio, :carga_horaria, :observacao, NOW())";
-            $stmtLotacao = $conn->prepare($sqlLotacao);
-            $stmtLotacao->bindParam(':professor_id', $professorId, PDO::PARAM_INT);
-            $stmtLotacao->bindParam(':escola_id', $escolaId, PDO::PARAM_INT);
-            $stmtLotacao->bindParam(':inicio', $dataInicio);
-            $stmtLotacao->bindParam(':carga_horaria', $cargaHoraria, PDO::PARAM_INT);
-            $stmtLotacao->bindParam(':observacao', $observacao);
-            $stmtLotacao->execute();
-            
-            $conn->commit();
-            
-            echo json_encode([
-                'success' => true,
-                'message' => 'Professor lotado com sucesso!'
             ], JSON_UNESCAPED_UNICODE);
-        } catch (Exception $e) {
-            if ($conn->inTransaction()) {
-                $conn->rollBack();
-            }
-            error_log("Erro ao lotar professor: " . $e->getMessage());
+        } catch (PDOException $e) {
+            error_log("Erro ao reverter exclusão: " . $e->getMessage());
             echo json_encode([
                 'success' => false,
-                'message' => $e->getMessage()
-            ], JSON_UNESCAPED_UNICODE);
-        }
-        exit;
-    }
-    
-    if ($_POST['acao'] === 'remover_lotacao') {
-        try {
-            $professorId = $_POST['professor_id'] ?? null;
-            $escolaId = $_POST['escola_id'] ?? null;
-            
-            if (empty($professorId) || empty($escolaId)) {
-                throw new Exception('ID do professor e da escola são obrigatórios.');
-            }
-            
-            // Verificar se a lotação existe e está ativa
-            $sqlVerificar = "SELECT id FROM professor_lotacao 
-                            WHERE professor_id = :professor_id 
-                            AND escola_id = :escola_id 
-                            AND fim IS NULL";
-            $stmtVerificar = $conn->prepare($sqlVerificar);
-            $stmtVerificar->bindParam(':professor_id', $professorId, PDO::PARAM_INT);
-            $stmtVerificar->bindParam(':escola_id', $escolaId, PDO::PARAM_INT);
-            $stmtVerificar->execute();
-            $lotacao = $stmtVerificar->fetch(PDO::FETCH_ASSOC);
-            
-            if (!$lotacao) {
-                throw new Exception('Lotação não encontrada ou já foi removida.');
-            }
-            
-            $conn->beginTransaction();
-            
-            // Finalizar a lotação (definir data de fim como hoje)
-            $sqlRemover = "UPDATE professor_lotacao 
-                          SET fim = CURDATE() 
-                          WHERE professor_id = :professor_id 
-                          AND escola_id = :escola_id 
-                          AND fim IS NULL";
-            $stmtRemover = $conn->prepare($sqlRemover);
-            $stmtRemover->bindParam(':professor_id', $professorId, PDO::PARAM_INT);
-            $stmtRemover->bindParam(':escola_id', $escolaId, PDO::PARAM_INT);
-            $stmtRemover->execute();
-            
-            if ($stmtRemover->rowCount() === 0) {
-                throw new Exception('Erro ao remover lotação. Nenhuma lotação foi atualizada.');
-            }
-            
-            $conn->commit();
-            
-            echo json_encode([
-                'success' => true,
-                'message' => 'Lotação removida com sucesso!'
-            ], JSON_UNESCAPED_UNICODE);
-        } catch (Exception $e) {
-            if ($conn->inTransaction()) {
-                $conn->rollBack();
-            }
-            error_log("Erro ao remover lotação: " . $e->getMessage());
-            echo json_encode([
-                'success' => false,
-                'message' => $e->getMessage()
+                'message' => 'Erro ao processar requisição. Tente novamente.'
             ], JSON_UNESCAPED_UNICODE);
         }
         exit;
@@ -2083,15 +1985,15 @@ $professores = $stmtProfessores->fetchAll(PDO::FETCH_ASSOC);
                     throw new Error(`HTTP error! status: ${response.status}`);
                 }
                 
-                // Verificar se a resposta é JSON (mesma lógica da página de diagnóstico)
-                const contentType = response.headers.get('content-type');
-                if (!contentType || !contentType.includes('application/json')) {
-                    const text = await response.text();
-                    console.error('Resposta não é JSON:', text.substring(0, 500));
-                    throw new Error('Resposta do servidor não é válida. O servidor retornou HTML em vez de JSON. Verifique o console para mais detalhes.');
-                }
+                const text = await response.text();
+                let data;
                 
-                const data = await response.json();
+                try {
+                    data = JSON.parse(text);
+                } catch (parseError) {
+                    console.error('Resposta não é JSON válido:', text.substring(0, 200));
+                    throw new Error('Resposta do servidor não é JSON válido. Verifique o console para mais detalhes.');
+                }
                 
                 if (!data.success || !data.professor) {
                     alert('Erro ao carregar dados do professor: ' + (data.message || 'Professor não encontrado'));
@@ -2164,15 +2066,15 @@ $professores = $stmtProfessores->fetchAll(PDO::FETCH_ASSOC);
                     throw new Error(`HTTP error! status: ${response.status}`);
                 }
                 
-                // Verificar se a resposta é JSON (mesma lógica da página de diagnóstico)
-                const contentType = response.headers.get('content-type');
-                if (!contentType || !contentType.includes('application/json')) {
-                    const text = await response.text();
-                    console.error('Resposta não é JSON:', text.substring(0, 500));
-                    throw new Error('Resposta do servidor não é válida. O servidor retornou HTML em vez de JSON. Verifique o console para mais detalhes.');
-                }
+                const text = await response.text();
+                let data;
                 
-                const data = await response.json();
+                try {
+                    data = JSON.parse(text);
+                } catch (parseError) {
+                    console.error('Resposta não é JSON válido:', text);
+                    throw new Error('Resposta do servidor não é JSON válido');
+                }
                 
                 const container = document.getElementById('lotacoes-atuais-container');
                 const lista = document.getElementById('lista-lotacoes');
@@ -2229,12 +2131,12 @@ $professores = $stmtProfessores->fetchAll(PDO::FETCH_ASSOC);
                     body: formData
                 });
                 
-                // Verificar se a resposta é JSON (mesma lógica da página de diagnóstico)
+                // Verificar se a resposta é JSON
                 const contentType = response.headers.get('content-type');
                 if (!contentType || !contentType.includes('application/json')) {
                     const text = await response.text();
-                    console.error('Resposta não é JSON:', text.substring(0, 500));
-                    throw new Error('Resposta do servidor não é válida. O servidor retornou HTML em vez de JSON. Verifique o console para mais detalhes.');
+                    console.error('Resposta não é JSON:', text.substring(0, 200));
+                    throw new Error('Resposta do servidor não é válida. Por favor, tente novamente.');
                 }
                 
                 const data = await response.json();
@@ -2643,7 +2545,11 @@ $professores = $stmtProfessores->fetchAll(PDO::FETCH_ASSOC);
         }
         
         function reverterExclusaoProfessor() {
-            if (!professorIdExcluido) return;
+            if (!professorIdExcluido) {
+                console.error('ID do professor não está definido');
+                alert('Erro: ID do professor não encontrado. Por favor, tente novamente.');
+                return;
+            }
             
             // Parar contagem
             if (timerContagem) {
@@ -2651,37 +2557,69 @@ $professores = $stmtProfessores->fetchAll(PDO::FETCH_ASSOC);
                 timerContagem = null;
             }
             
+            // Desabilitar botão para evitar cliques múltiplos
+            const btnReverter = document.querySelector('#modalNotificacaoExclusao button[onclick*="reverterExclusaoProfessor"]');
+            const textoOriginal = btnReverter ? btnReverter.textContent : '';
+            if (btnReverter) {
+                btnReverter.disabled = true;
+                btnReverter.textContent = 'Revertendo...';
+            }
+            
             const formData = new FormData();
             formData.append('acao', 'reverter_exclusao_professor');
             formData.append('professor_id', professorIdExcluido);
             
+            console.log('Revertendo exclusão do professor ID:', professorIdExcluido);
+            
             fetch('', {
                 method: 'POST',
-                body: formData
+                body: formData,
+                credentials: 'same-origin'
             })
             .then(async response => {
+                console.log('Resposta recebida:', response.status, response.statusText);
+                
                 // Verificar se a resposta é JSON
-                const contentType = response.headers.get('content-type');
-                if (!contentType || !contentType.includes('application/json')) {
-                    const text = await response.text();
+                const contentType = response.headers.get('content-type') || '';
+                const text = await response.text();
+                
+                if (!contentType.includes('application/json')) {
                     console.error('Resposta não é JSON:', text.substring(0, 200));
                     throw new Error('Resposta do servidor não é válida. Por favor, tente novamente.');
                 }
-                return response.json();
+                
+                try {
+                    return JSON.parse(text);
+                } catch (e) {
+                    console.error('Erro ao fazer parse do JSON:', e);
+                    console.error('Texto recebido:', text);
+                    throw new Error('Erro ao processar resposta do servidor.');
+                }
             })
             .then(data => {
+                console.log('Dados recebidos:', data);
+                
                 fecharModalNotificacaoExclusao();
                 
                 if (data.success) {
-                    alert('Exclusão revertida com sucesso!');
+                    alert('Exclusão revertida com sucesso! O professor foi reativado.');
                     filtrarProfessores();
+                    professorIdExcluido = null;
                 } else {
                     abrirModalErroExclusao('Erro ao reverter exclusão: ' + (data.message || 'Erro desconhecido'));
                 }
             })
             .catch(error => {
                 console.error('Erro ao reverter exclusão:', error);
+                fecharModalNotificacaoExclusao();
                 abrirModalErroExclusao(error.message || 'Erro ao processar requisição. Por favor, tente novamente.');
+            })
+            .finally(() => {
+                // Reabilitar botão
+                if (btnReverter) {
+                    btnReverter.disabled = false;
+                    btnReverter.textContent = textoOriginal || 'Reverter Exclusão';
+                }
             });
         }
         

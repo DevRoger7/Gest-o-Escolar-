@@ -302,6 +302,58 @@ if (isset($_GET['bimestre']) && $alunoIdReal) {
                 </a>
                 <?php endfor; ?>
             </div>
+
+            <!-- Dados da tabela 'boletim' -->
+            <?php if (!empty($boletins)): ?>
+            <div class="mt-10 bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+                <div class="p-6 border-b border-gray-200 bg-gray-50">
+                    <h2 class="text-lg font-bold text-gray-900">Meus Boletins (tabela boletim)</h2>
+                    <p class="text-sm text-gray-600">Registros encontrados para o aluno</p>
+                </div>
+                <div class="p-6 overflow-x-auto">
+                    <table class="min-w-full divide-y divide-gray-200">
+                        <thead>
+                            <tr>
+                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Bimestre</th>
+                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ano Letivo</th>
+                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Turma ID</th>
+                                <th class="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Média Geral</th>
+                                <th class="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Frequência</th>
+                                <th class="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Situação</th>
+                                <th class="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody class="bg-white divide-y divide-gray-200">
+                            <?php foreach ($boletins as $bol): ?>
+                            <tr>
+                                <td class="px-4 py-3 text-sm text-gray-900"><?= htmlspecialchars((string)($bol['bimestre'] ?? '')) ?></td>
+                                <td class="px-4 py-3 text-sm text-gray-700"><?= htmlspecialchars((string)($bol['ano_letivo'] ?? '')) ?></td>
+                                <td class="px-4 py-3 text-sm text-gray-700"><?= htmlspecialchars((string)($bol['turma_id'] ?? '')) ?></td>
+                                <td class="px-4 py-3 text-center text-sm font-bold text-gray-900">
+                                    <?= isset($bol['media_geral']) ? number_format((float)$bol['media_geral'], 1, ',', '.') : '-' ?>
+                                </td>
+                                <td class="px-4 py-3 text-center text-sm <?= (isset($bol['frequencia_percentual']) && (float)$bol['frequencia_percentual'] >= 75) ? 'text-green-600' : 'text-red-600' ?>">
+                                    <?= isset($bol['frequencia_percentual']) ? number_format((float)$bol['frequencia_percentual'], 0) . '%' : '-' ?>
+                                </td>
+                                <td class="px-4 py-3 text-center text-sm">
+                                    <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full <?= ($bol['situacao'] ?? '') === 'APROVADO' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800' ?>">
+                                        <?= htmlspecialchars((string)($bol['situacao'] ?? '-')) ?>
+                                    </span>
+                                </td>
+                                <td class="px-4 py-3 text-center text-sm">
+                                    <a href="?bimestre=<?= urlencode((string)($bol['bimestre'] ?? '')) ?>" class="text-primary-green font-medium hover:underline">Ver detalhes</a>
+                                </td>
+                            </tr>
+                            <?php endforeach; ?>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <?php else: ?>
+                <div class="mt-10 p-6 bg-white rounded-xl shadow-sm border border-gray-200">
+                    <p class="text-sm text-gray-600">Nenhum registro de boletim encontrado.</p>
+                </div>
+            <?php endif; ?>
         <?php endif; ?>
     </main>
 
