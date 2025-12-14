@@ -532,6 +532,7 @@ if (ob_get_level()) {
     <title><?= getPageTitle('Gestão de Alunos') ?></title>
     <link rel="icon" href="https://upload.wikimedia.org/wikipedia/commons/thumb/1/19/Bras%C3%A3o_de_Maranguape.png/250px-Bras%C3%A3o_de_Maranguape.png" type="image/png">
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="js/modal-alerts.js"></script>
     <link rel="stylesheet" href="global-theme.css">
     <script>
         tailwind.config = {
@@ -1197,7 +1198,7 @@ if (ob_get_level()) {
             const sexo = document.getElementById('sexo').value;
             
             if (!nome || !cpf || cpf.length !== 11 || !dataNascimento || !sexo) {
-                alert('Por favor, preencha todos os campos obrigatórios do aluno (Nome, CPF, Data de Nascimento e Sexo).');
+                showWarningAlert('Por favor, preencha todos os campos obrigatórios do aluno (Nome, CPF, Data de Nascimento e Sexo).', 'Validação');
                 return;
             }
             
@@ -1285,7 +1286,7 @@ if (ob_get_level()) {
                 criarResponsavel = true;
             } else if (responsavelNome || responsavelCpf || responsavelSenha || responsavelParentesco) {
                 // Se algum campo foi preenchido mas não todos obrigatórios
-                alert('Para cadastrar o responsável, é necessário preencher: Nome, CPF, Senha (mínimo 6 caracteres) e Parentesco.');
+                showWarningAlert('Para cadastrar o responsável, é necessário preencher: Nome, CPF, Senha (mínimo 6 caracteres) e Parentesco.', 'Validação');
                 return;
             }
             
@@ -1354,7 +1355,7 @@ if (ob_get_level()) {
                 const data = await response.json();
                 
                 if (!data.success || !data.aluno) {
-                    alert('Erro ao carregar dados do aluno: ' + (data.message || 'Aluno não encontrado'));
+                    showErrorAlert('Erro ao carregar dados do aluno: ' + (data.message || 'Aluno não encontrado'), 'Erro');
                     return;
                 }
                 
@@ -1386,7 +1387,7 @@ if (ob_get_level()) {
                 }
             } catch (error) {
                 console.error('Erro ao carregar aluno:', error);
-                alert('Erro ao carregar dados do aluno. Por favor, tente novamente.');
+                showErrorAlert('Erro ao carregar dados do aluno. Por favor, tente novamente.', 'Erro');
             }
         }
         
@@ -1490,15 +1491,15 @@ if (ob_get_level()) {
                         const data = await response.json();
                         
                         if (data.success) {
-                            alert('Aluno excluído com sucesso!');
+                            showSuccessAlert('Aluno excluído com sucesso!', 'Sucesso');
                             // Recarregar lista
                             filtrarAlunos();
                         } else {
-                            alert('Erro ao excluir aluno: ' + (data.message || 'Erro desconhecido'));
+                            showErrorAlert('Erro ao excluir aluno: ' + (data.message || 'Erro desconhecido'), 'Erro');
                         }
                     } catch (error) {
                         console.error('Erro ao excluir aluno:', error);
-                        alert('Erro ao processar requisição. Por favor, tente novamente.');
+                        showErrorAlert('Erro ao processar requisição. Por favor, tente novamente.', 'Erro');
                     } finally {
                         btnExcluir.disabled = false;
                         btnExcluir.textContent = originalText;
@@ -1519,15 +1520,15 @@ if (ob_get_level()) {
                     .then(response => response.json())
                     .then(data => {
                         if (data.success) {
-                            alert('Aluno excluído com sucesso!');
+                            showSuccessAlert('Aluno excluído com sucesso!', 'Sucesso');
                             filtrarAlunos();
                         } else {
-                            alert('Erro ao excluir aluno: ' + (data.message || 'Erro desconhecido'));
+                            showErrorAlert('Erro ao excluir aluno: ' + (data.message || 'Erro desconhecido'), 'Erro');
                         }
                     })
                     .catch(error => {
                         console.error('Erro:', error);
-                        alert('Erro ao processar requisição. Por favor, tente novamente.');
+                        showErrorAlert('Erro ao processar requisição. Por favor, tente novamente.', 'Erro');
                     });
                 }
             }

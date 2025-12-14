@@ -44,6 +44,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao']) && $_POST['ac
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="icon" href="https://upload.wikimedia.org/wikipedia/commons/thumb/1/19/Bras%C3%A3o_de_Maranguape.png/250px-Bras%C3%A3o_de_Maranguape.png" type="image/x-icon">
     <link rel="stylesheet" href="assets/css/style.css">
+    <script src="../../dashboard/js/modal-alerts.js"></script>
     
     <script>
         tailwind.config = {
@@ -132,7 +133,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao']) && $_POST['ac
                             if (submitBtn.textContent) submitBtn.textContent = originalText;
                             if (submitBtn.value) submitBtn.value = originalText;
                         }
-                        alert('Verificação de segurança falhou. Por favor, tente novamente.');
+                        showErrorAlert('Verificação de segurança falhou. Por favor, tente novamente.', 'Erro de Verificação');
                     }
                 };
                 form.addEventListener('submit', submitHandler);
@@ -434,13 +435,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao']) && $_POST['ac
             
             if (novaSenha && confirmarSenha && novaSenha !== confirmarSenha) {
                 e.preventDefault();
-                alert('As senhas não coincidem!');
+                showErrorAlert('As senhas não coincidem!', 'Erro de Validação');
                 return false;
             }
             
             if (novaSenha && novaSenha.length < 6) {
                 e.preventDefault();
-                alert('A senha deve ter no mínimo 6 caracteres!');
+                showErrorAlert('A senha deve ter no mínimo 6 caracteres!', 'Erro de Validação');
                 return false;
             }
         });

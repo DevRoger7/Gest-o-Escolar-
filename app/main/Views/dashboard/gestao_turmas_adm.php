@@ -134,6 +134,7 @@ $turmas = $turmaModel->listar(['ano_letivo' => date('Y'), 'ativo' => 1]);
     <title>Gestão de Turmas - SIGEA</title>
     <link rel="icon" href="https://upload.wikimedia.org/wikipedia/commons/thumb/1/19/Bras%C3%A3o_de_Maranguape.png/250px-Bras%C3%A3o_de_Maranguape.png" type="image/png">
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="js/modal-alerts.js"></script>
     <link rel="stylesheet" href="global-theme.css">
     <style>
         .sidebar-transition { transition: all 0.3s ease-in-out; }
@@ -445,15 +446,15 @@ $turmas = $turmaModel->listar(['ano_letivo' => date('Y'), 'ativo' => 1]);
                 .then(response => response.json())
                 .then(data => {
                     if (data.success) {
-                        alert('Turma excluída com sucesso!');
+                        showSuccessAlert('Turma excluída com sucesso!', 'Sucesso');
                         filtrarTurmas();
                     } else {
-                        alert('Erro ao excluir turma.');
+                        showErrorAlert('Erro ao excluir turma.', 'Erro');
                     }
                 })
                 .catch(error => {
                     console.error('Erro:', error);
-                    alert('Erro ao excluir turma.');
+                    showErrorAlert('Erro ao excluir turma.', 'Erro');
                 });
             }
         }
@@ -529,12 +530,12 @@ $turmas = $turmaModel->listar(['ano_letivo' => date('Y'), 'ativo' => 1]);
                         // Abrir modal
                         document.getElementById('modal-editar-turma').classList.remove('hidden');
                     } else {
-                        alert('Erro ao carregar dados da turma: ' + (data.message || 'Erro desconhecido'));
+                        showErrorAlert('Erro ao carregar dados da turma: ' + (data.message || 'Erro desconhecido'), 'Erro');
                     }
                 })
                 .catch(error => {
                     console.error('Erro:', error);
-                    alert('Erro ao carregar dados da turma.');
+                    showErrorAlert('Erro ao carregar dados da turma.', 'Erro');
                 });
         }
         
@@ -546,7 +547,7 @@ $turmas = $turmaModel->listar(['ano_letivo' => date('Y'), 'ativo' => 1]);
         function salvarEdicaoTurma() {
             const id = document.getElementById('editar-turma-id').value;
             if (!id) {
-                alert('ID da turma não encontrado.');
+                showErrorAlert('ID da turma não encontrado.', 'Erro');
                 return;
             }
             
@@ -556,17 +557,17 @@ $turmas = $turmaModel->listar(['ano_letivo' => date('Y'), 'ativo' => 1]);
             const turno = document.getElementById('editar-turma-turno').value;
             
             if (!escolaId) {
-                alert('Por favor, selecione a Escola.');
+                showWarningAlert('Por favor, selecione a Escola.', 'Validação');
                 document.getElementById('editar-turma-escola').focus();
                 return;
             }
             if (!letra) {
-                alert('Por favor, preencha o campo Letra.');
+                showWarningAlert('Por favor, preencha o campo Letra.', 'Validação');
                 document.getElementById('editar-turma-letra').focus();
                 return;
             }
             if (!turno) {
-                alert('Por favor, selecione o Turno.');
+                showWarningAlert('Por favor, selecione o Turno.', 'Validação');
                 document.getElementById('editar-turma-turno').focus();
                 return;
             }
@@ -591,16 +592,16 @@ $turmas = $turmaModel->listar(['ano_letivo' => date('Y'), 'ativo' => 1]);
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
-                    alert('Turma atualizada com sucesso!');
+                    showSuccessAlert('Turma atualizada com sucesso!', 'Sucesso');
                     fecharModalEditarTurma();
                     filtrarTurmas();
                 } else {
-                    alert('Erro ao atualizar turma: ' + (data.message || 'Erro desconhecido'));
+                    showErrorAlert('Erro ao atualizar turma: ' + (data.message || 'Erro desconhecido'), 'Erro');
                 }
             })
             .catch(error => {
                 console.error('Erro:', error);
-                alert('Erro ao atualizar turma.');
+                showErrorAlert('Erro ao atualizar turma.', 'Erro');
             });
         }
         

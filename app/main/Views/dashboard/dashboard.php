@@ -1,4 +1,4 @@
-<?php
+ <?php
 require_once('../../Models/sessao/sessions.php');
 require_once('../../Models/dashboard/DashboardStats.php');
 require_once('../../config/permissions_helper.php');
@@ -712,12 +712,12 @@ if (isset($_SESSION['tipo']) && strtolower($_SESSION['tipo']) === 'professor') {
                     window.location.reload(); // Recarregar a página para aplicar as mudanças
                 } else {
                     console.error('Erro ao mudar escola do gestor da merenda:', data.message);
-                    alert('Erro ao mudar escola: ' + (data.message || 'Desconhecido'));
+                    showErrorAlert('Erro ao mudar escola: ' + (data.message || 'Desconhecido'), 'Erro');
                 }
             })
             .catch(error => {
                 console.error('Erro na requisição AJAX para mudar escola do gestor da merenda:', error);
-                alert('Erro de rede ao mudar escola.');
+                showErrorAlert('Erro de rede ao mudar escola.', 'Erro de Conexão');
             })
             .finally(() => {
                 if (select) {
@@ -767,7 +767,7 @@ if (isset($_SESSION['tipo']) && strtolower($_SESSION['tipo']) === 'professor') {
                         select.style.cursor = 'pointer';
                         select.value = originalValue;
                     }
-                    alert('Erro ao mudar escola: ' + (data.message || 'Erro desconhecido'));
+                    showErrorAlert('Erro ao mudar escola: ' + (data.message || 'Erro desconhecido'), 'Erro');
                 }
             })
             .catch(error => {
@@ -777,7 +777,7 @@ if (isset($_SESSION['tipo']) && strtolower($_SESSION['tipo']) === 'professor') {
                     select.style.opacity = '1';
                     select.style.cursor = 'pointer';
                 }
-                alert('Erro ao mudar escola. Tente novamente.');
+                showErrorAlert('Erro ao mudar escola. Tente novamente.', 'Erro');
             });
         };
         
@@ -854,7 +854,7 @@ if (isset($_SESSION['tipo']) && strtolower($_SESSION['tipo']) === 'professor') {
                     window.location.reload();
                 } else {
                     console.error('Erro ao mudar escola:', data.message);
-                    alert('Erro ao mudar escola: ' + (data.message || 'Erro desconhecido'));
+                    showErrorAlert('Erro ao mudar escola: ' + (data.message || 'Erro desconhecido'), 'Erro');
                     select.value = originalValue;
                     select.disabled = false;
                     select.style.opacity = '1';
@@ -863,7 +863,7 @@ if (isset($_SESSION['tipo']) && strtolower($_SESSION['tipo']) === 'professor') {
             })
             .catch(error => {
                 console.error('Erro na requisição:', error);
-                alert('Erro ao mudar escola. Verifique o console para mais detalhes.');
+                showErrorAlert('Erro ao mudar escola. Verifique o console para mais detalhes.', 'Erro');
                 select.value = originalValue;
                 select.disabled = false;
                 select.style.opacity = '1';
@@ -931,14 +931,14 @@ if (isset($_SESSION['tipo']) && strtolower($_SESSION['tipo']) === 'professor') {
                     window.location.reload();
                 } else {
                     console.error('Erro ao mudar escola:', data.message);
-                    alert('Erro ao mudar escola: ' + (data.message || 'Erro desconhecido'));
+                    showErrorAlert('Erro ao mudar escola: ' + (data.message || 'Erro desconhecido'), 'Erro');
                     // Reverter seleção
                     select.value = originalValue;
                 }
             })
             .catch(error => {
                 console.error('Erro na requisição:', error);
-                alert('Erro ao processar requisição. Por favor, tente novamente.');
+                showErrorAlert('Erro ao processar requisição. Por favor, tente novamente.', 'Erro');
                 // Reverter seleção
                 select.value = originalValue;
             })
@@ -955,6 +955,7 @@ if (isset($_SESSION['tipo']) && strtolower($_SESSION['tipo']) === 'professor') {
     <!-- User Profile Modal CSS -->
 
     <script src="theme-manager.js"></script>
+    <script src="js/modal-alerts.js"></script>
 
     <script>
         // Forçar modo claro para GESTAO
@@ -1105,7 +1106,7 @@ if (isset($_SESSION['tipo']) && strtolower($_SESSION['tipo']) === 'professor') {
                         const bodyContent = document.body.innerHTML;
                         const hasModal = bodyContent.includes('userProfileModal');
                         console.log('Modal presente no HTML?', hasModal);
-                        alert('Erro: Modal de perfil não encontrado. Por favor, recarregue a página e tente novamente.');
+                        showErrorAlert('Modal de perfil não encontrado. Por favor, recarregue a página e tente novamente.', 'Erro');
                     }
                 }, 100);
                 return;
@@ -1142,7 +1143,7 @@ if (isset($_SESSION['tipo']) && strtolower($_SESSION['tipo']) === 'professor') {
                 window.location.href = logoutUrl;
             } catch (error) {
                 console.error('Erro ao fazer logout:', error);
-                alert('Erro ao fazer logout. Por favor, tente novamente.');
+                showErrorAlert('Erro ao fazer logout. Por favor, tente novamente.', 'Erro');
             }
         };
 

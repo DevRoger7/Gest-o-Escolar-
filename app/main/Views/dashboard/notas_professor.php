@@ -676,6 +676,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao']) && $_POST['ac
     <title>Lançar Notas - SIGEA</title>
     <link rel="icon" href="https://upload.wikimedia.org/wikipedia/commons/thumb/1/19/Bras%C3%A3o_de_Maranguape.png/250px-Bras%C3%A3o_de_Maranguape.png" type="image/png">
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="js/modal-alerts.js"></script>
     <link rel="stylesheet" href="global-theme.css">
     <script>
         tailwind.config = {
@@ -1384,7 +1385,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao']) && $_POST['ac
                 })
                 .catch(error => {
                     console.error('Erro ao carregar alunos:', error);
-                    alert('Erro ao carregar alunos da turma');
+                    showErrorAlert('Erro ao carregar alunos da turma', 'Erro');
                 });
         }
         
@@ -1574,7 +1575,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao']) && $_POST['ac
             });
             
             if (notas.length === 0) {
-                alert('Nenhuma nota nova foi preenchida. As notas existentes não podem ser modificadas aqui. Use a opção "Editar" na visualização da turma.');
+                showInfoAlert('Nenhuma nota nova foi preenchida. As notas existentes não podem ser modificadas aqui. Use a opção "Editar" na visualização da turma.', 'Informação');
                 return;
             }
             
@@ -1608,7 +1609,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao']) && $_POST['ac
                         location.reload();
                     }, 1500);
                 } else {
-                    alert('Erro ao registrar notas: ' + (data.message || 'Erro desconhecido'));
+                    showErrorAlert('Erro ao registrar notas: ' + (data.message || 'Erro desconhecido'), 'Erro');
                     // Reabilitar botões em caso de erro
                     salvandoNotas = false;
                     botoesSalvar.forEach(btn => {
@@ -1620,7 +1621,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao']) && $_POST['ac
             })
             .catch(error => {
                 console.error('Erro:', error);
-                alert('Erro ao registrar notas');
+                showErrorAlert('Erro ao registrar notas', 'Erro');
                 // Reabilitar botões em caso de erro
                 salvandoNotas = false;
                 botoesSalvar.forEach(btn => {
@@ -1717,7 +1718,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao']) && $_POST['ac
                 })
                 .catch(error => {
                     console.error('Erro ao carregar alunos:', error);
-                    alert('Erro ao carregar alunos da turma');
+                    showErrorAlert('Erro ao carregar alunos da turma', 'Erro');
                 });
         }
         
@@ -1879,7 +1880,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao']) && $_POST['ac
             const disciplinaId = document.getElementById('ver-turma-disciplina-id').value;
             
             if (!turmaId || !disciplinaId || !alunoId) {
-                alert('Erro: dados incompletos');
+                showErrorAlert('Erro: dados incompletos', 'Erro');
                 return;
             }
             
@@ -1930,12 +1931,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao']) && $_POST['ac
                             modal.style.display = 'flex';
                         }
                     } else {
-                        alert('Erro ao carregar dados das notas: ' + (data.message || 'Erro desconhecido'));
+                        showErrorAlert('Erro ao carregar dados das notas: ' + (data.message || 'Erro desconhecido'), 'Erro');
                     }
                 })
                 .catch(error => {
                     console.error('Erro:', error);
-                    alert('Erro ao carregar dados das notas');
+                    showErrorAlert('Erro ao carregar dados das notas', 'Erro');
                 });
         }
         
@@ -1974,7 +1975,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao']) && $_POST['ac
             const participativaComentario = document.getElementById('editar-nota-participativa-comentario').value;
             
             if (!alunoId || !bimestre || !turmaId || !disciplinaId) {
-                alert('Erro: dados incompletos');
+                showErrorAlert('Erro: dados incompletos', 'Erro');
                 return;
             }
             
@@ -1985,7 +1986,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao']) && $_POST['ac
             if (parcialValor && parcialValor.trim() !== '') {
                 const notaParcial = parseFloat(parcialValor.replace(',', '.'));
                 if (notaParcial < 0 || notaParcial > 10) {
-                    alert('Nota parcial deve estar entre 0 e 10');
+                    showWarningAlert('Nota parcial deve estar entre 0 e 10', 'Validação');
                     return;
                 }
                 
@@ -2011,7 +2012,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao']) && $_POST['ac
             if (bimestralValor && bimestralValor.trim() !== '') {
                 const notaBimestral = parseFloat(bimestralValor.replace(',', '.'));
                 if (notaBimestral < 0 || notaBimestral > 10) {
-                    alert('Nota bimestral deve estar entre 0 e 10');
+                    showWarningAlert('Nota bimestral deve estar entre 0 e 10', 'Validação');
                     return;
                 }
                 
@@ -2037,7 +2038,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao']) && $_POST['ac
             if (participativaValor && participativaValor.trim() !== '') {
                 const notaParticipativa = parseFloat(participativaValor.replace(',', '.'));
                 if (notaParticipativa < 0 || notaParticipativa > 10) {
-                    alert('Nota participativa deve estar entre 0 e 10');
+                    showWarningAlert('Nota participativa deve estar entre 0 e 10', 'Validação');
                     return;
                 }
                 
@@ -2081,7 +2082,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao']) && $_POST['ac
                 })
                 .catch(error => {
                     console.error('Erro ao salvar notas:', error);
-                    alert('Erro ao salvar notas: ' + error.message);
+                    showErrorAlert('Erro ao salvar notas: ' + error.message, 'Erro');
                 });
             } else {
                 // Apenas editar
@@ -2165,7 +2166,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao']) && $_POST['ac
                 })
                 .catch(error => {
                     console.error('Erro ao editar nota:', error);
-                    alert('Erro ao atualizar nota: ' + error.message);
+                    showErrorAlert('Erro ao atualizar nota: ' + error.message, 'Erro');
                 });
             }
             

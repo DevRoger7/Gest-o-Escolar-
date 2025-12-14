@@ -211,6 +211,7 @@ if (!defined('BASE_URL')) {
     <title>Registrar Frequência - SIGEA</title>
     <link rel="icon" href="https://upload.wikimedia.org/wikipedia/commons/thumb/1/19/Bras%C3%A3o_de_Maranguape.png/250px-Bras%C3%A3o_de_Maranguape.png" type="image/png">
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="js/modal-alerts.js"></script>
     <link rel="stylesheet" href="global-theme.css">
     <script>
         tailwind.config = {
@@ -899,7 +900,7 @@ if (!defined('BASE_URL')) {
             })
             .catch(error => {
                 console.error('Erro ao carregar alunos:', error);
-                alert('Erro ao carregar alunos e frequências');
+                showErrorAlert('Erro ao carregar alunos e frequências', 'Erro');
             });
         }
         
@@ -1081,7 +1082,7 @@ if (!defined('BASE_URL')) {
             const data = document.getElementById('frequencia-data').value;
             
             if (!turmaId || !disciplinaId || !data) {
-                alert('Por favor, preencha todos os campos obrigatórios.');
+                showWarningAlert('Por favor, preencha todos os campos obrigatórios.', 'Validação');
                 return;
             }
             
@@ -1099,7 +1100,7 @@ if (!defined('BASE_URL')) {
             });
             
             if (frequencias.length === 0) {
-                alert('Nenhum aluno disponível para registrar frequência.');
+                showWarningAlert('Nenhum aluno disponível para registrar frequência.', 'Atenção');
                 return;
             }
             
@@ -1120,12 +1121,12 @@ if (!defined('BASE_URL')) {
                         carregarAlunosParaFrequencia(turmaId);
                     }, 500);
                 } else {
-                    alert('Erro ao registrar frequência: ' + (data.message || 'Tente novamente.'));
+                    showErrorAlert('Erro ao registrar frequência: ' + (data.message || 'Tente novamente.'), 'Erro');
                 }
             })
                 .catch(error => {
                     console.error('Erro:', error);
-                    alert('Erro ao salvar frequência. Tente novamente.');
+                    showErrorAlert('Erro ao salvar frequência. Tente novamente.', 'Erro');
                 });
         }
         
@@ -1215,7 +1216,7 @@ if (!defined('BASE_URL')) {
                 })
                 .catch(error => {
                     console.error('Erro ao carregar frequência:', error);
-                    alert('Erro ao carregar frequência');
+                    showErrorAlert('Erro ao carregar frequência', 'Erro');
                 });
         }
         
@@ -1250,12 +1251,12 @@ if (!defined('BASE_URL')) {
                             modal.style.display = 'flex';
                         }
                     } else {
-                        alert('Erro ao carregar dados da frequência');
+                        showErrorAlert('Erro ao carregar dados da frequência', 'Erro');
                     }
                 })
                 .catch(error => {
                     console.error('Erro:', error);
-                    alert('Erro ao carregar dados da frequência');
+                    showErrorAlert('Erro ao carregar dados da frequência', 'Erro');
                 });
         }
         
@@ -1331,7 +1332,7 @@ if (!defined('BASE_URL')) {
             const justificativa = document.getElementById('editar-frequencia-justificativa').value;
             
             if (!frequenciaId || !status) {
-                alert('Por favor, selecione um status');
+                showWarningAlert('Por favor, selecione um status', 'Validação');
                 return;
             }
             
@@ -1357,12 +1358,12 @@ if (!defined('BASE_URL')) {
                         carregarFrequenciaPorData();
                     }, 1500);
                 } else {
-                    alert('Erro ao atualizar frequência: ' + (data.message || 'Erro desconhecido'));
+                    showErrorAlert('Erro ao atualizar frequência: ' + (data.message || 'Erro desconhecido'), 'Erro');
                 }
             })
             .catch(error => {
                 console.error('Erro:', error);
-                alert('Erro ao atualizar frequência');
+                showErrorAlert('Erro ao atualizar frequência', 'Erro');
             });
         }
     </script>
