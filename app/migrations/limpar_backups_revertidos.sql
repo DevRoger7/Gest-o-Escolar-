@@ -23,3 +23,4 @@ WHERE `revertido` = 1
   AND `dados_turmas` IS NULL 
   AND `dados_lotacoes` IS NULL;
 
+

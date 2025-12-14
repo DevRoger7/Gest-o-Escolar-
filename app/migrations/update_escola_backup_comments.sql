@@ -19,3 +19,4 @@ ALTER TABLE `escola_backup`
 -- - idx_excluido_permanentemente: usado para filtrar backups não excluídos permanentemente
 -- - idx_excluido_em: usado para limpar backups antigos (30 dias)
 
+
