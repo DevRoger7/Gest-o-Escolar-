@@ -169,47 +169,49 @@ $totalGeral = array_sum(array_column($totaisMes, 'total_custos'));
                     <h2 class="text-2xl font-bold text-gray-900">Relatórios Financeiros - Merenda Escolar</h2>
                     <p class="text-gray-600 mt-1">
                         Acompanhe os custos da merenda escolar. <strong>Compras são centralizadas</strong> (sem escola específica) 
-                        e os produtos são <strong>distribuídos gratuitamente</strong> para as escolas. 
-                        Os custos por escola referem-se apenas a preparo, desperdício e outros custos locais.
+                        e os produtos são <strong>distribuídos gratuitamente</strong> para as escolas.
                     </p>
                 </div>
                 
-                Cards de Resumo
+                <!-- Cards de Resumo -->
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-                    <div class="bg-white rounded-2xl p-6 shadow-lg" id="card-total-mes">
+                    <div class="bg-gradient-to-br from-teal-500 to-teal-600 rounded-2xl p-6 shadow-xl transform hover:scale-105 transition-all duration-300" id="card-total-mes">
                         <div class="flex items-center justify-between mb-4">
-                            <div class="p-3 bg-teal-100 rounded-xl">
-                                <svg class="w-6 h-6 text-teal-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <div class="p-3 bg-white/20 rounded-xl backdrop-blur-sm">
+                                <svg class="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
                                 </svg>
                             </div>
+                            <span class="text-xs bg-white/20 text-white px-3 py-1 rounded-full font-semibold">Total</span>
                         </div>
-                        <h3 class="text-2xl font-bold text-gray-800 mb-1" id="valor-total-mes">R$ <?= number_format($totalGeral, 2, ',', '.') ?></h3>
-                        <p class="text-gray-600 text-sm">Total do Mês</p>
+                        <h3 class="text-3xl font-bold text-white mb-2" id="valor-total-mes">R$ <?= number_format($totalGeral, 2, ',', '.') ?></h3>
+                        <p class="text-teal-100 text-sm font-medium">Total do Mês</p>
                     </div>
                     
-                    <div class="bg-white rounded-2xl p-6 shadow-lg" id="card-registros">
+                    <div class="bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl p-6 shadow-xl transform hover:scale-105 transition-all duration-300" id="card-registros">
                         <div class="flex items-center justify-between mb-4">
-                            <div class="p-3 bg-blue-100 rounded-xl">
-                                <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <div class="p-3 bg-white/20 rounded-xl backdrop-blur-sm">
+                                <svg class="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
                                 </svg>
                             </div>
+                            <span class="text-xs bg-white/20 text-white px-3 py-1 rounded-full font-semibold">Registros</span>
                         </div>
-                        <h3 class="text-2xl font-bold text-gray-800 mb-1" id="total-registros"><?= count($custosMes) ?></h3>
-                        <p class="text-gray-600 text-sm">Registros do Mês</p>
+                        <h3 class="text-3xl font-bold text-white mb-2" id="total-registros"><?= count($custosMes) ?></h3>
+                        <p class="text-blue-100 text-sm font-medium">Registros do Mês</p>
                     </div>
                     
-                    <div class="bg-white rounded-2xl p-6 shadow-lg" id="card-media">
+                    <div class="bg-gradient-to-br from-green-500 to-emerald-600 rounded-2xl p-6 shadow-xl transform hover:scale-105 transition-all duration-300" id="card-media">
                         <div class="flex items-center justify-between mb-4">
-                            <div class="p-3 bg-green-100 rounded-xl">
-                                <svg class="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <div class="p-3 bg-white/20 rounded-xl backdrop-blur-sm">
+                                <svg class="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"></path>
                                 </svg>
                             </div>
+                            <span class="text-xs bg-white/20 text-white px-3 py-1 rounded-full font-semibold">Média</span>
                         </div>
-                        <h3 class="text-2xl font-bold text-gray-800 mb-1" id="valor-media">R$ <?= number_format($totalGeral / max(count($custosMes), 1), 2, ',', '.') ?></h3>
-                        <p class="text-gray-600 text-sm">Média por Registro</p>
+                        <h3 class="text-3xl font-bold text-white mb-2" id="valor-media">R$ <?= number_format($totalGeral / max(count($custosMes), 1), 2, ',', '.') ?></h3>
+                        <p class="text-green-100 text-sm font-medium">Média por Registro</p>
                     </div>
                 </div>
                 
@@ -307,7 +309,7 @@ $totalGeral = array_sum(array_column($totaisMes, 'total_custos'));
                 <!-- Relatório Completo e Detalhado -->
                 <div class="mt-8 space-y-6" id="resumo-bonito">
                     <!-- Cards de Estatísticas Avançadas -->
-                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div class="bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl p-5 shadow-lg text-white">
                             <div class="flex items-center justify-between mb-3">
                                 <div class="p-2 bg-white/20 rounded-lg">
@@ -332,32 +334,6 @@ $totalGeral = array_sum(array_column($totaisMes, 'total_custos'));
                             </div>
                             <h3 class="text-2xl font-bold mb-1" id="total-centralizado">R$ 0,00</h3>
                             <p class="text-green-100 text-sm">Compras centralizadas</p>
-                        </div>
-
-                        <div class="bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl p-5 shadow-lg text-white">
-                            <div class="flex items-center justify-between mb-3">
-                                <div class="p-2 bg-white/20 rounded-lg">
-                                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path>
-                                    </svg>
-                                </div>
-                                <span class="text-xs bg-white/20 px-2 py-1 rounded">Escolas</span>
-                            </div>
-                            <h3 class="text-2xl font-bold mb-1" id="total-escolas">R$ 0,00</h3>
-                            <p class="text-purple-100 text-sm">Custos por escolas</p>
-                        </div>
-
-                        <div class="bg-gradient-to-br from-orange-500 to-orange-600 rounded-xl p-5 shadow-lg text-white">
-                            <div class="flex items-center justify-between mb-3">
-                                <div class="p-2 bg-white/20 rounded-lg">
-                                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                                    </svg>
-                                </div>
-                                <span class="text-xs bg-white/20 px-2 py-1 rounded">Média</span>
-                            </div>
-                            <h3 class="text-2xl font-bold mb-1" id="media-avancada">R$ 0,00</h3>
-                            <p class="text-orange-100 text-sm">Média por registro</p>
                         </div>
                     </div>
 
@@ -472,40 +448,6 @@ $totalGeral = array_sum(array_column($totaisMes, 'total_custos'));
                             </div>
                         </div>
                     </div>
-
-                    <!-- Comparação Centralizado vs Escolas -->
-                    <div class="bg-gradient-to-r from-indigo-50 to-purple-50 rounded-2xl p-6 shadow-lg border border-indigo-100">
-                        <h3 class="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
-                            <svg class="w-5 h-5 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
-                            </svg>
-                            Comparação: Centralizado vs Escolas
-                        </h3>
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            <div class="bg-white rounded-xl p-5">
-                                <div class="flex items-center justify-between mb-3">
-                                    <span class="text-sm font-medium text-gray-600">Compras Centralizadas</span>
-                                    <span class="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded font-medium" id="percent-centralizado">0%</span>
-                                </div>
-                                <div class="text-3xl font-bold text-blue-600 mb-2" id="valor-centralizado-detalhe">R$ 0,00</div>
-                                <div class="w-full bg-gray-200 rounded-full h-3 overflow-hidden">
-                                    <div class="bg-gradient-to-r from-blue-500 to-blue-600 h-3 rounded-full transition-all duration-500" id="barra-centralizado" style="width: 0%"></div>
-                                </div>
-                                <p class="text-xs text-gray-500 mt-2" id="registros-centralizado">0 registros</p>
-                            </div>
-                            <div class="bg-white rounded-xl p-5">
-                                <div class="flex items-center justify-between mb-3">
-                                    <span class="text-sm font-medium text-gray-600">Custos por Escolas</span>
-                                    <span class="text-xs bg-purple-100 text-purple-800 px-2 py-1 rounded font-medium" id="percent-escolas">0%</span>
-                                </div>
-                                <div class="text-3xl font-bold text-purple-600 mb-2" id="valor-escolas-detalhe">R$ 0,00</div>
-                                <div class="w-full bg-gray-200 rounded-full h-3 overflow-hidden">
-                                    <div class="bg-gradient-to-r from-purple-500 to-purple-600 h-3 rounded-full transition-all duration-500" id="barra-escolas" style="width: 0%"></div>
-                                </div>
-                                <p class="text-xs text-gray-500 mt-2" id="registros-escolas">0 registros</p>
-                            </div>
-                        </div>
-                    </div>
                 </div>
             </div>
         </div>
@@ -612,9 +554,8 @@ $totalGeral = array_sum(array_column($totaisMes, 'total_custos'));
             const totalGeral = valores.reduce((a, b) => a + b, 0);
             const media = valores.length > 0 ? totalGeral / valores.length : 0;
 
-            // Separar centralizado vs escolas
+            // Separar centralizado
             let totalCentralizado = 0, registrosCentralizado = 0;
-            let totalEscolas = 0, registrosEscolas = 0;
 
             const porOrigem = new Map();
             const porTipo = new Map();
@@ -652,26 +593,19 @@ $totalGeral = array_sum(array_column($totaisMes, 'total_custos'));
                     }
                 }
 
-                // Separar centralizado vs escolas
+                // Separar centralizado
                 if (custo.escola_id === null) {
                     totalCentralizado += valor;
                     registrosCentralizado += 1;
-                } else {
-                    totalEscolas += valor;
-                    registrosEscolas += 1;
                 }
             });
 
             // Atualizar cards de estatísticas (com verificação de segurança)
             const maiorCustoEl = document.getElementById('maior-custo');
             const totalCentralizadoEl = document.getElementById('total-centralizado');
-            const totalEscolasEl = document.getElementById('total-escolas');
-            const mediaAvancadaEl = document.getElementById('media-avancada');
             
             if (maiorCustoEl) maiorCustoEl.innerText = 'R$ ' + formatCurrency(maiorCusto);
             if (totalCentralizadoEl) totalCentralizadoEl.innerText = 'R$ ' + formatCurrency(totalCentralizado);
-            if (totalEscolasEl) totalEscolasEl.innerText = 'R$ ' + formatCurrency(totalEscolas);
-            if (mediaAvancadaEl) mediaAvancadaEl.innerText = 'R$ ' + formatCurrency(media);
 
             // Top 5 por Origem
             const tbodyResumo = document.getElementById('resumo-por-origem');
@@ -918,28 +852,6 @@ $totalGeral = array_sum(array_column($totaisMes, 'total_custos'));
                     });
                 }
             }
-
-            // Comparação Centralizado vs Escolas (com verificação de segurança)
-            const percentCentralizado = totalGeral > 0 ? ((totalCentralizado / totalGeral) * 100).toFixed(1) : 0;
-            const percentEscolas = totalGeral > 0 ? ((totalEscolas / totalGeral) * 100).toFixed(1) : 0;
-
-            const valorCentralizadoDetalhe = document.getElementById('valor-centralizado-detalhe');
-            const valorEscolasDetalhe = document.getElementById('valor-escolas-detalhe');
-            const percentCentralizadoEl = document.getElementById('percent-centralizado');
-            const percentEscolasEl = document.getElementById('percent-escolas');
-            const barraCentralizado = document.getElementById('barra-centralizado');
-            const barraEscolas = document.getElementById('barra-escolas');
-            const registrosCentralizadoEl = document.getElementById('registros-centralizado');
-            const registrosEscolasEl = document.getElementById('registros-escolas');
-
-            if (valorCentralizadoDetalhe) valorCentralizadoDetalhe.innerText = 'R$ ' + formatCurrency(totalCentralizado);
-            if (valorEscolasDetalhe) valorEscolasDetalhe.innerText = 'R$ ' + formatCurrency(totalEscolas);
-            if (percentCentralizadoEl) percentCentralizadoEl.innerText = percentCentralizado + '%';
-            if (percentEscolasEl) percentEscolasEl.innerText = percentEscolas + '%';
-            if (barraCentralizado) barraCentralizado.style.width = percentCentralizado + '%';
-            if (barraEscolas) barraEscolas.style.width = percentEscolas + '%';
-            if (registrosCentralizadoEl) registrosCentralizadoEl.innerText = registrosCentralizado + ' registro(s)';
-            if (registrosEscolasEl) registrosEscolasEl.innerText = registrosEscolas + ' registro(s)';
         }
 
         function limparResumo() {
@@ -948,33 +860,13 @@ $totalGeral = array_sum(array_column($totaisMes, 'total_custos'));
             // Limpar com verificações de segurança
             const maiorCustoEl = document.getElementById('maior-custo');
             const totalCentralizadoEl = document.getElementById('total-centralizado');
-            const totalEscolasEl = document.getElementById('total-escolas');
-            const mediaAvancadaEl = document.getElementById('media-avancada');
             const resumoPorOrigem = document.getElementById('resumo-por-origem');
             const detalhamentoTipos = document.getElementById('detalhamento-tipos');
-            const valorCentralizadoDetalhe = document.getElementById('valor-centralizado-detalhe');
-            const valorEscolasDetalhe = document.getElementById('valor-escolas-detalhe');
-            const percentCentralizadoEl = document.getElementById('percent-centralizado');
-            const percentEscolasEl = document.getElementById('percent-escolas');
-            const barraCentralizado = document.getElementById('barra-centralizado');
-            const barraEscolas = document.getElementById('barra-escolas');
-            const registrosCentralizadoEl = document.getElementById('registros-centralizado');
-            const registrosEscolasEl = document.getElementById('registros-escolas');
 
             if (maiorCustoEl) maiorCustoEl.innerText = 'R$ 0,00';
             if (totalCentralizadoEl) totalCentralizadoEl.innerText = 'R$ 0,00';
-            if (totalEscolasEl) totalEscolasEl.innerText = 'R$ 0,00';
-            if (mediaAvancadaEl) mediaAvancadaEl.innerText = 'R$ 0,00';
             if (resumoPorOrigem) resumoPorOrigem.innerHTML = '<tr><td colspan="4" class="text-center py-8 text-gray-500">Sem dados para o período selecionado.</td></tr>';
             if (detalhamentoTipos) detalhamentoTipos.innerHTML = '<div class="text-center py-8 text-gray-500"><p class="text-sm">Sem dados para o período selecionado.</p></div>';
-            if (valorCentralizadoDetalhe) valorCentralizadoDetalhe.innerText = 'R$ 0,00';
-            if (valorEscolasDetalhe) valorEscolasDetalhe.innerText = 'R$ 0,00';
-            if (percentCentralizadoEl) percentCentralizadoEl.innerText = '0%';
-            if (percentEscolasEl) percentEscolasEl.innerText = '0%';
-            if (barraCentralizado) barraCentralizado.style.width = '0%';
-            if (barraEscolas) barraEscolas.style.width = '0%';
-            if (registrosCentralizadoEl) registrosCentralizadoEl.innerText = '0 registros';
-            if (registrosEscolasEl) registrosEscolasEl.innerText = '0 registros';
             
             // Limpar gráficos
             if (window.graficoTiposPizza) { window.graficoTiposPizza.destroy(); window.graficoTiposPizza = null; }
@@ -1136,12 +1028,6 @@ $totalGeral = array_sum(array_column($totaisMes, 'total_custos'));
             // Coletar estatísticas avançadas
             const maiorCusto = document.getElementById('maior-custo')?.innerText || 'R$ 0,00';
             const totalCentralizado = document.getElementById('total-centralizado')?.innerText || 'R$ 0,00';
-            const totalEscolas = document.getElementById('total-escolas')?.innerText || 'R$ 0,00';
-            const mediaAvancada = document.getElementById('media-avancada')?.innerText || 'R$ 0,00';
-            const percentCentralizado = document.getElementById('percent-centralizado')?.innerText || '0%';
-            const percentEscolas = document.getElementById('percent-escolas')?.innerText || '0%';
-            const registrosCentralizado = document.getElementById('registros-centralizado')?.innerText || '0 registros';
-            const registrosEscolas = document.getElementById('registros-escolas')?.innerText || '0 registros';
 
             // Coletar Top 5 por origem
             const top5Rows = Array.from(document.querySelectorAll('#resumo-por-origem tr'));
@@ -1196,8 +1082,8 @@ $totalGeral = array_sum(array_column($totaisMes, 'total_custos'));
 
             doc.setFontSize(10);
             doc.setFont(undefined, 'normal');
-            const statsWidth = (pageWidth - (margem * 2)) / 4;
-            const statsX = [margem, margem + statsWidth, margem + (statsWidth * 2), margem + (statsWidth * 3)];
+            const statsWidth = (pageWidth - (margem * 2)) / 3;
+            const statsX = [margem, margem + statsWidth, margem + (statsWidth * 2)];
 
             // Card 1: Total Geral
             doc.setFillColor(16, 185, 129);
@@ -1230,31 +1116,7 @@ $totalGeral = array_sum(array_column($totaisMes, 'total_custos'));
             doc.setFont(undefined, 'bold');
             doc.text(totalCentralizado, statsX[2] + 5, yPos + 30);
 
-            // Card 4: Total Escolas
-            doc.setFillColor(139, 92, 246);
-            doc.rect(statsX[3], yPos, statsWidth - 10, 50, 'F');
-            doc.setFontSize(9);
-            doc.setFont(undefined, 'normal');
-            doc.text('Por Escolas', statsX[3] + 5, yPos + 10);
-            doc.setFontSize(12);
-            doc.setFont(undefined, 'bold');
-            doc.text(totalEscolas, statsX[3] + 5, yPos + 30);
-
             yPos += 70;
-
-            // Comparação Centralizado vs Escolas
-            doc.setTextColor(0, 0, 0);
-            doc.setFontSize(12);
-            doc.setFont(undefined, 'bold');
-            doc.text('Comparação: Centralizado vs Escolas', margem, yPos);
-            yPos += 15;
-
-            doc.setFontSize(9);
-            doc.setFont(undefined, 'normal');
-            doc.text(`Compras Centralizadas: ${totalCentralizado} (${percentCentralizado}) - ${registrosCentralizado}`, margem + 10, yPos);
-            yPos += 12;
-            doc.text(`Custos por Escolas: ${totalEscolas} (${percentEscolas}) - ${registrosEscolas}`, margem + 10, yPos);
-            yPos += 20;
 
             // Top 5 por Origem
             if (top5Data.length > 0) {
@@ -1338,7 +1200,7 @@ $totalGeral = array_sum(array_column($totaisMes, 'total_custos'));
 
             doc.setFontSize(8);
             doc.setTextColor(128, 128, 128);
-            doc.text(`Total de Registros: ${registros} | Média: ${media} | Média Avançada: ${mediaAvancada}`, 
+            doc.text(`Total de Registros: ${registros} | Média: ${media}`, 
                      pageWidth / 2, pageHeight - 20, { align: 'center' });
             doc.text('SIGEA - Sistema de Gestão e Alimentação Escolar - Secretaria Municipal da Educação de Maranguape', 
                      pageWidth / 2, pageHeight - 10, { align: 'center' });
