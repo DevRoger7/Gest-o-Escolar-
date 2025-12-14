@@ -402,7 +402,6 @@ if ($tipoUsuario === 'adm_merenda') {
     <title>Cardápios - SIGEA</title>
     <link rel="icon" href="https://upload.wikimedia.org/wikipedia/commons/thumb/1/19/Bras%C3%A3o_de_Maranguape.png/250px-Bras%C3%A3o_de_Maranguape.png" type="image/png">
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="js/modal-alerts.js"></script>
     <link rel="stylesheet" href="global-theme.css">
     <script>
         tailwind.config = {
@@ -817,7 +816,7 @@ if ($tipoUsuario === 'adm_merenda') {
                         
                         // Verificar se está como RASCUNHO
                         if (c.status !== 'RASCUNHO') {
-                            showWarningAlert('Apenas cardápios em rascunho podem ser editados.', 'Atenção');
+                            alert('Apenas cardápios em rascunho podem ser editados.');
                             return;
                         }
                         
@@ -878,12 +877,12 @@ if ($tipoUsuario === 'adm_merenda') {
                         
                         document.getElementById('modal-novo-cardapio').classList.remove('hidden');
                     } else {
-                        showErrorAlert('Erro ao carregar cardápio para edição', 'Erro');
+                        alert('Erro ao carregar cardápio para edição');
                     }
                 })
                 .catch(error => {
                     console.error('Erro:', error);
-                    showErrorAlert('Erro ao carregar cardápio', 'Erro');
+                    alert('Erro ao carregar cardápio');
                 });
         }
 
@@ -1033,7 +1032,7 @@ if ($tipoUsuario === 'adm_merenda') {
             
             // Verificar se já foi adicionado
             if (produtoJaAdicionado(identificadorUnico, itemId)) {
-                showWarningAlert('Este produto já foi adicionado ao cardápio. Você pode adicionar o mesmo produto de um lote diferente.', 'Atenção');
+                alert('Este produto já foi adicionado ao cardápio. Você pode adicionar o mesmo produto de um lote diferente.');
                 const select = document.querySelector(`.produto-select[data-item-index="${itemIndex}"]`);
                 if (select && itemAtual) {
                     select.value = itemAtual.identificador_unico || '';
@@ -1087,7 +1086,7 @@ if ($tipoUsuario === 'adm_merenda') {
                 const valorAtual = parseFloat(quantidadeInput.value || 0);
                 if (valorAtual > estoqueDisponivel) {
                     quantidadeInput.value = estoqueDisponivel;
-                    showInfoAlert(`A quantidade foi ajustada para o máximo disponível em estoque: ${formatarQuantidade(estoqueDisponivel, '')}`, 'Ajuste Automático');
+                    alert(`A quantidade foi ajustada para o máximo disponível em estoque: ${formatarQuantidade(estoqueDisponivel, '')}`);
                 }
             } else {
                 quantidadeInput.removeAttribute('max');
@@ -1205,7 +1204,7 @@ if ($tipoUsuario === 'adm_merenda') {
                 if (itemAtual) {
                     itemAtual.quantidade = estoqueMax;
                 }
-                showWarningAlert(`A quantidade não pode ser maior que o estoque disponível (${formatarQuantidade(estoqueMax, '')}).`, 'Validação');
+                alert(`A quantidade não pode ser maior que o estoque disponível (${formatarQuantidade(estoqueMax, '')}).`);
                 input.focus();
             }
         }
@@ -1237,7 +1236,7 @@ if ($tipoUsuario === 'adm_merenda') {
             const ano = document.getElementById('cardapio-ano').value;
             
             if (!escolaId || !mes || !ano) {
-                showWarningAlert('Por favor, preencha todos os campos obrigatórios.', 'Validação');
+                alert('Por favor, preencha todos os campos obrigatórios.');
                 return;
             }
             
@@ -1288,12 +1287,12 @@ if ($tipoUsuario === 'adm_merenda') {
             }
             
             if (erroValidacao) {
-                showErrorAlert(mensagemErro, 'Erro');
+                alert(mensagemErro);
                 return;
             }
             
             if (itens.length === 0) {
-                showWarningAlert('Adicione pelo menos um item ao cardápio.', 'Validação');
+                alert('Adicione pelo menos um item ao cardápio.');
                 return;
             }
             
@@ -1316,16 +1315,16 @@ if ($tipoUsuario === 'adm_merenda') {
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
-                    showSuccessAlert(cardapioEditandoId ? 'Cardápio atualizado com sucesso!' : 'Cardápio criado com sucesso!', 'Sucesso');
+                    alert(cardapioEditandoId ? 'Cardápio atualizado com sucesso!' : 'Cardápio criado com sucesso!');
                     fecharModalNovoCardapio();
                     filtrarCardapios();
                 } else {
-                    showErrorAlert('Erro ao salvar cardápio: ' + (data.message || 'Erro desconhecido'), 'Erro');
+                    alert('Erro ao salvar cardápio: ' + (data.message || 'Erro desconhecido'));
                 }
             })
             .catch(error => {
                 console.error('Erro:', error);
-                showErrorAlert('Erro ao salvar cardápio.', 'Erro');
+                alert('Erro ao salvar cardápio.');
             });
         }
 
@@ -1447,15 +1446,15 @@ if ($tipoUsuario === 'adm_merenda') {
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
-                    showSuccessAlert('Cardápio aprovado com sucesso!', 'Sucesso');
+                    alert('Cardápio aprovado com sucesso!');
                     filtrarCardapios();
                 } else {
-                    showErrorAlert('Erro ao aprovar cardápio: ' + (data.message || 'Erro desconhecido'), 'Erro');
+                    alert('Erro ao aprovar cardápio: ' + (data.message || 'Erro desconhecido'));
                 }
             })
             .catch(error => {
                 console.error('Erro:', error);
-                showErrorAlert('Erro ao aprovar cardápio.', 'Erro');
+                alert('Erro ao aprovar cardápio.');
             });
         }
         
@@ -1481,15 +1480,15 @@ if ($tipoUsuario === 'adm_merenda') {
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
-                    showSuccessAlert('Cardápio recusado com sucesso!', 'Sucesso');
+                    alert('Cardápio recusado com sucesso!');
                     filtrarCardapios();
                 } else {
-                    showErrorAlert('Erro ao recusar cardápio: ' + (data.message || 'Erro desconhecido'), 'Erro');
+                    alert('Erro ao recusar cardápio: ' + (data.message || 'Erro desconhecido'));
                 }
             })
             .catch(error => {
                 console.error('Erro:', error);
-                showErrorAlert('Erro ao recusar cardápio.', 'Erro');
+                alert('Erro ao recusar cardápio.');
             });
         }
         
@@ -1509,15 +1508,15 @@ if ($tipoUsuario === 'adm_merenda') {
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
-                    showSuccessAlert('Cardápio publicado com sucesso!', 'Sucesso');
+                    alert('Cardápio publicado com sucesso!');
                     filtrarCardapios();
                 } else {
-                    showErrorAlert('Erro ao publicar cardápio: ' + (data.message || 'Erro desconhecido'), 'Erro');
+                    alert('Erro ao publicar cardápio: ' + (data.message || 'Erro desconhecido'));
                 }
             })
             .catch(error => {
                 console.error('Erro:', error);
-                showErrorAlert('Erro ao publicar cardápio.', 'Erro');
+                alert('Erro ao publicar cardápio.');
             });
         }
         
@@ -1537,15 +1536,15 @@ if ($tipoUsuario === 'adm_merenda') {
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
-                    showSuccessAlert('Publicação do cardápio cancelada com sucesso! O cardápio voltou para rascunho.', 'Sucesso');
+                    alert('Publicação do cardápio cancelada com sucesso! O cardápio voltou para rascunho.');
                     filtrarCardapios();
                 } else {
-                    showErrorAlert('Erro ao cancelar publicação: ' + (data.message || 'Erro desconhecido'), 'Erro');
+                    alert('Erro ao cancelar publicação: ' + (data.message || 'Erro desconhecido'));
                 }
             })
             .catch(error => {
                 console.error('Erro:', error);
-                showErrorAlert('Erro ao cancelar publicação', 'Erro');
+                alert('Erro ao cancelar publicação');
             });
         }
 
@@ -1569,12 +1568,19 @@ if ($tipoUsuario === 'adm_merenda') {
                             itensHtml = '<tr><td colspan="2" class="px-4 py-2 text-center text-gray-500">Nenhum item cadastrado</td></tr>';
                         }
                         
-                        showInfoAlert(`Cardápio: ${cardapio.escola_nome}\nPeríodo: ${mesNome}/${cardapio.ano}\nStatus: ${cardapio.status || 'RASCUNHO'}\n\nItens:\n${cardapio.itens ? cardapio.itens.map(i => `- ${i.produto_nome}: ${i.quantidade} ${i.unidade_medida}`).join('\n') : 'Nenhum item'}`, 'Detalhes do Cardápio');
+                        alert(`
+Cardápio: ${cardapio.escola_nome}
+Período: ${mesNome}/${cardapio.ano}
+Status: ${cardapio.status || 'RASCUNHO'}
+
+Itens:
+${cardapio.itens ? cardapio.itens.map(i => `- ${i.produto_nome}: ${i.quantidade} ${i.unidade_medida}`).join('\n') : 'Nenhum item'}
+                        `);
                     }
                 })
                 .catch(error => {
                     console.error('Erro:', error);
-                    showErrorAlert('Erro ao buscar detalhes do cardápio.', 'Erro');
+                    alert('Erro ao buscar detalhes do cardápio.');
                 });
         }
         

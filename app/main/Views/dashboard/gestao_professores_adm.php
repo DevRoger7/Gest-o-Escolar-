@@ -839,7 +839,6 @@ $professores = $stmtProfessores->fetchAll(PDO::FETCH_ASSOC);
     <title><?= getPageTitle('Gestão de Professores') ?></title>
     <link rel="icon" href="https://upload.wikimedia.org/wikipedia/commons/thumb/1/19/Bras%C3%A3o_de_Maranguape.png/250px-Bras%C3%A3o_de_Maranguape.png" type="image/png">
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="js/modal-alerts.js"></script>
     <link rel="stylesheet" href="global-theme.css">
     <script>
         tailwind.config = {
@@ -1831,7 +1830,7 @@ $professores = $stmtProfessores->fetchAll(PDO::FETCH_ASSOC);
                 const data = await response.json();
                 
                 if (!data.success || !data.professor) {
-                    showErrorAlert('Erro ao carregar dados do professor: ' + (data.message || 'Professor não encontrado'), 'Erro');
+                    alert('Erro ao carregar dados do professor: ' + (data.message || 'Professor não encontrado'));
                     return;
                 }
                 
@@ -1996,7 +1995,7 @@ $professores = $stmtProfessores->fetchAll(PDO::FETCH_ASSOC);
                 }
             } catch (error) {
                 console.error('Erro ao carregar professor:', error);
-                showErrorAlert('Erro ao carregar dados do professor. Por favor, tente novamente.', 'Erro');
+                alert('Erro ao carregar dados do professor. Por favor, tente novamente.');
             }
         }
         
@@ -2095,7 +2094,7 @@ $professores = $stmtProfessores->fetchAll(PDO::FETCH_ASSOC);
                 const data = await response.json();
                 
                 if (!data.success || !data.professor) {
-                    showErrorAlert('Erro ao carregar dados do professor: ' + (data.message || 'Professor não encontrado'), 'Erro');
+                    alert('Erro ao carregar dados do professor: ' + (data.message || 'Professor não encontrado'));
                     return;
                 }
                 
@@ -2145,7 +2144,7 @@ $professores = $stmtProfessores->fetchAll(PDO::FETCH_ASSOC);
                 }
             } catch (error) {
                 console.error('Erro ao carregar professor:', error);
-                showErrorAlert('Erro ao carregar dados do professor. Por favor, tente novamente.', 'Erro');
+                alert('Erro ao carregar dados do professor. Por favor, tente novamente.');
             }
         }
         
@@ -2241,15 +2240,15 @@ $professores = $stmtProfessores->fetchAll(PDO::FETCH_ASSOC);
                 const data = await response.json();
                 
                 if (data.success) {
-                    showSuccessAlert('Lotação removida com sucesso!', 'Sucesso');
+                    alert('Lotação removida com sucesso!');
                     await carregarLotacoesAtuais(professorId);
                     filtrarProfessores();
                 } else {
-                    showErrorAlert('Erro ao remover lotação: ' + (data.message || 'Erro desconhecido'), 'Erro');
+                    alert('Erro ao remover lotação: ' + (data.message || 'Erro desconhecido'));
                 }
             } catch (error) {
                 console.error('Erro ao remover lotação:', error);
-                showErrorAlert(error.message || 'Erro ao processar requisição. Por favor, tente novamente.', 'Erro');
+                alert(error.message || 'Erro ao processar requisição. Por favor, tente novamente.');
             }
         }
         
@@ -2674,7 +2673,7 @@ $professores = $stmtProfessores->fetchAll(PDO::FETCH_ASSOC);
                 fecharModalNotificacaoExclusao();
                 
                 if (data.success) {
-                    showSuccessAlert('Exclusão revertida com sucesso!', 'Sucesso');
+                    alert('Exclusão revertida com sucesso!');
                     filtrarProfessores();
                 } else {
                     abrirModalErroExclusao('Erro ao reverter exclusão: ' + (data.message || 'Erro desconhecido'));
@@ -2706,7 +2705,7 @@ $professores = $stmtProfessores->fetchAll(PDO::FETCH_ASSOC);
                 const data = await response.json();
                 
                 if (!data.success) {
-                    showErrorAlert('Erro ao carregar dados do professor: ' + (data.message || 'Professor não encontrado'), 'Erro');
+                    alert('Erro ao carregar dados do professor: ' + (data.message || 'Professor não encontrado'));
                     return;
                 }
                 
@@ -2715,7 +2714,7 @@ $professores = $stmtProfessores->fetchAll(PDO::FETCH_ASSOC);
                 abrirModalConfirmarExclusao(id, nomeProfessor);
             } catch (error) {
                 console.error('Erro ao buscar dados do professor:', error);
-                showErrorAlert('Erro ao carregar dados do professor. Por favor, tente novamente.', 'Erro');
+                alert('Erro ao carregar dados do professor. Por favor, tente novamente.');
             }
         }
     </script>

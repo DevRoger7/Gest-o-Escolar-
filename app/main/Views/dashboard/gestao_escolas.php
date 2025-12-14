@@ -1718,7 +1718,6 @@ $escolas = listarEscolas($busca);
     
     <!-- Theme Manager -->
     <script src="theme-manager.js"></script>
-    <script src="js/modal-alerts.js"></script>
     
     <!-- VLibras -->
     <div id="vlibras-widget" vw class="enabled">
@@ -3928,7 +3927,7 @@ if ($_SESSION['tipo'] === 'ADM') {
 
         function editarProfessor(professorId) {
             // Implementar modal de edição de professor
-            showInfoAlert(`Editar professor ID: ${professorId}\n\nFuncionalidade será implementada em breve.`, 'Em Desenvolvimento');
+            alert(`Editar professor ID: ${professorId}\n\nFuncionalidade será implementada em breve.`);
         }
 
         function removerProfessorEscola(professorId, nomeProfessor) {
@@ -3948,14 +3947,14 @@ if ($_SESSION['tipo'] === 'ADM') {
                         carregarProfessoresEscola(escolaId);
                         
                         // Mostrar mensagem de sucesso
-                        showSuccessAlert('Professor removido com sucesso!', 'Sucesso');
+                        alert('Professor removido com sucesso!');
                     } else {
-                        showErrorAlert('Erro ao remover professor: ' + data.message, 'Erro');
+                        alert('Erro ao remover professor: ' + data.message);
                     }
                 })
                 .catch(error => {
                     console.error('Erro:', error);
-                    showErrorAlert('Erro ao remover professor.', 'Erro');
+                    alert('Erro ao remover professor.');
                 });
             }
         }
@@ -3988,7 +3987,7 @@ if ($_SESSION['tipo'] === 'ADM') {
         function carregarDadosEscola(id) {
             if (!id) {
                 console.error('ID da escola não informado');
-                showErrorAlert('Erro: ID da escola não informado.', 'Erro');
+                alert('Erro: ID da escola não informado.');
                 return;
             }
             
@@ -4023,7 +4022,7 @@ if ($_SESSION['tipo'] === 'ADM') {
                     
                     if (!data) {
                         console.error('Resposta vazia do servidor');
-                        showErrorAlert('Erro ao carregar dados da escola. Resposta vazia do servidor.', 'Erro');
+                        alert('Erro ao carregar dados da escola. Resposta vazia do servidor.');
                         return;
                     }
                     
@@ -4038,7 +4037,7 @@ if ($_SESSION['tipo'] === 'ADM') {
                             return;
                         }
                         
-                        showErrorAlert('Erro ao carregar dados da escola: ' + (data.message || 'Erro desconhecido'), 'Erro');
+                        alert('Erro ao carregar dados da escola: ' + (data.message || 'Erro desconhecido'));
                         return;
                     }
                     
@@ -4180,7 +4179,7 @@ if ($_SESSION['tipo'] === 'ADM') {
                         loadingElement.classList.add('hidden');
                     }
                     
-                    showErrorAlert('Erro ao carregar dados da escola. Tente novamente.', 'Erro');
+                    alert('Erro ao carregar dados da escola. Tente novamente.');
                 });
         }
         
@@ -4524,7 +4523,7 @@ if ($_SESSION['tipo'] === 'ADM') {
             const checkboxesSelecionados = document.querySelectorAll('.checkbox-professor-edicao:checked');
             
             if (checkboxesSelecionados.length === 0) {
-                showWarningAlert('Por favor, selecione pelo menos um professor.', 'Atenção');
+                alert('Por favor, selecione pelo menos um professor.');
                 return;
             }
 
@@ -4538,7 +4537,7 @@ if ($_SESSION['tipo'] === 'ADM') {
             console.log('Professores selecionados:', professoresSelecionados);
             
             // Simular sucesso
-            showSuccessAlert(`${professoresSelecionados.length} professor(es) adicionado(s) com sucesso!`, 'Sucesso');
+            alert(`${professoresSelecionados.length} professor(es) adicionado(s) com sucesso!`);
             ocultarAdicionarProfessores();
             
             // Recarregar a lista de professores da escola
@@ -4849,12 +4848,12 @@ if ($_SESSION['tipo'] === 'ADM') {
                     if (data.status && data.gestor) {
                         preencherCamposGestor(data.gestor);
                     } else {
-                        showErrorAlert('Erro ao carregar dados do gestor.', 'Erro');
+                        alert('Erro ao carregar dados do gestor.');
                     }
                 })
                 .catch(error => {
                     console.error('Erro ao buscar dados do gestor:', error);
-                    showErrorAlert('Erro ao carregar dados do gestor.', 'Erro');
+                    alert('Erro ao carregar dados do gestor.');
                 });
         }
 
@@ -4973,7 +4972,7 @@ if ($_SESSION['tipo'] === 'ADM') {
                         const gestorId = gestorIdField.value;
                         if (!gestorId) {
                             e.preventDefault();
-                            showWarningAlert('Por favor, selecione um gestor para a escola.', 'Atenção');
+                            alert('Por favor, selecione um gestor para a escola.');
                             const gestorSearchField = document.getElementById('buscar_gestor_cadastro');
                             if (gestorSearchField) gestorSearchField.focus();
                             return false;
@@ -4998,14 +4997,14 @@ if ($_SESSION['tipo'] === 'ADM') {
                         // Validar campos obrigatórios antes de enviar
                         const nome = document.getElementById('edit_nome').value.trim();
                         if (!nome) {
-                            showWarningAlert('O nome da escola é obrigatório.', 'Validação');
+                            alert('O nome da escola é obrigatório.');
                             document.getElementById('edit_nome').focus();
                             return;
                         }
                         
                         const tipoEscola = document.getElementById('edit_tipo_escola').value;
                         if (!tipoEscola) {
-                            showWarningAlert('O tipo de escola é obrigatório.', 'Validação');
+                            alert('O tipo de escola é obrigatório.');
                             document.getElementById('edit_tipo_escola').focus();
                             return;
                         }
@@ -5057,7 +5056,7 @@ if ($_SESSION['tipo'] === 'ADM') {
                     })
                     .catch(error => {
                         console.error('Erro ao salvar alterações:', error);
-                        showErrorAlert('Erro ao salvar alterações. Tente novamente.', 'Erro');
+                        alert('Erro ao salvar alterações. Tente novamente.');
                     });
                 }
             }
@@ -5566,7 +5565,7 @@ if ($_SESSION['tipo'] === 'ADM') {
                 })
                 .catch(error => {
                     console.error('Erro ao carregar escola:', error);
-                    showErrorAlert('Erro ao carregar informações da escola', 'Erro');
+                    alert('Erro ao carregar informações da escola');
                 });
         }
 
@@ -5667,7 +5666,7 @@ if ($_SESSION['tipo'] === 'ADM') {
         // Função para lotar professor
         function lotarProfessor() {
             if (!professorSelecionadoLotacao) {
-                showWarningAlert('Selecione um professor primeiro', 'Atenção');
+                alert('Selecione um professor primeiro');
                 return;
             }
 
@@ -5695,7 +5694,7 @@ if ($_SESSION['tipo'] === 'ADM') {
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
-                    showSuccessAlert('Professor lotado com sucesso!', 'Sucesso');
+                    alert('Professor lotado com sucesso!');
                     // Limpar campos
                     document.getElementById('buscar_professor_lotacao').value = '';
                     document.getElementById('data_inicio_professor').value = '';
@@ -5703,19 +5702,19 @@ if ($_SESSION['tipo'] === 'ADM') {
                     // Recarregar lista
                     carregarProfessoresLotados();
                 } else {
-                    showErrorAlert('Erro ao lotar professor: ' + data.message, 'Erro');
+                    alert('Erro ao lotar professor: ' + data.message);
                 }
             })
             .catch(error => {
                 console.error('Erro ao lotar professor:', error);
-                showErrorAlert('Erro ao lotar professor', 'Erro');
+                alert('Erro ao lotar professor');
             });
         }
 
         // Função para lotar gestor
         function lotarGestor() {
             if (!gestorSelecionadoLotacao) {
-                showWarningAlert('Selecione um gestor primeiro', 'Atenção');
+                alert('Selecione um gestor primeiro');
                 return;
             }
 
@@ -5728,7 +5727,7 @@ if ($_SESSION['tipo'] === 'ADM') {
             const dataInicio = document.getElementById('data_inicio_gestor').value;
             
             if (!cargo) {
-                showWarningAlert('Selecione o cargo', 'Validação');
+                alert('Selecione o cargo');
                 return;
             }
 
@@ -5751,7 +5750,7 @@ if ($_SESSION['tipo'] === 'ADM') {
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
-                    showSuccessAlert('Gestor lotado com sucesso!', 'Sucesso');
+                    alert('Gestor lotado com sucesso!');
                     // Limpar campos
                     document.getElementById('buscar_gestor_lotacao').value = '';
                     document.getElementById('cargo_gestor').value = '';
@@ -5760,12 +5759,12 @@ if ($_SESSION['tipo'] === 'ADM') {
                     // Recarregar lista
                     carregarGestoresLotados();
                 } else {
-                    showErrorAlert('Erro ao lotar gestor: ' + data.message, 'Erro');
+                    alert('Erro ao lotar gestor: ' + data.message);
                 }
             })
             .catch(error => {
                 console.error('Erro ao lotar gestor:', error);
-                showErrorAlert('Erro ao lotar gestor', 'Erro');
+                alert('Erro ao lotar gestor');
             });
         }
 
@@ -5879,15 +5878,15 @@ if ($_SESSION['tipo'] === 'ADM') {
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
-                    showSuccessAlert('Lotação removida com sucesso!', 'Sucesso');
+                    alert('Lotação removida com sucesso!');
                     carregarProfessoresLotados();
                 } else {
-                    showErrorAlert('Erro ao remover lotação: ' + (data.message || data.mensagem || 'Erro desconhecido'), 'Erro');
+                    alert('Erro ao remover lotação: ' + (data.message || data.mensagem || 'Erro desconhecido'));
                 }
             })
             .catch(error => {
                 console.error('Erro ao remover lotação:', error);
-                showErrorAlert('Erro ao remover lotação', 'Erro');
+                alert('Erro ao remover lotação');
             });
         }
 
@@ -5908,15 +5907,15 @@ if ($_SESSION['tipo'] === 'ADM') {
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
-                    showSuccessAlert('Lotação removida com sucesso!', 'Sucesso');
+                    alert('Lotação removida com sucesso!');
                     carregarGestoresLotados();
                 } else {
-                    showErrorAlert('Erro ao remover lotação: ' + data.message, 'Erro');
+                    alert('Erro ao remover lotação: ' + data.message);
                 }
             })
             .catch(error => {
                 console.error('Erro ao remover lotação:', error);
-                showErrorAlert('Erro ao remover lotação', 'Erro');
+                alert('Erro ao remover lotação');
             });
         }
 

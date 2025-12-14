@@ -269,7 +269,6 @@ $cardapios = $cardapioModel->listar($filtrosInicial);
     <title><?= getPageTitle('Cardápios Nutricionais') ?></title>
     <link rel="icon" href="https://upload.wikimedia.org/wikipedia/commons/thumb/1/19/Bras%C3%A3o_de_Maranguape.png/250px-Bras%C3%A3o_de_Maranguape.png" type="image/png">
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="js/modal-alerts.js"></script>
     <link rel="stylesheet" href="global-theme.css">
     <script>
         tailwind.config = {
@@ -655,7 +654,7 @@ $cardapios = $cardapioModel->listar($filtrosInicial);
             }
             
             if (produtoJaAdicionado(identificadorUnico, itemId)) {
-                showWarningAlert('Este produto já foi adicionado ao cardápio. Você pode adicionar o mesmo produto de um lote diferente.', 'Atenção');
+                alert('Este produto já foi adicionado ao cardápio. Você pode adicionar o mesmo produto de um lote diferente.');
                 const select = document.querySelector(`.produto-select[data-item-index="${itemIndex}"]`);
                 if (select && itemAtual) {
                     select.value = itemAtual.identificador_unico || '';
@@ -805,7 +804,7 @@ $cardapios = $cardapioModel->listar($filtrosInicial);
                 if (itemAtual) {
                     itemAtual.quantidade = estoqueMax;
                 }
-                showWarningAlert(`A quantidade não pode ser maior que o estoque disponível (${formatarQuantidade(estoqueMax, '')}).`, 'Validação');
+                alert(`A quantidade não pode ser maior que o estoque disponível (${formatarQuantidade(estoqueMax, '')}).`);
                 input.focus();
             }
         }
@@ -833,7 +832,7 @@ $cardapios = $cardapioModel->listar($filtrosInicial);
             const ano = document.getElementById('cardapio-ano').value;
             
             if (!escolaId || !mes || !ano) {
-                showWarningAlert('Por favor, preencha todos os campos obrigatórios.', 'Validação');
+                alert('Por favor, preencha todos os campos obrigatórios.');
                 return;
             }
             
@@ -888,12 +887,12 @@ $cardapios = $cardapioModel->listar($filtrosInicial);
             }
             
             if (erroValidacao) {
-                showErrorAlert(mensagemErro, 'Erro');
+                alert(mensagemErro);
                 return;
             }
 
             if (itens.length === 0 && !comoRascunho) {
-                showWarningAlert('Adicione pelo menos um item ao cardápio.', 'Validação');
+                alert('Adicione pelo menos um item ao cardápio.');
                 return;
             }
             
@@ -921,16 +920,16 @@ $cardapios = $cardapioModel->listar($filtrosInicial);
                     const mensagem = cardapioEditandoId 
                         ? 'Cardápio atualizado com sucesso!' 
                         : (comoRascunho ? 'Cardápio salvo como rascunho com sucesso!' : 'Cardápio criado e publicado com sucesso!');
-                    showSuccessAlert(mensagem, 'Sucesso');
+                    alert(mensagem);
                     fecharModalNovoCardapio();
                     filtrarCardapios();
                 } else {
-                    showErrorAlert('Erro ao salvar cardápio: ' + (data.message || 'Erro desconhecido'), 'Erro');
+                    alert('Erro ao salvar cardápio: ' + (data.message || 'Erro desconhecido'));
                 }
             })
             .catch(error => {
                 console.error('Erro:', error);
-                showErrorAlert('Erro ao salvar cardápio.', 'Erro');
+                alert('Erro ao salvar cardápio.');
             });
         }
         
@@ -1089,12 +1088,12 @@ $cardapios = $cardapioModel->listar($filtrosInicial);
                             itensHtml = '<tr><td colspan="2" class="px-4 py-2 text-center text-gray-500">Nenhum item cadastrado</td></tr>';
                         }
                         
-                        showInfoAlert(`Cardápio: ${c.escola_nome}\nPeríodo: ${mesNome}/${c.ano}\nStatus: ${c.status}\nItens: ${c.itens ? c.itens.length : 0}`, 'Detalhes do Cardápio');
+                        alert(`Cardápio: ${c.escola_nome}\nPeríodo: ${mesNome}/${c.ano}\nStatus: ${c.status}\nItens: ${c.itens ? c.itens.length : 0}`);
                     }
                 })
                 .catch(error => {
                     console.error('Erro:', error);
-                    showErrorAlert('Erro ao carregar detalhes do cardápio', 'Erro');
+                    alert('Erro ao carregar detalhes do cardápio');
                 });
         }
         
@@ -1107,7 +1106,7 @@ $cardapios = $cardapioModel->listar($filtrosInicial);
                         
                         // Verificar se está como RASCUNHO (qualquer nutricionista pode editar rascunhos)
                         if (c.status !== 'RASCUNHO') {
-                            showWarningAlert('Apenas cardápios em rascunho podem ser editados.', 'Atenção');
+                            alert('Apenas cardápios em rascunho podem ser editados.');
                             return;
                         }
                         
@@ -1174,12 +1173,12 @@ $cardapios = $cardapioModel->listar($filtrosInicial);
                         
                         document.getElementById('modal-novo-cardapio').classList.remove('hidden');
                     } else {
-                        showErrorAlert('Erro ao carregar cardápio para edição', 'Erro');
+                        alert('Erro ao carregar cardápio para edição');
                     }
                 })
                 .catch(error => {
                     console.error('Erro:', error);
-                    showErrorAlert('Erro ao carregar cardápio', 'Erro');
+                    alert('Erro ao carregar cardápio');
                 });
         }
         
@@ -1199,15 +1198,15 @@ $cardapios = $cardapioModel->listar($filtrosInicial);
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
-                    showSuccessAlert('Cardápio publicado com sucesso! Aguardando aprovação do administrador.', 'Sucesso');
+                    alert('Cardápio publicado com sucesso! Aguardando aprovação do administrador.');
                     filtrarCardapios();
                 } else {
-                    showErrorAlert('Erro ao publicar cardápio: ' + (data.message || 'Erro desconhecido'), 'Erro');
+                    alert('Erro ao publicar cardápio: ' + (data.message || 'Erro desconhecido'));
                 }
             })
             .catch(error => {
                 console.error('Erro:', error);
-                showErrorAlert('Erro ao publicar cardápio', 'Erro');
+                alert('Erro ao publicar cardápio');
             });
         }
         
@@ -1227,15 +1226,15 @@ $cardapios = $cardapioModel->listar($filtrosInicial);
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
-                    showSuccessAlert('Cardápio excluído com sucesso!', 'Sucesso');
+                    alert('Cardápio excluído com sucesso!');
                     filtrarCardapios();
                 } else {
-                    showErrorAlert('Erro ao excluir cardápio: ' + (data.message || 'Erro desconhecido'), 'Erro');
+                    alert('Erro ao excluir cardápio: ' + (data.message || 'Erro desconhecido'));
                 }
             })
             .catch(error => {
                 console.error('Erro:', error);
-                showErrorAlert('Erro ao excluir cardápio', 'Erro');
+                alert('Erro ao excluir cardápio');
             });
         }
         
@@ -1255,15 +1254,15 @@ $cardapios = $cardapioModel->listar($filtrosInicial);
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
-                    showSuccessAlert('Publicação do cardápio cancelada com sucesso! O cardápio voltou para rascunho.', 'Sucesso');
+                    alert('Publicação do cardápio cancelada com sucesso! O cardápio voltou para rascunho.');
                     filtrarCardapios();
                 } else {
-                    showErrorAlert('Erro ao cancelar publicação: ' + (data.message || 'Erro desconhecido'), 'Erro');
+                    alert('Erro ao cancelar publicação: ' + (data.message || 'Erro desconhecido'));
                 }
             })
             .catch(error => {
                 console.error('Erro:', error);
-                showErrorAlert('Erro ao cancelar publicação', 'Erro');
+                alert('Erro ao cancelar publicação');
             });
         }
         
@@ -1371,7 +1370,7 @@ $cardapios = $cardapioModel->listar($filtrosInicial);
                 window.location.href = logoutUrl;
             } catch (error) {
                 console.error('Erro ao fazer logout:', error);
-                showErrorAlert('Erro ao fazer logout. Por favor, tente novamente.', 'Erro');
+                alert('Erro ao fazer logout. Por favor, tente novamente.');
             }
         };
     </script>

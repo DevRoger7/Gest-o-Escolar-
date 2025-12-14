@@ -229,7 +229,6 @@ $fornecedores = $fornecedorModel->listar(['ativo' => 1]);
     <title>Fornecedores - SIGEA</title>
     <link rel="icon" href="https://upload.wikimedia.org/wikipedia/commons/thumb/1/19/Bras%C3%A3o_de_Maranguape.png/250px-Bras%C3%A3o_de_Maranguape.png" type="image/png">
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="js/modal-alerts.js"></script>
     <link rel="stylesheet" href="global-theme.css">
     <script>
         tailwind.config = {
@@ -690,29 +689,29 @@ $fornecedores = $fornecedorModel->listar(['ativo' => 1]);
             
             // Validação client-side
             if (!nome) {
-                showWarningAlert('Por favor, preencha o campo Nome.', 'Validação');
+                alert('Por favor, preencha o campo Nome.');
                 document.getElementById('fornecedor-nome').focus();
                 return;
             }
             // Validar CNPJ/CPF apenas se preenchido (é opcional)
             if (cnpjCpf && cnpjCpf.length !== 11 && cnpjCpf.length !== 14) {
-                showWarningAlert('Por favor, preencha o CNPJ (14 dígitos) ou CPF (11 dígitos) corretamente.', 'Validação');
+                alert('Por favor, preencha o CNPJ (14 dígitos) ou CPF (11 dígitos) corretamente.');
                 document.getElementById('fornecedor-cnpj').focus();
                 return;
             }
             if (!tipo) {
-                showWarningAlert('Por favor, selecione o Tipo de fornecedor.', 'Validação');
+                alert('Por favor, selecione o Tipo de fornecedor.');
                 document.getElementById('fornecedor-tipo').focus();
                 return;
             }
             if (!telefone || (telefone.length !== 10 && telefone.length !== 11)) {
-                showWarningAlert('Por favor, preencha o Telefone corretamente.', 'Validação');
+                alert('Por favor, preencha o Telefone corretamente.');
                 document.getElementById('fornecedor-telefone').focus();
                 return;
             }
             // Validar formato de email apenas se preenchido (é opcional)
             if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-                showWarningAlert('Por favor, preencha um Email válido.', 'Validação');
+                alert('Por favor, preencha um Email válido.');
                 document.getElementById('fornecedor-email').focus();
                 return;
             }
@@ -734,16 +733,16 @@ $fornecedores = $fornecedorModel->listar(['ativo' => 1]);
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
-                    showSuccessAlert('Fornecedor criado com sucesso!', 'Sucesso');
+                    alert('Fornecedor criado com sucesso!');
                     fecharModalNovoFornecedor();
                     filtrarFornecedores();
                 } else {
-                    showErrorAlert('Erro ao criar fornecedor: ' + (data.message || 'Erro desconhecido'), 'Erro');
+                    alert('Erro ao criar fornecedor: ' + (data.message || 'Erro desconhecido'));
                 }
             })
             .catch(error => {
                 console.error('Erro:', error);
-                showErrorAlert('Erro ao criar fornecedor.', 'Erro');
+                alert('Erro ao criar fornecedor.');
             });
         }
 
@@ -847,12 +846,12 @@ $fornecedores = $fornecedorModel->listar(['ativo' => 1]);
                             }
                         }, 100);
                     } else {
-                        showErrorAlert('Erro ao carregar dados do fornecedor: ' + (data.message || 'Erro desconhecido'), 'Erro');
+                        alert('Erro ao carregar dados do fornecedor: ' + (data.message || 'Erro desconhecido'));
                     }
                 })
                 .catch(error => {
                     console.error('Erro:', error);
-                    showErrorAlert('Erro ao carregar dados do fornecedor.', 'Erro');
+                    alert('Erro ao carregar dados do fornecedor.');
                 });
         }
         
@@ -869,7 +868,7 @@ $fornecedores = $fornecedorModel->listar(['ativo' => 1]);
         function salvarEdicaoFornecedor() {
             const id = document.getElementById('editar-fornecedor-id').value;
             if (!id) {
-                showErrorAlert('ID do fornecedor não encontrado.', 'Erro');
+                alert('ID do fornecedor não encontrado.');
                 return;
             }
             
@@ -880,28 +879,28 @@ $fornecedores = $fornecedorModel->listar(['ativo' => 1]);
             const email = document.getElementById('editar-fornecedor-email').value.trim();
             
             if (!nome) {
-                showWarningAlert('Por favor, preencha o campo Nome.', 'Validação');
+                alert('Por favor, preencha o campo Nome.');
                 document.getElementById('editar-fornecedor-nome').focus();
                 return;
             }
             if (cnpjCpf && cnpjCpf.length !== 11 && cnpjCpf.length !== 14) {
-                showWarningAlert('Por favor, preencha o CNPJ (14 dígitos) ou CPF (11 dígitos) corretamente.', 'Validação');
+                alert('Por favor, preencha o CNPJ (14 dígitos) ou CPF (11 dígitos) corretamente.');
                 document.getElementById('editar-fornecedor-cnpj').focus();
                 return;
             }
             if (!tipo) {
-                showWarningAlert('Por favor, selecione o Tipo de fornecedor.', 'Validação');
+                alert('Por favor, selecione o Tipo de fornecedor.');
                 document.getElementById('editar-fornecedor-tipo').focus();
                 return;
             }
             if (!telefone || (telefone.length !== 10 && telefone.length !== 11)) {
-                showWarningAlert('Por favor, preencha o Telefone corretamente.', 'Validação');
+                alert('Por favor, preencha o Telefone corretamente.');
                 document.getElementById('editar-fornecedor-telefone').focus();
                 return;
             }
             // Validar formato de email apenas se preenchido (é opcional)
             if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-                showWarningAlert('Por favor, preencha um Email válido.', 'Validação');
+                alert('Por favor, preencha um Email válido.');
                 document.getElementById('editar-fornecedor-email').focus();
                 return;
             }
@@ -925,16 +924,16 @@ $fornecedores = $fornecedorModel->listar(['ativo' => 1]);
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
-                    showSuccessAlert('Fornecedor atualizado com sucesso!', 'Sucesso');
+                    alert('Fornecedor atualizado com sucesso!');
                     fecharModalEditarFornecedor();
                     filtrarFornecedores();
                 } else {
-                    showErrorAlert('Erro ao atualizar fornecedor: ' + (data.message || 'Erro desconhecido'), 'Erro');
+                    alert('Erro ao atualizar fornecedor: ' + (data.message || 'Erro desconhecido'));
                 }
             })
             .catch(error => {
                 console.error('Erro:', error);
-                showErrorAlert('Erro ao atualizar fornecedor.', 'Erro');
+                alert('Erro ao atualizar fornecedor.');
             });
         }
     </script>

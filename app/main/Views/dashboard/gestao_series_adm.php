@@ -126,7 +126,6 @@ $series = $stmtSeries->fetchAll(PDO::FETCH_ASSOC);
     <title>Gestão de Séries - SIGEA</title>
     <link rel="icon" href="https://upload.wikimedia.org/wikipedia/commons/thumb/1/19/Bras%C3%A3o_de_Maranguape.png/250px-Bras%C3%A3o_de_Maranguape.png" type="image/png">
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="js/modal-alerts.js"></script>
     <link rel="stylesheet" href="global-theme.css">
     <style>
         .sidebar-transition { transition: all 0.3s ease-in-out; }
@@ -331,20 +330,20 @@ $series = $stmtSeries->fetchAll(PDO::FETCH_ASSOC);
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
-                    showSuccessAlert('Série criada com sucesso!', 'Sucesso');
+                    alert('Série criada com sucesso!');
                     location.reload();
                 } else {
-                    showErrorAlert('Erro ao criar série.', 'Erro');
+                    alert('Erro ao criar série.');
                 }
             })
             .catch(error => {
                 console.error('Erro:', error);
-                showErrorAlert('Erro ao criar série.', 'Erro');
+                alert('Erro ao criar série.');
             });
         }
 
         function editarSerie(id) {
-            showInfoAlert('Funcionalidade de edição de série em desenvolvimento. ID: ' + id, 'Em Desenvolvimento');
+            alert('Funcionalidade de edição de série em desenvolvimento. ID: ' + id);
         }
 
         function excluirSerie(id) {
@@ -360,15 +359,15 @@ $series = $stmtSeries->fetchAll(PDO::FETCH_ASSOC);
                 .then(response => response.json())
                 .then(data => {
                     if (data.success) {
-                        showSuccessAlert('Série excluída com sucesso!', 'Sucesso');
+                        alert('Série excluída com sucesso!');
                         location.reload();
                     } else {
-                        showErrorAlert('Erro ao excluir série.', 'Erro');
+                        alert('Erro ao excluir série.');
                     }
                 })
                 .catch(error => {
                     console.error('Erro:', error);
-                    showErrorAlert('Erro ao excluir série.', 'Erro');
+                    alert('Erro ao excluir série.');
                 });
             }
         }

@@ -1824,7 +1824,6 @@ if (!defined('BASE_URL')) {
             background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3E%3Cpath stroke='%23059669' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3E%3C/svg%3E");
         }
     </style>
-    <script src="js/modal-alerts.js"></script>
 </head>
 <body class="bg-gray-50">
     <!-- Mobile Menu Overlay -->
@@ -4250,7 +4249,7 @@ if (!defined('BASE_URL')) {
             const ano = document.getElementById('boletim-bimestral-ano').value;
 
             if (!turmaId || !bimestre || !ano) {
-                showWarningAlert('Por favor, preencha todos os campos obrigatórios', 'Validação');
+                alert('Por favor, preencha todos os campos obrigatórios');
                 return;
             }
 
@@ -4297,14 +4296,14 @@ if (!defined('BASE_URL')) {
                     // Limpar formulário
                     document.getElementById('form-boletim-bimestral').reset();
                 } else {
-                    showErrorAlert('Erro ao gerar boletins: ' + (data.message || 'Erro desconhecido'), 'Erro');
+                    alert('Erro ao gerar boletins: ' + (data.message || 'Erro desconhecido'));
                 }
             })
             .catch(error => {
                 submitBtn.disabled = false;
                 submitBtn.innerHTML = originalText;
                 console.error('Erro ao gerar boletins:', error);
-                showErrorAlert('Erro ao gerar boletins: ' + error.message, 'Erro');
+                alert('Erro ao gerar boletins: ' + error.message);
             });
         }
 
@@ -4322,7 +4321,7 @@ if (!defined('BASE_URL')) {
             const ano = document.getElementById('boletim-final-ano').value;
 
             if (!turmaId || !ano) {
-                showWarningAlert('Por favor, preencha todos os campos obrigatórios', 'Validação');
+                alert('Por favor, preencha todos os campos obrigatórios');
                 return;
             }
 
@@ -4368,14 +4367,14 @@ if (!defined('BASE_URL')) {
                     // Limpar formulário
                     document.getElementById('form-boletim-final').reset();
                 } else {
-                    showErrorAlert('Erro ao gerar boletins: ' + (data.message || 'Erro desconhecido'), 'Erro');
+                    alert('Erro ao gerar boletins: ' + (data.message || 'Erro desconhecido'));
                 }
             })
             .catch(error => {
                 submitBtn.disabled = false;
                 submitBtn.innerHTML = originalText;
                 console.error('Erro ao gerar boletins:', error);
-                showErrorAlert('Erro ao gerar boletins: ' + error.message, 'Erro');
+                alert('Erro ao gerar boletins: ' + error.message);
             });
         }
 
@@ -4572,11 +4571,11 @@ if (!defined('BASE_URL')) {
                         // Abrir modal
                         document.getElementById('modal-editar-turma').classList.remove('hidden');
                     } else {
-                        showErrorAlert('Erro ao carregar dados da turma.', 'Erro');
+                        alert('Erro ao carregar dados da turma.');
                     }
                 })
                 .catch(error => {
-                    showErrorAlert('Erro ao carregar dados: ' + error.message, 'Erro');
+                    alert('Erro ao carregar dados: ' + error.message);
                 });
         }
 
@@ -4697,12 +4696,12 @@ if (!defined('BASE_URL')) {
                         );
                         abrirModalMatricularAluno();
                     } else {
-                        showErrorAlert('Erro ao carregar dados do aluno.', 'Erro');
+                        alert('Erro ao carregar dados do aluno.');
                     }
                 })
                 .catch(error => {
                     console.error('Erro:', error);
-                    showErrorAlert('Erro ao carregar dados do aluno.', 'Erro');
+                    alert('Erro ao carregar dados do aluno.');
                 });
         }
 
@@ -4837,12 +4836,12 @@ if (!defined('BASE_URL')) {
                         );
                         abrirModalTransferirAluno();
                     } else {
-                        showErrorAlert('Erro ao carregar dados do aluno.', 'Erro');
+                        alert('Erro ao carregar dados do aluno.');
                     }
                 })
                 .catch(error => {
                     console.error('Erro:', error);
-                    showErrorAlert('Erro ao carregar dados do aluno.', 'Erro');
+                    alert('Erro ao carregar dados do aluno.');
                 });
         }
 
@@ -4904,7 +4903,7 @@ if (!defined('BASE_URL')) {
             })
             .catch(error => {
                 console.error('Erro:', error);
-                showErrorAlert('Erro ao remover professor.', 'Erro');
+                alert('Erro ao remover professor.');
             });
         }
 
@@ -4974,12 +4973,12 @@ if (!defined('BASE_URL')) {
                         document.getElementById('conteudo-detalhes-professor').innerHTML = html;
                         document.getElementById('modal-detalhes-professor').classList.remove('hidden');
                     } else {
-                        showErrorAlert('Erro ao carregar dados do professor.', 'Erro');
+                        alert('Erro ao carregar dados do professor.');
                     }
                 })
                 .catch(error => {
                     console.error('Erro:', error);
-                    showErrorAlert('Erro ao carregar dados do professor.', 'Erro');
+                    alert('Erro ao carregar dados do professor.');
                 });
         }
 
@@ -5125,14 +5124,14 @@ if (!defined('BASE_URL')) {
             })
             .catch(error => {
                 console.error('Erro:', error);
-                showErrorAlert('Erro ao aprovar lançamento.', 'Erro');
+                alert('Erro ao aprovar lançamento.');
             });
         }
 
         function rejeitarLancamento(tipo, id) {
             const motivo = prompt('Informe o motivo da rejeição:');
             if (!motivo || motivo.trim() === '') {
-                showWarningAlert('É necessário informar o motivo da rejeição.', 'Validação');
+                alert('É necessário informar o motivo da rejeição.');
                 return;
             }
             
@@ -5156,7 +5155,7 @@ if (!defined('BASE_URL')) {
             })
             .catch(error => {
                 console.error('Erro:', error);
-                showErrorAlert('Erro ao rejeitar lançamento.', 'Erro');
+                alert('Erro ao rejeitar lançamento.');
             });
         }
 
@@ -5519,12 +5518,12 @@ if (!defined('BASE_URL')) {
                     mostrarModalSucesso('Responsável excluído com sucesso!');
                     carregarResponsaveis();
                 } else {
-                    showErrorAlert('Erro: ' + (data.message || 'Erro ao excluir responsável'), 'Erro');
+                    alert('Erro: ' + (data.message || 'Erro ao excluir responsável'));
                 }
             })
             .catch(error => {
                 console.error('Erro:', error);
-                showErrorAlert('Erro ao excluir responsável', 'Erro');
+                alert('Erro ao excluir responsável');
             });
         }
         
@@ -5641,17 +5640,17 @@ if (!defined('BASE_URL')) {
             };
             
             if (!dados.nome || !dados.cpf) {
-                showWarningAlert('Nome e CPF são obrigatórios', 'Validação');
+                alert('Nome e CPF são obrigatórios');
                 return;
             }
             
             if (dados.cpf.length !== 11) {
-                showWarningAlert('CPF deve conter 11 dígitos', 'Validação');
+                alert('CPF deve conter 11 dígitos');
                 return;
             }
             
             if (!dados.senha || dados.senha.length < 6) {
-                showWarningAlert('A senha é obrigatória e deve ter no mínimo 6 caracteres', 'Validação');
+                alert('A senha é obrigatória e deve ter no mínimo 6 caracteres');
                 return;
             }
             
@@ -5660,13 +5659,13 @@ if (!defined('BASE_URL')) {
             
             // Validar parentesco obrigatório
             if (!parentesco) {
-                showWarningAlert('É obrigatório selecionar o parentesco', 'Validação');
+                alert('É obrigatório selecionar o parentesco');
                 return;
             }
             
             // Validar que pelo menos um aluno foi selecionado
             if (alunosIds.length === 0) {
-                showWarningAlert('É obrigatório associar pelo menos um aluno ao responsável', 'Validação');
+                alert('É obrigatório associar pelo menos um aluno ao responsável');
                 return;
             }
             
@@ -5700,17 +5699,17 @@ if (!defined('BASE_URL')) {
                         fecharModalCriarResponsavel();
                         carregarResponsaveis();
                     } else {
-                        showErrorAlert('Erro: ' + (data.message || 'Erro ao criar responsável'), 'Erro');
+                        alert('Erro: ' + (data.message || 'Erro ao criar responsável'));
                     }
                 } catch (e) {
                     console.error('Erro ao parsear JSON:', e);
                     console.error('Resposta do servidor:', text);
-                    showErrorAlert('Erro ao processar resposta do servidor. Verifique o console para mais detalhes.', 'Erro');
+                    alert('Erro ao processar resposta do servidor. Verifique o console para mais detalhes.');
                 }
             })
             .catch(error => {
                 console.error('Erro:', error);
-                showErrorAlert('Erro ao criar responsável: ' + error.message, 'Erro');
+                alert('Erro ao criar responsável: ' + error.message);
             });
         }
         
@@ -5822,7 +5821,7 @@ if (!defined('BASE_URL')) {
             const parentesco = document.getElementById('parentesco-associar').value;
             
             if (alunosSelecionados.length === 0) {
-                showWarningAlert('Selecione pelo menos um aluno', 'Validação');
+                alert('Selecione pelo menos um aluno');
                 return;
             }
             
@@ -5839,16 +5838,16 @@ if (!defined('BASE_URL')) {
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
-                    showSuccessAlert('Alunos associados com sucesso!', 'Sucesso');
+                    alert('Alunos associados com sucesso!');
                     fecharModalAssociarAlunos();
                     carregarResponsaveis();
                 } else {
-                    showErrorAlert('Erro: ' + (data.message || 'Erro ao associar alunos'), 'Erro');
+                    alert('Erro: ' + (data.message || 'Erro ao associar alunos'));
                 }
             })
             .catch(error => {
                 console.error('Erro:', error);
-                showErrorAlert('Erro ao associar alunos', 'Erro');
+                alert('Erro ao associar alunos');
             });
         }
         

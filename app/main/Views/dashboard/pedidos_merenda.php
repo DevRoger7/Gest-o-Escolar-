@@ -155,7 +155,6 @@ if ($tipoUsuario === 'adm_merenda') {
     <title>Pedidos de Compra - SIGEA</title>
     <link rel="icon" href="https://upload.wikimedia.org/wikipedia/commons/thumb/1/19/Bras%C3%A3o_de_Maranguape.png/250px-Bras%C3%A3o_de_Maranguape.png" type="image/png">
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="js/modal-alerts.js"></script>
     <link rel="stylesheet" href="global-theme.css">
     <script>
         tailwind.config = {
@@ -700,12 +699,12 @@ if ($tipoUsuario === 'adm_merenda') {
                         modal.classList.remove('hidden');
                         modal.style.display = 'flex';
                     } else {
-                        showErrorAlert('Erro ao buscar detalhes do pedido.', 'Erro');
+                        alert('Erro ao buscar detalhes do pedido.');
                     }
                 })
                 .catch(error => {
                     console.error('Erro:', error);
-                    showErrorAlert('Erro ao buscar detalhes do pedido.', 'Erro');
+                    alert('Erro ao buscar detalhes do pedido.');
                 });
         }
 
@@ -755,18 +754,18 @@ if ($tipoUsuario === 'adm_merenda') {
                 btn.innerHTML = originalText;
                 
                 if (data.success) {
-                    showSuccessAlert('Pedido aprovado com sucesso!', 'Sucesso');
+                    alert('Pedido aprovado com sucesso!');
                     fecharModalAprovar();
                     filtrarPedidos();
                 } else {
-                    showErrorAlert('Erro ao aprovar pedido.', 'Erro');
+                    alert('Erro ao aprovar pedido.');
                 }
             })
             .catch(error => {
                 btn.disabled = false;
                 btn.innerHTML = originalText;
                 console.error('Erro:', error);
-                showErrorAlert('Erro ao aprovar pedido.', 'Erro');
+                alert('Erro ao aprovar pedido.');
             });
         }
 
@@ -791,7 +790,7 @@ if ($tipoUsuario === 'adm_merenda') {
             const motivo = document.getElementById('rejeitar-motivo').value;
             
             if (!motivo || motivo.trim() === '') {
-                showWarningAlert('Por favor, informe o motivo da rejeição.', 'Validação');
+                alert('Por favor, informe o motivo da rejeição.');
                 return;
             }
             
@@ -815,18 +814,18 @@ if ($tipoUsuario === 'adm_merenda') {
                 btn.innerHTML = originalText;
                 
                 if (data.success) {
-                    showSuccessAlert('Pedido rejeitado.', 'Sucesso');
+                    alert('Pedido rejeitado.');
                     fecharModalRejeitar();
                     filtrarPedidos();
                 } else {
-                    showErrorAlert('Erro ao rejeitar pedido.', 'Erro');
+                    alert('Erro ao rejeitar pedido.');
                 }
             })
             .catch(error => {
                 btn.disabled = false;
                 btn.innerHTML = originalText;
                 console.error('Erro:', error);
-                showErrorAlert('Erro ao rejeitar pedido.', 'Erro');
+                alert('Erro ao rejeitar pedido.');
             });
         }
     </script>

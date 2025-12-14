@@ -163,7 +163,6 @@ $entregasRecentes = $entregaModel->listar(['status' => 'AGENDADA']);
     <title>Entregas - SIGEA</title>
     <link rel="icon" href="https://upload.wikimedia.org/wikipedia/commons/thumb/1/19/Bras%C3%A3o_de_Maranguape.png/250px-Bras%C3%A3o_de_Maranguape.png" type="image/png">
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="js/modal-alerts.js"></script>
     <link rel="stylesheet" href="global-theme.css">
     <script>
         tailwind.config = {
@@ -593,7 +592,7 @@ $entregasRecentes = $entregaModel->listar(['status' => 'AGENDADA']);
             const observacoes = document.getElementById('entrega-observacoes').value;
             
             if (!escolaId || !dataPrevista) {
-                showWarningAlert('Por favor, preencha os campos obrigatórios (Escola e Data Prevista).', 'Validação');
+                alert('Por favor, preencha os campos obrigatórios (Escola e Data Prevista).');
                 return;
             }
             
@@ -639,18 +638,18 @@ $entregasRecentes = $entregaModel->listar(['status' => 'AGENDADA']);
                 btn.innerHTML = originalText;
                 
                 if (data.success) {
-                    showSuccessAlert('Entrega registrada com sucesso!', 'Sucesso');
+                    alert('Entrega registrada com sucesso!');
                     fecharModalNovaEntrega();
                     filtrarEntregas();
                 } else {
-                    showErrorAlert('Erro ao registrar entrega: ' + (data.message || 'Erro desconhecido'), 'Erro');
+                    alert('Erro ao registrar entrega: ' + (data.message || 'Erro desconhecido'));
                 }
             })
             .catch(error => {
                 btn.disabled = false;
                 btn.innerHTML = originalText;
                 console.error('Erro:', error);
-                showErrorAlert('Erro ao registrar entrega: ' + error.message, 'Erro');
+                alert('Erro ao registrar entrega: ' + error.message);
             });
         }
 
@@ -744,16 +743,16 @@ $entregasRecentes = $entregaModel->listar(['status' => 'AGENDADA']);
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
-                    showSuccessAlert('Recebimento registrado com sucesso!', 'Sucesso');
+                    alert('Recebimento registrado com sucesso!');
                     fecharModalRecebimento();
                     filtrarEntregas();
                 } else {
-                    showErrorAlert('Erro ao registrar recebimento.', 'Erro');
+                    alert('Erro ao registrar recebimento.');
                 }
             })
             .catch(error => {
                 console.error('Erro:', error);
-                showErrorAlert('Erro ao registrar recebimento.', 'Erro');
+                alert('Erro ao registrar recebimento.');
             });
         }
         
@@ -773,15 +772,15 @@ $entregasRecentes = $entregaModel->listar(['status' => 'AGENDADA']);
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
-                    showSuccessAlert('Entrega excluída com sucesso!', 'Sucesso');
+                    alert('Entrega excluída com sucesso!');
                     filtrarEntregas();
                 } else {
-                    showErrorAlert('Erro ao excluir entrega: ' + (data.message || 'Erro desconhecido'), 'Erro');
+                    alert('Erro ao excluir entrega: ' + (data.message || 'Erro desconhecido'));
                 }
             })
             .catch(error => {
                 console.error('Erro:', error);
-                showErrorAlert('Erro ao excluir entrega.', 'Erro');
+                alert('Erro ao excluir entrega.');
             });
         }
     </script>

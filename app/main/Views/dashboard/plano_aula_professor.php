@@ -228,7 +228,6 @@ if ($professorId) {
     <title>Plano de Aula - SIGAE</title>
     <link rel="icon" href="https://upload.wikimedia.org/wikipedia/commons/thumb/1/19/Bras%C3%A3o_de_Maranguape.png/250px-Bras%C3%A3o_de_Maranguape.png" type="image/png">
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="js/modal-alerts.js"></script>
     <link rel="stylesheet" href="global-theme.css">
     <script>
         tailwind.config = {
@@ -904,7 +903,7 @@ if ($professorId) {
             const selectedOption = turmaSelect.options[turmaSelect.selectedIndex];
             
             if (!selectedOption.value) {
-                showWarningAlert('Selecione uma turma e disciplina', 'Validação');
+                alert('Selecione uma turma e disciplina');
                 return;
             }
             
@@ -915,7 +914,7 @@ if ($professorId) {
             
             // Verificar se já foi adicionada
             if (turmasSelecionadas.find(t => t.turma_id == turmaId && t.disciplina_id == disciplinaId)) {
-                showWarningAlert('Esta turma e disciplina já foram adicionadas', 'Atenção');
+                alert('Esta turma e disciplina já foram adicionadas');
                 return;
             }
             
@@ -969,7 +968,7 @@ if ($professorId) {
             const selectedOption = select.options[select.selectedIndex];
             
             if (!selectedOption.value) {
-                showWarningAlert('Selecione uma competência socioemocional', 'Validação');
+                alert('Selecione uma competência socioemocional');
                 return;
             }
             
@@ -980,7 +979,7 @@ if ($professorId) {
             
             // Verificar se já foi adicionada
             if (competenciasSocioemocionais.find(c => c.id == competencia.id)) {
-                showWarningAlert('Esta competência socioemocional já foi adicionada', 'Atenção');
+                alert('Esta competência socioemocional já foi adicionada');
                 return;
             }
             
@@ -1027,7 +1026,7 @@ if ($professorId) {
             const selectedOption = select.options[select.selectedIndex];
             
             if (!selectedOption.value) {
-                showWarningAlert('Selecione uma competência específica', 'Validação');
+                alert('Selecione uma competência específica');
                 return;
             }
             
@@ -1039,7 +1038,7 @@ if ($professorId) {
             
             // Verificar se já foi adicionada
             if (competenciasEspecificas.find(c => c.id == competencia.id)) {
-                showWarningAlert('Esta competência específica já foi adicionada', 'Atenção');
+                alert('Esta competência específica já foi adicionada');
                 return;
             }
             
@@ -1087,7 +1086,7 @@ if ($professorId) {
             const selectedOption = select.options[select.selectedIndex];
             
             if (!selectedOption.value) {
-                showWarningAlert('Selecione uma competência geral', 'Validação');
+                alert('Selecione uma competência geral');
                 return;
             }
             
@@ -1098,7 +1097,7 @@ if ($professorId) {
             
             // Verificar se já foi adicionada
             if (competenciasGerais.find(c => c.id == competencia.id)) {
-                showWarningAlert('Esta competência geral já foi adicionada', 'Atenção');
+                alert('Esta competência geral já foi adicionada');
                 return;
             }
             
@@ -1228,7 +1227,7 @@ if ($professorId) {
         
         async function salvarPlano() {
             if (turmasSelecionadas.length === 0) {
-                showWarningAlert('Adicione pelo menos uma turma', 'Validação');
+                alert('Adicione pelo menos uma turma');
                 mostrarAba('turma');
                 return;
             }
@@ -1267,24 +1266,24 @@ if ($professorId) {
                 const data = await response.json();
                 
                 if (data.success) {
-                    showSuccessAlert('Plano(s) de aula criado(s) com sucesso!', 'Sucesso');
+                    alert('Plano(s) de aula criado(s) com sucesso!');
                     fecharModalNovoPlano();
                     location.reload();
                 } else {
-                    showErrorAlert('Erro ao criar plano: ' + (data.message || 'Erro desconhecido'), 'Erro');
+                    alert('Erro ao criar plano: ' + (data.message || 'Erro desconhecido'));
                 }
             } catch (error) {
                 console.error('Erro:', error);
-                showErrorAlert('Erro ao processar requisição. Por favor, tente novamente.', 'Erro');
+                alert('Erro ao processar requisição. Por favor, tente novamente.');
             }
         }
         
         function visualizarPlano(id) {
-            showInfoAlert('Funcionalidade de visualização será implementada. ID: ' + id, 'Em Desenvolvimento');
+            alert('Funcionalidade de visualização será implementada. ID: ' + id);
         }
         
         function editarPlano(id) {
-            showInfoAlert('Funcionalidade de edição será implementada. ID: ' + id, 'Em Desenvolvimento');
+            alert('Funcionalidade de edição será implementada. ID: ' + id);
         }
         
         // Variáveis de paginação
@@ -1330,11 +1329,11 @@ if ($professorId) {
                     totalPaginas = data.total_paginas || 1;
                     atualizarPaginacao();
                 } else {
-                    showErrorAlert('Erro ao buscar planos', 'Erro');
+                    alert('Erro ao buscar planos');
                 }
             } catch (error) {
                 console.error('Erro:', error);
-                showErrorAlert('Erro ao buscar planos. Por favor, tente novamente.', 'Erro');
+                alert('Erro ao buscar planos. Por favor, tente novamente.');
             }
         }
         
@@ -1387,7 +1386,7 @@ if ($professorId) {
         }
         
         function exportarPlanos() {
-            showInfoAlert('Funcionalidade de exportação será implementada.', 'Em Desenvolvimento');
+            alert('Funcionalidade de exportação será implementada.');
         }
         
         function atualizarPaginacao() {
@@ -1448,7 +1447,7 @@ if ($professorId) {
         
         function abrirMenuAcoes(id) {
             // Implementar menu de ações (visualizar, editar, excluir)
-            showInfoAlert('Menu de ações para plano ID: ' + id, 'Informação');
+            alert('Menu de ações para plano ID: ' + id);
         }
         
         function carregarTurmasFiltro() {

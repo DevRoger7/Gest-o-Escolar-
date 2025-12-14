@@ -1228,7 +1228,6 @@ $gestores = $stmtGestores->fetchAll(PDO::FETCH_ASSOC);
     <title><?= getPageTitle('Gestão de Gestores') ?></title>
     <link rel="icon" href="https://upload.wikimedia.org/wikipedia/commons/thumb/1/19/Bras%C3%A3o_de_Maranguape.png/250px-Bras%C3%A3o_de_Maranguape.png" type="image/png">
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="js/modal-alerts.js"></script>
     <link rel="stylesheet" href="global-theme.css">
     <style>
         .sidebar-transition { transition: all 0.3s ease-in-out; }
@@ -2424,7 +2423,7 @@ $gestores = $stmtGestores->fetchAll(PDO::FETCH_ASSOC);
                 // Garantir que o ID seja um número
                 const gestorId = parseInt(id);
                 if (isNaN(gestorId) || gestorId <= 0) {
-                    showErrorAlert('ID do gestor inválido: ' + id, 'Erro');
+                    alert('ID do gestor inválido: ' + id);
                     console.error('ID inválido recebido:', id, 'Tipo:', typeof id);
                     return;
                 }
@@ -2439,7 +2438,7 @@ $gestores = $stmtGestores->fetchAll(PDO::FETCH_ASSOC);
                 
                 if (!data.success || !data.gestor) {
                     console.error('DEBUG JS - Erro na busca:', data);
-                    showErrorAlert('Erro ao carregar dados do gestor: ' + (data.message || 'Gestor não encontrado') + ' (ID: ' + gestorId + ')', 'Erro');
+                    alert('Erro ao carregar dados do gestor: ' + (data.message || 'Gestor não encontrado') + ' (ID: ' + gestorId + ')');
                     return;
                 }
                 
@@ -2456,7 +2455,7 @@ $gestores = $stmtGestores->fetchAll(PDO::FETCH_ASSOC);
                 // Verificar se o ID é válido
                 if (isNaN(gestorIdCorreto) || gestorIdCorreto <= 0) {
                     console.error('DEBUG JS - ERRO: ID do gestor inválido!', gestorIdCorreto);
-                    showErrorAlert('Erro: ID do gestor inválido. Por favor, recarregue a página e tente novamente.', 'Erro');
+                    alert('Erro: ID do gestor inválido. Por favor, recarregue a página e tente novamente.');
                     return;
                 }
                 
@@ -2629,7 +2628,7 @@ $gestores = $stmtGestores->fetchAll(PDO::FETCH_ASSOC);
                 }
             } catch (error) {
                 console.error('Erro ao carregar gestor:', error);
-                showErrorAlert('Erro ao carregar dados do gestor. Por favor, tente novamente.', 'Erro');
+                alert('Erro ao carregar dados do gestor. Por favor, tente novamente.');
             }
         }
         
@@ -2662,7 +2661,7 @@ $gestores = $stmtGestores->fetchAll(PDO::FETCH_ASSOC);
             // Validar gestor_id
             const gestorIdValue = document.getElementById('editar_gestor_id').value;
             if (!gestorIdValue || gestorIdValue === '' || parseInt(gestorIdValue) <= 0) {
-                showErrorAlert('Erro: ID do gestor não encontrado. Por favor, recarregue a página e tente novamente.', 'Erro');
+                alert('Erro: ID do gestor não encontrado. Por favor, recarregue a página e tente novamente.');
                 console.error('DEBUG JS - gestor_id inválido:', gestorIdValue);
                 btnSalvar.disabled = false;
                 spinner.classList.add('hidden');
@@ -2772,15 +2771,15 @@ $gestores = $stmtGestores->fetchAll(PDO::FETCH_ASSOC);
                         const data = await response.json();
                         
                         if (data.success) {
-                            showSuccessAlert('Gestor excluído com sucesso!', 'Sucesso');
+                            alert('Gestor excluído com sucesso!');
                             // Recarregar lista
                             filtrarGestores();
                         } else {
-                            showErrorAlert('Erro ao excluir gestor: ' + (data.message || 'Erro desconhecido'), 'Erro');
+                            alert('Erro ao excluir gestor: ' + (data.message || 'Erro desconhecido'));
                         }
                     } catch (error) {
                         console.error('Erro ao excluir gestor:', error);
-                        showErrorAlert('Erro ao processar requisição. Por favor, tente novamente.', 'Erro');
+                        alert('Erro ao processar requisição. Por favor, tente novamente.');
                     } finally {
                         btnExcluir.disabled = false;
                         btnExcluir.textContent = originalText;
@@ -2801,15 +2800,15 @@ $gestores = $stmtGestores->fetchAll(PDO::FETCH_ASSOC);
                     .then(response => response.json())
                     .then(data => {
                         if (data.success) {
-                            showSuccessAlert('Gestor excluído com sucesso!', 'Sucesso');
+                            alert('Gestor excluído com sucesso!');
                             filtrarGestores();
                         } else {
-                            showErrorAlert('Erro ao excluir gestor: ' + (data.message || 'Erro desconhecido'), 'Erro');
+                            alert('Erro ao excluir gestor: ' + (data.message || 'Erro desconhecido'));
                         }
                     })
                     .catch(error => {
                         console.error('Erro:', error);
-                        showErrorAlert('Erro ao processar requisição. Por favor, tente novamente.', 'Erro');
+                        alert('Erro ao processar requisição. Por favor, tente novamente.');
                     });
                 }
             }

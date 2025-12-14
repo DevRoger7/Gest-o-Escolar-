@@ -54,7 +54,6 @@ require_once('../../config/Database.php');
     
     <!-- Sistema de Tema -->
     <script src="theme-manager.js"></script>
-    <script src="js/modal-alerts.js"></script>
     
     <style>
         * {
@@ -2654,14 +2653,14 @@ require_once('../../config/Database.php');
             // Verificar se o evento tem ID válido para edição
             if (!event.id) {
                 console.error('[v0] Event ID not found for editing:', event.id);
-                showWarningAlert('Este evento não pode ser editado (sem ID).', 'Atenção');
+                alert('Este evento não pode ser editado (sem ID).');
                 return;
             }
             
             // Se for um evento de feriado, mostrar apenas informações
             if (event.id.startsWith('holiday-')) {
                 console.log('[v0] Holiday event - showing info only');
-                showWarningAlert('Este é um feriado e não pode ser editado.', 'Atenção');
+                alert('Este é um feriado e não pode ser editado.');
                 return;
             }
             
@@ -2730,12 +2729,12 @@ require_once('../../config/Database.php');
             const endTime = document.getElementById('eventEndTime').value;
             
             if (!title.trim()) {
-                showWarningAlert('Por favor, insira um título para o evento.', 'Validação');
+                alert('Por favor, insira um título para o evento.');
                 return;
             }
             
             if (!startDate) {
-                showWarningAlert('Por favor, selecione uma data de início.', 'Validação');
+                alert('Por favor, selecione uma data de início.');
                 return;
             }
             
@@ -2764,7 +2763,7 @@ require_once('../../config/Database.php');
                     // Verificar se o ID do evento existe e é válido
                     if (!currentEvent.id || currentEvent.id.startsWith('holiday-')) {
                         console.error('[v0] Event ID not found or invalid for editing:', currentEvent.id);
-                        showInfoAlert('Este evento não pode ser editado. Criando um novo evento...', 'Informação');
+                        alert('Este evento não pode ser editado. Criando um novo evento...');
                         
                         // Criar novo evento em vez de editar
                         const success = await saveEventToServer(eventData);
@@ -2797,7 +2796,7 @@ require_once('../../config/Database.php');
                 }
             } catch (error) {
                 console.error('[v0] Error saving event:', error);
-                showErrorAlert('Erro ao salvar evento. Tente novamente.', 'Erro');
+                alert('Erro ao salvar evento. Tente novamente.');
             }
         }
 
@@ -2828,7 +2827,7 @@ require_once('../../config/Database.php');
                     }
                 } catch (error) {
                     console.error('[v0] Error deleting event:', error);
-                    showErrorAlert('Erro ao excluir evento. Tente novamente.', 'Erro');
+                    alert('Erro ao excluir evento. Tente novamente.');
                 }
             }
         }
@@ -2892,22 +2891,22 @@ require_once('../../config/Database.php');
             const endDate = document.getElementById('eventEndDate').value;
             
             if (!title) {
-                showWarningAlert('Por favor, insira um título para o evento.', 'Validação');
+                alert('Por favor, insira um título para o evento.');
                 return false;
             }
             
             if (!startDate) {
-                showWarningAlert('Por favor, selecione uma data de início.', 'Validação');
+                alert('Por favor, selecione uma data de início.');
                 return false;
             }
             
             if (!endDate) {
-                showWarningAlert('Por favor, selecione uma data de fim.', 'Validação');
+                alert('Por favor, selecione uma data de fim.');
                 return false;
             }
             
             if (new Date(startDate) > new Date(endDate)) {
-                showWarningAlert('A data de início não pode ser posterior à data de fim.', 'Validação');
+                alert('A data de início não pode ser posterior à data de fim.');
                 return false;
             }
             
@@ -2946,7 +2945,7 @@ require_once('../../config/Database.php');
                     return true;
                 } else {
                     console.error('Erro ao salvar evento:', result.message);
-                    showErrorAlert('Erro ao salvar evento: ' + result.message, 'Erro');
+                    alert('Erro ao salvar evento: ' + result.message);
                     return false;
                 }
             } catch (error) {
@@ -2956,7 +2955,7 @@ require_once('../../config/Database.php');
                     stack: error.stack,
                     name: error.name
                 });
-                showErrorAlert('Erro de conexão ao salvar evento: ' + error.message, 'Erro');
+                alert('Erro de conexão ao salvar evento: ' + error.message);
                 return false;
             }
         }
@@ -3177,7 +3176,7 @@ require_once('../../config/Database.php');
                     return true;
                 } else {
                     console.error('Erro ao atualizar evento:', result.message);
-                    showErrorAlert('Erro ao atualizar evento: ' + result.message, 'Erro');
+                    alert('Erro ao atualizar evento: ' + result.message);
                     return false;
                 }
             } catch (error) {
@@ -3187,7 +3186,7 @@ require_once('../../config/Database.php');
                     stack: error.stack,
                     name: error.name
                 });
-                showErrorAlert('Erro de conexão ao atualizar evento: ' + error.message, 'Erro');
+                alert('Erro de conexão ao atualizar evento: ' + error.message);
                 return false;
             }
         }

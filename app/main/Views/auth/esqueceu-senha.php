@@ -33,7 +33,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao']) && $_POST['ac
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="icon" href="https://upload.wikimedia.org/wikipedia/commons/thumb/1/19/Bras%C3%A3o_de_Maranguape.png/250px-Bras%C3%A3o_de_Maranguape.png" type="image/x-icon">
     <link rel="stylesheet" href="assets/css/style.css">
-    <script src="../../dashboard/js/modal-alerts.js"></script>
     
     <script>
         tailwind.config = {
@@ -126,7 +125,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao']) && $_POST['ac
                             if (submitBtn.textContent) submitBtn.textContent = originalText;
                             if (submitBtn.value) submitBtn.value = originalText;
                         }
-                        showErrorAlert('Verificação de segurança falhou. Por favor, tente novamente.', 'Erro de Verificação');
+                        alert('Verificação de segurança falhou. Por favor, tente novamente.');
                     }
                 };
                 form.addEventListener('submit', submitHandler);
@@ -393,7 +392,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao']) && $_POST['ac
             const resetUrl = '<?= htmlspecialchars($resetUrl ?? '', ENT_QUOTES, 'UTF-8') ?>';
             if (resetUrl) {
                 navigator.clipboard.writeText(resetUrl).then(function() {
-                    showSuccessAlert('Link copiado para a área de transferência!', 'Sucesso');
+                    alert('Link copiado para a área de transferência!');
                 }, function() {
                     // Fallback para navegadores antigos
                     const textarea = document.createElement('textarea');
@@ -402,7 +401,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao']) && $_POST['ac
                     textarea.select();
                     document.execCommand('copy');
                     document.body.removeChild(textarea);
-                    showSuccessAlert('Link copiado para a área de transferência!', 'Sucesso');
+                    alert('Link copiado para a área de transferência!');
                 });
             }
         }
