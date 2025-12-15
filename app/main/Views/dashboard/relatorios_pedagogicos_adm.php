@@ -88,7 +88,7 @@ $mediaGeral = $stats->getMediaGeral();
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path>
                                         </svg>
                                         <span class="text-sm font-semibold">
-                                            <?php echo !empty($_SESSION['escola_atual']) ? htmlspecialchars($_SESSION['escola_atual']) : 'N/A'; ?>
+                                            <?php echo $_SESSION['escola_atual'] ?? 'Escola Municipal'; ?>
                                         </span>
                                     </div>
                                 </div>
@@ -250,16 +250,95 @@ $mediaGeral = $stats->getMediaGeral();
             window.location.href = '../auth/logout.php';
         };
 
+        // Inject base stats computed in PHP so we can render a report client-side
+        const baseStats = {
+            totalAlunos: <?= json_encode((int)$totalAlunos) ?>,
+            totalProfessores: <?= json_encode((int)$totalProfessores) ?>,
+            totalTurmas: <?= json_encode((int)$totalTurmas) ?>,
+            mediaGeral: <?= json_encode((float)$mediaGeral) ?>
+        };
+
+        // Enhance the report rendering on click
         function gerarRelatorio() {
-            const escolaId = document.getElementById('filtro-escola').value;
+            const escolaSelect = document.getElementById('filtro-escola');
+            const escolaId = escolaSelect.value;
+            const escolaNome = escolaSelect.options[escolaSelect.selectedIndex]?.text || 'Todas as escolas';
             const ano = document.getElementById('filtro-ano').value;
-            
-            document.getElementById('relatorio-conteudo').innerHTML = `
-                <div class="space-y-4">
-                    <p class="text-gray-700">Relatório pedagógico para ${ano}</p>
-                    <p class="text-sm text-gray-500">Funcionalidade de geração de relatório em desenvolvimento.</p>
+
+            const html = `
+                <div class="space-y-6">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <h4 class="text-xl font-semibold text-gray-900">Relatório Pedagógico</h4>
+                            <p class="text-sm text-gray-600">
+                                Ano letivo: <strong>${ano}</strong> • Escola: <strong>${escolaNome}</strong>
+                            </p>
+                        </div>
+                        <button onclick="window.print()" class="px-3 py-2 bg-gray-800 text-white rounded-lg hover:bg-gray-900">
+                            Exportar (Imprimir/PDF)
+                        </button>
+                    </div>
+
+                    <!-- Indicators -->
+                    <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                        <div class="bg-gray-50 rounded-xl p-4">
+                            <div class="text-xs text-gray-500 mb-1">Alunos</div>
+                            <div class="text-2xl font-bold text-gray-800">${baseStats.totalAlunos}</div>
+                        </div>
+                        <div class="bg-gray-50 rounded-xl p-4">
+                            <div class="text-xs text-gray-500 mb-1">Professores</div>
+                            <div class="text-2xl font-bold text-gray-800">${baseStats.totalProfessores}</div>
+                        </div>
+                        <div class="bg-gray-50 rounded-xl p-4">
+                            <div class="text-xs text-gray-500 mb-1">Turmas</div>
+                            <div class="text-2xl font-bold text-gray-800">${baseStats.totalTurmas}</div>
+                        </div>
+                        <div class="bg-gray-50 rounded-xl p-4">
+                            <div class="text-xs text-gray-500 mb-1">Média Geral</div>
+                            <div class="text-2xl font-bold text-gray-800">${Number(baseStats.mediaGeral).toFixed(1)}</div>
+                        </div>
+                    </div>
+
+                    <!-- Detailed table -->
+                    <div class="border rounded-xl overflow-hidden">
+                        <table class="min-w-full divide-y divide-gray-200">
+                            <thead class="bg-gray-50">
+                                <tr>
+                                    <th class="px-4 py-2 text-left text-xs font-medium text-gray-500">Indicador</th>
+                                    <th class="px-4 py-2 text-left text-xs font-medium text-gray-500">Valor</th>
+                                    <th class="px-4 py-2 text-left text-xs font-medium text-gray-500">Observação</th>
+                                </tr>
+                            </thead>
+                            <tbody class="bg-white divide-y divide-gray-200">
+                                <tr>
+                                    <td class="px-4 py-2 text-sm text-gray-700">Total de Alunos</td>
+                                    <td class="px-4 py-2 text-sm font-semibold text-gray-900">${baseStats.totalAlunos}</td>
+                                    <td class="px-4 py-2 text-sm text-gray-600">Contagem geral de matrículas</td>
+                                </tr>
+                                <tr>
+                                    <td class="px-4 py-2 text-sm text-gray-700">Total de Professores</td>
+                                    <td class="px-4 py-2 text-sm font-semibold text-gray-900">${baseStats.totalProfessores}</td>
+                                    <td class="px-4 py-2 text-sm text-gray-600">Docentes ativos</td>
+                                </tr>
+                                <tr>
+                                    <td class="px-4 py-2 text-sm text-gray-700">Total de Turmas</td>
+                                    <td class="px-4 py-2 text-sm font-semibold text-gray-900">${baseStats.totalTurmas}</td>
+                                    <td class="px-4 py-2 text-sm text-gray-600">Turmas em funcionamento</td>
+                                </tr>
+                                <tr>
+                                    <td class="px-4 py-2 text-sm text-gray-700">Média Geral</td>
+                                    <td class="px-4 py-2 text-sm font-semibold text-gray-900">${Number(baseStats.mediaGeral).toFixed(1)}</td>
+                                    <td class="px-4 py-2 text-sm text-gray-600">Média das notas no sistema</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    
                 </div>
             `;
+
+            document.getElementById('relatorio-conteudo').innerHTML = html;
         }
     </script>
 </body>
