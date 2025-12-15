@@ -1105,7 +1105,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['acao'])) {
     }
     
     if ($_GET['acao'] === 'buscar_gestor') {
-<<<<<<< Updated upstream
         try {
             $gestorId = $_GET['id'] ?? null;
             if (empty($gestorId)) {
@@ -1120,13 +1119,44 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['acao'])) {
                 exit;
             }
             
+            // Verificar se a tabela gestor tem campo especializacao
+            try {
+                $stmtCheck = $conn->query("SHOW COLUMNS FROM gestor LIKE 'especializacao'");
+                $temEspecializacao = $stmtCheck->rowCount() > 0;
+            } catch (Exception $e) {
+                $temEspecializacao = false;
+            }
+            
+            // Verificar se a tabela pessoa tem campo cor ou raca
+            try {
+                $stmtCheckCor = $conn->query("SHOW COLUMNS FROM pessoa LIKE 'cor'");
+                $temCor = $stmtCheckCor->rowCount() > 0;
+                if (!$temCor) {
+                    $stmtCheckRaca = $conn->query("SHOW COLUMNS FROM pessoa LIKE 'raca'");
+                    $temRaca = $stmtCheckRaca->rowCount() > 0;
+                } else {
+                    $temRaca = false;
+                }
+            } catch (Exception $e) {
+                $temCor = false;
+                $temRaca = false;
+            }
+            
             // Buscar gestor básico primeiro (sem restrição de ativo para permitir visualização)
             // IMPORTANTE: g.id AS id garante que o id seja sempre do gestor, não da pessoa
-            $sql = "SELECT g.id, g.pessoa_id, g.cargo, g.formacao, g.registro_profissional, 
+            $camposEspecializacao = $temEspecializacao ? ', g.especializacao' : '';
+            $camposCor = '';
+            if ($temCor) {
+                $camposCor = ', p.cor';
+            } elseif ($temRaca) {
+                $camposCor = ', p.raca AS cor';
+            }
+            
+            $sql = "SELECT g.id, g.pessoa_id, g.cargo, g.formacao{$camposEspecializacao}, g.registro_profissional, 
                            g.observacoes, g.ativo, g.criado_por, g.criado_em,
                            p.id AS pessoa_id_explicit, p.cpf, p.nome, p.data_nascimento, p.sexo, p.email, 
                            p.telefone, p.nome_social, p.endereco, p.numero, p.complemento, 
-                           p.bairro, p.cidade, p.estado, p.cep
+                           p.bairro, p.cidade, p.estado, p.cep{$camposCor}
                     FROM gestor g
                     INNER JOIN pessoa p ON g.pessoa_id = p.id
                     WHERE g.id = :id";
@@ -1134,66 +1164,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['acao'])) {
             $stmt->bindParam(':id', $gestorId, PDO::PARAM_INT);
             $stmt->execute();
             $gestor = $stmt->fetch(PDO::FETCH_ASSOC);
-=======
-        $gestorId = $_GET['id'] ?? null;
-        if (empty($gestorId)) {
-            echo json_encode(['success' => false, 'message' => 'ID do gestor não informado']);
-            exit;
-        }
-        
-        // Garantir que o ID seja um inteiro
-        $gestorId = (int)$gestorId;
-        if ($gestorId <= 0) {
-            echo json_encode(['success' => false, 'message' => 'ID do gestor inválido']);
-            exit;
-        }
-        
-        // Verificar se a tabela gestor tem campo especializacao
-        try {
-            $stmtCheck = $conn->query("SHOW COLUMNS FROM gestor LIKE 'especializacao'");
-            $temEspecializacao = $stmtCheck->rowCount() > 0;
-        } catch (Exception $e) {
-            $temEspecializacao = false;
-        }
-        
-        // Verificar se a tabela pessoa tem campo cor ou raca
-        try {
-            $stmtCheckCor = $conn->query("SHOW COLUMNS FROM pessoa LIKE 'cor'");
-            $temCor = $stmtCheckCor->rowCount() > 0;
-            if (!$temCor) {
-                $stmtCheckRaca = $conn->query("SHOW COLUMNS FROM pessoa LIKE 'raca'");
-                $temRaca = $stmtCheckRaca->rowCount() > 0;
-            } else {
-                $temRaca = false;
-            }
-        } catch (Exception $e) {
-            $temCor = false;
-            $temRaca = false;
-        }
-        
-        // Buscar gestor básico primeiro (sem restrição de ativo para permitir visualização)
-        // IMPORTANTE: g.id AS id garante que o id seja sempre do gestor, não da pessoa
-        $camposEspecializacao = $temEspecializacao ? ', g.especializacao' : '';
-        $camposCor = '';
-        if ($temCor) {
-            $camposCor = ', p.cor';
-        } elseif ($temRaca) {
-            $camposCor = ', p.raca AS cor';
-        }
-        
-        $sql = "SELECT g.id, g.pessoa_id, g.cargo, g.formacao{$camposEspecializacao}, g.registro_profissional, 
-                       g.observacoes, g.ativo, g.criado_por, g.criado_em,
-                       p.id AS pessoa_id_explicit, p.cpf, p.nome, p.data_nascimento, p.sexo, p.email, 
-                       p.telefone, p.nome_social, p.endereco, p.numero, p.complemento, 
-                       p.bairro, p.cidade, p.estado, p.cep{$camposCor}
-                FROM gestor g
-                INNER JOIN pessoa p ON g.pessoa_id = p.id
-                WHERE g.id = :id";
-        $stmt = $conn->prepare($sql);
-        $stmt->bindParam(':id', $gestorId, PDO::PARAM_INT);
-        $stmt->execute();
-        $gestor = $stmt->fetch(PDO::FETCH_ASSOC);
->>>>>>> Stashed changes
         
         // Garantir que pessoa_id está definido corretamente
         if ($gestor && isset($gestor['pessoa_id_explicit'])) {
@@ -1238,12 +1208,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['acao'])) {
                     error_log("DEBUG BUSCAR GESTOR - ID é de uma pessoa! Buscando gestor pela pessoa_id...");
                     // Buscar gestor pela pessoa_id
                     // IMPORTANTE: g.id AS id garante que o id seja sempre do gestor
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-                    $sqlGestorPorPessoa = "SELECT g.id, g.pessoa_id, g.cargo, g.formacao, g.registro_profissional, 
-=======
-=======
->>>>>>> Stashed changes
                     $camposEspecializacao = $temEspecializacao ? ', g.especializacao' : '';
                     $camposCor = '';
                     if ($temCor) {
@@ -1253,10 +1217,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['acao'])) {
                     }
                     
                     $sqlGestorPorPessoa = "SELECT g.id, g.pessoa_id, g.cargo, g.formacao{$camposEspecializacao}, g.registro_profissional, 
-<<<<<<< Updated upstream
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
                                                  g.observacoes, g.ativo, g.criado_por, g.criado_em,
                                                  p.id AS pessoa_id_explicit, p.cpf, p.nome, p.data_nascimento, p.sexo, p.email, 
                                                  p.telefone, p.nome_social, p.endereco, p.numero, p.complemento, 
