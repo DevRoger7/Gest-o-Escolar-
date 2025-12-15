@@ -504,18 +504,25 @@ if (($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['acao'])) ||
                 throw new Exception('ID do professor não informado.');
             }
             
-            // Verificar se o professor existe
+            // Converter para inteiro
+            $professorId = (int)$professorId;
+            if ($professorId <= 0) {
+                throw new Exception('ID do professor inválido.');
+            }
+            
+            // Verificar se o professor existe (mesmo se estiver inativo)
             $sqlBuscar = "SELECT pr.*, p.nome
                          FROM professor pr
                          INNER JOIN pessoa p ON pr.pessoa_id = p.id
                          WHERE pr.id = :id";
             $stmtBuscar = $conn->prepare($sqlBuscar);
-            $stmtBuscar->bindParam(':id', $professorId);
+            $stmtBuscar->bindParam(':id', $professorId, PDO::PARAM_INT);
             $stmtBuscar->execute();
             $professor = $stmtBuscar->fetch(PDO::FETCH_ASSOC);
             
             if (!$professor) {
-                throw new Exception('Professor não encontrado.');
+                error_log("Tentativa de reverter exclusão: Professor ID $professorId não encontrado no banco de dados");
+                throw new Exception('Professor não encontrado no banco de dados. ID: ' . $professorId);
             }
             
             // Reverter soft delete (ativar novamente)
@@ -2404,26 +2411,93 @@ $professores = $stmtProfessores->fetchAll(PDO::FETCH_ASSOC);
         </div>
     </div>
     
+    <!-- Modal de Sucesso - Reversão -->
+    <div id="modalSucessoReversao" class="fixed inset-0 bg-black bg-opacity-50 z-[60] hidden items-center justify-center p-4" style="display: none;">
+        <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full">
+            <div class="p-6">
+                <div class="flex items-center space-x-3 mb-4">
+                    <div class="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center flex-shrink-0">
+                        <svg class="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                        </svg>
+                    </div>
+                    <div>
+                        <h3 class="text-lg font-semibold text-gray-900">Exclusão Revertida</h3>
+                        <p class="text-sm text-gray-600">Operação concluída com sucesso</p>
+                    </div>
+                </div>
+                <div class="mb-6">
+                    <p class="text-gray-700 mb-4" id="textoSucessoReversao">
+                        Exclusão revertida com sucesso! O professor foi reativado.
+                    </p>
+                    <div class="bg-green-50 border-l-4 border-green-400 p-4 rounded">
+                        <div class="flex">
+                            <div class="flex-shrink-0">
+                                <svg class="h-5 w-5 text-green-400" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path>
+                                </svg>
+                            </div>
+                            <div class="ml-3">
+                                <p class="text-sm text-green-700">
+                                    <strong class="font-medium">Status:</strong> O professor está novamente ativo no sistema e pode ser atribuído a turmas.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <button onclick="fecharModalSucessoReversao()" 
+                        class="w-full px-4 py-2 text-white bg-green-600 hover:bg-green-700 rounded-lg font-medium transition-colors duration-200">
+                    Entendi
+                </button>
+            </div>
+        </div>
+    </div>
+    
     <script>
         let professorIdExcluido = null;
         let timerContagem = null;
         let tempoRestante = 5;
         
         function abrirModalConfirmarExclusao(id, nome) {
-            professorIdExcluido = id;
-            document.getElementById('textoConfirmacaoExclusao').textContent = 
-                `Tem certeza que deseja excluir o professor "${nome}"?\n\nEsta ação pode ser revertida nos próximos 5 segundos após a exclusão.`;
-            
-            const modal = document.getElementById('modalConfirmarExclusao');
-            modal.style.display = 'flex';
-            modal.classList.remove('hidden');
+            try {
+                professorIdExcluido = id;
+                
+                const textoElement = document.getElementById('textoConfirmacaoExclusao');
+                if (textoElement) {
+                    textoElement.textContent = 
+                        `Tem certeza que deseja excluir o professor "${nome}"?\n\nEsta ação pode ser revertida nos próximos 5 segundos após a exclusão.`;
+                }
+                
+                const modal = document.getElementById('modalConfirmarExclusao');
+                if (!modal) {
+                    console.error('Modal de confirmação não encontrado');
+                    alert('Erro: Modal não encontrado. Por favor, recarregue a página.');
+                    return;
+                }
+                
+                // Armazenar ID no modal como backup
+                modal.setAttribute('data-professor-id', id);
+                
+                modal.style.display = 'flex';
+                modal.classList.remove('hidden');
+            } catch (error) {
+                console.error('Erro ao abrir modal de confirmação:', error);
+                alert('Erro ao abrir modal de confirmação. Por favor, tente novamente.');
+            }
         }
         
         function fecharModalConfirmarExclusao() {
             const modal = document.getElementById('modalConfirmarExclusao');
-            modal.style.display = 'none';
-            modal.classList.add('hidden');
-            professorIdExcluido = null;
+            if (modal) {
+                // Preservar o ID no atributo data antes de fechar
+                if (professorIdExcluido) {
+                    modal.setAttribute('data-professor-id', professorIdExcluido);
+                }
+                modal.style.display = 'none';
+                modal.classList.add('hidden');
+            }
+            // Não limpar o ID aqui, pois pode ser necessário para reverter
+            // professorIdExcluido = null;
         }
         
         function confirmarExclusaoProfessor() {
@@ -2448,12 +2522,19 @@ $professores = $stmtProfessores->fetchAll(PDO::FETCH_ASSOC);
                 return response.json();
             })
             .then(data => {
-                fecharModalConfirmarExclusao();
-                
                 if (data.success) {
+                    // Preservar o ID antes de fechar o modal de confirmação
+                    const modalConfirmacao = document.getElementById('modalConfirmarExclusao');
+                    if (modalConfirmacao && professorIdExcluido) {
+                        modalConfirmacao.setAttribute('data-professor-id', professorIdExcluido);
+                    }
+                    
+                    fecharModalConfirmarExclusao();
+                    
                     // Abrir modal de notificação com contagem regressiva
                     abrirModalNotificacaoExclusao();
                 } else {
+                    fecharModalConfirmarExclusao();
                     // Exibir modal de erro estilizado
                     abrirModalErroExclusao(data.message || 'Erro desconhecido');
                 }
@@ -2468,6 +2549,12 @@ $professores = $stmtProfessores->fetchAll(PDO::FETCH_ASSOC);
         function abrirModalNotificacaoExclusao() {
             tempoRestante = 5;
             const modal = document.getElementById('modalNotificacaoExclusao');
+            
+            // Preservar o ID do professor no modal como backup
+            if (professorIdExcluido) {
+                modal.setAttribute('data-professor-id', professorIdExcluido);
+            }
+            
             modal.style.display = 'flex';
             modal.classList.remove('hidden');
             
@@ -2515,12 +2602,19 @@ $professores = $stmtProfessores->fetchAll(PDO::FETCH_ASSOC);
             }
             
             const modal = document.getElementById('modalNotificacaoExclusao');
-            modal.style.display = 'none';
-            modal.classList.add('hidden');
+            if (modal) {
+                // Preservar o ID no atributo data antes de fechar
+                if (professorIdExcluido) {
+                    modal.setAttribute('data-professor-id', professorIdExcluido);
+                }
+                modal.style.display = 'none';
+                modal.classList.add('hidden');
+            }
             
             // Recarregar lista
             filtrarProfessores();
-            professorIdExcluido = null;
+            // Não limpar o ID imediatamente - deixar disponível por mais tempo para reversão
+            // professorIdExcluido = null;
         }
         
         function abrirModalErroExclusao(mensagem) {
@@ -2544,12 +2638,50 @@ $professores = $stmtProfessores->fetchAll(PDO::FETCH_ASSOC);
             modal.classList.add('hidden');
         }
         
+        function abrirModalSucessoReversao() {
+            const modal = document.getElementById('modalSucessoReversao');
+            if (modal) {
+                modal.style.display = 'flex';
+                modal.classList.remove('hidden');
+            }
+        }
+        
+        function fecharModalSucessoReversao() {
+            const modal = document.getElementById('modalSucessoReversao');
+            if (modal) {
+                modal.style.display = 'none';
+                modal.classList.add('hidden');
+            }
+        }
+        
         function reverterExclusaoProfessor() {
-            if (!professorIdExcluido) {
+            // Tentar recuperar o ID da variável ou do atributo data do modal
+            let idProfessor = professorIdExcluido;
+            
+            if (!idProfessor) {
+                // Tentar recuperar do modal de notificação
+                const modalNotificacao = document.getElementById('modalNotificacaoExclusao');
+                if (modalNotificacao) {
+                    idProfessor = modalNotificacao.getAttribute('data-professor-id');
+                }
+            }
+            
+            if (!idProfessor) {
+                // Tentar recuperar do modal de confirmação
+                const modalConfirmacao = document.getElementById('modalConfirmarExclusao');
+                if (modalConfirmacao) {
+                    idProfessor = modalConfirmacao.getAttribute('data-professor-id');
+                }
+            }
+            
+            if (!idProfessor) {
                 console.error('ID do professor não está definido');
                 alert('Erro: ID do professor não encontrado. Por favor, tente novamente.');
                 return;
             }
+            
+            // Atualizar a variável global
+            professorIdExcluido = idProfessor;
             
             // Parar contagem
             if (timerContagem) {
@@ -2567,9 +2699,9 @@ $professores = $stmtProfessores->fetchAll(PDO::FETCH_ASSOC);
             
             const formData = new FormData();
             formData.append('acao', 'reverter_exclusao_professor');
-            formData.append('professor_id', professorIdExcluido);
+            formData.append('professor_id', idProfessor);
             
-            console.log('Revertendo exclusão do professor ID:', professorIdExcluido);
+            console.log('Revertendo exclusão do professor ID:', idProfessor);
             
             fetch('', {
                 method: 'POST',
@@ -2602,13 +2734,20 @@ $professores = $stmtProfessores->fetchAll(PDO::FETCH_ASSOC);
                 fecharModalNotificacaoExclusao();
                 
                 if (data.success) {
-<<<<<<< HEAD
-                    alert('Exclusão revertida com sucesso! O professor foi reativado.');
-=======
-                    alert('Exclusão revertida com sucesso!');
->>>>>>> parent of 5001811 (.)
+                    fecharModalNotificacaoExclusao();
+                    abrirModalSucessoReversao();
                     filtrarProfessores();
+                    
+                    // Limpar ID e atributos data após sucesso
                     professorIdExcluido = null;
+                    const modalNotificacao = document.getElementById('modalNotificacaoExclusao');
+                    if (modalNotificacao) {
+                        modalNotificacao.removeAttribute('data-professor-id');
+                    }
+                    const modalConfirmacao = document.getElementById('modalConfirmarExclusao');
+                    if (modalConfirmacao) {
+                        modalConfirmacao.removeAttribute('data-professor-id');
+                    }
                 } else {
                     abrirModalErroExclusao('Erro ao reverter exclusão: ' + (data.message || 'Erro desconhecido'));
                 }
@@ -2629,6 +2768,11 @@ $professores = $stmtProfessores->fetchAll(PDO::FETCH_ASSOC);
         
         // Substituir função excluirProfessor existente
         async function excluirProfessor(id) {
+            if (!id) {
+                alert('ID do professor não informado.');
+                return;
+            }
+            
             try {
                 const response = await fetch('?acao=buscar_professor&id=' + id);
                 
@@ -2656,7 +2800,7 @@ $professores = $stmtProfessores->fetchAll(PDO::FETCH_ASSOC);
                 abrirModalConfirmarExclusao(id, nomeProfessor);
             } catch (error) {
                 console.error('Erro ao buscar dados do professor:', error);
-                alert('Erro ao carregar dados do professor. Por favor, tente novamente.');
+                alert('Erro ao carregar dados do professor: ' + (error.message || 'Erro desconhecido'));
             }
         }
     </script>

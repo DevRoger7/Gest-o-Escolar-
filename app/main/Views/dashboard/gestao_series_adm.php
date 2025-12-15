@@ -297,6 +297,48 @@ $series = $stmtSeries->fetchAll(PDO::FETCH_ASSOC);
         </div>
     </main>
     
+    <!-- Modal de Sucesso - Atualização -->
+    <div id="modalSucessoAtualizacao" class="fixed inset-0 bg-black bg-opacity-50 z-[60] hidden items-center justify-center p-4" style="display: none;">
+        <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full">
+            <div class="p-6">
+                <div class="flex items-center space-x-3 mb-4">
+                    <div class="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center flex-shrink-0">
+                        <svg class="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                        </svg>
+                    </div>
+                    <div>
+                        <h3 class="text-lg font-semibold text-gray-900">Série Atualizada</h3>
+                        <p class="text-sm text-gray-600">Operação concluída com sucesso</p>
+                    </div>
+                </div>
+                <div class="mb-6">
+                    <p class="text-gray-700 mb-4" id="textoSucessoAtualizacao">
+                        Série atualizada com sucesso!
+                    </p>
+                    <div class="bg-green-50 border-l-4 border-green-400 p-4 rounded">
+                        <div class="flex">
+                            <div class="flex-shrink-0">
+                                <svg class="h-5 w-5 text-green-400" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path>
+                                </svg>
+                            </div>
+                            <div class="ml-3">
+                                <p class="text-sm text-green-700">
+                                    <strong class="font-medium">Status:</strong> As alterações foram salvas e a série está atualizada no sistema.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <button onclick="fecharModalSucessoAtualizacao()" 
+                        class="w-full px-4 py-2 text-white bg-green-600 hover:bg-green-700 rounded-lg font-medium transition-colors duration-200">
+                    Entendi
+                </button>
+            </div>
+        </div>
+    </div>
+    
     <!-- Modal Editar Série -->
     <div id="modal-editar-serie" class="fixed inset-0 bg-black bg-opacity-50 z-[60] hidden items-center justify-center p-4" style="display: none;">
         <div class="bg-white rounded-2xl p-6 max-w-2xl w-full mx-4 shadow-2xl max-h-[90vh] overflow-y-auto">
@@ -530,6 +572,24 @@ $series = $stmtSeries->fetchAll(PDO::FETCH_ASSOC);
             modal.classList.add('hidden');
         }
         
+        function abrirModalSucessoAtualizacao() {
+            const modal = document.getElementById('modalSucessoAtualizacao');
+            if (modal) {
+                modal.style.display = 'flex';
+                modal.classList.remove('hidden');
+            }
+        }
+        
+        function fecharModalSucessoAtualizacao() {
+            const modal = document.getElementById('modalSucessoAtualizacao');
+            if (modal) {
+                modal.style.display = 'none';
+                modal.classList.add('hidden');
+            }
+            // Recarregar página após fechar o modal
+            location.reload();
+        }
+        
         // Submeter formulário de edição
         document.getElementById('form-editar-serie').addEventListener('submit', function(e) {
             e.preventDefault();
@@ -544,9 +604,8 @@ $series = $stmtSeries->fetchAll(PDO::FETCH_ASSOC);
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
-                    alert('Série atualizada com sucesso!');
                     fecharModalEditarSerie();
-                    location.reload();
+                    abrirModalSucessoAtualizacao();
                 } else {
                     alert('Erro ao atualizar série: ' + (data.message || 'Erro desconhecido'));
                 }
