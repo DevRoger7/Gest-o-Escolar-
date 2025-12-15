@@ -250,17 +250,30 @@ if (($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['acao'])) ||
             
             // 4. Lotar professor na escola (se informado)
             if (!empty($_POST['escola_id'])) {
+                $escolaId = $_POST['escola_id'];
+                $cargaHoraria = !empty($_POST['carga_horaria']) ? $_POST['carga_horaria'] : null;
+                $observacaoLotacao = !empty($_POST['observacao_lotacao']) ? trim($_POST['observacao_lotacao']) : null;
+                
                 $sqlLotacao = "INSERT INTO professor_lotacao (professor_id, escola_id, inicio, carga_horaria, observacao, criado_em)
                               VALUES (:professor_id, :escola_id, CURDATE(), :carga_horaria, :observacao, NOW())";
                 $stmtLotacao = $conn->prepare($sqlLotacao);
                 $stmtLotacao->bindParam(':professor_id', $professorId);
-                $stmtLotacao->bindParam(':escola_id', $_POST['escola_id']);
-                $stmtLotacao->bindParam(':carga_horaria', !empty($_POST['carga_horaria']) ? $_POST['carga_horaria'] : null);
-                $stmtLotacao->bindParam(':observacao', !empty($_POST['observacao_lotacao']) ? trim($_POST['observacao_lotacao']) : null);
+                $stmtLotacao->bindParam(':escola_id', $escolaId);
+                $stmtLotacao->bindParam(':carga_horaria', $cargaHoraria);
+                $stmtLotacao->bindParam(':observacao', $observacaoLotacao);
                 $stmtLotacao->execute();
             }
             
             $conn->commit();
+            
+            // Registrar log de criação de professor
+            if (session_status() == PHP_SESSION_NONE) {
+                session_start();
+            }
+            $usuarioLogadoId = $_SESSION['usuario_id'] ?? null;
+            require_once(__DIR__ . '/../../Models/log/SystemLogger.php');
+            $logger = SystemLogger::getInstance();
+            $logger->logCriarProfessor($usuarioLogadoId, $professorId, $nome);
             
             echo json_encode([
                 'success' => true,
@@ -429,6 +442,15 @@ if (($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['acao'])) ||
             
             $conn->commit();
             
+            // Registrar log de edição de professor
+            if (session_status() == PHP_SESSION_NONE) {
+                session_start();
+            }
+            $usuarioLogadoId = $_SESSION['usuario_id'] ?? null;
+            require_once(__DIR__ . '/../../Models/log/SystemLogger.php');
+            $logger = SystemLogger::getInstance();
+            $logger->logEditarProfessor($usuarioLogadoId, $professorId, $nomeUpdate);
+            
             echo json_encode([
                 'success' => true,
                 'message' => 'Professor atualizado com sucesso!'
@@ -484,6 +506,15 @@ if (($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['acao'])) ||
             $result = $stmtExcluir->execute();
             
             if ($result) {
+                // Registrar log de exclusão/desativação de professor
+                if (session_status() == PHP_SESSION_NONE) {
+                    session_start();
+                }
+                $usuarioLogadoId = $_SESSION['usuario_id'] ?? null;
+                require_once(__DIR__ . '/../../Models/log/SystemLogger.php');
+                $logger = SystemLogger::getInstance();
+                $logger->logExcluirProfessor($usuarioLogadoId, $professorId, $professor['nome']);
+                
                 echo json_encode([
                     'success' => true,
                     'message' => 'Professor excluído com sucesso!'

@@ -223,6 +223,54 @@ class SystemLogger {
         $descricao = $nomeEscola ? "Escola excluída: {$nomeEscola}" : "Escola excluída (ID: {$escolaId})";
         return $this->warning('EXCLUIR_ESCOLA', $descricao, $usuarioId);
     }
+    
+    /**
+     * Registrar criação de professor
+     */
+    public function logCriarProfessor($usuarioId, $professorId, $nomeProfessor = null) {
+        $descricao = $nomeProfessor ? "Professor criado: {$nomeProfessor}" : "Professor criado (ID: {$professorId})";
+        return $this->info('CRIAR_PROFESSOR', $descricao, $usuarioId);
+    }
+    
+    /**
+     * Registrar edição de professor
+     */
+    public function logEditarProfessor($usuarioId, $professorId, $nomeProfessor = null) {
+        $descricao = $nomeProfessor ? "Professor editado: {$nomeProfessor}" : "Professor editado (ID: {$professorId})";
+        return $this->info('EDITAR_PROFESSOR', $descricao, $usuarioId);
+    }
+    
+    /**
+     * Registrar exclusão/desativação de professor
+     */
+    public function logExcluirProfessor($usuarioId, $professorId, $nomeProfessor = null) {
+        $descricao = $nomeProfessor ? "Professor desativado: {$nomeProfessor}" : "Professor desativado (ID: {$professorId})";
+        return $this->warning('EXCLUIR_PROFESSOR', $descricao, $usuarioId);
+    }
+    
+    /**
+     * Registrar criação de gestor
+     */
+    public function logCriarGestor($usuarioId, $gestorId, $nomeGestor = null) {
+        $descricao = $nomeGestor ? "Gestor criado: {$nomeGestor}" : "Gestor criado (ID: {$gestorId})";
+        return $this->info('CRIAR_GESTOR', $descricao, $usuarioId);
+    }
+    
+    /**
+     * Registrar edição de gestor
+     */
+    public function logEditarGestor($usuarioId, $gestorId, $nomeGestor = null) {
+        $descricao = $nomeGestor ? "Gestor editado: {$nomeGestor}" : "Gestor editado (ID: {$gestorId})";
+        return $this->info('EDITAR_GESTOR', $descricao, $usuarioId);
+    }
+    
+    /**
+     * Registrar exclusão/desativação de gestor
+     */
+    public function logExcluirGestor($usuarioId, $gestorId, $nomeGestor = null) {
+        $descricao = $nomeGestor ? "Gestor desativado: {$nomeGestor}" : "Gestor desativado (ID: {$gestorId})";
+        return $this->warning('EXCLUIR_GESTOR', $descricao, $usuarioId);
+    }
 }
 
 ?>

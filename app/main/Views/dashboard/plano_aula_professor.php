@@ -59,6 +59,43 @@ if (!$professorId) {
 $turmasProfessor = [];
 $escolas = [];
 if ($professorId) {
+    // Primeiro, buscar escolas através da lotação do professor
+    $sqlLotacao = "SELECT DISTINCT 
+                    e.id as escola_id,
+                    e.nome as escola_nome
+                  FROM professor_lotacao pl
+                  INNER JOIN escola e ON pl.escola_id = e.id
+                  WHERE pl.professor_id = :professor_id 
+                  AND (pl.fim IS NULL OR pl.fim = '' OR pl.fim = '0000-00-00')
+                  AND e.ativo = 1";
+    
+    // Filtrar por escola selecionada se houver
+    $escolaIdSelecionada = $_SESSION['escola_selecionada_id'] ?? $_SESSION['escola_id'] ?? null;
+    if ($escolaIdSelecionada) {
+        $sqlLotacao .= " AND e.id = :escola_id";
+    }
+    
+    $stmtLotacao = $conn->prepare($sqlLotacao);
+    $stmtLotacao->bindParam(':professor_id', $professorId);
+    if ($escolaIdSelecionada) {
+        $stmtLotacao->bindParam(':escola_id', $escolaIdSelecionada, PDO::PARAM_INT);
+    }
+    $stmtLotacao->execute();
+    $escolasLotacao = $stmtLotacao->fetchAll(PDO::FETCH_ASSOC);
+    
+    // Adicionar escolas da lotação ao array
+    foreach ($escolasLotacao as $escolaLot) {
+        $escolaId = $escolaLot['escola_id'];
+        if (!isset($escolas[$escolaId])) {
+            $escolas[$escolaId] = [
+                'id' => $escolaId,
+                'nome' => $escolaLot['escola_nome'],
+                'turmas' => []
+            ];
+        }
+    }
+    
+    // Agora buscar turmas e disciplinas do professor
     $sqlTurmas = "SELECT DISTINCT 
                     t.id as turma_id,
                     CONCAT(t.serie, ' ', t.letra, ' - ', t.turno) as turma_nome,
@@ -72,8 +109,6 @@ if ($professorId) {
                   INNER JOIN escola e ON t.escola_id = e.id
                   WHERE tp.professor_id = :professor_id AND tp.fim IS NULL AND t.ativo = 1";
     
-    // Filtrar por escola selecionada se houver
-    $escolaIdSelecionada = $_SESSION['escola_selecionada_id'] ?? $_SESSION['escola_id'] ?? null;
     if ($escolaIdSelecionada) {
         $sqlTurmas .= " AND t.escola_id = :escola_id";
     }
@@ -136,24 +171,67 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao'])) {
             $planosCriados = [];
             
             foreach ($dados['turmas'] as $turmaData) {
-                $dadosPlano = [
-                    'turma_id' => $turmaData['turma_id'],
-                    'disciplina_id' => $turmaData['disciplina_id'],
-                    'professor_id' => $professorId,
-                    'titulo' => $dados['titulo'] ?? 'Plano de Aula',
-                    'conteudo' => $dados['conteudo'] ?? null,
-                    'objetivos' => $dados['objetivos'] ?? null,
-                    'metodologia' => $dados['metodologia'] ?? null,
-                    'recursos' => $dados['recursos'] ?? null,
-                    'avaliacao' => $dados['avaliacao'] ?? null,
-                    'data_aula' => $dados['data_aula'],
-                    'bimestre' => $dados['bimestre'] ?? null,
-                    'observacoes' => $dados['observacoes'] ?? null
-                ];
+                $turmaId = $turmaData['turma_id'];
                 
-                $resultado = $planoAulaModel->criar($dadosPlano);
-                if ($resultado['success']) {
-                    $planosCriados[] = $resultado['id'];
+                // Buscar todas as disciplinas do professor nesta turma
+                $sqlDisciplinas = "SELECT DISTINCT d.id as disciplina_id, d.nome as disciplina_nome
+                                  FROM turma_professor tp
+                                  INNER JOIN disciplina d ON tp.disciplina_id = d.id
+                                  WHERE tp.turma_id = :turma_id
+                                  AND tp.professor_id = :professor_id
+                                  AND (tp.fim IS NULL OR tp.fim = '' OR tp.fim = '0000-00-00')
+                                  AND d.ativo = 1";
+                
+                $stmtDisciplinas = $conn->prepare($sqlDisciplinas);
+                $stmtDisciplinas->bindParam(':turma_id', $turmaId, PDO::PARAM_INT);
+                $stmtDisciplinas->bindParam(':professor_id', $professorId, PDO::PARAM_INT);
+                $stmtDisciplinas->execute();
+                $disciplinas = $stmtDisciplinas->fetchAll(PDO::FETCH_ASSOC);
+                
+                // Se não encontrar disciplinas, criar plano sem disciplina
+                if (empty($disciplinas)) {
+                    $dadosPlano = [
+                        'turma_id' => $turmaId,
+                        'disciplina_id' => null,
+                        'professor_id' => $professorId,
+                        'titulo' => $dados['titulo'] ?? 'Plano de Aula',
+                        'conteudo' => $dados['conteudo'] ?? null,
+                        'objetivos' => $dados['objetivos'] ?? null,
+                        'metodologia' => $dados['metodologia'] ?? null,
+                        'recursos' => $dados['recursos'] ?? null,
+                        'avaliacao' => $dados['avaliacao'] ?? null,
+                        'data_aula' => $dados['data_aula'],
+                        'bimestre' => $dados['bimestre'] ?? null,
+                        'observacoes' => $dados['observacoes'] ?? null
+                    ];
+                    
+                    $resultado = $planoAulaModel->criar($dadosPlano);
+                    if ($resultado['success']) {
+                        $planosCriados[] = $resultado['id'];
+                    }
+                } else {
+                    // Criar um plano para cada disciplina do professor nesta turma
+                    foreach ($disciplinas as $disciplina) {
+                        $dadosPlano = [
+                            'turma_id' => $turmaId,
+                            'disciplina_id' => $disciplina['disciplina_id'],
+                            'professor_id' => $professorId,
+                            'titulo' => $dados['titulo'] ?? 'Plano de Aula',
+                            'conteudo' => $dados['conteudo'] ?? null,
+                            'objetivos' => $dados['objetivos'] ?? null,
+                            'metodologia' => $dados['metodologia'] ?? null,
+                            'recursos' => $dados['recursos'] ?? null,
+                            'avaliacao' => $dados['avaliacao'] ?? null,
+                            'data_aula' => $dados['data_aula'],
+                            'bimestre' => $dados['bimestre'] ?? null,
+                            'observacoes' => $dados['observacoes'] ?? null
+                        ];
+                        
+                        $resultado = $planoAulaModel->criar($dadosPlano);
+                        if ($resultado['success']) {
+                            $planosCriados[] = $resultado['id'];
+                        }
+                    }
                 }
             }
             
@@ -171,6 +249,85 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao'])) {
 // Processar requisições GET AJAX
 if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['acao'])) {
     header('Content-Type: application/json');
+    
+    if ($_GET['acao'] === 'buscar_turmas_escola') {
+        $escolaId = $_GET['escola_id'] ?? null;
+        
+        if (empty($escolaId)) {
+            echo json_encode(['success' => false, 'message' => 'ID da escola não fornecido']);
+            exit;
+        }
+        
+        try {
+            // Buscar apenas as turmas únicas que o professor está atribuído na escola
+            // Usar a mesma lógica do código original (linha 110)
+            $sqlTurmas = "SELECT DISTINCT 
+                            t.id as turma_id,
+                            CONCAT(t.serie, ' ', t.letra, ' - ', t.turno) as turma_nome
+                          FROM turma_professor tp
+                          INNER JOIN turma t ON tp.turma_id = t.id 
+                          WHERE t.escola_id = :escola_id 
+                          AND tp.professor_id = :professor_id
+                          AND tp.fim IS NULL
+                          AND t.ativo = 1
+                          ORDER BY t.serie, t.letra";
+            
+            $stmtTurmas = $conn->prepare($sqlTurmas);
+            $stmtTurmas->bindParam(':escola_id', $escolaId, PDO::PARAM_INT);
+            $stmtTurmas->bindParam(':professor_id', $professorId, PDO::PARAM_INT);
+            $stmtTurmas->execute();
+            $turmas = $stmtTurmas->fetchAll(PDO::FETCH_ASSOC);
+            
+            // Log para debug
+            error_log("Busca de turmas - Escola ID: $escolaId, Professor ID: $professorId, Turmas encontradas: " . count($turmas));
+            if (count($turmas) > 0) {
+                error_log("Primeira turma encontrada: " . json_encode($turmas[0]));
+            }
+            
+            echo json_encode(['success' => true, 'turmas' => $turmas]);
+        } catch (Exception $e) {
+            error_log("Erro ao buscar turmas: " . $e->getMessage());
+            error_log("Stack trace: " . $e->getTraceAsString());
+            echo json_encode(['success' => false, 'message' => 'Erro ao buscar turmas: ' . $e->getMessage()]);
+        }
+        exit;
+    }
+    
+    if ($_GET['acao'] === 'buscar_disciplinas_escola') {
+        $escolaId = $_GET['escola_id'] ?? null;
+        
+        if (empty($escolaId)) {
+            echo json_encode(['success' => false, 'message' => 'ID da escola não fornecido']);
+            exit;
+        }
+        
+        try {
+            // Buscar todas as disciplinas que o professor leciona na escola
+            $sqlDisciplinas = "SELECT DISTINCT 
+                                d.id as disciplina_id,
+                                d.nome as disciplina_nome
+                              FROM disciplina d
+                              INNER JOIN turma_professor tp ON tp.disciplina_id = d.id
+                              INNER JOIN turma t ON tp.turma_id = t.id
+                              WHERE t.escola_id = :escola_id 
+                              AND tp.professor_id = :professor_id
+                              AND (tp.fim IS NULL OR tp.fim = '' OR tp.fim = '0000-00-00')
+                              AND d.ativo = 1
+                              AND t.ativo = 1
+                              ORDER BY d.nome";
+            
+            $stmtDisciplinas = $conn->prepare($sqlDisciplinas);
+            $stmtDisciplinas->bindParam(':escola_id', $escolaId, PDO::PARAM_INT);
+            $stmtDisciplinas->bindParam(':professor_id', $professorId, PDO::PARAM_INT);
+            $stmtDisciplinas->execute();
+            $disciplinas = $stmtDisciplinas->fetchAll(PDO::FETCH_ASSOC);
+            
+            echo json_encode(['success' => true, 'disciplinas' => $disciplinas]);
+        } catch (Exception $e) {
+            echo json_encode(['success' => false, 'message' => 'Erro ao buscar disciplinas: ' . $e->getMessage()]);
+        }
+        exit;
+    }
     
     if ($_GET['acao'] === 'listar_planos') {
         $filtros = ['professor_id' => $professorId];
@@ -334,7 +491,7 @@ if ($professorId) {
                                     class="w-full px-4 py-2 border border-gray-300 rounded-lg <?= $escolaUnica ? 'bg-gray-100 cursor-not-allowed' : '' ?>"
                                     <?= $escolaUnica ? 'disabled' : '' ?>>
                                 <option value="">Selecione</option>
-                                <?php foreach ($escolas as $escola): ?>
+                                <?php foreach (array_values($escolas) as $escola): ?>
                                     <option value="<?= $escola['id'] ?>" 
                                             <?= $escolaUnica && $escolaUnica['id'] == $escola['id'] ? 'selected' : '' ?>>
                                         <?= htmlspecialchars($escola['nome']) ?>
@@ -518,7 +675,7 @@ if ($professorId) {
                                             class="w-full px-4 py-2 border border-gray-300 rounded-lg <?= $escolaUnica ? 'bg-gray-100 cursor-not-allowed' : '' ?>"
                                             <?= $escolaUnica ? 'disabled' : '' ?>>
                                         <option value="">Selecione uma escola</option>
-                                        <?php foreach ($escolas as $escola): ?>
+                                        <?php foreach (array_values($escolas) as $escola): ?>
                                             <option value="<?= $escola['id'] ?>" 
                                                     <?= $escolaUnica && $escolaUnica['id'] == $escola['id'] ? 'selected' : '' ?>>
                                                 <?= htmlspecialchars($escola['nome']) ?>
@@ -552,13 +709,12 @@ if ($professorId) {
                                         <thead>
                                             <tr class="border-b border-gray-200">
                                                 <th class="text-left py-2 px-4 text-sm font-medium text-gray-700">TURMA</th>
-                                                <th class="text-left py-2 px-4 text-sm font-medium text-gray-700">DISCIPLINA</th>
                                                 <th class="text-left py-2 px-4 text-sm font-medium text-gray-700">AÇÃO</th>
                                             </tr>
                                         </thead>
                                         <tbody id="turmas-selecionadas">
                                             <tr>
-                                                <td colspan="3" class="text-center py-4 text-gray-500 text-sm">
+                                                <td colspan="2" class="text-center py-4 text-gray-500 text-sm">
                                                     Nenhuma turma selecionada ainda
                                                 </td>
                                             </tr>
@@ -572,9 +728,35 @@ if ($professorId) {
                         <div id="aba-componentes" class="aba-conteudo hidden">
                             <div class="mb-4">
                                 <label class="block text-sm font-medium text-gray-700 mb-2">Componentes Curriculares</label>
-                                <textarea id="componentes-curriculares" rows="6" 
-                                          class="w-full px-4 py-2 border border-gray-300 rounded-lg"
-                                          placeholder="Descreva os componentes curriculares que serão trabalhados..."></textarea>
+                                <div class="flex gap-2 mb-3">
+                                    <select id="select-disciplina-componente" 
+                                            class="flex-1 px-4 py-2 border border-gray-300 rounded-lg">
+                                        <option value="">Selecione uma disciplina</option>
+                                    </select>
+                                    <button type="button" onclick="adicionarDisciplinaComponente()" 
+                                            class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center justify-center min-w-[48px]">
+                                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+                                        </svg>
+                                    </button>
+                                </div>
+                                <div class="border border-gray-200 rounded-lg overflow-hidden">
+                                    <table class="w-full">
+                                        <thead class="bg-gray-100">
+                                            <tr>
+                                                <th class="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase">COMPONENTE CURRICULAR</th>
+                                                <th class="px-4 py-3 text-right text-xs font-bold text-gray-700 uppercase">AÇÃO</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="tabela-disciplinas-componente" class="bg-white">
+                                            <tr>
+                                                <td colspan="2" class="text-center py-4 text-gray-500 text-sm">
+                                                    Nenhuma disciplina selecionada
+                                                </td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
                             </div>
                         </div>
                         
@@ -838,6 +1020,8 @@ if ($professorId) {
     <script>
         const turmasProfessor = <?= json_encode($turmasProfessor) ?>;
         const escolas = <?= json_encode(array_values($escolas)) ?>;
+        console.log('Turmas do professor:', turmasProfessor);
+        console.log('Escolas disponíveis:', escolas);
         let turmasSelecionadas = [];
         let abaAtual = 'turma';
         
@@ -845,6 +1029,9 @@ if ($professorId) {
         let competenciasSocioemocionais = [];
         let competenciasEspecificas = [];
         let competenciasGerais = [];
+        
+        // Array para armazenar disciplinas (componentes curriculares) selecionadas
+        let disciplinasComponente = [];
         
         window.toggleSidebar = function() {
             const sidebar = document.getElementById('sidebar');
@@ -871,31 +1058,171 @@ if ($professorId) {
                 conteudo.classList.add('hidden');
             });
             document.getElementById('aba-' + aba).classList.remove('hidden');
+            
+            // Se a aba de componentes for aberta e houver escola selecionada, carregar disciplinas
+            if (aba === 'componentes') {
+                const escolaId = document.getElementById('escola-select').value;
+                if (escolaId) {
+                    carregarDisciplinasEscola(escolaId);
+                }
+            }
         }
         
-        function carregarTurmasEscola() {
+        async function carregarTurmasEscola() {
             const escolaId = document.getElementById('escola-select').value;
             const turmaSelect = document.getElementById('turma-select');
             
-            turmaSelect.innerHTML = '<option value="">Selecione uma turma</option>';
+            turmaSelect.innerHTML = '<option value="">Carregando turmas...</option>';
+            turmaSelect.disabled = true;
             
-            if (!escolaId) return;
+            if (!escolaId) {
+                turmaSelect.innerHTML = '<option value="">Selecione uma escola</option>';
+                turmaSelect.disabled = false;
+                return;
+            }
             
-            const escola = escolas.find(e => e.id == escolaId);
-            if (escola) {
-                Object.values(escola.turmas).forEach(turma => {
-                    turma.disciplinas.forEach(disciplina => {
+            console.log('Carregando turmas para escola ID:', escolaId);
+            
+            try {
+                const response = await fetch(`?acao=buscar_turmas_escola&escola_id=${escolaId}`);
+                const data = await response.json();
+                
+                console.log('Resposta da busca de turmas:', data);
+                
+                turmaSelect.innerHTML = '<option value="">Selecione uma turma</option>';
+                turmaSelect.disabled = false;
+                
+                if (data.success && data.turmas && data.turmas.length > 0) {
+                    data.turmas.forEach(turma => {
                         const option = document.createElement('option');
-                        option.value = `${turma.id}_${disciplina.id}`;
-                        option.textContent = `${turma.nome} - ${disciplina.nome}`;
-                        option.dataset.turmaId = turma.id;
-                        option.dataset.turmaNome = turma.nome;
-                        option.dataset.disciplinaId = disciplina.id;
-                        option.dataset.disciplinaNome = disciplina.nome;
+                        // Usar apenas o ID da turma (sem disciplina)
+                        option.value = turma.turma_id;
+                        option.textContent = turma.turma_nome;
+                        option.dataset.turmaId = turma.turma_id;
+                        option.dataset.turmaNome = turma.turma_nome;
                         turmaSelect.appendChild(option);
                     });
-                });
+                    console.log('Turmas carregadas:', data.turmas.length);
+                } else {
+                    const option = document.createElement('option');
+                    option.value = '';
+                    option.textContent = 'Nenhuma turma disponível para esta escola';
+                    option.disabled = true;
+                    turmaSelect.appendChild(option);
+                    console.warn('Nenhuma turma encontrada para a escola:', escolaId);
+                    console.warn('Resposta completa:', data);
+                }
+                
+                // Carregar disciplinas da escola também
+                await carregarDisciplinasEscola(escolaId);
+            } catch (error) {
+                console.error('Erro ao carregar turmas:', error);
+                turmaSelect.innerHTML = '<option value="">Erro ao carregar turmas</option>';
+                turmaSelect.disabled = false;
             }
+        }
+        
+        async function carregarDisciplinasEscola(escolaId) {
+            const disciplinaSelect = document.getElementById('select-disciplina-componente');
+            
+            if (!disciplinaSelect) return;
+            
+            disciplinaSelect.innerHTML = '<option value="">Carregando disciplinas...</option>';
+            disciplinaSelect.disabled = true;
+            
+            if (!escolaId) {
+                disciplinaSelect.innerHTML = '<option value="">Selecione uma escola primeiro</option>';
+                disciplinaSelect.disabled = false;
+                return;
+            }
+            
+            try {
+                const response = await fetch(`?acao=buscar_disciplinas_escola&escola_id=${escolaId}`);
+                const data = await response.json();
+                
+                disciplinaSelect.innerHTML = '<option value="">Selecione uma disciplina</option>';
+                disciplinaSelect.disabled = false;
+                
+                if (data.success && data.disciplinas && data.disciplinas.length > 0) {
+                    data.disciplinas.forEach(disciplina => {
+                        const option = document.createElement('option');
+                        option.value = disciplina.disciplina_id;
+                        option.textContent = disciplina.disciplina_nome;
+                        option.dataset.disciplinaId = disciplina.disciplina_id;
+                        option.dataset.disciplinaNome = disciplina.disciplina_nome;
+                        disciplinaSelect.appendChild(option);
+                    });
+                    console.log('Disciplinas carregadas:', data.disciplinas.length);
+                } else {
+                    const option = document.createElement('option');
+                    option.value = '';
+                    option.textContent = 'Nenhuma disciplina disponível para esta escola';
+                    option.disabled = true;
+                    disciplinaSelect.appendChild(option);
+                    console.warn('Nenhuma disciplina encontrada para a escola:', escolaId);
+                }
+            } catch (error) {
+                console.error('Erro ao carregar disciplinas:', error);
+                disciplinaSelect.innerHTML = '<option value="">Erro ao carregar disciplinas</option>';
+                disciplinaSelect.disabled = false;
+            }
+        }
+        
+        function adicionarDisciplinaComponente() {
+            const select = document.getElementById('select-disciplina-componente');
+            const selectedOption = select.options[select.selectedIndex];
+            
+            if (!selectedOption.value) {
+                alert('Selecione uma disciplina');
+                return;
+            }
+            
+            const disciplina = {
+                id: selectedOption.value,
+                nome: selectedOption.textContent
+            };
+            
+            // Verificar se já foi adicionada
+            if (disciplinasComponente.find(d => d.id == disciplina.id)) {
+                alert('Esta disciplina já foi adicionada');
+                return;
+            }
+            
+            disciplinasComponente.push(disciplina);
+            atualizarTabelaDisciplinasComponente();
+            select.value = '';
+        }
+        
+        function removerDisciplinaComponente(index) {
+            disciplinasComponente.splice(index, 1);
+            atualizarTabelaDisciplinasComponente();
+        }
+        
+        function atualizarTabelaDisciplinasComponente() {
+            const tbody = document.getElementById('tabela-disciplinas-componente');
+            
+            if (disciplinasComponente.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="2" class="text-center py-4 text-gray-500 text-sm">
+                            Nenhuma disciplina selecionada
+                        </td>
+                    </tr>
+                `;
+                return;
+            }
+            
+            tbody.innerHTML = disciplinasComponente.map((disciplina, index) => `
+                <tr class="border-b border-gray-100">
+                    <td class="py-3 px-4 text-sm text-gray-900">${disciplina.nome}</td>
+                    <td class="py-3 px-4 text-right">
+                        <button type="button" onclick="removerDisciplinaComponente(${index})" 
+                                class="text-red-600 hover:text-red-800 text-sm font-medium">
+                            Remover
+                        </button>
+                    </td>
+                </tr>
+            `).join('');
         }
         
         function adicionarTurma() {
@@ -903,26 +1230,22 @@ if ($professorId) {
             const selectedOption = turmaSelect.options[turmaSelect.selectedIndex];
             
             if (!selectedOption.value) {
-                alert('Selecione uma turma e disciplina');
+                alert('Selecione uma turma');
                 return;
             }
             
             const turmaId = selectedOption.dataset.turmaId;
             const turmaNome = selectedOption.dataset.turmaNome;
-            const disciplinaId = selectedOption.dataset.disciplinaId;
-            const disciplinaNome = selectedOption.dataset.disciplinaNome;
             
             // Verificar se já foi adicionada
-            if (turmasSelecionadas.find(t => t.turma_id == turmaId && t.disciplina_id == disciplinaId)) {
-                alert('Esta turma e disciplina já foram adicionadas');
+            if (turmasSelecionadas.find(t => t.turma_id == turmaId)) {
+                alert('Esta turma já foi adicionada');
                 return;
             }
             
             turmasSelecionadas.push({
                 turma_id: turmaId,
-                turma_nome: turmaNome,
-                disciplina_id: disciplinaId,
-                disciplina_nome: disciplinaNome
+                turma_nome: turmaNome
             });
             
             atualizarTabelaTurmas();
@@ -940,7 +1263,7 @@ if ($professorId) {
             if (turmasSelecionadas.length === 0) {
                 tbody.innerHTML = `
                     <tr>
-                        <td colspan="3" class="text-center py-4 text-gray-500 text-sm">
+                        <td colspan="2" class="text-center py-4 text-gray-500 text-sm">
                             Nenhuma turma selecionada ainda
                         </td>
                     </tr>
@@ -951,7 +1274,6 @@ if ($professorId) {
             tbody.innerHTML = turmasSelecionadas.map((turma, index) => `
                 <tr class="border-b border-gray-100">
                     <td class="py-3 px-4 text-sm text-gray-900">${turma.turma_nome}</td>
-                    <td class="py-3 px-4 text-sm text-gray-700">${turma.disciplina_nome}</td>
                     <td class="py-3 px-4">
                         <button type="button" onclick="removerTurma(${index})" 
                                 class="text-red-600 hover:text-red-800 text-sm font-medium">
@@ -1146,27 +1468,73 @@ if ($professorId) {
             const escolaSelect = document.getElementById('escola-select');
             const escolaSelecionada = escolaSelect.value;
             
-            document.getElementById('form-novo-plano').reset();
+            // Resetar apenas os campos do formulário, não o select de escola
             document.getElementById('data-aula').value = new Date().toISOString().split('T')[0];
+            document.getElementById('titulo-plano').value = '';
+            document.getElementById('conteudo-plano').value = '';
+            document.getElementById('objetivos-plano').value = '';
+            document.getElementById('metodologia-plano').value = '';
+            document.getElementById('recursos-plano').value = '';
+            document.getElementById('avaliacao-plano').value = '';
+            document.getElementById('atividades-flexibilizadas').value = '';
+            document.getElementById('bimestre-plano').value = '';
+            document.getElementById('observacoes-plano').value = '';
+            document.getElementById('componentes-curriculares').value = '';
+            document.getElementById('habilidades').value = '';
             
-            // Restaurar a escola selecionada se estava pré-selecionada
-            if (escolaSelecionada) {
-                escolaSelect.value = escolaSelecionada;
+            // Garantir que o select de escola está populado corretamente
+            console.log('Escolas disponíveis:', escolas);
+            if (escolas && escolas.length > 0) {
+                // Limpar e repovoar o select de escola
+                escolaSelect.innerHTML = '<option value="">Selecione uma escola</option>';
+                escolas.forEach(escola => {
+                    const option = document.createElement('option');
+                    option.value = escola.id;
+                    option.textContent = escola.nome;
+                    escolaSelect.appendChild(option);
+                });
+                
+                // Restaurar a escola selecionada se estava pré-selecionada
+                if (escolaSelecionada) {
+                    escolaSelect.value = escolaSelecionada;
+                } else if (escolas.length === 1) {
+                    // Se há apenas uma escola, selecionar automaticamente
+                    escolaSelect.value = escolas[0].id;
+                }
+            } else {
+                console.error('Nenhuma escola encontrada para o professor. Verifique a lotação do professor.');
+                // Tentar buscar escolas diretamente do HTML se não estiverem no JavaScript
+                const optionsHTML = document.querySelectorAll('#escola-select option');
+                if (optionsHTML.length <= 1) {
+                    console.error('Select de escola não foi populado no HTML. Verifique o PHP.');
+                }
             }
+            
+            // Limpar turma select
+            const turmaSelect = document.getElementById('turma-select');
+            turmaSelect.innerHTML = '<option value="">Selecione uma turma</option>';
             
             turmasSelecionadas = [];
             competenciasSocioemocionais = [];
             competenciasEspecificas = [];
             competenciasGerais = [];
+            disciplinasComponente = [];
             atualizarTabelaTurmas();
             atualizarTabelaCompetenciasSocioemocionais();
             atualizarTabelaCompetenciasEspecificas();
             atualizarTabelaCompetenciasGerais();
+            atualizarTabelaDisciplinasComponente();
             mostrarAba('turma');
             
             // Se a escola já estiver pré-selecionada (professor atua em apenas uma escola), carregar turmas automaticamente
             if (escolaSelect.value) {
                 carregarTurmasEscola();
+            } else {
+                // Limpar disciplinas se não houver escola selecionada
+                const disciplinaSelect = document.getElementById('select-disciplina-componente');
+                if (disciplinaSelect) {
+                    disciplinaSelect.innerHTML = '<option value="">Selecione uma escola primeiro</option>';
+                }
             }
         }
         
@@ -1476,6 +1844,27 @@ if ($professorId) {
             }
         }
         
+        // Funções para modal de logout
+        window.confirmLogout = function() {
+            const modal = document.getElementById('logoutModal');
+            if (modal) {
+                modal.style.display = 'flex';
+                modal.classList.remove('hidden');
+            }
+        };
+        
+        window.closeLogoutModal = function() {
+            const modal = document.getElementById('logoutModal');
+            if (modal) {
+                modal.style.display = 'none';
+                modal.classList.add('hidden');
+            }
+        };
+        
+        window.logout = function() {
+            window.location.href = '../auth/logout.php';
+        };
+        
         // Carregar planos ao abrir a página
         document.addEventListener('DOMContentLoaded', function() {
             // Se a escola já estiver pré-selecionada (professor atua em apenas uma escola), carregar turmas automaticamente
@@ -1486,6 +1875,31 @@ if ($professorId) {
             buscarPlanos();
         });
     </script>
+    
+    <!-- Modal de Logout -->
+    <div id="logoutModal" class="fixed inset-0 bg-black bg-opacity-50 z-[60] hidden items-center justify-center p-4" style="display: none;">
+        <div class="bg-white rounded-2xl p-6 max-w-md w-full mx-4 shadow-2xl">
+            <div class="flex items-center space-x-3 mb-4">
+                <div class="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center">
+                    <svg class="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z"></path>
+                    </svg>
+                </div>
+                <div>
+                    <h3 class="text-lg font-semibold text-gray-900">Confirmar Saída</h3>
+                    <p class="text-sm text-gray-600">Tem certeza que deseja sair do sistema?</p>
+                </div>
+            </div>
+            <div class="flex space-x-3">
+                <button onclick="window.closeLogoutModal()" class="flex-1 px-4 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg font-medium transition-colors duration-200">
+                    Cancelar
+                </button>
+                <button onclick="window.logout()" class="flex-1 px-4 py-2 text-white bg-red-600 hover:bg-red-700 rounded-lg font-medium transition-colors duration-200">
+                    Sim, Sair
+                </button>
+            </div>
+        </div>
+    </div>
 </body>
 </html>
 

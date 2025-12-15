@@ -377,6 +377,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao'])) {
             // Garantir que estamos retornando o ID do GESTOR, não da PESSOA
             $idRetornado = (int)$gestorId;
             
+            // Registrar log de criação de gestor
+            if (session_status() == PHP_SESSION_NONE) {
+                session_start();
+            }
+            $usuarioLogadoId = $_SESSION['usuario_id'] ?? null;
+            require_once(__DIR__ . '/../../Models/log/SystemLogger.php');
+            $logger = SystemLogger::getInstance();
+            $logger->logCriarGestor($usuarioLogadoId, $gestorId, $nome);
+            
             // Validação final ABSOLUTA: garantir que o ID retornado não seja o da pessoa
             if ($idRetornado == $pessoaId) {
                 error_log("DEBUG CADASTRO GESTOR - ERRO FINAL CRÍTICO: Tentando retornar ID da pessoa (" . $pessoaId . ") em vez do gestor!");
@@ -909,6 +918,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao'])) {
             
             error_log("DEBUG EDITAR GESTOR - Commit realizado com sucesso");
             
+            // Registrar log de edição de gestor
+            if (session_status() == PHP_SESSION_NONE) {
+                session_start();
+            }
+            $usuarioLogadoId = $_SESSION['usuario_id'] ?? null;
+            require_once(__DIR__ . '/../../Models/log/SystemLogger.php');
+            $logger = SystemLogger::getInstance();
+            $logger->logEditarGestor($usuarioLogadoId, $gestorId, $nomeUpdate);
+            
             $response = [
                 'success' => true,
                 'message' => 'Gestor atualizado com sucesso!'
@@ -994,6 +1012,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao'])) {
             $result = $stmtExcluir->execute();
             
             if ($result) {
+                // Registrar log de exclusão/desativação de gestor
+                if (session_status() == PHP_SESSION_NONE) {
+                    session_start();
+                }
+                $usuarioLogadoId = $_SESSION['usuario_id'] ?? null;
+                require_once(__DIR__ . '/../../Models/log/SystemLogger.php');
+                $logger = SystemLogger::getInstance();
+                $logger->logExcluirGestor($usuarioLogadoId, $gestorId, $gestor['nome']);
+                
                 echo json_encode([
                     'success' => true,
                     'message' => 'Gestor excluído com sucesso!'
