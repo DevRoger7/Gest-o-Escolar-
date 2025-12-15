@@ -260,7 +260,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['acao'])) {
         
         try {
             // Buscar apenas as turmas únicas que o professor está atribuído na escola
-            // Usar a mesma lógica do código original (linha 110)
+            // Usar a mesma lógica do código original (linha 110), mas também considerar turmas com fim vazio ou futuro
             $sqlTurmas = "SELECT DISTINCT 
                             t.id as turma_id,
                             CONCAT(t.serie, ' ', t.letra, ' - ', t.turno) as turma_nome
@@ -268,7 +268,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['acao'])) {
                           INNER JOIN turma t ON tp.turma_id = t.id 
                           WHERE t.escola_id = :escola_id 
                           AND tp.professor_id = :professor_id
-                          AND tp.fim IS NULL
+                          AND (tp.fim IS NULL OR tp.fim = '' OR tp.fim = '0000-00-00' OR tp.fim >= CURDATE())
                           AND t.ativo = 1
                           ORDER BY t.serie, t.letra";
             
@@ -278,10 +278,37 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['acao'])) {
             $stmtTurmas->execute();
             $turmas = $stmtTurmas->fetchAll(PDO::FETCH_ASSOC);
             
+            // Se não encontrou turmas com a query acima, tentar sem filtro de fim (para debug)
+            if (count($turmas) === 0) {
+                error_log("Nenhuma turma encontrada com filtro de fim. Tentando sem filtro...");
+                $sqlTurmasDebug = "SELECT DISTINCT 
+                                    t.id as turma_id,
+                                    CONCAT(t.serie, ' ', t.letra, ' - ', t.turno) as turma_nome,
+                                    tp.fim as fim_atribuicao
+                                  FROM turma_professor tp
+                                  INNER JOIN turma t ON tp.turma_id = t.id 
+                                  WHERE t.escola_id = :escola_id 
+                                  AND tp.professor_id = :professor_id
+                                  AND t.ativo = 1
+                                  ORDER BY t.serie, t.letra";
+                
+                $stmtTurmasDebug = $conn->prepare($sqlTurmasDebug);
+                $stmtTurmasDebug->bindParam(':escola_id', $escolaId, PDO::PARAM_INT);
+                $stmtTurmasDebug->bindParam(':professor_id', $professorId, PDO::PARAM_INT);
+                $stmtTurmasDebug->execute();
+                $turmasDebug = $stmtTurmasDebug->fetchAll(PDO::FETCH_ASSOC);
+                error_log("Turmas encontradas sem filtro de fim: " . count($turmasDebug));
+                if (count($turmasDebug) > 0) {
+                    error_log("Primeira turma (sem filtro): " . json_encode($turmasDebug[0]));
+                }
+            }
+            
             // Log para debug
             error_log("Busca de turmas - Escola ID: $escolaId, Professor ID: $professorId, Turmas encontradas: " . count($turmas));
             if (count($turmas) > 0) {
                 error_log("Primeira turma encontrada: " . json_encode($turmas[0]));
+            } else {
+                error_log("ATENÇÃO: Nenhuma turma encontrada para professor $professorId na escola $escolaId");
             }
             
             echo json_encode(['success' => true, 'turmas' => $turmas]);
@@ -1497,9 +1524,13 @@ if ($professorId) {
                 // Restaurar a escola selecionada se estava pré-selecionada
                 if (escolaSelecionada) {
                     escolaSelect.value = escolaSelecionada;
+                    // Carregar turmas da escola selecionada
+                    carregarTurmasEscola();
                 } else if (escolas.length === 1) {
                     // Se há apenas uma escola, selecionar automaticamente
                     escolaSelect.value = escolas[0].id;
+                    // Carregar turmas da escola selecionada
+                    carregarTurmasEscola();
                 }
             } else {
                 console.error('Nenhuma escola encontrada para o professor. Verifique a lotação do professor.');
