@@ -91,7 +91,10 @@ if (($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['acao'])) ||
     // Processar requisições POST AJAX
     if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao'])) {
         ob_clean();
-        header('Content-Type: application/json');
+        if (!headers_sent()) {
+            header('Content-Type: application/json; charset=utf-8');
+            header('Cache-Control: no-cache, must-revalidate');
+        }
         
         if ($_POST['acao'] === 'cadastrar_professor') {
             try {
@@ -553,7 +556,148 @@ if (($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['acao'])) ||
         }
         exit;
     }
+    
+    if ($_POST['acao'] === 'lotar_professor') {
+        ob_clean();
+        try {
+            $professorId = $_POST['professor_id'] ?? null;
+            $escolaId = $_POST['escola_id'] ?? null;
+            $dataInicio = $_POST['data_inicio'] ?? date('Y-m-d');
+            $cargaHoraria = !empty($_POST['carga_horaria']) ? (int)$_POST['carga_horaria'] : null;
+            $observacao = !empty($_POST['observacao']) ? trim($_POST['observacao']) : null;
+            $tipoOperacao = $_POST['tipo_operacao'] ?? 'alocar'; // 'transferir' ou 'alocar'
+            
+            if (empty($professorId) || empty($escolaId)) {
+                throw new Exception('Professor e escola são obrigatórios.');
+            }
+            
+            $professorId = (int)$professorId;
+            $escolaId = (int)$escolaId;
+            
+            if ($professorId <= 0 || $escolaId <= 0) {
+                throw new Exception('IDs inválidos.');
+            }
+            
+            // Verificar se já existe lotação ativa para este professor nesta escola
+            $sqlVerificar = "SELECT id FROM professor_lotacao 
+                            WHERE professor_id = :professor_id 
+                            AND escola_id = :escola_id 
+                            AND fim IS NULL";
+            $stmtVerificar = $conn->prepare($sqlVerificar);
+            $stmtVerificar->bindParam(':professor_id', $professorId, PDO::PARAM_INT);
+            $stmtVerificar->bindParam(':escola_id', $escolaId, PDO::PARAM_INT);
+            $stmtVerificar->execute();
+            $lotacaoExistente = $stmtVerificar->fetch(PDO::FETCH_ASSOC);
+            
+            if ($lotacaoExistente) {
+                throw new Exception('O professor já está lotado nesta escola.');
+            }
+            
+            // Se for transferência, encerrar todas as lotações anteriores
+            if ($tipoOperacao === 'transferir') {
+                $sqlEncerrar = "UPDATE professor_lotacao 
+                               SET fim = CURDATE() 
+                               WHERE professor_id = :professor_id 
+                               AND fim IS NULL";
+                $stmtEncerrar = $conn->prepare($sqlEncerrar);
+                $stmtEncerrar->bindParam(':professor_id', $professorId, PDO::PARAM_INT);
+                $stmtEncerrar->execute();
+            }
+            // Se for alocação, manter todas as lotações ativas (não fazer nada)
+            
+            // Criar nova lotação
+            $sqlLotar = "INSERT INTO professor_lotacao (professor_id, escola_id, inicio, carga_horaria, observacao, criado_em)
+                        VALUES (:professor_id, :escola_id, :inicio, :carga_horaria, :observacao, NOW())";
+            $stmtLotar = $conn->prepare($sqlLotar);
+            $stmtLotar->bindParam(':professor_id', $professorId, PDO::PARAM_INT);
+            $stmtLotar->bindParam(':escola_id', $escolaId, PDO::PARAM_INT);
+            $stmtLotar->bindParam(':inicio', $dataInicio);
+            $stmtLotar->bindParam(':carga_horaria', $cargaHoraria);
+            $stmtLotar->bindParam(':observacao', $observacao);
+            $stmtLotar->execute();
+            
+            ob_clean();
+            $mensagem = $tipoOperacao === 'transferir' 
+                ? 'Professor transferido com sucesso!' 
+                : 'Professor alocado com sucesso!';
+            
+            echo json_encode([
+                'success' => true,
+                'message' => $mensagem
+            ], JSON_UNESCAPED_UNICODE);
+        } catch (Exception $e) {
+            ob_clean();
+            error_log("Erro ao lotar professor: " . $e->getMessage());
+            echo json_encode([
+                'success' => false,
+                'message' => $e->getMessage()
+            ], JSON_UNESCAPED_UNICODE);
+        } catch (PDOException $e) {
+            ob_clean();
+            error_log("Erro PDO ao lotar professor: " . $e->getMessage());
+            echo json_encode([
+                'success' => false,
+                'message' => 'Erro ao processar requisição. Tente novamente.'
+            ], JSON_UNESCAPED_UNICODE);
+        }
+        exit;
     }
+    
+    if ($_POST['acao'] === 'remover_lotacao') {
+        ob_clean();
+        try {
+            $professorId = $_POST['professor_id'] ?? null;
+            $escolaId = $_POST['escola_id'] ?? null;
+            
+            if (empty($professorId) || empty($escolaId)) {
+                throw new Exception('Professor e escola são obrigatórios.');
+            }
+            
+            $professorId = (int)$professorId;
+            $escolaId = (int)$escolaId;
+            
+            if ($professorId <= 0 || $escolaId <= 0) {
+                throw new Exception('IDs inválidos.');
+            }
+            
+            // Encerrar lotação
+            $sqlRemover = "UPDATE professor_lotacao 
+                          SET fim = CURDATE() 
+                          WHERE professor_id = :professor_id 
+                          AND escola_id = :escola_id 
+                          AND fim IS NULL";
+            $stmtRemover = $conn->prepare($sqlRemover);
+            $stmtRemover->bindParam(':professor_id', $professorId, PDO::PARAM_INT);
+            $stmtRemover->bindParam(':escola_id', $escolaId, PDO::PARAM_INT);
+            $result = $stmtRemover->execute();
+            
+            if ($result) {
+                ob_clean();
+                echo json_encode([
+                    'success' => true,
+                    'message' => 'Lotação removida com sucesso!'
+                ], JSON_UNESCAPED_UNICODE);
+            } else {
+                throw new Exception('Erro ao remover lotação.');
+            }
+        } catch (Exception $e) {
+            ob_clean();
+            error_log("Erro ao remover lotação: " . $e->getMessage());
+            echo json_encode([
+                'success' => false,
+                'message' => $e->getMessage()
+            ], JSON_UNESCAPED_UNICODE);
+        } catch (PDOException $e) {
+            ob_clean();
+            error_log("Erro PDO ao remover lotação: " . $e->getMessage());
+            echo json_encode([
+                'success' => false,
+                'message' => 'Erro ao processar requisição. Tente novamente.'
+            ], JSON_UNESCAPED_UNICODE);
+        }
+        exit;
+    }
+    } // Fechar bloco if POST
     
     // Processar requisições GET AJAX
     if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['acao'])) {
@@ -640,7 +784,9 @@ if (($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['acao'])) ||
             if (!empty($_GET['escola_id'])) $filtros['escola_id'] = $_GET['escola_id'];
             if (!empty($_GET['busca'])) $filtros['busca'] = $_GET['busca'];
             
-            $sql = "SELECT pr.*, p.nome, p.cpf, p.email, p.telefone, p.data_nascimento, e.nome as escola_nome
+            $sql = "SELECT pr.*, p.nome, p.cpf, p.email, p.telefone, p.data_nascimento, 
+                    e.nome as escola_nome,
+                    COUNT(DISTINCT pl.escola_id) as total_escolas
                     FROM professor pr
                     INNER JOIN pessoa p ON pr.pessoa_id = p.id
                     LEFT JOIN professor_lotacao pl ON pr.id = pl.professor_id AND pl.fim IS NULL
@@ -678,20 +824,71 @@ if (($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['acao'])) ||
                     throw new Exception('ID do professor é obrigatório.');
                 }
                 
-                $sql = "SELECT pl.*, e.nome as escola_nome, e.id as escola_id
+                $professor_id = (int)$professor_id;
+                if ($professor_id <= 0) {
+                    throw new Exception('ID do professor inválido.');
+                }
+                
+                $sql = "SELECT pl.*, e.nome as escola_nome, e.id as escola_id,
+                        DATE_FORMAT(pl.inicio, '%d/%m/%Y') as inicio
                         FROM professor_lotacao pl
                         INNER JOIN escola e ON pl.escola_id = e.id
                         WHERE pl.professor_id = :professor_id AND pl.fim IS NULL
                         ORDER BY pl.inicio DESC";
                 $stmt = $conn->prepare($sql);
-                $stmt->bindParam(':professor_id', $professor_id);
+                $stmt->bindParam(':professor_id', $professor_id, PDO::PARAM_INT);
                 $stmt->execute();
                 $lotacoes = $stmt->fetchAll(PDO::FETCH_ASSOC);
                 
+                ob_clean();
                 echo json_encode(['success' => true, 'lotacoes' => $lotacoes], JSON_UNESCAPED_UNICODE);
             } catch (Exception $e) {
+                ob_clean();
                 error_log("Erro ao buscar lotações: " . $e->getMessage());
                 echo json_encode(['success' => false, 'message' => $e->getMessage(), 'lotacoes' => []], JSON_UNESCAPED_UNICODE);
+            } catch (PDOException $e) {
+                ob_clean();
+                error_log("Erro PDO ao buscar lotações: " . $e->getMessage());
+                echo json_encode(['success' => false, 'message' => 'Erro ao buscar lotações.', 'lotacoes' => []], JSON_UNESCAPED_UNICODE);
+            }
+            exit;
+        }
+        
+        if ($_GET['acao'] === 'buscar_escolas_professor') {
+            try {
+                $professor_id = $_GET['professor_id'] ?? null;
+                
+                if (empty($professor_id)) {
+                    throw new Exception('ID do professor é obrigatório.');
+                }
+                
+                $professor_id = (int)$professor_id;
+                if ($professor_id <= 0) {
+                    throw new Exception('ID do professor inválido.');
+                }
+                
+                $sql = "SELECT e.id, e.nome as escola_nome,
+                        DATE_FORMAT(pl.inicio, '%d/%m/%Y') as inicio,
+                        pl.carga_horaria
+                        FROM professor_lotacao pl
+                        INNER JOIN escola e ON pl.escola_id = e.id
+                        WHERE pl.professor_id = :professor_id AND pl.fim IS NULL
+                        ORDER BY e.nome ASC";
+                $stmt = $conn->prepare($sql);
+                $stmt->bindParam(':professor_id', $professor_id, PDO::PARAM_INT);
+                $stmt->execute();
+                $escolas = $stmt->fetchAll(PDO::FETCH_ASSOC);
+                
+                ob_clean();
+                echo json_encode(['success' => true, 'escolas' => $escolas], JSON_UNESCAPED_UNICODE);
+            } catch (Exception $e) {
+                ob_clean();
+                error_log("Erro ao buscar escolas do professor: " . $e->getMessage());
+                echo json_encode(['success' => false, 'message' => $e->getMessage(), 'escolas' => []], JSON_UNESCAPED_UNICODE);
+            } catch (PDOException $e) {
+                ob_clean();
+                error_log("Erro PDO ao buscar escolas do professor: " . $e->getMessage());
+                echo json_encode(['success' => false, 'message' => 'Erro ao buscar escolas.', 'escolas' => []], JSON_UNESCAPED_UNICODE);
             }
             exit;
         }
@@ -727,7 +924,9 @@ $stmtEscolas->execute();
 $escolas = $stmtEscolas->fetchAll(PDO::FETCH_ASSOC);
 
 // Buscar professores iniciais (apenas ativos)
-$sqlProfessores = "SELECT pr.*, p.nome, p.cpf, p.email, p.telefone, p.data_nascimento, e.nome as escola_nome
+$sqlProfessores = "SELECT pr.*, p.nome, p.cpf, p.email, p.telefone, p.data_nascimento, 
+                    e.nome as escola_nome,
+                    COUNT(DISTINCT pl.escola_id) as total_escolas
                     FROM professor pr
                     INNER JOIN pessoa p ON pr.pessoa_id = p.id
                     LEFT JOIN professor_lotacao pl ON pr.id = pl.professor_id AND pl.fim IS NULL
@@ -885,7 +1084,19 @@ $professores = $stmtProfessores->fetchAll(PDO::FETCH_ASSOC);
                                             <td class="py-3 px-4"><?= htmlspecialchars($prof['nome']) ?></td>
                                             <td class="py-3 px-4"><?= htmlspecialchars($prof['matricula'] ?? '-') ?></td>
                                             <td class="py-3 px-4"><?= htmlspecialchars($prof['cpf'] ?? '-') ?></td>
-                                            <td class="py-3 px-4"><?= htmlspecialchars($prof['escola_nome'] ?? '-') ?></td>
+                                            <td class="py-3 px-4">
+                                                <?php 
+                                                $totalEscolas = (int)($prof['total_escolas'] ?? 0);
+                                                if ($totalEscolas > 1): 
+                                                ?>
+                                                    <button onclick="mostrarEscolasProfessor(<?= $prof['id'] ?>)" 
+                                                            class="text-blue-600 hover:text-blue-700 font-medium text-sm underline">
+                                                        <?= $totalEscolas ?> escolas
+                                                    </button>
+                                                <?php else: ?>
+                                                    <?= htmlspecialchars($prof['escola_nome'] ?? '-') ?>
+                                                <?php endif; ?>
+                                            </td>
                                             <td class="py-3 px-4"><?= htmlspecialchars($prof['email'] ?? '-') ?></td>
                                             <td class="py-3 px-4">
                                                 <div class="flex space-x-2">
@@ -1300,6 +1511,83 @@ $professores = $stmtProfessores->fetchAll(PDO::FETCH_ASSOC);
         </div>
     </div>
     
+    <!-- Modal de Escolha: Transferir ou Alocar -->
+    <div id="modalEscolherTipoLotacao" class="fixed inset-0 bg-black bg-opacity-50 z-[70] hidden items-center justify-center p-4" style="display: none;">
+        <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full">
+            <div class="p-6">
+                <div class="flex items-center space-x-3 mb-4">
+                    <div class="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0">
+                        <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"></path>
+                        </svg>
+                    </div>
+                    <div>
+                        <h3 class="text-lg font-semibold text-gray-900">Escolher Tipo de Operação</h3>
+                        <p class="text-sm text-gray-600">Como deseja proceder?</p>
+                    </div>
+                </div>
+                <div class="mb-6">
+                    <p class="text-gray-700 mb-4">
+                        O professor <strong id="escolher_professor_nome"></strong> já está lotado em uma ou mais escolas.
+                    </p>
+                    <div class="space-y-3">
+                        <button onclick="escolherTransferir()" 
+                                class="w-full p-4 border-2 border-blue-200 hover:border-blue-500 rounded-lg text-left transition-all duration-200 hover:bg-blue-50">
+                            <div class="flex items-center space-x-3">
+                                <div class="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
+                                    <svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"></path>
+                                    </svg>
+                                </div>
+                                <div class="flex-1">
+                                    <h4 class="font-semibold text-gray-900">Transferir</h4>
+                                    <p class="text-sm text-gray-600">Encerrar lotação atual e lotar em nova escola</p>
+                                </div>
+                            </div>
+                        </button>
+                        <button onclick="escolherAlocar()" 
+                                class="w-full p-4 border-2 border-green-200 hover:border-green-500 rounded-lg text-left transition-all duration-200 hover:bg-green-50">
+                            <div class="flex items-center space-x-3">
+                                <div class="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
+                                    <svg class="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
+                                    </svg>
+                                </div>
+                                <div class="flex-1">
+                                    <h4 class="font-semibold text-gray-900">Alocar</h4>
+                                    <p class="text-sm text-gray-600">Manter lotação atual e adicionar nova escola</p>
+                                </div>
+                            </div>
+                        </button>
+                    </div>
+                </div>
+                <button onclick="fecharModalEscolherTipoLotacao(true)" 
+                        class="w-full px-4 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg font-medium transition-colors duration-200">
+                    Cancelar
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Modal de Escolas do Professor -->
+    <div id="modalEscolasProfessor" class="fixed inset-0 bg-black bg-opacity-50 z-[65] hidden items-center justify-center p-4" style="display: none;">
+        <div class="bg-white rounded-xl shadow-2xl max-w-md w-full">
+            <div class="p-6">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="text-lg font-semibold text-gray-900">Escolas do Professor</h3>
+                    <button onclick="fecharModalEscolasProfessor()" class="text-gray-400 hover:text-gray-600 transition-colors">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                        </svg>
+                    </button>
+                </div>
+                <div id="lista-escolas-professor" class="space-y-2 max-h-96 overflow-y-auto">
+                    <!-- Lista de escolas será preenchida aqui -->
+                </div>
+            </div>
+        </div>
+    </div>
+    
     <!-- Modal de Lotação de Professor -->
     <div id="modalLotarProfessor" class="fixed inset-0 bg-black bg-opacity-50 z-[60] hidden items-center justify-center" style="display: none;">
         <div class="bg-white w-full h-full flex flex-col shadow-2xl">
@@ -1320,6 +1608,7 @@ $professores = $stmtProfessores->fetchAll(PDO::FETCH_ASSOC);
                     <div id="alertaSucessoLotacao" class="hidden bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded-lg"></div>
                     
                     <input type="hidden" id="lotar_professor_id" name="professor_id">
+                    <input type="hidden" id="lotar_tipo_operacao" name="tipo_operacao" value="alocar">
                     
                     <!-- Informações do Professor -->
                     <div>
@@ -1424,6 +1713,7 @@ $professores = $stmtProfessores->fetchAll(PDO::FETCH_ASSOC);
     </div>
     
     <script>
+        // Funções globais que podem ser chamadas antes do DOM estar pronto
         window.toggleSidebar = function() {
             const sidebar = document.getElementById('sidebar');
             const overlay = document.getElementById('mobileOverlay');
@@ -1452,8 +1742,9 @@ $professores = $stmtProfessores->fetchAll(PDO::FETCH_ASSOC);
         window.logout = function() {
             window.location.href = '../auth/logout.php';
         };
-
-        function abrirModalNovoProfessor() {
+        
+        // Função global para abrir modal de novo professor
+        window.abrirModalNovoProfessor = function() {
             const modal = document.getElementById('modalNovoProfessor');
             if (modal) {
                 modal.style.display = 'flex';
@@ -1473,9 +1764,10 @@ $professores = $stmtProfessores->fetchAll(PDO::FETCH_ASSOC);
                 // Atualizar preview do username
                 atualizarPreviewUsername();
             }
-        }
+        };
         
-        function fecharModalNovoProfessor() {
+        // Função global para fechar modal de novo professor
+        window.fecharModalNovoProfessor = function() {
             const modal = document.getElementById('modalNovoProfessor');
             if (modal) {
                 modal.style.display = 'none';
@@ -1638,11 +1930,20 @@ $professores = $stmtProfessores->fetchAll(PDO::FETCH_ASSOC);
             }
         }
         
-        // Atualizar preview do username quando o nome mudar
-        document.getElementById('nome')?.addEventListener('input', atualizarPreviewUsername);
-        
-        // Submissão do formulário
-        document.getElementById('formNovoProfessor').addEventListener('submit', async function(e) {
+        // Aguardar DOM estar pronto antes de registrar eventos
+        document.addEventListener('DOMContentLoaded', function() {
+            // Atualizar preview do username quando o nome mudar
+            const nomeInput = document.getElementById('nome');
+            if (nomeInput) {
+                nomeInput.addEventListener('input', atualizarPreviewUsername);
+            }
+            
+            // Submissão do formulário
+            const formNovoProfessor = document.getElementById('formNovoProfessor');
+            if (!formNovoProfessor) {
+                console.error('Formulário formNovoProfessor não encontrado no DOM');
+            } else {
+                formNovoProfessor.addEventListener('submit', async function(e) {
             e.preventDefault();
             
             const btnSalvar = document.getElementById('btnSalvarProfessor');
@@ -1703,21 +2004,37 @@ $professores = $stmtProfessores->fetchAll(PDO::FETCH_ASSOC);
                 btnSalvar.disabled = false;
                 spinner.classList.add('hidden');
             }
-        });
-        
-        // Fechar modal ao clicar fora
-        document.getElementById('modalNovoProfessor')?.addEventListener('click', function(e) {
-            if (e.target === this) {
-                fecharModalNovoProfessor();
+                });
             }
-        });
-        
-        // Fechar modal de lotação ao clicar fora
-        document.getElementById('modalLotarProfessor')?.addEventListener('click', function(e) {
-            if (e.target === this) {
-                fecharModalLotarProfessor();
-            }
-        });
+            
+            // Fechar modal ao clicar fora
+            document.getElementById('modalNovoProfessor')?.addEventListener('click', function(e) {
+                if (e.target === this) {
+                    fecharModalNovoProfessor();
+                }
+            });
+            
+            // Fechar modal de lotação ao clicar fora
+            document.getElementById('modalLotarProfessor')?.addEventListener('click', function(e) {
+                if (e.target === this) {
+                    fecharModalLotarProfessor();
+                }
+            });
+            
+            // Fechar modal de escolha ao clicar fora
+            document.getElementById('modalEscolherTipoLotacao')?.addEventListener('click', function(e) {
+                if (e.target === this) {
+                    fecharModalEscolherTipoLotacao(true);
+                }
+            });
+            
+            // Fechar modal de escolas ao clicar fora
+            document.getElementById('modalEscolasProfessor')?.addEventListener('click', function(e) {
+                if (e.target === this) {
+                    fecharModalEscolasProfessor();
+                }
+            });
+        }); // Fechar DOMContentLoaded
 
         async function editarProfessor(id) {
             try {
@@ -1982,9 +2299,14 @@ $professores = $stmtProfessores->fetchAll(PDO::FETCH_ASSOC);
         });
 
 
+        // Variável global para armazenar o ID do professor durante a escolha
+        let professorIdEscolha = null;
+        
         // Funções de Lotação
         async function lotarProfessor(id) {
             try {
+                professorIdEscolha = id;
+                
                 // Buscar dados do professor
                 const response = await fetch('?acao=buscar_professor&id=' + id);
                 
@@ -2012,48 +2334,166 @@ $professores = $stmtProfessores->fetchAll(PDO::FETCH_ASSOC);
                 // Verificar se já está lotado
                 const jaLotado = professor.lotacao_escola_id ? true : false;
                 
-                // Atualizar título do modal
-                const tituloModal = document.querySelector('#modalLotarProfessor h2');
-                if (tituloModal) {
-                    tituloModal.textContent = jaLotado ? 'Transferir Professor de Escola' : 'Lotar Professor em Escola';
-                }
-                
-                // Atualizar texto do botão de salvar
-                const btnSalvar = document.getElementById('btnSalvarLotacao');
-                if (btnSalvar) {
-                    btnSalvar.textContent = jaLotado ? 'Transferir' : 'Lotar';
-                }
-                
-                // Preencher formulário
-                document.getElementById('lotar_professor_id').value = professor.id;
-                document.getElementById('lotar_professor_nome').value = professor.nome || '';
-                document.getElementById('lotar_escola_id').value = '';
-                document.getElementById('lotar_data_inicio').value = new Date().toISOString().split('T')[0];
-                document.getElementById('lotar_carga_horaria').value = '';
-                document.getElementById('lotar_observacao').value = '';
-                
-                // Limpar alertas
-                const alertaErroLotacao = document.getElementById('alertaErroLotacao');
-                const alertaSucessoLotacao = document.getElementById('alertaSucessoLotacao');
-                if (alertaErroLotacao) {
-                    alertaErroLotacao.classList.add('hidden');
-                }
-                if (alertaSucessoLotacao) {
-                    alertaSucessoLotacao.classList.add('hidden');
-                }
-                
-                // Carregar lotações atuais
-                await carregarLotacoesAtuais(id);
-                
-                // Abrir modal
-                const modal = document.getElementById('modalLotarProfessor');
-                if (modal) {
-                    modal.style.display = 'flex';
-                    modal.classList.remove('hidden');
+                if (jaLotado) {
+                    // Se já está lotado, mostrar modal de escolha
+                    document.getElementById('escolher_professor_nome').textContent = professor.nome || 'este professor';
+                    abrirModalEscolherTipoLotacao();
+                } else {
+                    // Se não está lotado, abrir diretamente o modal de lotação
+                    abrirModalLotacao(id, professor);
                 }
             } catch (error) {
                 console.error('Erro ao carregar professor:', error);
                 alert('Erro ao carregar dados do professor. Por favor, tente novamente.');
+            }
+        }
+        
+        function abrirModalEscolherTipoLotacao() {
+            const modal = document.getElementById('modalEscolherTipoLotacao');
+            if (modal) {
+                modal.style.display = 'flex';
+                modal.classList.remove('hidden');
+            }
+        }
+        
+        function fecharModalEscolherTipoLotacao(limparId = false) {
+            const modal = document.getElementById('modalEscolherTipoLotacao');
+            if (modal) {
+                modal.style.display = 'none';
+                modal.classList.add('hidden');
+            }
+            // Só limpar o ID se explicitamente solicitado (ex: quando cancelar)
+            if (limparId) {
+                professorIdEscolha = null;
+            }
+        }
+        
+        async function escolherTransferir() {
+            // Salvar o ID antes de fechar o modal
+            const id = professorIdEscolha;
+            
+            if (!id) {
+                alert('Erro: ID do professor não encontrado.');
+                return;
+            }
+            
+            // Fechar modal sem limpar o ID ainda
+            fecharModalEscolherTipoLotacao(false);
+            
+            // Buscar dados do professor novamente
+            try {
+                const response = await fetch('?acao=buscar_professor&id=' + id);
+                
+                // Verificar se a resposta é JSON
+                const contentType = response.headers.get('content-type') || '';
+                if (!contentType.includes('application/json')) {
+                    const text = await response.text();
+                    console.error('Resposta não é JSON:', text.substring(0, 200));
+                    throw new Error('Resposta do servidor não é JSON válido');
+                }
+                
+                const data = await response.json();
+                
+                if (data.success && data.professor) {
+                    // Definir tipo de operação como transferir
+                    document.getElementById('lotar_tipo_operacao').value = 'transferir';
+                    abrirModalLotacao(id, data.professor);
+                } else {
+                    alert('Erro ao carregar dados do professor: ' + (data.message || 'Professor não encontrado'));
+                }
+            } catch (error) {
+                console.error('Erro ao carregar professor:', error);
+                alert('Erro ao carregar dados do professor. Por favor, tente novamente.');
+            }
+        }
+        
+        async function escolherAlocar() {
+            // Salvar o ID antes de fechar o modal
+            const id = professorIdEscolha;
+            
+            if (!id) {
+                alert('Erro: ID do professor não encontrado.');
+                return;
+            }
+            
+            // Fechar modal sem limpar o ID ainda
+            fecharModalEscolherTipoLotacao(false);
+            
+            // Buscar dados do professor novamente
+            try {
+                const response = await fetch('?acao=buscar_professor&id=' + id);
+                
+                // Verificar se a resposta é JSON
+                const contentType = response.headers.get('content-type') || '';
+                if (!contentType.includes('application/json')) {
+                    const text = await response.text();
+                    console.error('Resposta não é JSON:', text.substring(0, 200));
+                    throw new Error('Resposta do servidor não é JSON válido');
+                }
+                
+                const data = await response.json();
+                
+                if (data.success && data.professor) {
+                    // Definir tipo de operação como alocar
+                    document.getElementById('lotar_tipo_operacao').value = 'alocar';
+                    abrirModalLotacao(id, data.professor);
+                } else {
+                    alert('Erro ao carregar dados do professor: ' + (data.message || 'Professor não encontrado'));
+                }
+            } catch (error) {
+                console.error('Erro ao carregar professor:', error);
+                alert('Erro ao carregar dados do professor. Por favor, tente novamente.');
+            }
+        }
+        
+        async function abrirModalLotacao(id, professor) {
+            // Atualizar título do modal baseado no tipo de operação
+            const tipoOperacao = document.getElementById('lotar_tipo_operacao').value;
+            const tituloModal = document.querySelector('#modalLotarProfessor h2');
+            if (tituloModal) {
+                if (tipoOperacao === 'transferir') {
+                    tituloModal.textContent = 'Transferir Professor de Escola';
+                } else {
+                    tituloModal.textContent = 'Alocar Professor em Escola';
+                }
+            }
+            
+            // Atualizar texto do botão de salvar
+            const btnSalvar = document.getElementById('btnSalvarLotacao');
+            if (btnSalvar) {
+                if (tipoOperacao === 'transferir') {
+                    btnSalvar.innerHTML = '<span>Transferir</span>';
+                } else {
+                    btnSalvar.innerHTML = '<span>Alocar</span>';
+                }
+            }
+            
+            // Preencher formulário
+            document.getElementById('lotar_professor_id').value = professor.id;
+            document.getElementById('lotar_professor_nome').value = professor.nome || '';
+            document.getElementById('lotar_escola_id').value = '';
+            document.getElementById('lotar_data_inicio').value = new Date().toISOString().split('T')[0];
+            document.getElementById('lotar_carga_horaria').value = '';
+            document.getElementById('lotar_observacao').value = '';
+            
+            // Limpar alertas
+            const alertaErroLotacao = document.getElementById('alertaErroLotacao');
+            const alertaSucessoLotacao = document.getElementById('alertaSucessoLotacao');
+            if (alertaErroLotacao) {
+                alertaErroLotacao.classList.add('hidden');
+            }
+            if (alertaSucessoLotacao) {
+                alertaSucessoLotacao.classList.add('hidden');
+            }
+            
+            // Carregar lotações atuais
+            await carregarLotacoesAtuais(id);
+            
+            // Abrir modal
+            const modal = document.getElementById('modalLotarProfessor');
+            if (modal) {
+                modal.style.display = 'flex';
+                modal.classList.remove('hidden');
             }
         }
         
@@ -2073,15 +2513,15 @@ $professores = $stmtProfessores->fetchAll(PDO::FETCH_ASSOC);
                     throw new Error(`HTTP error! status: ${response.status}`);
                 }
                 
-                const text = await response.text();
-                let data;
-                
-                try {
-                    data = JSON.parse(text);
-                } catch (parseError) {
-                    console.error('Resposta não é JSON válido:', text);
+                // Verificar se a resposta é JSON
+                const contentType = response.headers.get('content-type') || '';
+                if (!contentType.includes('application/json')) {
+                    const text = await response.text();
+                    console.error('Resposta não é JSON:', text.substring(0, 200));
                     throw new Error('Resposta do servidor não é JSON válido');
                 }
+                
+                const data = await response.json();
                 
                 const container = document.getElementById('lotacoes-atuais-container');
                 const lista = document.getElementById('lista-lotacoes');
@@ -2186,6 +2626,8 @@ $professores = $stmtProfessores->fetchAll(PDO::FETCH_ASSOC);
             const formData = new FormData(this);
             formData.append('acao', 'lotar_professor');
             
+            // O tipo de operação já está no formulário (transferir ou alocar)
+            
             try {
                 const response = await fetch('', {
                     method: 'POST',
@@ -2277,7 +2719,11 @@ $professores = $stmtProfessores->fetchAll(PDO::FETCH_ASSOC);
                                     <td class="py-3 px-4">${prof.nome}</td>
                                     <td class="py-3 px-4">${prof.matricula || '-'}</td>
                                     <td class="py-3 px-4">${prof.cpf || '-'}</td>
-                                    <td class="py-3 px-4">${prof.escola_nome || '-'}</td>
+                                    <td class="py-3 px-4">
+                                        ${(prof.total_escolas && parseInt(prof.total_escolas) > 1) 
+                                            ? `<button onclick="mostrarEscolasProfessor(${prof.id})" class="text-blue-600 hover:text-blue-700 font-medium text-sm underline">${prof.total_escolas} escolas</button>`
+                                            : (prof.escola_nome || '-')}
+                                    </td>
                                     <td class="py-3 px-4">${prof.email || '-'}</td>
                                     <td class="py-3 px-4">
                                         <div class="flex space-x-2">
@@ -2300,6 +2746,72 @@ $professores = $stmtProfessores->fetchAll(PDO::FETCH_ASSOC);
                 .catch(error => {
                     console.error('Erro ao filtrar professores:', error);
                 });
+        }
+        
+        async function mostrarEscolasProfessor(professorId) {
+            try {
+                const response = await fetch('?acao=buscar_escolas_professor&professor_id=' + professorId);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                // Verificar se a resposta é JSON
+                const contentType = response.headers.get('content-type') || '';
+                if (!contentType.includes('application/json')) {
+                    const text = await response.text();
+                    console.error('Resposta não é JSON:', text.substring(0, 200));
+                    throw new Error('Resposta do servidor não é JSON válido');
+                }
+                
+                const data = await response.json();
+                
+                if (data.success && data.escolas) {
+                    const lista = document.getElementById('lista-escolas-professor');
+                    lista.innerHTML = '';
+                    
+                    if (data.escolas.length === 0) {
+                        lista.innerHTML = '<p class="text-gray-500 text-center py-4">Nenhuma escola encontrada.</p>';
+                    } else {
+                        data.escolas.forEach(escola => {
+                            const div = document.createElement('div');
+                            div.className = 'p-3 bg-gray-50 rounded-lg border border-gray-200';
+                            div.innerHTML = `
+                                <div class="flex items-center justify-between">
+                                    <div class="flex-1">
+                                        <p class="font-medium text-gray-900">${escola.escola_nome || 'Escola não informada'}</p>
+                                        <div class="flex items-center space-x-4 mt-1 text-sm text-gray-600">
+                                            ${escola.inicio ? `<span>Desde: ${escola.inicio}</span>` : ''}
+                                            ${escola.carga_horaria ? `<span>${escola.carga_horaria}h/semana</span>` : ''}
+                                        </div>
+                                    </div>
+                                </div>
+                            `;
+                            lista.appendChild(div);
+                        });
+                    }
+                    
+                    // Abrir modal
+                    const modal = document.getElementById('modalEscolasProfessor');
+                    if (modal) {
+                        modal.style.display = 'flex';
+                        modal.classList.remove('hidden');
+                    }
+                } else {
+                    alert('Erro ao carregar escolas: ' + (data.message || 'Erro desconhecido'));
+                }
+            } catch (error) {
+                console.error('Erro ao buscar escolas do professor:', error);
+                alert('Erro ao carregar escolas do professor. Por favor, tente novamente.');
+            }
+        }
+        
+        function fecharModalEscolasProfessor() {
+            const modal = document.getElementById('modalEscolasProfessor');
+            if (modal) {
+                modal.style.display = 'none';
+                modal.classList.add('hidden');
+            }
         }
     </script>
     

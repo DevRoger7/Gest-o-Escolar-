@@ -1693,21 +1693,55 @@ if (!empty($_GET['acao']) && $_GET['acao'] === 'buscar_turma' && !empty($_GET['i
 
 // Buscar detalhes do professor
 if (!empty($_GET['acao']) && $_GET['acao'] === 'buscar_professor' && !empty($_GET['id'])) {
-    header('Content-Type: application/json');
+    // Limpar qualquer output anterior
+    while (ob_get_level()) {
+        ob_end_clean();
+    }
+    ob_start();
     
-    $professorId = $_GET['id'];
+    header('Content-Type: application/json; charset=utf-8');
     
-    $sql = "SELECT pr.id, p.nome, p.email, p.telefone, pr.matricula
-            FROM professor pr
-            INNER JOIN pessoa p ON pr.pessoa_id = p.id
-            WHERE pr.id = :professor_id AND pr.ativo = 1";
-    
-    $stmt = $conn->prepare($sql);
-    $stmt->bindParam(':professor_id', $professorId);
-    $stmt->execute();
-    $professor = $stmt->fetch(PDO::FETCH_ASSOC);
-    
-    if ($professor) {
+    try {
+        $professorId = (int)$_GET['id'];
+        
+        if ($professorId <= 0) {
+            throw new Exception('ID do professor inválido.');
+        }
+        
+        // Se for gestor, verificar se o professor está lotado na escola dele
+        if ($_SESSION['tipo'] === 'GESTAO' && $escolaGestorId) {
+            $sqlVerificarLotacao = "SELECT COUNT(*) as total
+                                    FROM professor_lotacao pl
+                                    WHERE pl.professor_id = :professor_id 
+                                    AND pl.escola_id = :escola_id 
+                                    AND pl.fim IS NULL";
+            $stmtVerificar = $conn->prepare($sqlVerificarLotacao);
+            $stmtVerificar->bindParam(':professor_id', $professorId, PDO::PARAM_INT);
+            $stmtVerificar->bindParam(':escola_id', $escolaGestorId, PDO::PARAM_INT);
+            $stmtVerificar->execute();
+            $lotacao = $stmtVerificar->fetch(PDO::FETCH_ASSOC);
+            
+            if (!$lotacao || $lotacao['total'] == 0) {
+                ob_clean();
+                echo json_encode([
+                    'success' => false,
+                    'message' => 'Você não tem permissão para visualizar este professor. O professor não está lotado na sua escola.'
+                ], JSON_UNESCAPED_UNICODE);
+                exit;
+            }
+        }
+        
+        $sql = "SELECT pr.id, p.nome, p.email, p.telefone, pr.matricula
+                FROM professor pr
+                INNER JOIN pessoa p ON pr.pessoa_id = p.id
+                WHERE pr.id = :professor_id AND pr.ativo = 1";
+        
+        $stmt = $conn->prepare($sql);
+        $stmt->bindParam(':professor_id', $professorId, PDO::PARAM_INT);
+        $stmt->execute();
+        $professor = $stmt->fetch(PDO::FETCH_ASSOC);
+        
+        if ($professor) {
         // Buscar atribuições do professor
         $sqlAtribuicoes = "SELECT 
                             CONCAT(t.serie, ' ', t.letra) as turma,
@@ -1730,32 +1764,40 @@ if (!empty($_GET['acao']) && $_GET['acao'] === 'buscar_professor' && !empty($_GE
         $sqlAtribuicoes .= " ORDER BY t.serie, t.letra, d.nome";
         
         $stmtAtrib = $conn->prepare($sqlAtribuicoes);
-        $stmtAtrib->bindParam(':professor_id', $professorId);
+        $stmtAtrib->bindParam(':professor_id', $professorId, PDO::PARAM_INT);
         if ($_SESSION['tipo'] === 'GESTAO' && $escolaGestorId) {
-            $stmtAtrib->bindParam(':escola_id', $escolaGestorId);
+            $stmtAtrib->bindParam(':escola_id', $escolaGestorId, PDO::PARAM_INT);
         }
         $stmtAtrib->execute();
         $atribuicoes = $stmtAtrib->fetchAll(PDO::FETCH_ASSOC);
         
-        // Se for gestor e o professor não tiver atribuições na escola dele, negar acesso
-        if ($_SESSION['tipo'] === 'GESTAO' && $escolaGestorId && empty($atribuicoes)) {
+            ob_clean();
+            echo json_encode([
+                'success' => true,
+                'professor' => $professor,
+                'atribuicoes' => $atribuicoes
+            ], JSON_UNESCAPED_UNICODE);
+        } else {
+            ob_clean();
             echo json_encode([
                 'success' => false,
-                'message' => 'Você não tem permissão para visualizar este professor.'
-            ]);
-            exit;
+                'message' => 'Professor não encontrado'
+            ], JSON_UNESCAPED_UNICODE);
         }
-        
-        echo json_encode([
-            'success' => true,
-            'professor' => $professor,
-            'atribuicoes' => $atribuicoes
-        ]);
-    } else {
+    } catch (Exception $e) {
+        ob_clean();
+        error_log("Erro ao buscar professor: " . $e->getMessage());
         echo json_encode([
             'success' => false,
-            'message' => 'Professor não encontrado'
-        ]);
+            'message' => 'Erro ao buscar professor: ' . $e->getMessage()
+        ], JSON_UNESCAPED_UNICODE);
+    } catch (PDOException $e) {
+        ob_clean();
+        error_log("Erro PDO ao buscar professor: " . $e->getMessage());
+        echo json_encode([
+            'success' => false,
+            'message' => 'Erro ao buscar professor no banco de dados.'
+        ], JSON_UNESCAPED_UNICODE);
     }
     exit;
 }
@@ -5183,11 +5225,25 @@ if (!defined('BASE_URL')) {
         }
 
         function verDetalhesProfessor(professorId) {
+            if (!professorId) {
+                alert('ID do professor não informado.');
+                return;
+            }
+            
             // Buscar detalhes do professor e suas atribuições
             fetch(`gestao_escolar.php?acao=buscar_professor&id=${professorId}`)
-                .then(response => response.json())
+                .then(async response => {
+                    // Verificar se a resposta é JSON
+                    const contentType = response.headers.get('content-type') || '';
+                    if (!contentType.includes('application/json')) {
+                        const text = await response.text();
+                        console.error('Resposta não é JSON:', text.substring(0, 200));
+                        throw new Error('Resposta do servidor não é válida.');
+                    }
+                    return response.json();
+                })
                 .then(data => {
-                    if (data.success) {
+                    if (data && data.success) {
                         const prof = data.professor;
                         const atribuicoes = data.atribuicoes || [];
                         
@@ -5248,12 +5304,13 @@ if (!defined('BASE_URL')) {
                         document.getElementById('conteudo-detalhes-professor').innerHTML = html;
                         document.getElementById('modal-detalhes-professor').classList.remove('hidden');
                     } else {
-                        alert('Erro ao carregar dados do professor.');
+                        const mensagem = data && data.message ? data.message : 'Erro ao carregar dados do professor.';
+                        alert(mensagem);
                     }
                 })
                 .catch(error => {
-                    console.error('Erro:', error);
-                    alert('Erro ao carregar dados do professor.');
+                    console.error('Erro ao buscar professor:', error);
+                    alert('Erro ao carregar dados do professor: ' + (error.message || 'Erro desconhecido'));
                 });
         }
 
