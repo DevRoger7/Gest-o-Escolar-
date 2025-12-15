@@ -358,6 +358,7 @@ $desperdiciosRecentes = $desperdicioModel->listar(['data_inicio' => date('Y-m-d'
                                 <option value="MANHA">Manhã</option>
                                 <option value="TARDE">Tarde</option>
                                 <option value="NOITE">Noite</option>
+                                <option value="INTEGRAL">Integral</option>
                             </select>
                         </div>
                         <div>

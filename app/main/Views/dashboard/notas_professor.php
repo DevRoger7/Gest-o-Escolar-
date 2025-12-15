@@ -75,10 +75,20 @@ if ($professorId) {
                   INNER JOIN turma t ON tp.turma_id = t.id
                   INNER JOIN disciplina d ON tp.disciplina_id = d.id
                   INNER JOIN escola e ON t.escola_id = e.id
-                  WHERE tp.professor_id = :professor_id AND tp.fim IS NULL AND t.ativo = 1
-                  ORDER BY t.serie, t.letra, d.nome";
+                  WHERE tp.professor_id = :professor_id AND tp.fim IS NULL AND t.ativo = 1";
+    
+    // Filtrar por escola selecionada se houver
+    $escolaIdSelecionada = $_SESSION['escola_selecionada_id'] ?? $_SESSION['escola_id'] ?? null;
+    if ($escolaIdSelecionada) {
+        $sqlTurmas .= " AND t.escola_id = :escola_id";
+    }
+    
+    $sqlTurmas .= " ORDER BY t.serie, t.letra, d.nome";
     $stmtTurmas = $conn->prepare($sqlTurmas);
     $stmtTurmas->bindParam(':professor_id', $professorId);
+    if ($escolaIdSelecionada) {
+        $stmtTurmas->bindParam(':escola_id', $escolaIdSelecionada, PDO::PARAM_INT);
+    }
     $stmtTurmas->execute();
     $turmasProfessor = $stmtTurmas->fetchAll(PDO::FETCH_ASSOC);
 }
@@ -393,6 +403,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['acao'])) {
     
     if ($_GET['acao'] === 'buscar_alunos_turma' && !empty($_GET['turma_id'])) {
         $turmaId = $_GET['turma_id'];
+        
+        // Verificar se a turma pertence à escola selecionada
+        $escolaIdSelecionada = $_SESSION['escola_selecionada_id'] ?? $_SESSION['escola_id'] ?? null;
+        if ($escolaIdSelecionada) {
+            $sqlVerificar = "SELECT t.id, t.escola_id 
+                            FROM turma t 
+                            WHERE t.id = :turma_id AND t.escola_id = :escola_id AND t.ativo = 1";
+            $stmtVerificar = $conn->prepare($sqlVerificar);
+            $stmtVerificar->bindParam(':turma_id', $turmaId, PDO::PARAM_INT);
+            $stmtVerificar->bindParam(':escola_id', $escolaIdSelecionada, PDO::PARAM_INT);
+            $stmtVerificar->execute();
+            $turmaValida = $stmtVerificar->fetch(PDO::FETCH_ASSOC);
+            
+            if (!$turmaValida) {
+                echo json_encode(['success' => false, 'message' => 'Turma não pertence à escola selecionada', 'alunos' => []]);
+                exit;
+            }
+        }
+        
         $sql = "SELECT a.id, p.nome, COALESCE(a.matricula, '') as matricula
                 FROM aluno_turma at
                 INNER JOIN aluno a ON at.aluno_id = a.id
@@ -410,15 +439,30 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['acao'])) {
     if ($_GET['acao'] === 'buscar_info_turma' && !empty($_GET['turma_id']) && !empty($_GET['disciplina_id'])) {
         $turmaId = $_GET['turma_id'];
         $disciplinaId = $_GET['disciplina_id'];
-        $sql = "SELECT CONCAT(t.serie, ' ', t.letra, ' - ', t.turno) as turma_nome, d.nome as disciplina_nome
+        
+        // Verificar se a turma pertence à escola selecionada
+        $escolaIdSelecionada = $_SESSION['escola_selecionada_id'] ?? $_SESSION['escola_id'] ?? null;
+        $sql = "SELECT CONCAT(t.serie, ' ', t.letra, ' - ', t.turno) as turma_nome, d.nome as disciplina_nome, t.escola_id
                 FROM turma t
                 INNER JOIN disciplina d ON d.id = :disciplina_id
                 WHERE t.id = :turma_id";
+        if ($escolaIdSelecionada) {
+            $sql .= " AND t.escola_id = :escola_id";
+        }
         $stmt = $conn->prepare($sql);
         $stmt->bindParam(':turma_id', $turmaId);
         $stmt->bindParam(':disciplina_id', $disciplinaId);
+        if ($escolaIdSelecionada) {
+            $stmt->bindParam(':escola_id', $escolaIdSelecionada, PDO::PARAM_INT);
+        }
         $stmt->execute();
         $info = $stmt->fetch(PDO::FETCH_ASSOC);
+        
+        if (!$info) {
+            echo json_encode(['success' => false, 'message' => 'Turma não encontrada ou não pertence à escola selecionada']);
+            exit;
+        }
+        
         echo json_encode(['success' => true, 'turma_nome' => $info['turma_nome'] ?? '', 'disciplina_nome' => $info['disciplina_nome'] ?? '']);
         exit;
     }
@@ -428,6 +472,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['acao'])) {
             $turmaId = $_GET['turma_id'];
             $disciplinaId = $_GET['disciplina_id'];
             $bimestre = $_GET['bimestre'] ?? null;
+            
+            // Verificar se a turma pertence à escola selecionada
+            $escolaIdSelecionada = $_SESSION['escola_selecionada_id'] ?? $_SESSION['escola_id'] ?? null;
+            if ($escolaIdSelecionada) {
+                $sqlVerificar = "SELECT t.id FROM turma t WHERE t.id = :turma_id AND t.escola_id = :escola_id AND t.ativo = 1";
+                $stmtVerificar = $conn->prepare($sqlVerificar);
+                $stmtVerificar->bindParam(':turma_id', $turmaId, PDO::PARAM_INT);
+                $stmtVerificar->bindParam(':escola_id', $escolaIdSelecionada, PDO::PARAM_INT);
+                $stmtVerificar->execute();
+                $turmaValida = $stmtVerificar->fetch(PDO::FETCH_ASSOC);
+                
+                if (!$turmaValida) {
+                    echo json_encode(['success' => false, 'message' => 'Turma não pertence à escola selecionada', 'notas' => []]);
+                    exit;
+                }
+            }
             
             $notas = $notaModel->buscarPorTurmaDisciplina($turmaId, $disciplinaId, $bimestre);
             echo json_encode(['success' => true, 'notas' => $notas]);
@@ -454,6 +514,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['acao'])) {
         $disciplinaId = $_GET['disciplina_id'];
         $bimestre = $_GET['bimestre'];
         $alunoIds = isset($_GET['aluno_ids']) ? json_decode($_GET['aluno_ids'], true) : [];
+        
+        // Verificar se a turma pertence à escola selecionada
+        $escolaIdSelecionada = $_SESSION['escola_selecionada_id'] ?? $_SESSION['escola_id'] ?? null;
+        if ($escolaIdSelecionada) {
+            $sqlVerificar = "SELECT t.id FROM turma t WHERE t.id = :turma_id AND t.escola_id = :escola_id AND t.ativo = 1";
+            $stmtVerificar = $conn->prepare($sqlVerificar);
+            $stmtVerificar->bindParam(':turma_id', $turmaId, PDO::PARAM_INT);
+            $stmtVerificar->bindParam(':escola_id', $escolaIdSelecionada, PDO::PARAM_INT);
+            $stmtVerificar->execute();
+            $turmaValida = $stmtVerificar->fetch(PDO::FETCH_ASSOC);
+            
+            if (!$turmaValida) {
+                echo json_encode(['success' => false, 'message' => 'Turma não pertence à escola selecionada', 'notas' => []]);
+                exit;
+            }
+        }
         
         try {
             $notasExistentes = $notaModel->buscarNotasPorBimestre($turmaId, $disciplinaId, $bimestre, $alunoIds);

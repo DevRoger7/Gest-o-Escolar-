@@ -53,8 +53,20 @@ class DashboardStats {
     /**
      * Conta o total de alunos cadastrados
      */
-    public function getTotalAlunos() {
-        $stmt = $this->conn->query("SELECT COUNT(*) as total FROM aluno WHERE ativo = 1");
+    public function getTotalAlunos($escolaId = null) {
+        if ($escolaId) {
+            $stmt = $this->conn->prepare("
+                SELECT COUNT(DISTINCT a.id) as total 
+                FROM aluno a
+                INNER JOIN aluno_turma at ON a.id = at.aluno_id AND at.fim IS NULL
+                INNER JOIN turma t ON at.turma_id = t.id
+                WHERE a.ativo = 1 AND t.escola_id = :escola_id
+            ");
+            $stmt->bindParam(':escola_id', $escolaId, PDO::PARAM_INT);
+            $stmt->execute();
+        } else {
+            $stmt = $this->conn->query("SELECT COUNT(*) as total FROM aluno WHERE ativo = 1");
+        }
         $result = $stmt->fetch(PDO::FETCH_ASSOC);
         return (int)$result['total'];
     }
@@ -80,8 +92,14 @@ class DashboardStats {
     /**
      * Conta o total de turmas ativas
      */
-    public function getTotalTurmas() {
-        $stmt = $this->conn->query("SELECT COUNT(*) as total FROM turma WHERE ativo = 1");
+    public function getTotalTurmas($escolaId = null) {
+        if ($escolaId) {
+            $stmt = $this->conn->prepare("SELECT COUNT(*) as total FROM turma WHERE ativo = 1 AND escola_id = :escola_id");
+            $stmt->bindParam(':escola_id', $escolaId, PDO::PARAM_INT);
+            $stmt->execute();
+        } else {
+            $stmt = $this->conn->query("SELECT COUNT(*) as total FROM turma WHERE ativo = 1");
+        }
         $result = $stmt->fetch(PDO::FETCH_ASSOC);
         return (int)$result['total'];
     }
@@ -245,13 +263,26 @@ class DashboardStats {
     /**
      * Calcula a frequência média dos alunos
      */
-    public function getFrequenciaMedia() {
-        $stmt = $this->conn->query("
-            SELECT 
-                COUNT(*) as total_registros,
-                SUM(CASE WHEN presenca = 1 THEN 1 ELSE 0 END) as total_presencas
-            FROM frequencia
-        ");
+    public function getFrequenciaMedia($escolaId = null) {
+        if ($escolaId) {
+            $stmt = $this->conn->prepare("
+                SELECT 
+                    COUNT(*) as total_registros,
+                    SUM(CASE WHEN f.presenca = 1 THEN 1 ELSE 0 END) as total_presencas
+                FROM frequencia f
+                INNER JOIN turma t ON f.turma_id = t.id
+                WHERE t.escola_id = :escola_id
+            ");
+            $stmt->bindParam(':escola_id', $escolaId, PDO::PARAM_INT);
+            $stmt->execute();
+        } else {
+            $stmt = $this->conn->query("
+                SELECT 
+                    COUNT(*) as total_registros,
+                    SUM(CASE WHEN presenca = 1 THEN 1 ELSE 0 END) as total_presencas
+                FROM frequencia
+            ");
+        }
         $result = $stmt->fetch(PDO::FETCH_ASSOC);
         
         if ($result['total_registros'] > 0) {
@@ -265,12 +296,23 @@ class DashboardStats {
     /**
      * Calcula a média geral das notas
      */
-    public function getMediaGeralNotas() {
-        $stmt = $this->conn->query("
-            SELECT AVG(nota) as media_geral
-            FROM nota
-            WHERE nota IS NOT NULL
-        ");
+    public function getMediaGeralNotas($escolaId = null) {
+        if ($escolaId) {
+            $stmt = $this->conn->prepare("
+                SELECT AVG(n.nota) as media_geral
+                FROM nota n
+                INNER JOIN turma t ON n.turma_id = t.id
+                WHERE n.nota IS NOT NULL AND t.escola_id = :escola_id
+            ");
+            $stmt->bindParam(':escola_id', $escolaId, PDO::PARAM_INT);
+            $stmt->execute();
+        } else {
+            $stmt = $this->conn->query("
+                SELECT AVG(nota) as media_geral
+                FROM nota
+                WHERE nota IS NOT NULL
+            ");
+        }
         $result = $stmt->fetch(PDO::FETCH_ASSOC);
         
         if ($result['media_geral']) {
@@ -445,7 +487,7 @@ class DashboardStats {
     /**
      * Busca estatísticas pessoais do usuário
      */
-    public function getEstatisticasUsuario($usuarioId, $tipoUsuario) {
+    public function getEstatisticasUsuario($usuarioId, $tipoUsuario, $params = []) {
         $estatisticas = [];
         
         try {
@@ -473,16 +515,33 @@ class DashboardStats {
                     break;
                     
                 case 'PROFESSOR':
-                    // Buscar turmas do professor
-                    $stmt = $this->conn->prepare("
-                        SELECT COUNT(DISTINCT tp.turma_id) as total
-                        FROM turma_professor tp
-                        JOIN professor pr ON tp.professor_id = pr.id
-                        JOIN pessoa p ON pr.pessoa_id = p.id
-                        JOIN usuario u ON u.pessoa_id = p.id
-                        WHERE u.id = :usuario_id AND (tp.fim IS NULL OR tp.fim >= CURDATE())
-                    ");
-                    $stmt->bindParam(':usuario_id', $usuarioId, PDO::PARAM_INT);
+                    // Buscar turmas do professor (filtradas por escola se fornecida)
+                    $escolaId = $params['escola_id'] ?? null;
+                    if ($escolaId) {
+                        $stmt = $this->conn->prepare("
+                            SELECT COUNT(DISTINCT tp.turma_id) as total
+                            FROM turma_professor tp
+                            JOIN professor pr ON tp.professor_id = pr.id
+                            JOIN pessoa p ON pr.pessoa_id = p.id
+                            JOIN usuario u ON u.pessoa_id = p.id
+                            JOIN turma t ON tp.turma_id = t.id
+                            WHERE u.id = :usuario_id 
+                            AND t.escola_id = :escola_id
+                            AND (tp.fim IS NULL OR tp.fim >= CURDATE())
+                        ");
+                        $stmt->bindParam(':usuario_id', $usuarioId, PDO::PARAM_INT);
+                        $stmt->bindParam(':escola_id', $escolaId, PDO::PARAM_INT);
+                    } else {
+                        $stmt = $this->conn->prepare("
+                            SELECT COUNT(DISTINCT tp.turma_id) as total
+                            FROM turma_professor tp
+                            JOIN professor pr ON tp.professor_id = pr.id
+                            JOIN pessoa p ON pr.pessoa_id = p.id
+                            JOIN usuario u ON u.pessoa_id = p.id
+                            WHERE u.id = :usuario_id AND (tp.fim IS NULL OR tp.fim >= CURDATE())
+                        ");
+                        $stmt->bindParam(':usuario_id', $usuarioId, PDO::PARAM_INT);
+                    }
                     $stmt->execute();
                     $result = $stmt->fetch(PDO::FETCH_ASSOC);
                     $estatisticas['turmas_atribuidas'] = (int)($result['total'] ?? 0);
@@ -498,11 +557,22 @@ class DashboardStats {
     /**
      * Busca frequências registradas hoje
      */
-    public function getFrequenciasHoje() {
+    public function getFrequenciasHoje($escolaId = null) {
         try {
             $today = date('Y-m-d');
-            $stmt = $this->conn->prepare("SELECT COUNT(*) as total FROM frequencia WHERE DATE(data) = :today");
-            $stmt->bindParam(':today', $today);
+            if ($escolaId) {
+                $stmt = $this->conn->prepare("
+                    SELECT COUNT(*) as total 
+                    FROM frequencia f
+                    INNER JOIN turma t ON f.turma_id = t.id
+                    WHERE DATE(f.data) = :today AND t.escola_id = :escola_id
+                ");
+                $stmt->bindParam(':today', $today);
+                $stmt->bindParam(':escola_id', $escolaId, PDO::PARAM_INT);
+            } else {
+                $stmt = $this->conn->prepare("SELECT COUNT(*) as total FROM frequencia WHERE DATE(data) = :today");
+                $stmt->bindParam(':today', $today);
+            }
             $stmt->execute();
             $result = $stmt->fetch(PDO::FETCH_ASSOC);
             return (int)$result['total'];
@@ -514,19 +584,37 @@ class DashboardStats {
     /**
      * Busca notas pendentes (sem lançamento)
      */
-    public function getNotasPendentes() {
+    public function getNotasPendentes($escolaId = null) {
         try {
-            // Esta é uma estimativa - pode ser ajustada conforme a lógica de negócio
-            $stmt = $this->conn->query("
-                SELECT COUNT(DISTINCT a.id) as total
-                FROM aluno a
-                LEFT JOIN nota n ON a.id = n.aluno_id
-                WHERE a.ativo = 1
-                GROUP BY a.id
-                HAVING COUNT(n.id) = 0
-            ");
-            $result = $stmt->fetchAll(PDO::FETCH_ASSOC);
-            return count($result);
+            if ($escolaId) {
+                // Alunos sem notas na escola específica
+                $stmt = $this->conn->prepare("
+                    SELECT COUNT(DISTINCT a.id) as total
+                    FROM aluno a
+                    INNER JOIN aluno_turma at ON a.id = at.aluno_id AND at.fim IS NULL
+                    INNER JOIN turma t ON at.turma_id = t.id
+                    LEFT JOIN nota n ON a.id = n.aluno_id AND n.turma_id = t.id
+                    WHERE a.ativo = 1 AND t.escola_id = :escola_id
+                    GROUP BY a.id
+                    HAVING COUNT(n.id) = 0
+                ");
+                $stmt->bindParam(':escola_id', $escolaId, PDO::PARAM_INT);
+                $stmt->execute();
+                $result = $stmt->fetchAll(PDO::FETCH_ASSOC);
+                return count($result);
+            } else {
+                // Esta é uma estimativa - pode ser ajustada conforme a lógica de negócio
+                $stmt = $this->conn->query("
+                    SELECT COUNT(DISTINCT a.id) as total
+                    FROM aluno a
+                    LEFT JOIN nota n ON a.id = n.aluno_id
+                    WHERE a.ativo = 1
+                    GROUP BY a.id
+                    HAVING COUNT(n.id) = 0
+                ");
+                $result = $stmt->fetchAll(PDO::FETCH_ASSOC);
+                return count($result);
+            }
         } catch (Exception $e) {
             return 0;
         }
@@ -544,7 +632,7 @@ class DashboardStats {
     /**
      * Calcula crescimento percentual de alunos comparado ao mês anterior
      */
-    public function getCrescimentoAlunos() {
+    public function getCrescimentoAlunos($escolaId = null) {
         try {
             $currentMonth = date('m');
             $currentYear = date('Y');
@@ -1103,6 +1191,225 @@ class DashboardStats {
             return (int)($result['total'] ?? 0);
         } catch (Exception $e) {
             return 0;
+        }
+    }
+
+    /**
+     * Busca atividades recentes de um gestor específico filtradas por escola
+     */
+    public function getAtividadesRecentesGestor($escolaId, $limit = 5) {
+        $atividades = [];
+
+        try {
+            // Últimos alunos matriculados na escola
+            $stmt = $this->conn->prepare("
+                SELECT DISTINCT a.id, p.nome, a.data_matricula, 'aluno_matriculado' as tipo
+                FROM aluno a
+                JOIN pessoa p ON a.pessoa_id = p.id
+                JOIN aluno_turma at ON a.id = at.aluno_id AND at.fim IS NULL
+                JOIN turma t ON at.turma_id = t.id
+                WHERE a.data_matricula IS NOT NULL
+                AND t.escola_id = :escola_id
+                ORDER BY a.data_matricula DESC
+                LIMIT :limit
+            ");
+            $stmt->bindParam(':escola_id', $escolaId, PDO::PARAM_INT);
+            $stmt->bindValue(':limit', (int)$limit, PDO::PARAM_INT);
+            $stmt->execute();
+            $alunos = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            
+            foreach ($alunos as $aluno) {
+                $atividades[] = [
+                    'tipo' => 'aluno_matriculado',
+                    'titulo' => 'Novo aluno matriculado',
+                    'descricao' => $aluno['nome'] ?? 'Aluno',
+                    'data' => $aluno['data_matricula'] ?? date('Y-m-d'),
+                    'icon' => 'user',
+                    'color' => 'blue'
+                ];
+            }
+
+            // Últimas notas lançadas na escola
+            $stmt = $this->conn->prepare("
+                SELECT n.id, p.nome as aluno_nome, n.lancado_em, n.nota
+                FROM nota n
+                JOIN aluno a ON n.aluno_id = a.id
+                JOIN pessoa p ON a.pessoa_id = p.id
+                JOIN turma t ON n.turma_id = t.id
+                WHERE t.escola_id = :escola_id
+                ORDER BY n.lancado_em DESC
+                LIMIT :limit
+            ");
+            $stmt->bindParam(':escola_id', $escolaId, PDO::PARAM_INT);
+            $stmt->bindValue(':limit', (int)$limit, PDO::PARAM_INT);
+            $stmt->execute();
+            $notas = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            
+            foreach ($notas as $nota) {
+                $atividades[] = [
+                    'tipo' => 'nota_lancada',
+                    'titulo' => 'Nota lançada',
+                    'descricao' => ($nota['aluno_nome'] ?? 'Aluno') . ' - Nota: ' . ($nota['nota'] ?? 'N/A'),
+                    'data' => $nota['lancado_em'] ?? date('Y-m-d H:i:s'),
+                    'icon' => 'document',
+                    'color' => 'orange'
+                ];
+            }
+
+            // Últimas frequências registradas na escola
+            $stmt = $this->conn->prepare("
+                SELECT f.id, p.nome as aluno_nome, f.data, f.registrado_em
+                FROM frequencia f
+                JOIN aluno a ON f.aluno_id = a.id
+                JOIN pessoa p ON a.pessoa_id = p.id
+                JOIN turma t ON f.turma_id = t.id
+                WHERE t.escola_id = :escola_id
+                ORDER BY f.registrado_em DESC
+                LIMIT :limit
+            ");
+            $stmt->bindParam(':escola_id', $escolaId, PDO::PARAM_INT);
+            $stmt->bindValue(':limit', (int)$limit, PDO::PARAM_INT);
+            $stmt->execute();
+            $frequencias = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            
+            foreach ($frequencias as $freq) {
+                $atividades[] = [
+                    'tipo' => 'frequencia_registrada',
+                    'titulo' => 'Frequência registrada',
+                    'descricao' => $freq['aluno_nome'] ?? 'Aluno',
+                    'data' => $freq['registrado_em'] ?? date('Y-m-d H:i:s'),
+                    'icon' => 'calendar',
+                    'color' => 'green'
+                ];
+            }
+
+            // Ordenar por data (mais recente primeiro)
+            if (!empty($atividades)) {
+                usort($atividades, function($a, $b) {
+                    $timeA = strtotime($a['data'] ?? '1970-01-01');
+                    $timeB = strtotime($b['data'] ?? '1970-01-01');
+                    return $timeB - $timeA;
+                });
+            }
+
+            return array_slice($atividades, 0, $limit);
+        } catch (Exception $e) {
+            error_log("Erro ao buscar atividades do gestor: " . $e->getMessage());
+            return [];
+        }
+    }
+
+    /**
+     * Busca atividades recentes de um professor específico filtradas por escola
+     */
+    public function getAtividadesRecentesProfessor($professorId, $escolaId, $limit = 5) {
+        $atividades = [];
+
+        try {
+            // Últimas notas lançadas pelo professor na escola selecionada
+            $stmt = $this->conn->prepare("
+                SELECT n.id, p.nome as aluno_nome, n.lancado_em, n.nota, d.nome as disciplina_nome, t.escola_id
+                FROM nota n
+                JOIN aluno a ON n.aluno_id = a.id
+                JOIN pessoa p ON a.pessoa_id = p.id
+                LEFT JOIN disciplina d ON n.disciplina_id = d.id
+                JOIN turma t ON n.turma_id = t.id
+                JOIN turma_professor tp ON t.id = tp.turma_id
+                WHERE tp.professor_id = :professor_id 
+                AND t.escola_id = :escola_id
+                AND (tp.fim IS NULL OR tp.fim >= CURDATE())
+                ORDER BY n.lancado_em DESC
+                LIMIT :limit
+            ");
+            $stmt->bindParam(':professor_id', $professorId, PDO::PARAM_INT);
+            $stmt->bindParam(':escola_id', $escolaId, PDO::PARAM_INT);
+            $stmt->bindValue(':limit', (int)$limit, PDO::PARAM_INT);
+            $stmt->execute();
+            $notas = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            
+            foreach ($notas as $nota) {
+                $atividades[] = [
+                    'tipo' => 'nota_lancada',
+                    'titulo' => 'Nota lançada',
+                    'descricao' => ($nota['aluno_nome'] ?? 'Aluno') . ' - ' . ($nota['disciplina_nome'] ?? 'Disciplina') . ' - Nota: ' . ($nota['nota'] ?? 'N/A'),
+                    'data' => $nota['lancado_em'] ?? date('Y-m-d H:i:s'),
+                    'icon' => 'document',
+                    'color' => 'orange'
+                ];
+            }
+
+            // Últimas frequências registradas pelo professor na escola selecionada
+            $stmt = $this->conn->prepare("
+                SELECT f.id, p.nome as aluno_nome, f.data, f.registrado_em, f.presenca, t.escola_id
+                FROM frequencia f
+                JOIN aluno a ON f.aluno_id = a.id
+                JOIN pessoa p ON a.pessoa_id = p.id
+                JOIN turma t ON f.turma_id = t.id
+                JOIN turma_professor tp ON t.id = tp.turma_id
+                WHERE tp.professor_id = :professor_id 
+                AND t.escola_id = :escola_id
+                AND (tp.fim IS NULL OR tp.fim >= CURDATE())
+                ORDER BY f.registrado_em DESC
+                LIMIT :limit
+            ");
+            $stmt->bindParam(':professor_id', $professorId, PDO::PARAM_INT);
+            $stmt->bindParam(':escola_id', $escolaId, PDO::PARAM_INT);
+            $stmt->bindValue(':limit', (int)$limit, PDO::PARAM_INT);
+            $stmt->execute();
+            $frequencias = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            
+            foreach ($frequencias as $freq) {
+                $status = $freq['presenca'] > 0 ? 'Presente' : 'Falta';
+                $atividades[] = [
+                    'tipo' => 'frequencia_registrada',
+                    'titulo' => 'Frequência registrada',
+                    'descricao' => ($freq['aluno_nome'] ?? 'Aluno') . ' - ' . $status,
+                    'data' => $freq['registrado_em'] ?? date('Y-m-d H:i:s'),
+                    'icon' => 'calendar',
+                    'color' => 'green'
+                ];
+            }
+
+            // Últimos planos de aula criados pelo professor na escola selecionada
+            $stmt = $this->conn->prepare("
+                SELECT pa.id, pa.titulo, pa.data_aula, pa.criado_em, t.escola_id
+                FROM plano_aula pa
+                JOIN turma t ON pa.turma_id = t.id
+                WHERE pa.professor_id = :professor_id 
+                AND t.escola_id = :escola_id
+                ORDER BY pa.criado_em DESC
+                LIMIT :limit
+            ");
+            $stmt->bindParam(':professor_id', $professorId, PDO::PARAM_INT);
+            $stmt->bindParam(':escola_id', $escolaId, PDO::PARAM_INT);
+            $stmt->bindValue(':limit', (int)$limit, PDO::PARAM_INT);
+            $stmt->execute();
+            $planos = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            
+            foreach ($planos as $plano) {
+                $atividades[] = [
+                    'tipo' => 'plano_aula',
+                    'titulo' => 'Plano de aula criado',
+                    'descricao' => ($plano['titulo'] ?? 'Plano de aula') . ' - ' . date('d/m/Y', strtotime($plano['data_aula'] ?? $plano['criado_em'])),
+                    'data' => $plano['criado_em'] ?? date('Y-m-d H:i:s'),
+                    'icon' => 'document-text',
+                    'color' => 'blue'
+                ];
+            }
+
+            // Ordenar por data (mais recente primeiro)
+            if (!empty($atividades)) {
+                usort($atividades, function($a, $b) {
+                    $timeA = strtotime($a['data'] ?? '1970-01-01');
+                    $timeB = strtotime($b['data'] ?? '1970-01-01');
+                    return $timeB - $timeA;
+                });
+            }
+
+            return array_slice($atividades, 0, $limit);
+        } catch (Exception $e) {
+            error_log("Erro ao buscar atividades do professor: " . $e->getMessage());
+            return [];
         }
     }
 

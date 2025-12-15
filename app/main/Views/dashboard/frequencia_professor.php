@@ -82,10 +82,20 @@ if ($professorId) {
                   INNER JOIN turma t ON tp.turma_id = t.id
                   INNER JOIN disciplina d ON tp.disciplina_id = d.id
                   INNER JOIN escola e ON t.escola_id = e.id
-                  WHERE tp.professor_id = :professor_id AND tp.fim IS NULL AND t.ativo = 1
-                  ORDER BY t.serie, t.letra, d.nome";
+                  WHERE tp.professor_id = :professor_id AND tp.fim IS NULL AND t.ativo = 1";
+    
+    // Filtrar por escola selecionada se houver
+    $escolaIdSelecionada = $_SESSION['escola_selecionada_id'] ?? $_SESSION['escola_id'] ?? null;
+    if ($escolaIdSelecionada) {
+        $sqlTurmas .= " AND t.escola_id = :escola_id";
+    }
+    
+    $sqlTurmas .= " ORDER BY t.serie, t.letra, d.nome";
     $stmtTurmas = $conn->prepare($sqlTurmas);
     $stmtTurmas->bindParam(':professor_id', $professorId);
+    if ($escolaIdSelecionada) {
+        $stmtTurmas->bindParam(':escola_id', $escolaIdSelecionada, PDO::PARAM_INT);
+    }
     $stmtTurmas->execute();
     $turmasProfessor = $stmtTurmas->fetchAll(PDO::FETCH_ASSOC);
 }

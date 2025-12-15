@@ -27,7 +27,8 @@ class sessions {
         $tipoUsuario = $_SESSION['tipo'] ?? '';
         
         // Tipos que podem ter escola associada
-        $tiposComEscola = ['GESTAO', 'PROFESSOR', 'NUTRICIONISTA'];
+        // NUTRICIONISTA não precisa verificar porque trabalha para todas as escolas
+        $tiposComEscola = ['GESTAO', 'PROFESSOR'];
         
         if (!in_array(strtoupper($tipoUsuario), $tiposComEscola)) {
             return; // Não precisa verificar para outros tipos
@@ -78,25 +79,37 @@ class sessions {
                 
                 // Se não tem escola ativa, verificar se está no backup
                 if (!$escolaExiste) {
-                    $sqlPessoa = "SELECT g.pessoa_id FROM gestor g 
+                    // Buscar gestor_id do gestor
+                    $sqlGestor = "SELECT g.id as gestor_id FROM gestor g 
                                  INNER JOIN usuario u ON g.pessoa_id = u.pessoa_id 
                                  WHERE u.id = :usuario_id LIMIT 1";
-                    $stmtPessoa = $conn->prepare($sqlPessoa);
-                    $stmtPessoa->bindParam(':usuario_id', $usuarioId, PDO::PARAM_INT);
-                    $stmtPessoa->execute();
-                    $pessoaData = $stmtPessoa->fetch(PDO::FETCH_ASSOC);
+                    $stmtGestor = $conn->prepare($sqlGestor);
+                    $stmtGestor->bindParam(':usuario_id', $usuarioId, PDO::PARAM_INT);
+                    $stmtGestor->execute();
+                    $gestorData = $stmtGestor->fetch(PDO::FETCH_ASSOC);
                     
-                    if ($pessoaData && isset($pessoaData['pessoa_id'])) {
-                        // Verificar backup de forma simplificada
-                        $sqlBackup = "SELECT COUNT(*) as total FROM escola_backup eb
+                    if ($gestorData && isset($gestorData['gestor_id'])) {
+                        $gestorId = (int)$gestorData['gestor_id'];
+                        
+                        // Buscar todos os backups não revertidos e verificar se contém este gestor
+                        $sqlBackup = "SELECT dados_lotacoes FROM escola_backup eb
                                      WHERE eb.revertido = 0 
-                                     AND eb.excluido_permanentemente = 0
-                                     AND eb.dados_lotacoes LIKE CONCAT('%', :pessoa_id, '%')";
+                                     AND eb.excluido_permanentemente = 0";
                         $stmtBackup = $conn->prepare($sqlBackup);
-                        $stmtBackup->bindParam(':pessoa_id', $pessoaData['pessoa_id'], PDO::PARAM_INT);
                         $stmtBackup->execute();
-                        $resultBackup = $stmtBackup->fetch(PDO::FETCH_ASSOC);
-                        $estaNoBackup = ($resultBackup && $resultBackup['total'] > 0);
+                        $backups = $stmtBackup->fetchAll(PDO::FETCH_ASSOC);
+                        
+                        foreach ($backups as $backup) {
+                            $lotacoes = json_decode($backup['dados_lotacoes'], true);
+                            if ($lotacoes && isset($lotacoes['gestores']) && is_array($lotacoes['gestores'])) {
+                                foreach ($lotacoes['gestores'] as $lotacao) {
+                                    if (isset($lotacao['gestor_id']) && (int)$lotacao['gestor_id'] === $gestorId) {
+                                        $estaNoBackup = true;
+                                        break 2;
+                                    }
+                                }
+                            }
+                        }
                     }
                 }
                 
@@ -127,75 +140,42 @@ class sessions {
                 
                 // Verificar backup
                 if (!$escolaExiste) {
-                    $sqlPessoa = "SELECT p.pessoa_id FROM professor p 
+                    // Buscar professor_id do professor
+                    $sqlProfessor = "SELECT p.id as professor_id FROM professor p 
                                  INNER JOIN usuario u ON p.pessoa_id = u.pessoa_id 
                                  WHERE u.id = :usuario_id LIMIT 1";
-                    $stmtPessoa = $conn->prepare($sqlPessoa);
-                    $stmtPessoa->bindParam(':usuario_id', $usuarioId, PDO::PARAM_INT);
-                    $stmtPessoa->execute();
-                    $pessoaData = $stmtPessoa->fetch(PDO::FETCH_ASSOC);
+                    $stmtProfessor = $conn->prepare($sqlProfessor);
+                    $stmtProfessor->bindParam(':usuario_id', $usuarioId, PDO::PARAM_INT);
+                    $stmtProfessor->execute();
+                    $professorData = $stmtProfessor->fetch(PDO::FETCH_ASSOC);
                     
-                    if ($pessoaData && isset($pessoaData['pessoa_id'])) {
-                        $sqlBackup = "SELECT COUNT(*) as total FROM escola_backup eb
+                    if ($professorData && isset($professorData['professor_id'])) {
+                        $professorId = (int)$professorData['professor_id'];
+                        
+                        // Buscar todos os backups não revertidos e verificar se contém este professor
+                        $sqlBackup = "SELECT dados_lotacoes FROM escola_backup eb
                                      WHERE eb.revertido = 0 
-                                     AND eb.excluido_permanentemente = 0
-                                     AND eb.dados_lotacoes LIKE CONCAT('%', :pessoa_id, '%')";
+                                     AND eb.excluido_permanentemente = 0";
                         $stmtBackup = $conn->prepare($sqlBackup);
-                        $stmtBackup->bindParam(':pessoa_id', $pessoaData['pessoa_id'], PDO::PARAM_INT);
                         $stmtBackup->execute();
-                        $resultBackup = $stmtBackup->fetch(PDO::FETCH_ASSOC);
-                        $estaNoBackup = ($resultBackup && $resultBackup['total'] > 0);
+                        $backups = $stmtBackup->fetchAll(PDO::FETCH_ASSOC);
+                        
+                        foreach ($backups as $backup) {
+                            $lotacoes = json_decode($backup['dados_lotacoes'], true);
+                            if ($lotacoes && isset($lotacoes['professores']) && is_array($lotacoes['professores'])) {
+                                foreach ($lotacoes['professores'] as $lotacao) {
+                                    if (isset($lotacao['professor_id']) && (int)$lotacao['professor_id'] === $professorId) {
+                                        $estaNoBackup = true;
+                                        break 2;
+                                    }
+                                }
+                            }
+                        }
                     }
                 }
                 
-            } elseif (strtoupper($tipoUsuario) === 'NUTRICIONISTA') {
-                $sql = "SELECT COUNT(*) as total 
-                        FROM nutricionista_lotacao nl 
-                        INNER JOIN escola e ON nl.escola_id = e.id 
-                        INNER JOIN nutricionista n ON nl.nutricionista_id = n.id 
-                        INNER JOIN usuario u ON n.pessoa_id = u.pessoa_id 
-                        WHERE u.id = :usuario_id 
-                        AND e.ativo = 1 
-                        AND (nl.fim IS NULL OR nl.fim = '' OR nl.fim = '0000-00-00')";
-                $stmt = $conn->prepare($sql);
-                $stmt->bindParam(':usuario_id', $usuarioId, PDO::PARAM_INT);
-                $stmt->execute();
-                $result = $stmt->fetch(PDO::FETCH_ASSOC);
-                $escolaExiste = ($result && $result['total'] > 0);
-                
-                $sqlCheckLotacao = "SELECT COUNT(*) as total FROM nutricionista_lotacao nl 
-                                   INNER JOIN nutricionista n ON nl.nutricionista_id = n.id 
-                                   INNER JOIN usuario u ON n.pessoa_id = u.pessoa_id 
-                                   WHERE u.id = :usuario_id";
-                $stmtCheck = $conn->prepare($sqlCheckLotacao);
-                $stmtCheck->bindParam(':usuario_id', $usuarioId, PDO::PARAM_INT);
-                $stmtCheck->execute();
-                $resultCheckLotacao = $stmtCheck->fetch(PDO::FETCH_ASSOC);
-                $tinhaLotacao = ($resultCheckLotacao && $resultCheckLotacao['total'] > 0);
-                
-                // Verificar backup
-                if (!$escolaExiste) {
-                    $sqlPessoa = "SELECT n.pessoa_id FROM nutricionista n 
-                                 INNER JOIN usuario u ON n.pessoa_id = u.pessoa_id 
-                                 WHERE u.id = :usuario_id LIMIT 1";
-                    $stmtPessoa = $conn->prepare($sqlPessoa);
-                    $stmtPessoa->bindParam(':usuario_id', $usuarioId, PDO::PARAM_INT);
-                    $stmtPessoa->execute();
-                    $pessoaData = $stmtPessoa->fetch(PDO::FETCH_ASSOC);
-                    
-                    if ($pessoaData && isset($pessoaData['pessoa_id'])) {
-                        $sqlBackup = "SELECT COUNT(*) as total FROM escola_backup eb
-                                     WHERE eb.revertido = 0 
-                                     AND eb.excluido_permanentemente = 0
-                                     AND eb.dados_lotacoes LIKE CONCAT('%', :pessoa_id, '%')";
-                        $stmtBackup = $conn->prepare($sqlBackup);
-                        $stmtBackup->bindParam(':pessoa_id', $pessoaData['pessoa_id'], PDO::PARAM_INT);
-                        $stmtBackup->execute();
-                        $resultBackup = $stmtBackup->fetch(PDO::FETCH_ASSOC);
-                        $estaNoBackup = ($resultBackup && $resultBackup['total'] > 0);
-                    }
-                }
             }
+            // NUTRICIONISTA não precisa verificar escola - trabalha para todas as escolas
             
             // Se não tem escola ativa E (já teve lotação OU está no backup), redirecionar para página de sem acesso
             if (!$escolaExiste && ($tinhaLotacao || $estaNoBackup)) {

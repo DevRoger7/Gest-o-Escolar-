@@ -24,7 +24,7 @@ $stmtEscolas->execute();
 $escolas = $stmtEscolas->fetchAll(PDO::FETCH_ASSOC);
 
 // Buscar séries
-$sqlSeries = "SELECT id, nome FROM serie WHERE ativo = 1 ORDER BY ordem ASC";
+$sqlSeries = "SELECT id, nome, nivel_ensino FROM serie WHERE ativo = 1 ORDER BY nivel_ensino ASC, ordem ASC";
 $stmtSeries = $conn->prepare($sqlSeries);
 $stmtSeries->execute();
 $series = $stmtSeries->fetchAll(PDO::FETCH_ASSOC);
@@ -320,7 +320,15 @@ $turmas = $turmaModel->listar(['ano_letivo' => date('Y'), 'ativo' => 1]);
                             <select id="editar-turma-serie" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 outline-none transition-colors">
                                 <option value="">Selecione a série...</option>
                                 <?php foreach ($series as $serie): ?>
-                                    <option value="<?= $serie['id'] ?>"><?= htmlspecialchars($serie['nome']) ?></option>
+                                    <?php 
+                                    $nivelTexto = '';
+                                    if ($serie['nivel_ensino'] === 'ENSINO_FUNDAMENTAL') {
+                                        $nivelTexto = ' - Ensino Fundamental';
+                                    } elseif ($serie['nivel_ensino'] === 'ENSINO_MEDIO') {
+                                        $nivelTexto = ' - Ensino Médio';
+                                    }
+                                    ?>
+                                    <option value="<?= $serie['id'] ?>"><?= htmlspecialchars($serie['nome'] . $nivelTexto) ?></option>
                                 <?php endforeach; ?>
                             </select>
                         </div>
@@ -340,7 +348,7 @@ $turmas = $turmaModel->listar(['ano_letivo' => date('Y'), 'ativo' => 1]);
                             <label class="block text-sm font-medium text-gray-700 mb-2">Turno <span class="text-red-500">*</span></label>
                             <select id="editar-turma-turno" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 outline-none transition-colors">
                                 <option value="">Selecione o turno...</option>
-                                <option value="MANHÃ">Manhã</option>
+                                <option value="MANHA">Manhã</option>
                                 <option value="TARDE">Tarde</option>
                                 <option value="NOITE">Noite</option>
                                 <option value="INTEGRAL">Integral</option>

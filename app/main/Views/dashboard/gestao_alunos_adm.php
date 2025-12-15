@@ -40,16 +40,16 @@ try {
 }
 
 try {
-    $db = Database::getInstance();
-    $conn = $db->getConnection();
-    $alunoModel = new AlunoModel();
-    $responsavelModel = new ResponsavelModel();
+$db = Database::getInstance();
+$conn = $db->getConnection();
+$alunoModel = new AlunoModel();
+$responsavelModel = new ResponsavelModel();
 
-    // Buscar escolas
-    $sqlEscolas = "SELECT id, nome FROM escola WHERE ativo = 1 ORDER BY nome ASC";
-    $stmtEscolas = $conn->prepare($sqlEscolas);
-    $stmtEscolas->execute();
-    $escolas = $stmtEscolas->fetchAll(PDO::FETCH_ASSOC);
+// Buscar escolas
+$sqlEscolas = "SELECT id, nome FROM escola WHERE ativo = 1 ORDER BY nome ASC";
+$stmtEscolas = $conn->prepare($sqlEscolas);
+$stmtEscolas->execute();
+$escolas = $stmtEscolas->fetchAll(PDO::FETCH_ASSOC);
 } catch (Exception $e) {
     error_log("Erro ao inicializar gestao_alunos_adm.php: " . $e->getMessage());
     error_log("Stack trace: " . $e->getTraceAsString());
@@ -65,7 +65,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao'])) {
     }
     // Verificar se headers já foram enviados
     if (!headers_sent()) {
-        header('Content-Type: application/json');
+    header('Content-Type: application/json');
     }
     
             if ($_POST['acao'] === 'cadastrar_aluno') {
@@ -436,7 +436,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['acao'])) {
     }
     // Verificar se headers já foram enviados
     if (!headers_sent()) {
-        header('Content-Type: application/json');
+    header('Content-Type: application/json');
     }
     
     if ($_GET['acao'] === 'buscar_aluno') {
@@ -472,15 +472,30 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['acao'])) {
         if (!empty($_GET['escola_id'])) $filtros['escola_id'] = $_GET['escola_id'];
         if (!empty($_GET['busca'])) $filtros['busca'] = $_GET['busca'];
         
-        $sql = "SELECT a.*, p.nome, p.cpf, p.email, p.telefone, p.data_nascimento, e.nome as escola_nome
+        // Buscar escola: primeiro do campo escola_id do aluno, depois da turma (se não tiver escola_id)
+        $sql = "SELECT a.*, p.nome, p.cpf, p.email, p.telefone, p.data_nascimento,
+                       COALESCE(e_direta.nome, e_turma.nome) as escola_nome,
+                       COALESCE(e_direta.id, e_turma.id) as escola_id,
+                       CASE WHEN at.turma_id IS NOT NULL OR a.situacao IN ('MATRICULADO', 'TRANSFERIDO') THEN 'Sim' ELSE 'Não' END as matriculado_turma
                 FROM aluno a
                 INNER JOIN pessoa p ON a.pessoa_id = p.id
-                LEFT JOIN escola e ON a.escola_id = e.id
+                LEFT JOIN escola e_direta ON a.escola_id = e_direta.id
+                LEFT JOIN (
+                    SELECT at1.aluno_id, at1.turma_id, at1.status, at1.fim
+                    FROM aluno_turma at1
+                    INNER JOIN (
+                        SELECT aluno_id, MAX(inicio) as max_inicio
+                        FROM aluno_turma
+                        GROUP BY aluno_id
+                    ) at_max ON at1.aluno_id = at_max.aluno_id AND at1.inicio = at_max.max_inicio
+                ) at ON a.id = at.aluno_id
+                LEFT JOIN turma t ON at.turma_id = t.id
+                LEFT JOIN escola e_turma ON t.escola_id = e_turma.id
                 WHERE a.ativo = 1";
         
         $params = [];
         if (!empty($filtros['escola_id'])) {
-            $sql .= " AND a.escola_id = :escola_id";
+            $sql .= " AND (COALESCE(e_direta.id, e_turma.id) = :escola_id)";
             $params[':escola_id'] = $filtros['escola_id'];
         }
         if (!empty($filtros['busca'])) {
@@ -504,16 +519,31 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['acao'])) {
 
 // Buscar alunos iniciais (apenas ativos)
 try {
-    $sqlAlunos = "SELECT a.*, p.nome, p.cpf, p.email, p.telefone, p.data_nascimento, e.nome as escola_nome
-                  FROM aluno a
-                  INNER JOIN pessoa p ON a.pessoa_id = p.id
-                  LEFT JOIN escola e ON a.escola_id = e.id
-                  WHERE a.ativo = 1
-                  ORDER BY p.nome ASC
-                  LIMIT 50";
-    $stmtAlunos = $conn->prepare($sqlAlunos);
-    $stmtAlunos->execute();
-    $alunos = $stmtAlunos->fetchAll(PDO::FETCH_ASSOC);
+// Buscar escola: primeiro do campo escola_id do aluno, depois da turma (se não tiver escola_id)
+$sqlAlunos = "SELECT a.*, p.nome, p.cpf, p.email, p.telefone, p.data_nascimento,
+                     COALESCE(e_direta.nome, e_turma.nome) as escola_nome,
+                     COALESCE(e_direta.id, e_turma.id) as escola_id,
+                     CASE WHEN at.turma_id IS NOT NULL OR a.situacao IN ('MATRICULADO', 'TRANSFERIDO') THEN 'Sim' ELSE 'Não' END as matriculado_turma
+              FROM aluno a
+              INNER JOIN pessoa p ON a.pessoa_id = p.id
+              LEFT JOIN escola e_direta ON a.escola_id = e_direta.id
+              LEFT JOIN (
+                  SELECT at1.aluno_id, at1.turma_id, at1.status, at1.fim
+                  FROM aluno_turma at1
+                  INNER JOIN (
+                      SELECT aluno_id, MAX(inicio) as max_inicio
+                      FROM aluno_turma
+                      GROUP BY aluno_id
+                  ) at_max ON at1.aluno_id = at_max.aluno_id AND at1.inicio = at_max.max_inicio
+              ) at ON a.id = at.aluno_id
+              LEFT JOIN turma t ON at.turma_id = t.id
+              LEFT JOIN escola e_turma ON t.escola_id = e_turma.id
+              WHERE a.ativo = 1
+              ORDER BY p.nome ASC
+              LIMIT 50";
+$stmtAlunos = $conn->prepare($sqlAlunos);
+$stmtAlunos->execute();
+$alunos = $stmtAlunos->fetchAll(PDO::FETCH_ASSOC);
 } catch (Exception $e) {
     error_log("Erro ao buscar alunos iniciais: " . $e->getMessage());
     $alunos = [];
@@ -846,7 +876,7 @@ if (ob_get_level()) {
             <!-- Header do Modal -->
             <div class="flex justify-between items-center p-6 border-b border-gray-200 bg-white sticky top-0 z-10">
                 <div>
-                    <h2 class="text-2xl font-bold text-gray-900">Cadastrar Novo Aluno</h2>
+                <h2 class="text-2xl font-bold text-gray-900">Cadastrar Novo Aluno</h2>
                     <!-- Indicador de Etapas -->
                     <div class="flex items-center space-x-4 mt-4">
                         <div class="flex items-center">
@@ -967,16 +997,16 @@ if (ob_get_level()) {
                         </div>
                     </div>
                 </div>
-                </div>
-                
+            </div>
+            
                 <!-- ETAPA 2: Dados do Responsável (Opcional) -->
                 <div id="etapa-responsavel" class="etapa-conteudo hidden">
                     <div class="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
                         <p class="text-sm text-blue-800">
                             <strong>Opcional:</strong> Você pode cadastrar um responsável para este aluno agora. Se preferir, pode fazer isso depois.
                         </p>
-                    </div>
-                    
+    </div>
+    
                     <!-- Dados Pessoais do Responsável -->
                     <div>
                         <h3 class="text-lg font-semibold text-gray-800 mb-4 pb-2 border-b border-gray-200">Dados Pessoais do Responsável</h3>
@@ -1071,10 +1101,10 @@ if (ob_get_level()) {
                             class="hidden px-6 py-3 text-white bg-blue-600 hover:bg-blue-700 rounded-lg font-medium transition-colors duration-200 flex items-center space-x-2">
                         <span>Salvar Aluno</span>
                         <svg id="spinnerSalvar" class="hidden animate-spin h-5 w-5 text-white" fill="none" viewBox="0 0 24 24">
-                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                        </svg>
-                    </button>
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                </button>
                 </div>
             </div>
         </div>

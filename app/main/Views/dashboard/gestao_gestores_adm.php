@@ -1012,36 +1012,44 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao'])) {
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['acao'])) {
-    header('Content-Type: application/json');
+    // Limpar qualquer output anterior
+    if (ob_get_level()) { 
+        ob_clean(); 
+    }
+    // Verificar se headers já foram enviados
+    if (!headers_sent()) {
+        header('Content-Type: application/json');
+    }
     
     if ($_GET['acao'] === 'buscar_gestor') {
-        $gestorId = $_GET['id'] ?? null;
-        if (empty($gestorId)) {
-            echo json_encode(['success' => false, 'message' => 'ID do gestor não informado']);
-            exit;
-        }
-        
-        // Garantir que o ID seja um inteiro
-        $gestorId = (int)$gestorId;
-        if ($gestorId <= 0) {
-            echo json_encode(['success' => false, 'message' => 'ID do gestor inválido']);
-            exit;
-        }
-        
-        // Buscar gestor básico primeiro (sem restrição de ativo para permitir visualização)
-        // IMPORTANTE: g.id AS id garante que o id seja sempre do gestor, não da pessoa
-        $sql = "SELECT g.id, g.pessoa_id, g.cargo, g.formacao, g.especializacao, g.registro_profissional, 
-                       g.observacoes, g.ativo, g.criado_por, g.criado_em,
-                       p.id AS pessoa_id_explicit, p.cpf, p.nome, p.data_nascimento, p.sexo, p.email, 
-                       p.telefone, p.nome_social, p.endereco, p.numero, p.complemento, 
-                       p.bairro, p.cidade, p.estado, p.cep
-                FROM gestor g
-                INNER JOIN pessoa p ON g.pessoa_id = p.id
-                WHERE g.id = :id";
-        $stmt = $conn->prepare($sql);
-        $stmt->bindParam(':id', $gestorId, PDO::PARAM_INT);
-        $stmt->execute();
-        $gestor = $stmt->fetch(PDO::FETCH_ASSOC);
+        try {
+            $gestorId = $_GET['id'] ?? null;
+            if (empty($gestorId)) {
+                echo json_encode(['success' => false, 'message' => 'ID do gestor não informado'], JSON_UNESCAPED_UNICODE);
+                exit;
+            }
+            
+            // Garantir que o ID seja um inteiro
+            $gestorId = (int)$gestorId;
+            if ($gestorId <= 0) {
+                echo json_encode(['success' => false, 'message' => 'ID do gestor inválido'], JSON_UNESCAPED_UNICODE);
+                exit;
+            }
+            
+            // Buscar gestor básico primeiro (sem restrição de ativo para permitir visualização)
+            // IMPORTANTE: g.id AS id garante que o id seja sempre do gestor, não da pessoa
+            $sql = "SELECT g.id, g.pessoa_id, g.cargo, g.formacao, g.registro_profissional, 
+                           g.observacoes, g.ativo, g.criado_por, g.criado_em,
+                           p.id AS pessoa_id_explicit, p.cpf, p.nome, p.data_nascimento, p.sexo, p.email, 
+                           p.telefone, p.nome_social, p.endereco, p.numero, p.complemento, 
+                           p.bairro, p.cidade, p.estado, p.cep
+                    FROM gestor g
+                    INNER JOIN pessoa p ON g.pessoa_id = p.id
+                    WHERE g.id = :id";
+            $stmt = $conn->prepare($sql);
+            $stmt->bindParam(':id', $gestorId, PDO::PARAM_INT);
+            $stmt->execute();
+            $gestor = $stmt->fetch(PDO::FETCH_ASSOC);
         
         // Garantir que pessoa_id está definido corretamente
         if ($gestor && isset($gestor['pessoa_id_explicit'])) {
@@ -1086,7 +1094,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['acao'])) {
                     error_log("DEBUG BUSCAR GESTOR - ID é de uma pessoa! Buscando gestor pela pessoa_id...");
                     // Buscar gestor pela pessoa_id
                     // IMPORTANTE: g.id AS id garante que o id seja sempre do gestor
-                    $sqlGestorPorPessoa = "SELECT g.id, g.pessoa_id, g.cargo, g.formacao, g.especializacao, g.registro_profissional, 
+                    $sqlGestorPorPessoa = "SELECT g.id, g.pessoa_id, g.cargo, g.formacao, g.registro_profissional, 
                                                  g.observacoes, g.ativo, g.criado_por, g.criado_em,
                                                  p.id AS pessoa_id_explicit, p.cpf, p.nome, p.data_nascimento, p.sexo, p.email, 
                                                  p.telefone, p.nome_social, p.endereco, p.numero, p.complemento, 
@@ -1168,11 +1176,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['acao'])) {
                 $gestor['username'] = $usuario['username'];
             }
             
-            echo json_encode(['success' => true, 'gestor' => $gestor]);
+            echo json_encode(['success' => true, 'gestor' => $gestor], JSON_UNESCAPED_UNICODE);
         } else {
-            echo json_encode(['success' => false, 'message' => 'Gestor não encontrado']);
+            echo json_encode(['success' => false, 'message' => 'Gestor não encontrado'], JSON_UNESCAPED_UNICODE);
         }
-        exit;
+        } catch (Exception $e) {
+            error_log("Erro ao buscar gestor: " . $e->getMessage());
+            error_log("Stack trace: " . $e->getTraceAsString());
+            echo json_encode(['success' => false, 'message' => 'Erro ao buscar gestor: ' . $e->getMessage()], JSON_UNESCAPED_UNICODE);
+        } catch (Error $e) {
+            error_log("Erro fatal ao buscar gestor: " . $e->getMessage());
+            error_log("Stack trace: " . $e->getTraceAsString());
+            echo json_encode(['success' => false, 'message' => 'Erro fatal ao buscar gestor: ' . $e->getMessage()], JSON_UNESCAPED_UNICODE);
+        }
         exit;
     }
     
@@ -1180,11 +1196,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['acao'])) {
         $filtros = [];
         if (!empty($_GET['busca'])) $filtros['busca'] = $_GET['busca'];
         
-        $sql = "SELECT g.*, p.nome, p.cpf, p.email, p.telefone, e.nome as escola_nome
+        $sql = "SELECT g.*, p.nome, p.cpf, p.email, p.telefone
                 FROM gestor g
                 INNER JOIN pessoa p ON g.pessoa_id = p.id
-                LEFT JOIN gestor_lotacao gl ON g.id = gl.gestor_id AND (gl.fim IS NULL OR gl.fim = '' OR gl.fim = '0000-00-00')
-                LEFT JOIN escola e ON gl.escola_id = e.id
                 WHERE g.ativo = 1";
         
         $params = [];
@@ -1193,7 +1207,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['acao'])) {
             $params[':busca'] = "%{$filtros['busca']}%";
         }
         
-        $sql .= " GROUP BY g.id ORDER BY p.nome ASC LIMIT 100";
+        $sql .= " ORDER BY p.nome ASC LIMIT 100";
         
         $stmt = $conn->prepare($sql);
         foreach ($params as $key => $value) {
@@ -1202,23 +1216,52 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['acao'])) {
         $stmt->execute();
         $gestores = $stmt->fetchAll(PDO::FETCH_ASSOC);
         
-        echo json_encode(['success' => true, 'gestores' => $gestores]);
+        // Buscar todas as escolas de cada gestor
+        foreach ($gestores as &$gestor) {
+            $sqlEscolas = "SELECT e.id, e.nome, gl.responsavel, gl.tipo
+                          FROM gestor_lotacao gl
+                          INNER JOIN escola e ON gl.escola_id = e.id
+                          WHERE gl.gestor_id = :gestor_id 
+                          AND (gl.fim IS NULL OR gl.fim = '' OR gl.fim = '0000-00-00')
+                          AND e.ativo = 1
+                          ORDER BY gl.responsavel DESC, gl.inicio DESC";
+            $stmtEscolas = $conn->prepare($sqlEscolas);
+            $stmtEscolas->bindParam(':gestor_id', $gestor['id'], PDO::PARAM_INT);
+            $stmtEscolas->execute();
+            $gestor['escolas'] = $stmtEscolas->fetchAll(PDO::FETCH_ASSOC);
+        }
+        unset($gestor);
+        
+        echo json_encode(['success' => true, 'gestores' => $gestores], JSON_UNESCAPED_UNICODE);
         exit;
     }
 }
 
-$sqlGestores = "SELECT g.*, p.nome, p.cpf, p.email, p.telefone, e.nome as escola_nome
+$sqlGestores = "SELECT g.*, p.nome, p.cpf, p.email, p.telefone
                 FROM gestor g
                 INNER JOIN pessoa p ON g.pessoa_id = p.id
-                LEFT JOIN gestor_lotacao gl ON g.id = gl.gestor_id AND (gl.fim IS NULL OR gl.fim = '' OR gl.fim = '0000-00-00')
-                LEFT JOIN escola e ON gl.escola_id = e.id
                 WHERE g.ativo = 1
-                GROUP BY g.id
                 ORDER BY p.nome ASC
                 LIMIT 50";
 $stmtGestores = $conn->prepare($sqlGestores);
 $stmtGestores->execute();
 $gestores = $stmtGestores->fetchAll(PDO::FETCH_ASSOC);
+
+// Buscar todas as escolas de cada gestor
+foreach ($gestores as &$gestor) {
+    $sqlEscolas = "SELECT e.id, e.nome, gl.responsavel, gl.tipo
+                  FROM gestor_lotacao gl
+                  INNER JOIN escola e ON gl.escola_id = e.id
+                  WHERE gl.gestor_id = :gestor_id 
+                  AND (gl.fim IS NULL OR gl.fim = '' OR gl.fim = '0000-00-00')
+                  AND e.ativo = 1
+                  ORDER BY gl.responsavel DESC, gl.inicio DESC";
+    $stmtEscolas = $conn->prepare($sqlEscolas);
+    $stmtEscolas->bindParam(':gestor_id', $gestor['id'], PDO::PARAM_INT);
+    $stmtEscolas->execute();
+    $gestor['escolas'] = $stmtEscolas->fetchAll(PDO::FETCH_ASSOC);
+}
+unset($gestor);
 ?>
 <!DOCTYPE html>
 <html lang="pt-BR">
@@ -1343,7 +1386,19 @@ $gestores = $stmtGestores->fetchAll(PDO::FETCH_ASSOC);
                                         <tr class="border-b border-gray-100 hover:bg-gray-50">
                                             <td class="py-3 px-4"><?= htmlspecialchars($gestor['nome']) ?></td>
                                             <td class="py-3 px-4"><?= htmlspecialchars($gestor['cpf'] ?? '-') ?></td>
-                                            <td class="py-3 px-4"><?= htmlspecialchars($gestor['escola_nome'] ?? '-') ?></td>
+                                            <td class="py-3 px-4">
+                                                <?php if (!empty($gestor['escolas']) && count($gestor['escolas']) > 0): ?>
+                                                    <?php if (count($gestor['escolas']) == 1): ?>
+                                                        <span><?= htmlspecialchars($gestor['escolas'][0]['nome']) ?></span>
+                                                    <?php else: ?>
+                                                        <button onclick="mostrarEscolasModal(<?= htmlspecialchars(json_encode($gestor['escolas'], JSON_UNESCAPED_UNICODE), ENT_QUOTES) ?>, '<?= htmlspecialchars($gestor['nome'], ENT_QUOTES) ?>')" class="text-indigo-600 hover:text-indigo-700 font-medium underline cursor-pointer">
+                                                            <?= count($gestor['escolas']) ?> escolas
+                                                        </button>
+                                                    <?php endif; ?>
+                                                <?php else: ?>
+                                                    <span class="text-gray-400">-</span>
+                                                <?php endif; ?>
+                                            </td>
                                             <td class="py-3 px-4"><?= htmlspecialchars($gestor['email'] ?? '-') ?></td>
                                             <td class="py-3 px-4">
                                                 <div class="flex space-x-2">
@@ -2432,7 +2487,24 @@ $gestores = $stmtGestores->fetchAll(PDO::FETCH_ASSOC);
                 
                 // Buscar dados do gestor
                 const response = await fetch('?acao=buscar_gestor&id=' + gestorId);
-                const data = await response.json();
+                
+                // Verificar se a resposta é JSON válido
+                const contentType = response.headers.get('content-type') || '';
+                const textResponse = await response.text();
+                
+                let data;
+                try {
+                    if (!contentType.includes('application/json')) {
+                        console.error('DEBUG JS - Resposta não é JSON:', textResponse.substring(0, 200));
+                        throw new Error('Resposta do servidor não é JSON válido. Verifique o console para mais detalhes.');
+                    }
+                    data = JSON.parse(textResponse);
+                } catch (parseError) {
+                    console.error('DEBUG JS - Erro ao fazer parse do JSON:', parseError);
+                    console.error('DEBUG JS - Texto recebido:', textResponse.substring(0, 500));
+                    alert('Erro ao processar resposta do servidor. Verifique o console para mais detalhes.');
+                    return;
+                }
                 
                 console.log('DEBUG JS - Resposta da busca:', data);
                 
@@ -2814,6 +2886,90 @@ $gestores = $stmtGestores->fetchAll(PDO::FETCH_ASSOC);
             }
         }
 
+        // Função para escapar HTML
+        function escapeHtml(text) {
+            if (!text) return '';
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+        
+        // Função para mostrar modal de escolas
+        function mostrarEscolasModal(escolas, gestorNome) {
+            if (!escolas || escolas.length === 0) {
+                alert('Nenhuma escola encontrada para este gestor.');
+                return;
+            }
+            
+            // Criar ou atualizar modal
+            let modal = document.getElementById('modalEscolasGestor');
+            if (!modal) {
+                modal = document.createElement('div');
+                modal.id = 'modalEscolasGestor';
+                modal.className = 'fixed inset-0 bg-black bg-opacity-50 z-[70] flex items-center justify-center';
+                modal.innerHTML = `
+                    <div class="bg-white rounded-lg shadow-xl max-w-md w-full mx-4 max-h-[80vh] overflow-hidden flex flex-col">
+                        <div class="flex justify-between items-center p-4 border-b border-gray-200">
+                            <h3 class="text-lg font-semibold text-gray-900">Escolas do Gestor</h3>
+                            <button onclick="fecharModalEscolas()" class="text-gray-400 hover:text-gray-600 transition-colors">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                                </svg>
+                            </button>
+                        </div>
+                        <div class="p-4 overflow-y-auto">
+                            <p class="text-sm text-gray-600 mb-4">Gestor: <strong>${escapeHtml(gestorNome)}</strong></p>
+                            <ul id="lista-escolas-modal" class="space-y-2">
+                            </ul>
+                        </div>
+                    </div>
+                `;
+                document.body.appendChild(modal);
+                
+                // Fechar ao clicar fora
+                modal.addEventListener('click', function(e) {
+                    if (e.target === modal) {
+                        fecharModalEscolas();
+                    }
+                });
+            }
+            
+            // Preencher lista de escolas
+            const listaEscolas = document.getElementById('lista-escolas-modal');
+            listaEscolas.innerHTML = '';
+            
+            escolas.forEach((escola, index) => {
+                const item = document.createElement('li');
+                item.className = 'bg-gray-50 rounded-lg p-3 border border-gray-200';
+                let badges = '';
+                if (escola.responsavel == 1 || escola.responsavel === '1') {
+                    badges += '<span class="inline-block bg-green-100 text-green-800 text-xs font-semibold px-2 py-1 rounded mr-2">Responsável</span>';
+                }
+                if (escola.tipo) {
+                    badges += `<span class="inline-block bg-blue-100 text-blue-800 text-xs font-semibold px-2 py-1 rounded">${escapeHtml(escola.tipo)}</span>`;
+                }
+                item.innerHTML = `
+                    <div class="flex items-start justify-between">
+                        <div class="flex-1">
+                            <p class="font-medium text-gray-900">${escapeHtml(escola.nome)}</p>
+                            ${badges ? `<div class="mt-2">${badges}</div>` : ''}
+                        </div>
+                    </div>
+                `;
+                listaEscolas.appendChild(item);
+            });
+            
+            modal.style.display = 'flex';
+        }
+        
+        // Função para fechar modal de escolas
+        function fecharModalEscolas() {
+            const modal = document.getElementById('modalEscolasGestor');
+            if (modal) {
+                modal.style.display = 'none';
+            }
+        }
+        
         function filtrarGestores() {
             const busca = document.getElementById('filtro-busca').value;
             
@@ -2840,11 +2996,23 @@ $gestores = $stmtGestores->fetchAll(PDO::FETCH_ASSOC);
                                 return;
                             }
                             
+                            // Preparar HTML das escolas
+                            let escolasHtml = '<span class="text-gray-400">-</span>';
+                            if (gestor.escolas && gestor.escolas.length > 0) {
+                                if (gestor.escolas.length === 1) {
+                                    escolasHtml = `<span>${escapeHtml(gestor.escolas[0].nome)}</span>`;
+                                } else {
+                                    const escolasJson = JSON.stringify(gestor.escolas);
+                                    const gestorNome = escapeHtml(gestor.nome);
+                                    escolasHtml = `<button onclick="mostrarEscolasModal(${escolasJson.replace(/"/g, '&quot;')}, '${gestorNome.replace(/'/g, "&#39;")}')" class="text-indigo-600 hover:text-indigo-700 font-medium underline cursor-pointer">${gestor.escolas.length} escolas</button>`;
+                                }
+                            }
+                            
                             tbody.innerHTML += `
                                 <tr class="border-b border-gray-100 hover:bg-gray-50">
                                     <td class="py-3 px-4">${gestor.nome || '-'}</td>
                                     <td class="py-3 px-4">${gestor.cpf || '-'}</td>
-                                    <td class="py-3 px-4">${gestor.escola_nome || '-'}</td>
+                                    <td class="py-3 px-4">${escolasHtml}</td>
                                     <td class="py-3 px-4">${gestor.email || '-'}</td>
                                     <td class="py-3 px-4">
                                         <div class="flex space-x-2">

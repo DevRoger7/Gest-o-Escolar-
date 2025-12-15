@@ -21,6 +21,60 @@ $db = Database::getInstance();
 $conn = $db->getConnection();
 $pedidoModel = new PedidoCestaModel();
 
+// Buscar escola selecionada da sessão (selecionada no dashboard) - apenas para nutricionista
+$escolaId = null;
+$escolaNome = null;
+
+if ($tipoUsuario === 'nutricionista') {
+    // Verificar se há escola selecionada na sessão
+    if (isset($_SESSION['escola_selecionada_nutricionista_id']) && !empty($_SESSION['escola_selecionada_nutricionista_id'])) {
+        $escolaId = (int)$_SESSION['escola_selecionada_nutricionista_id'];
+        $escolaNome = $_SESSION['escola_selecionada_nutricionista_nome'] ?? 'Escola não encontrada';
+        
+        // Verificar se a escola ainda existe no banco
+        try {
+            $sql = "SELECT id, nome FROM escola WHERE id = :escola_id";
+            $stmt = $conn->prepare($sql);
+            $stmt->bindParam(':escola_id', $escolaId, PDO::PARAM_INT);
+            $stmt->execute();
+            $escola = $stmt->fetch(PDO::FETCH_ASSOC);
+            
+            if ($escola) {
+                $escolaNome = $escola['nome'];
+            } else {
+                // Escola não encontrada, limpar sessão
+                unset($_SESSION['escola_selecionada_nutricionista_id']);
+                unset($_SESSION['escola_selecionada_nutricionista_nome']);
+                $escolaId = null;
+                $escolaNome = 'Nenhuma escola selecionada';
+            }
+        } catch (Exception $e) {
+            error_log("Erro ao verificar escola: " . $e->getMessage());
+        }
+    } else {
+        // Se não há escola selecionada, buscar a primeira ativa
+        try {
+            $sql = "SELECT id, nome FROM escola WHERE ativo = 1 ORDER BY nome ASC LIMIT 1";
+            $stmt = $conn->query($sql);
+            $escola = $stmt->fetch(PDO::FETCH_ASSOC);
+            
+            if ($escola) {
+                $escolaId = (int)$escola['id'];
+                $escolaNome = $escola['nome'];
+                
+                // Salvar na sessão
+                $_SESSION['escola_selecionada_nutricionista_id'] = $escolaId;
+                $_SESSION['escola_selecionada_nutricionista_nome'] = $escolaNome;
+            } else {
+                $escolaNome = 'Nenhuma escola disponível';
+            }
+        } catch (Exception $e) {
+            error_log("Erro ao buscar primeira escola: " . $e->getMessage());
+            $escolaNome = 'Erro ao carregar escola';
+        }
+    }
+}
+
 // Buscar escolas
 $sqlEscolas = "SELECT id, nome FROM escola WHERE ativo = 1 ORDER BY nome ASC";
 $stmtEscolas = $conn->prepare($sqlEscolas);
@@ -53,14 +107,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['acao'])) {
     
     if ($_GET['acao'] === 'listar_pedidos') {
         $filtros = [];
-        if (!empty($_GET['escola_id'])) $filtros['escola_id'] = $_GET['escola_id'];
+        
+        // Para nutricionista, usar escola da sessão automaticamente
+        if ($tipoUsuario === 'nutricionista') {
+            if (isset($_SESSION['escola_selecionada_nutricionista_id']) && !empty($_SESSION['escola_selecionada_nutricionista_id'])) {
+                $filtros['escola_id'] = $_SESSION['escola_selecionada_nutricionista_id'];
+            }
+            $filtros['nutricionista_id'] = $_SESSION['usuario_id'];
+        } else {
+            // Para ADM_MERENDA, permitir filtro manual
+            if (!empty($_GET['escola_id'])) $filtros['escola_id'] = $_GET['escola_id'];
+        }
+        
         if (!empty($_GET['status'])) $filtros['status'] = $_GET['status'];
         if (!empty($_GET['mes'])) $filtros['mes'] = $_GET['mes'];
-        
-        // Nutricionista vê apenas seus próprios pedidos
-        if ($tipoUsuario === 'nutricionista') {
-            $filtros['nutricionista_id'] = $_SESSION['usuario_id'];
-        }
         
         $pedidos = $pedidoModel->listar($filtros);
         echo json_encode(['success' => true, 'pedidos' => $pedidos]);
@@ -79,8 +139,12 @@ if ($tipoUsuario === 'adm_merenda') {
     // ADM_MERENDA vê pedidos pendentes para aprovar
     $pedidosPendentes = $pedidoModel->listar(['status' => 'ENVIADO']);
 } else {
-    // NUTRICIONISTA vê seus próprios pedidos
-    $pedidosPendentes = $pedidoModel->listar(['nutricionista_id' => $_SESSION['usuario_id']]);
+    // NUTRICIONISTA vê seus próprios pedidos da escola selecionada
+    $filtrosNutricionista = ['nutricionista_id' => $_SESSION['usuario_id']];
+    if (isset($escolaId) && $escolaId) {
+        $filtrosNutricionista['escola_id'] = $escolaId;
+    }
+    $pedidosPendentes = $pedidoModel->listar($filtrosNutricionista);
 }
 ?>
 <!DOCTYPE html>
@@ -153,6 +217,11 @@ if ($tipoUsuario === 'adm_merenda') {
                                     <p class="text-sm font-medium text-gray-800">Secretaria Municipal da Educação</p>
                                     <p class="text-xs text-gray-500">Órgão Central</p>
                                 </div>
+                            <?php } elseif ($tipoUsuario === 'nutricionista') { ?>
+                                <!-- Para nutricionista, mostrar escola selecionada -->
+                                <div class="bg-primary-green text-white px-5 py-2.5 rounded-lg shadow-md text-sm font-semibold">
+                                    <span><?= htmlspecialchars($escolaNome ?? 'Nenhuma escola selecionada') ?></span>
+                                </div>
                             <?php } else { ?>
                                 <!-- Para outros usuários, card verde com ícone -->
                                 <div class="bg-primary-green text-white px-4 py-2 rounded-lg shadow-sm">
@@ -186,7 +255,8 @@ if ($tipoUsuario === 'adm_merenda') {
                 
                 <!-- Filtros -->
                 <div class="bg-white rounded-2xl p-6 shadow-lg mb-6">
-                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div class="grid grid-cols-1 md:grid-cols-<?= ($tipoUsuario === 'nutricionista') ? '2' : '3' ?> gap-4">
+                        <?php if ($tipoUsuario !== 'nutricionista'): ?>
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-2">Escola</label>
                             <select id="filtro-escola" class="w-full px-4 py-2 border border-gray-300 rounded-lg" onchange="filtrarPedidos()">
@@ -196,6 +266,7 @@ if ($tipoUsuario === 'adm_merenda') {
                                 <?php endforeach; ?>
                             </select>
                         </div>
+                        <?php endif; ?>
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-2">Status</label>
                             <select id="filtro-status" class="w-full px-4 py-2 border border-gray-300 rounded-lg" onchange="filtrarPedidos()">
@@ -487,7 +558,8 @@ if ($tipoUsuario === 'adm_merenda') {
         };
 
         function filtrarPedidos() {
-            const escolaId = document.getElementById('filtro-escola').value;
+            const filtroEscola = document.getElementById('filtro-escola');
+            const escolaId = filtroEscola ? filtroEscola.value : '';
             const status = document.getElementById('filtro-status').value;
             const mes = document.getElementById('filtro-mes').value;
             

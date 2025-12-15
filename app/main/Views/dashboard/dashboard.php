@@ -12,6 +12,95 @@ $session = new sessions();
 $session->autenticar_session();
 $session->tempo_session();
 
+// Processar mudança de escola do professor (POST)
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'mudar_escola_professor') {
+    header('Content-Type: application/json');
+    
+    if (isset($_SESSION['tipo']) && strtolower($_SESSION['tipo']) === 'professor') {
+        $escolaId = $_POST['escola_id'] ?? null;
+        
+        if ($escolaId) {
+            try {
+                $pessoaId = $_SESSION['pessoa_id'] ?? null;
+                if ($pessoaId) {
+                    // Buscar o ID do professor
+                    $sqlProfessor = "SELECT pr.id FROM professor pr 
+                                   WHERE pr.pessoa_id = :pessoa_id AND pr.ativo = 1 
+                                   LIMIT 1";
+                    $stmtProfessor = $conn->prepare($sqlProfessor);
+                    $stmtProfessor->bindParam(':pessoa_id', $pessoaId);
+                    $stmtProfessor->execute();
+                    $professorData = $stmtProfessor->fetch(PDO::FETCH_ASSOC);
+                    
+                    if ($professorData && isset($professorData['id'])) {
+                        $professorId = (int)$professorData['id'];
+                        
+                        // Verificar se o professor está lotado nesta escola
+                        $sqlVerificar = "SELECT e.nome as escola_nome 
+                                        FROM professor_lotacao pl
+                                        INNER JOIN escola e ON pl.escola_id = e.id
+                                        WHERE pl.professor_id = :professor_id 
+                                        AND pl.escola_id = :escola_id
+                                        AND pl.fim IS NULL
+                                        AND e.ativo = 1";
+                        $stmtVerificar = $conn->prepare($sqlVerificar);
+                        $stmtVerificar->bindParam(':professor_id', $professorId, PDO::PARAM_INT);
+                        $stmtVerificar->bindParam(':escola_id', $escolaId, PDO::PARAM_INT);
+                        $stmtVerificar->execute();
+                        $escolaData = $stmtVerificar->fetch(PDO::FETCH_ASSOC);
+                        
+                        if ($escolaData) {
+                            // Salvar na sessão
+                            $_SESSION['escola_selecionada_id'] = (int)$escolaId;
+                            $_SESSION['escola_selecionada_nome'] = $escolaData['escola_nome'];
+                            $_SESSION['escola_atual'] = $escolaData['escola_nome'];
+                            $_SESSION['escola_id'] = (int)$escolaId;
+                            
+                            echo json_encode([
+                                'success' => true,
+                                'message' => 'Escola alterada com sucesso!',
+                                'escola_nome' => $escolaData['escola_nome']
+                            ], JSON_UNESCAPED_UNICODE);
+                        } else {
+                            echo json_encode([
+                                'success' => false,
+                                'message' => 'Professor não está lotado nesta escola.'
+                            ], JSON_UNESCAPED_UNICODE);
+                        }
+                    } else {
+                        echo json_encode([
+                            'success' => false,
+                            'message' => 'Professor não encontrado.'
+                        ], JSON_UNESCAPED_UNICODE);
+                    }
+                } else {
+                    echo json_encode([
+                        'success' => false,
+                        'message' => 'Dados do professor não encontrados.'
+                    ], JSON_UNESCAPED_UNICODE);
+                }
+            } catch (Exception $e) {
+                error_log("Erro ao mudar escola do professor: " . $e->getMessage());
+                echo json_encode([
+                    'success' => false,
+                    'message' => 'Erro ao processar requisição: ' . $e->getMessage()
+                ], JSON_UNESCAPED_UNICODE);
+            }
+        } else {
+            echo json_encode([
+                'success' => false,
+                'message' => 'ID da escola não informado.'
+            ], JSON_UNESCAPED_UNICODE);
+        }
+    } else {
+        echo json_encode([
+            'success' => false,
+            'message' => 'Acesso não autorizado.'
+        ], JSON_UNESCAPED_UNICODE);
+    }
+    exit;
+}
+
 // Inicializar classe de estatísticas
 $stats = new DashboardStats();
 
@@ -194,7 +283,200 @@ if (isset($_SESSION['tipo']) && strtoupper($_SESSION['tipo']) === 'GESTAO') {
     error_log("DEBUG DASHBOARD - Tipo de usuário não é GESTAO: " . ($_SESSION['tipo'] ?? 'NULL'));
 }
 
-// Código de busca de dados do professor removido - agora está nas páginas separadas
+// Processar mudança de escola do nutricionista
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'mudar_escola_nutricionista') {
+    header('Content-Type: application/json');
+    
+    if (!isset($_SESSION['tipo']) || strtoupper($_SESSION['tipo']) !== 'NUTRICIONISTA') {
+        echo json_encode(['success' => false, 'message' => 'Acesso não autorizado']);
+        exit;
+    }
+    
+    $escolaId = isset($_POST['escola_id']) ? (int)$_POST['escola_id'] : null;
+    
+    if (!$escolaId) {
+        echo json_encode(['success' => false, 'message' => 'ID da escola não fornecido']);
+        exit;
+    }
+    
+    try {
+        // Verificar se a escola existe
+        $sql = "SELECT id, nome FROM escola WHERE id = :escola_id";
+        $stmt = $conn->prepare($sql);
+        $stmt->bindParam(':escola_id', $escolaId, PDO::PARAM_INT);
+        $stmt->execute();
+        $escola = $stmt->fetch(PDO::FETCH_ASSOC);
+        
+        if ($escola) {
+            // Salvar na sessão
+            $_SESSION['escola_selecionada_nutricionista_id'] = $escolaId;
+            $_SESSION['escola_selecionada_nutricionista_nome'] = $escola['nome'];
+            
+            echo json_encode(['success' => true, 'message' => 'Escola alterada com sucesso', 'escola_nome' => $escola['nome']]);
+        } else {
+            echo json_encode(['success' => false, 'message' => 'Escola não encontrada']);
+        }
+    } catch (Exception $e) {
+        error_log("Erro ao mudar escola do nutricionista: " . $e->getMessage());
+        echo json_encode(['success' => false, 'message' => 'Erro ao alterar escola']);
+    }
+    exit;
+}
+
+// Processar mudança de escola do gestor da merenda
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'mudar_escola_merenda') {
+    header('Content-Type: application/json');
+    
+    if (!isset($_SESSION['tipo']) || strtoupper($_SESSION['tipo']) !== 'ADM_MERENDA') {
+        echo json_encode(['success' => false, 'message' => 'Acesso não autorizado']);
+        exit;
+    }
+    
+    $escolaId = isset($_POST['escola_id']) ? (int)$_POST['escola_id'] : null;
+    
+    if (!$escolaId) {
+        echo json_encode(['success' => false, 'message' => 'ID da escola não fornecido']);
+        exit;
+    }
+    
+    try {
+        // Verificar se a escola existe
+        $sql = "SELECT id, nome FROM escola WHERE id = :escola_id";
+        $stmt = $conn->prepare($sql);
+        $stmt->bindParam(':escola_id', $escolaId, PDO::PARAM_INT);
+        $stmt->execute();
+        $escola = $stmt->fetch(PDO::FETCH_ASSOC);
+        
+        if ($escola) {
+            // Salvar na sessão
+            $_SESSION['escola_selecionada_merenda_id'] = $escolaId;
+            $_SESSION['escola_selecionada_merenda_nome'] = $escola['nome'];
+            
+            echo json_encode(['success' => true, 'message' => 'Escola alterada com sucesso', 'escola_nome' => $escola['nome']]);
+        } else {
+            echo json_encode(['success' => false, 'message' => 'Escola não encontrada']);
+        }
+    } catch (Exception $e) {
+        error_log("Erro ao mudar escola do gestor da merenda: " . $e->getMessage());
+        echo json_encode(['success' => false, 'message' => 'Erro ao alterar escola']);
+    }
+    exit;
+}
+
+// Buscar escolas do professor logado (para mostrar no header)
+$escolasProfessor = [];
+$escolaProfessorId = null;
+$escolaProfessor = null;
+
+if (isset($_SESSION['tipo']) && strtolower($_SESSION['tipo']) === 'professor') {
+    $pessoaId = $_SESSION['pessoa_id'] ?? null;
+    
+    if ($pessoaId) {
+        try {
+            // Buscar o ID do professor
+            $sqlProfessor = "SELECT pr.id FROM professor pr 
+                           WHERE pr.pessoa_id = :pessoa_id AND pr.ativo = 1 
+                           LIMIT 1";
+            $stmtProfessor = $conn->prepare($sqlProfessor);
+            $stmtProfessor->bindParam(':pessoa_id', $pessoaId);
+            $stmtProfessor->execute();
+            $professorData = $stmtProfessor->fetch(PDO::FETCH_ASSOC);
+            
+            if ($professorData && isset($professorData['id'])) {
+                $professorId = (int)$professorData['id'];
+                
+                // Buscar todas as lotações ativas do professor (fim IS NULL)
+                $sqlLotacao = "SELECT DISTINCT e.nome as escola_nome, e.id as escola_id, pl.inicio
+                              FROM professor_lotacao pl
+                              INNER JOIN escola e ON pl.escola_id = e.id
+                              WHERE pl.professor_id = :professor_id 
+                              AND pl.fim IS NULL
+                              AND e.ativo = 1
+                              ORDER BY pl.inicio DESC";
+                $stmtLotacao = $conn->prepare($sqlLotacao);
+                $stmtLotacao->bindParam(':professor_id', $professorId, PDO::PARAM_INT);
+                $stmtLotacao->execute();
+                $escolasProfessor = $stmtLotacao->fetchAll(PDO::FETCH_ASSOC);
+                
+                // Verificar se há escola selecionada na sessão
+                if (isset($_SESSION['escola_selecionada_id']) && !empty($_SESSION['escola_selecionada_id'])) {
+                    $escolaSelecionadaId = (int)$_SESSION['escola_selecionada_id'];
+                    
+                    // Verificar se a escola selecionada está na lista de escolas do professor
+                    foreach ($escolasProfessor as $escola) {
+                        if ((int)$escola['escola_id'] === $escolaSelecionadaId) {
+                            $escolaProfessorId = $escolaSelecionadaId;
+                            $escolaProfessor = $_SESSION['escola_selecionada_nome'] ?? $escola['escola_nome'];
+                            break;
+                        }
+                    }
+                }
+                
+                // Se não há escola selecionada ou a selecionada não é válida, usar a primeira (mais recente)
+                if (!$escolaProfessorId && !empty($escolasProfessor)) {
+                    $escolaProfessorId = (int)$escolasProfessor[0]['escola_id'];
+                    $escolaProfessor = $escolasProfessor[0]['escola_nome'];
+                    
+                    // Salvar na sessão
+                    $_SESSION['escola_selecionada_id'] = $escolaProfessorId;
+                    $_SESSION['escola_selecionada_nome'] = $escolaProfessor;
+                    $_SESSION['escola_atual'] = $escolaProfessor;
+                    $_SESSION['escola_id'] = $escolaProfessorId;
+                }
+            }
+        } catch (Exception $e) {
+            error_log("ERRO ao buscar escolas do professor: " . $e->getMessage());
+            $escolasProfessor = [];
+            $escolaProfessorId = null;
+            $escolaProfessor = null;
+        }
+    }
+}
+
+// Buscar escola do aluno logado (se não estiver na sessão)
+if (isset($_SESSION['tipo']) && strtolower($_SESSION['tipo']) === 'aluno') {
+    // Se não tem escola na sessão, buscar do banco
+    if (empty($_SESSION['escola_atual']) || empty($_SESSION['escola_selecionada_id'])) {
+        $pessoaId = $_SESSION['pessoa_id'] ?? null;
+        
+        if ($pessoaId) {
+            try {
+                // Buscar a escola do aluno: primeiro do campo escola_id, depois da turma
+                $sqlEscolaAluno = "SELECT COALESCE(e_direta.id, e_turma.id) as escola_id,
+                                          COALESCE(e_direta.nome, e_turma.nome) as escola_nome
+                                   FROM aluno a
+                                   LEFT JOIN escola e_direta ON a.escola_id = e_direta.id
+                                   LEFT JOIN (
+                                       SELECT at1.aluno_id, at1.turma_id
+                                       FROM aluno_turma at1
+                                       INNER JOIN (
+                                           SELECT aluno_id, MAX(inicio) as max_inicio
+                                           FROM aluno_turma
+                                           GROUP BY aluno_id
+                                       ) at_max ON at1.aluno_id = at_max.aluno_id AND at1.inicio = at_max.max_inicio
+                                   ) at ON a.id = at.aluno_id
+                                   LEFT JOIN turma t ON at.turma_id = t.id
+                                   LEFT JOIN escola e_turma ON t.escola_id = e_turma.id
+                                   WHERE a.pessoa_id = :pessoa_id 
+                                   AND a.ativo = 1
+                                   LIMIT 1";
+                $stmtEscolaAluno = $conn->prepare($sqlEscolaAluno);
+                $stmtEscolaAluno->bindParam(':pessoa_id', $pessoaId);
+                $stmtEscolaAluno->execute();
+                $escolaAluno = $stmtEscolaAluno->fetch(PDO::FETCH_ASSOC);
+                
+                if ($escolaAluno && !empty($escolaAluno['escola_id']) && !empty($escolaAluno['escola_nome'])) {
+                    $_SESSION['escola_atual'] = $escolaAluno['escola_nome'];
+                    $_SESSION['escola_selecionada_id'] = (int)$escolaAluno['escola_id'];
+                    $_SESSION['escola_selecionada_nome'] = $escolaAluno['escola_nome'];
+                    $_SESSION['escola_id'] = (int)$escolaAluno['escola_id'];
+                }
+            } catch (Exception $e) {
+                error_log("ERRO ao buscar escola do aluno no dashboard: " . $e->getMessage());
+            }
+        }
+    }
+}
 
 // Código de processamento AJAX do professor removido - agora está nas páginas separadas
 ?>
@@ -445,6 +727,105 @@ if (isset($_SESSION['tipo']) && strtoupper($_SESSION['tipo']) === 'GESTAO') {
             }
         };
         
+        // Função para mudar a escola selecionada do nutricionista
+        window.mudarEscolaMerenda = function(escolaId) {
+            console.log('mudarEscolaMerenda chamado com escolaId:', escolaId);
+            if (!escolaId) {
+                console.error('escolaId não fornecido');
+                return;
+            }
+
+            const select = document.getElementById('select-escola-merenda');
+            if (select) {
+                select.disabled = true;
+                select.style.opacity = '0.6';
+                select.style.cursor = 'wait';
+            }
+
+            const formData = new FormData();
+            formData.append('action', 'mudar_escola_merenda');
+            formData.append('escola_id', escolaId);
+
+            fetch('dashboard.php', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    console.log('Escola do gestor da merenda alterada com sucesso:', data.escola_nome);
+                    window.location.reload(); // Recarregar a página para aplicar as mudanças
+                } else {
+                    console.error('Erro ao mudar escola do gestor da merenda:', data.message);
+                    alert('Erro ao mudar escola: ' + (data.message || 'Desconhecido'));
+                }
+            })
+            .catch(error => {
+                console.error('Erro na requisição AJAX para mudar escola do gestor da merenda:', error);
+                alert('Erro de rede ao mudar escola.');
+            })
+            .finally(() => {
+                if (select) {
+                    select.disabled = false;
+                    select.style.opacity = '1';
+                    select.style.cursor = 'pointer';
+                }
+            });
+        };
+
+        window.mudarEscolaNutricionista = function(escolaId) {
+            console.log('mudarEscolaNutricionista chamado com escolaId:', escolaId);
+            
+            if (!escolaId) {
+                console.error('escolaId não fornecido');
+                return;
+            }
+            
+            // Mostrar loading
+            const select = document.getElementById('select-escola-nutricionista');
+            if (select) {
+                const originalValue = select.value;
+                select.disabled = true;
+                select.style.opacity = '0.6';
+                select.style.cursor = 'wait';
+            }
+            
+            // Salvar na sessão via AJAX
+            const formData = new FormData();
+            formData.append('action', 'mudar_escola_nutricionista');
+            formData.append('escola_id', escolaId);
+            
+            fetch(window.location.href, {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Recarregar a página para atualizar todas as informações
+                    window.location.reload();
+                } else {
+                    console.error('Erro ao mudar escola:', data.message);
+                    if (select) {
+                        select.disabled = false;
+                        select.style.opacity = '1';
+                        select.style.cursor = 'pointer';
+                        select.value = originalValue;
+                    }
+                    alert('Erro ao mudar escola: ' + (data.message || 'Erro desconhecido'));
+                }
+            })
+            .catch(error => {
+                console.error('Erro na requisição:', error);
+                if (select) {
+                    select.disabled = false;
+                    select.style.opacity = '1';
+                    select.style.cursor = 'pointer';
+                }
+                alert('Erro ao mudar escola. Tente novamente.');
+            });
+        };
+        
         // Função para mudar a escola selecionada - DEFINIDA NO HEAD PARA ESTAR DISPONÍVEL
         window.mudarEscolaGestor = function(escolaId) {
             console.log('mudarEscolaGestor chamado com escolaId:', escolaId);
@@ -529,6 +910,85 @@ if (isset($_SESSION['tipo']) && strtoupper($_SESSION['tipo']) === 'GESTAO') {
                 console.error('Erro na requisição:', error);
                 alert('Erro ao mudar escola. Verifique o console para mais detalhes.');
                 select.value = originalValue;
+                select.disabled = false;
+                select.style.opacity = '1';
+                select.style.cursor = 'pointer';
+            });
+        };
+        
+        // Função para mudar a escola selecionada do professor
+        window.mudarEscolaProfessor = function(escolaId) {
+            console.log('mudarEscolaProfessor chamado com escolaId:', escolaId);
+            
+            if (!escolaId) {
+                console.error('escolaId não fornecido');
+                return;
+            }
+            
+            // Mostrar loading
+            const select = document.getElementById('select-escola-professor');
+            if (!select) {
+                console.error('Elemento select-escola-professor não encontrado');
+                return;
+            }
+            
+            const originalValue = select.value;
+            select.disabled = true;
+            select.style.opacity = '0.6';
+            select.style.cursor = 'wait';
+            
+            // Fazer requisição AJAX
+            const formData = new FormData();
+            formData.append('action', 'mudar_escola_professor');
+            formData.append('escola_id', escolaId);
+            
+            console.log('Enviando requisição para mudar escola do professor...');
+            
+            fetch('', {
+                method: 'POST',
+                body: formData,
+                credentials: 'same-origin',
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            })
+            .then(async response => {
+                console.log('Resposta recebida, status:', response.status);
+                
+                // Verificar se a resposta é JSON
+                const contentType = response.headers.get('content-type');
+                if (!contentType || !contentType.includes('application/json')) {
+                    const text = await response.text();
+                    console.error('Resposta não é JSON:', text.substring(0, 500));
+                    throw new Error('Resposta do servidor não é válida.');
+                }
+                
+                if (!response.ok) {
+                    throw new Error('Erro HTTP: ' + response.status);
+                }
+                return response.json();
+            })
+            .then(data => {
+                console.log('Dados recebidos:', data);
+                if (data.success) {
+                    console.log('Escola alterada com sucesso, recarregando página...');
+                    // Recarregar a página para aplicar a mudança
+                    window.location.reload();
+                } else {
+                    console.error('Erro ao mudar escola:', data.message);
+                    alert('Erro ao mudar escola: ' + (data.message || 'Erro desconhecido'));
+                    // Reverter seleção
+                    select.value = originalValue;
+                }
+            })
+            .catch(error => {
+                console.error('Erro na requisição:', error);
+                alert('Erro ao processar requisição. Por favor, tente novamente.');
+                // Reverter seleção
+                select.value = originalValue;
+            })
+            .finally(() => {
+                // Restaurar estado do select
                 select.disabled = false;
                 select.style.opacity = '1';
                 select.style.cursor = 'pointer';
@@ -2517,6 +2977,150 @@ if (isset($_SESSION['tipo']) && strtoupper($_SESSION['tipo']) === 'GESTAO') {
                                     </div>
                                 </div>
                                 <?php endif; ?>
+                            <?php } elseif (isset($_SESSION['tipo']) && strtolower($_SESSION['tipo']) === 'professor') { ?>
+                                <!-- Para PROFESSOR, dropdown de escolas se tiver mais de uma -->
+                                <?php if (!empty($escolasProfessor) && count($escolasProfessor) > 1): ?>
+                                    <!-- Múltiplas escolas - mostrar dropdown -->
+                                    <div class="relative group">
+                                        <select id="select-escola-professor" 
+                                                onchange="mudarEscolaProfessor(this.value)"
+                                                class="bg-primary-green hover:bg-opacity-90 text-white px-5 py-2.5 rounded-lg shadow-md text-sm font-semibold appearance-none cursor-pointer border-0 focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-primary-green pr-10 transition-all duration-200 min-w-[200px]">
+                                            <?php foreach ($escolasProfessor as $escola): ?>
+                                                <option value="<?= $escola['escola_id'] ?>" 
+                                                        <?= ($escolaProfessorId == $escola['escola_id']) ? 'selected' : '' ?>
+                                                        class="bg-white text-gray-800 py-2">
+                                                    <?= htmlspecialchars($escola['escola_nome']) ?>
+                                                </option>
+                                            <?php endforeach; ?>
+                                        </select>
+                                        <div class="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
+                                            <svg class="w-5 h-5 text-white transition-transform duration-200 group-hover:scale-110" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                                            </svg>
+                                        </div>
+                                    </div>
+                                <?php else: ?>
+                                    <!-- Uma única escola - mostrar apenas o nome -->
+                                    <div class="bg-primary-green text-white px-4 py-2 rounded-lg shadow-sm">
+                                        <div class="flex items-center space-x-2">
+                                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path>
+                                            </svg>
+                                            <span class="text-sm font-semibold">
+                                                <?= !empty($escolaProfessor) ? htmlspecialchars($escolaProfessor) : 'N/A' ?>
+                                            </span>
+                                        </div>
+                                    </div>
+                                <?php endif; ?>
+                            <?php } elseif ($_SESSION['tipo'] === 'NUTRICIONISTA') { ?>
+                                <!-- Para NUTRICIONISTA, dropdown com todas as escolas -->
+                                <?php
+                                // Buscar todas as escolas do sistema
+                                $todasEscolasNutricionista = [];
+                                $escolaSelecionadaNutricionistaId = $_SESSION['escola_selecionada_nutricionista_id'] ?? null;
+                                $escolaSelecionadaNutricionistaNome = $_SESSION['escola_selecionada_nutricionista_nome'] ?? null;
+                                
+                                try {
+                                    $sql = "SELECT id, nome, ativo FROM escola ORDER BY ativo DESC, nome ASC";
+                                    $stmt = $conn->query($sql);
+                                    $todasEscolasNutricionista = $stmt->fetchAll(PDO::FETCH_ASSOC);
+                                    
+                                    // Se não há escola selecionada, usar a primeira ativa
+                                    if (!$escolaSelecionadaNutricionistaId && !empty($todasEscolasNutricionista)) {
+                                        foreach ($todasEscolasNutricionista as $escola) {
+                                            if ($escola['ativo'] == 1) {
+                                                $escolaSelecionadaNutricionistaId = $escola['id'];
+                                                $escolaSelecionadaNutricionistaNome = $escola['nome'];
+                                                $_SESSION['escola_selecionada_nutricionista_id'] = $escolaSelecionadaNutricionistaId;
+                                                $_SESSION['escola_selecionada_nutricionista_nome'] = $escolaSelecionadaNutricionistaNome;
+                                                break;
+                                            }
+                                        }
+                                    }
+                                } catch (Exception $e) {
+                                    error_log("Erro ao buscar escolas para nutricionista: " . $e->getMessage());
+                                }
+                                ?>
+                                <?php if (!empty($todasEscolasNutricionista)): ?>
+                                    <div class="relative group">
+                                        <select id="select-escola-nutricionista" 
+                                                onchange="mudarEscolaNutricionista(this.value)"
+                                                class="bg-primary-green hover:bg-opacity-90 text-white px-5 py-2.5 rounded-lg shadow-md text-sm font-semibold appearance-none cursor-pointer border-0 focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-primary-green pr-10 transition-all duration-200 min-w-[200px]">
+                                            <?php foreach ($todasEscolasNutricionista as $escola): ?>
+                                                <option value="<?= $escola['id'] ?>" 
+                                                        <?= ($escolaSelecionadaNutricionistaId == $escola['id']) ? 'selected' : '' ?>
+                                                        class="bg-white text-gray-800 py-2">
+                                                    <?= htmlspecialchars($escola['nome']) ?>
+                                                    <?= $escola['ativo'] == 0 ? ' (Inativa)' : '' ?>
+                                                </option>
+                                            <?php endforeach; ?>
+                                        </select>
+                                        <div class="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
+                                            <svg class="w-5 h-5 text-white transition-transform duration-200 group-hover:scale-110" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                                            </svg>
+                                        </div>
+                                    </div>
+                                <?php else: ?>
+                                    <div class="bg-primary-green text-white px-4 py-2 rounded-lg shadow-sm">
+                                        <span class="text-sm font-semibold">Nenhuma escola encontrada</span>
+                                    </div>
+                                <?php endif; ?>
+                            <?php } elseif (strtoupper($_SESSION['tipo']) === 'ADM_MERENDA') { ?>
+                                <!-- Para ADM_MERENDA, dropdown com todas as escolas -->
+                                <?php
+                                // Buscar todas as escolas do sistema
+                                $todasEscolasMerenda = [];
+                                $escolaSelecionadaMerendaId = $_SESSION['escola_selecionada_merenda_id'] ?? null;
+                                $escolaSelecionadaMerendaNome = $_SESSION['escola_selecionada_merenda_nome'] ?? null;
+                                
+                                try {
+                                    $sql = "SELECT id, nome, ativo FROM escola ORDER BY ativo DESC, nome ASC";
+                                    $stmt = $conn->query($sql);
+                                    $todasEscolasMerenda = $stmt->fetchAll(PDO::FETCH_ASSOC);
+                                    
+                                    // Se não há escola selecionada, usar a primeira ativa
+                                    if (!$escolaSelecionadaMerendaId && !empty($todasEscolasMerenda)) {
+                                        foreach ($todasEscolasMerenda as $escola) {
+                                            if ($escola['ativo'] == 1) {
+                                                $escolaSelecionadaMerendaId = $escola['id'];
+                                                $escolaSelecionadaMerendaNome = $escola['nome'];
+                                                $_SESSION['escola_selecionada_merenda_id'] = $escolaSelecionadaMerendaId;
+                                                $_SESSION['escola_selecionada_merenda_nome'] = $escolaSelecionadaMerendaNome;
+                                                break;
+                                            }
+                                        }
+                                    }
+                                } catch (Exception $e) {
+                                    error_log("Erro ao buscar escolas para gestor da merenda: " . $e->getMessage());
+                                }
+                                ?>
+                                <?php if (!empty($todasEscolasMerenda)): ?>
+                                    <div class="relative group">
+                                        <select id="select-escola-merenda" 
+                                                onchange="mudarEscolaMerenda(this.value)"
+                                                class="bg-primary-green hover:bg-opacity-90 text-white px-5 py-2.5 rounded-lg shadow-md text-sm font-semibold appearance-none cursor-pointer border-0 focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-primary-green pr-10 transition-all duration-200 min-w-[200px]">
+                                            <option value="">Selecione uma escola...</option>
+                                            <?php foreach ($todasEscolasMerenda as $escola): ?>
+                                                <option value="<?= $escola['id'] ?>" 
+                                                        <?= ($escolaSelecionadaMerendaId == $escola['id']) ? 'selected' : '' ?>
+                                                        class="bg-white text-gray-800 py-2">
+                                                    <?= htmlspecialchars($escola['nome']) ?>
+                                                    <?= $escola['ativo'] == 0 ? ' (Inativa)' : '' ?>
+                                                </option>
+                                            <?php endforeach; ?>
+                                        </select>
+                                        <div class="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
+                                            <svg class="w-5 h-5 text-white transition-transform duration-200 group-hover:scale-110" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                                            </svg>
+                                        </div>
+                                    </div>
+                                <?php else: ?>
+                                    <div class="bg-primary-green text-white px-4 py-2 rounded-lg shadow-sm">
+                                        <span class="text-sm font-semibold">Nenhuma escola encontrada</span>
+                                    </div>
+                                <?php endif; ?>
                             <?php } else { ?>
                                 <!-- Para outros usuários, card verde com ícone -->
                             <div class="bg-primary-green text-white px-4 py-2 rounded-lg shadow-sm">
@@ -2574,7 +3178,13 @@ if (isset($_SESSION['tipo']) && strtoupper($_SESSION['tipo']) === 'GESTAO') {
                                 <?php endif; ?>
                             </div>
                             <?php 
-                            $totalAlunos = $stats->getTotalAlunos();
+                            // Filtrar por escola selecionada se for gestor
+                            $escolaIdGestor = null;
+                            if (isset($_SESSION['tipo']) && $_SESSION['tipo'] === 'GESTAO') {
+                                $escolaIdGestor = $_SESSION['escola_selecionada_id'] ?? $_SESSION['escola_id'] ?? null;
+                            }
+                            $totalAlunos = $stats->getTotalAlunos($escolaIdGestor);
+                            $crescimentoAlunos = $stats->getCrescimentoAlunos($escolaIdGestor);
                             ?>
                             <h3 class="text-xl md:text-2xl font-bold text-gray-800 mb-1"><?= $totalAlunos ?></h3>
                             <p class="text-gray-600 text-xs md:text-sm">Total de Alunos</p>
@@ -2593,7 +3203,7 @@ if (isset($_SESSION['tipo']) && strtoupper($_SESSION['tipo']) === 'GESTAO') {
                                 </div>
                             </div>
                             <?php 
-                            $totalTurmas = $stats->getTotalTurmas();
+                            $totalTurmas = $stats->getTotalTurmas($escolaIdGestor);
                             ?>
                             <h3 class="text-xl md:text-2xl font-bold text-gray-800 mb-1"><?= $totalTurmas ?></h3>
                             <p class="text-gray-600 text-xs md:text-sm">Turmas Ativas</p>
@@ -2612,7 +3222,7 @@ if (isset($_SESSION['tipo']) && strtoupper($_SESSION['tipo']) === 'GESTAO') {
                                 </div>
                             </div>
                             <?php 
-                            $frequenciaMedia = $stats->getFrequenciaMedia();
+                            $frequenciaMedia = $stats->getFrequenciaMedia($escolaIdGestor);
                             ?>
                             <h3 class="text-2xl font-bold text-gray-800 mb-1"><?= $frequenciaMedia ?>%</h3>
                             <p class="text-gray-600 text-sm">Frequência Média</p>
@@ -2631,7 +3241,7 @@ if (isset($_SESSION['tipo']) && strtoupper($_SESSION['tipo']) === 'GESTAO') {
                                 </div>
                             </div>
                             <?php 
-                            $mediaGeral = $stats->getMediaGeralNotas();
+                            $mediaGeral = $stats->getMediaGeralNotas($escolaIdGestor);
                             ?>
                             <h3 class="text-2xl font-bold text-gray-800 mb-1"><?= $mediaGeral ?></h3>
                             <p class="text-gray-600 text-sm">Média Geral</p>
@@ -2722,7 +3332,7 @@ if (isset($_SESSION['tipo']) && strtoupper($_SESSION['tipo']) === 'GESTAO') {
                     </div>
                     
                     <!-- Atividades Recentes de Merenda -->
-                    <div class="bg-white rounded-2xl p-6 shadow-lg border border-gray-100 mb-8">
+                    <div>
                         <div class="flex items-center justify-between mb-6">
                             <h3 class="text-lg font-semibold text-gray-800">Atividades Recentes de Merenda</h3>
                         </div>
@@ -3028,6 +3638,141 @@ if (isset($_SESSION['tipo']) && strtoupper($_SESSION['tipo']) === 'GESTAO') {
                             } else {
                                 echo '<div class="text-center py-8 text-gray-500">Nenhuma atividade recente</div>';
                             }
+                        } elseif (strtolower($userType) === 'professor') {
+                            // Buscar atividades recentes do professor filtradas por escola
+                            $professorId = null;
+                            $pessoaId = $_SESSION['pessoa_id'] ?? null;
+                            if ($pessoaId) {
+                                $sqlProfessor = "SELECT pr.id FROM professor pr 
+                                               WHERE pr.pessoa_id = :pessoa_id AND pr.ativo = 1 
+                                               LIMIT 1";
+                                $stmtProfessor = $conn->prepare($sqlProfessor);
+                                $stmtProfessor->bindParam(':pessoa_id', $pessoaId);
+                                $stmtProfessor->execute();
+                                $professorData = $stmtProfessor->fetch(PDO::FETCH_ASSOC);
+                                $professorId = $professorData['id'] ?? null;
+                            }
+                            
+                            $escolaIdAtual = $_SESSION['escola_selecionada_id'] ?? $_SESSION['escola_id'] ?? null;
+                            
+                            if ($professorId && $escolaIdAtual) {
+                                $atividadesRecentes = $stats->getAtividadesRecentesProfessor($professorId, $escolaIdAtual, 3);
+                            } else {
+                                $atividadesRecentes = [];
+                            }
+                            
+                            if (empty($atividadesRecentes)) {
+                                echo '<div class="text-center py-8 text-gray-500">Nenhuma atividade recente</div>';
+                            } else {
+                                foreach ($atividadesRecentes as $atividade) {
+                                    $iconColors = [
+                                        'blue' => 'from-blue-50 to-blue-100',
+                                        'green' => 'from-green-50 to-green-100',
+                                        'orange' => 'from-orange-50 to-orange-100',
+                                        'purple' => 'from-purple-50 to-purple-100'
+                                    ];
+                                    $bgColors = [
+                                        'blue' => 'bg-blue-500',
+                                        'green' => 'bg-green-500',
+                                        'orange' => 'bg-orange-500',
+                                        'purple' => 'bg-purple-500'
+                                    ];
+                                    $color = $atividade['color'] ?? 'blue';
+                                    $gradient = $iconColors[$color] ?? $iconColors['blue'];
+                                    $bgColor = $bgColors[$color] ?? $bgColors['blue'];
+                                    
+                                    // Calcular tempo relativo
+                                    $dataAtividade = new DateTime($atividade['data']);
+                                    $agora = new DateTime();
+                                    $diff = $agora->diff($dataAtividade);
+                                    
+                                    $tempoRelativo = '';
+                                    if ($diff->days > 0) {
+                                        $tempoRelativo = $diff->days == 1 ? 'Ontem' : 'Há ' . $diff->days . ' dias';
+                                    } elseif ($diff->h > 0) {
+                                        $tempoRelativo = 'Há ' . $diff->h . ' hora' . ($diff->h > 1 ? 's' : '');
+                                    } elseif ($diff->i > 0) {
+                                        $tempoRelativo = 'Há ' . $diff->i . ' minuto' . ($diff->i > 1 ? 's' : '');
+                                    } else {
+                                        $tempoRelativo = 'Agora mesmo';
+                                    }
+                                    ?>
+                                    <div class="flex items-start space-x-4 p-4 bg-gradient-to-r <?= $gradient ?> rounded-xl">
+                                        <div class="p-2 <?= $bgColor ?> rounded-lg">
+                                            <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z"></path>
+                                            </svg>
+                                        </div>
+                                        <div class="flex-1">
+                                            <h4 class="font-semibold text-gray-800"><?= htmlspecialchars($atividade['titulo'] ?? 'Atividade') ?></h4>
+                                            <p class="text-sm text-gray-600 mt-1"><?= htmlspecialchars($atividade['descricao'] ?? '') ?></p>
+                                            <p class="text-xs text-gray-500 mt-2"><?= $tempoRelativo ?></p>
+                                        </div>
+                                    </div>
+                                    <?php
+                                }
+                            }
+                        } elseif (strtolower($userType) === 'gestao') {
+                            // Buscar atividades recentes do gestor filtradas por escola
+                            $escolaIdGestor = $_SESSION['escola_selecionada_id'] ?? $_SESSION['escola_id'] ?? null;
+                            
+                            if ($escolaIdGestor) {
+                                $atividadesRecentes = $stats->getAtividadesRecentesGestor($escolaIdGestor, 3);
+                            } else {
+                                $atividadesRecentes = [];
+                            }
+                            
+                            if (empty($atividadesRecentes)) {
+                                echo '<div class="text-center py-8 text-gray-500">Nenhuma atividade recente</div>';
+                            } else {
+                                foreach ($atividadesRecentes as $atividade) {
+                                    $iconColors = [
+                                        'blue' => 'from-blue-50 to-blue-100',
+                                        'green' => 'from-green-50 to-green-100',
+                                        'orange' => 'from-orange-50 to-orange-100',
+                                        'purple' => 'from-purple-50 to-purple-100'
+                                    ];
+                                    $bgColors = [
+                                        'blue' => 'bg-blue-500',
+                                        'green' => 'bg-green-500',
+                                        'orange' => 'bg-orange-500',
+                                        'purple' => 'bg-purple-500'
+                                    ];
+                                    $color = $atividade['color'] ?? 'blue';
+                                    $gradient = $iconColors[$color] ?? $iconColors['blue'];
+                                    $bgColor = $bgColors[$color] ?? $bgColors['blue'];
+                                    
+                                    // Calcular tempo relativo
+                                    $dataAtividade = new DateTime($atividade['data']);
+                                    $agora = new DateTime();
+                                    $diff = $agora->diff($dataAtividade);
+                                    
+                                    $tempoRelativo = '';
+                                    if ($diff->days > 0) {
+                                        $tempoRelativo = $diff->days == 1 ? 'Ontem' : 'Há ' . $diff->days . ' dias';
+                                    } elseif ($diff->h > 0) {
+                                        $tempoRelativo = 'Há ' . $diff->h . ' hora' . ($diff->h > 1 ? 's' : '');
+                                    } elseif ($diff->i > 0) {
+                                        $tempoRelativo = 'Há ' . $diff->i . ' minuto' . ($diff->i > 1 ? 's' : '');
+                                    } else {
+                                        $tempoRelativo = 'Agora mesmo';
+                                    }
+                                    ?>
+                                    <div class="flex items-start space-x-4 p-4 bg-gradient-to-r <?= $gradient ?> rounded-xl">
+                                        <div class="p-2 <?= $bgColor ?> rounded-lg">
+                                            <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z"></path>
+                                            </svg>
+                                        </div>
+                                        <div class="flex-1">
+                                            <p class="text-sm font-medium text-gray-800"><?= htmlspecialchars($atividade['titulo']) ?></p>
+                                            <p class="text-xs text-gray-600"><?= htmlspecialchars($atividade['descricao']) ?></p>
+                                            <p class="text-xs text-gray-500 mt-1"><?= $tempoRelativo ?></p>
+                                        </div>
+                                    </div>
+                                    <?php
+                                }
+                            }
                         } else { 
                             // Buscar atividades recentes do banco (para outros tipos de usuário)
                             $atividadesRecentes = $stats->getAtividadesRecentes(3);
@@ -3089,13 +3834,8 @@ if (isset($_SESSION['tipo']) && strtoupper($_SESSION['tipo']) === 'GESTAO') {
                 </div>
 
                 <!-- Quick Actions -->
-                <?php if (!isset($_SESSION['tipo']) || strtolower($_SESSION['tipo']) !== 'adm_merenda') { ?>
-                <div class="bg-white rounded-2xl p-6 shadow-lg border border-gray-100 mb-8">
-                    <div class="mb-6">
-                        <h3 class="text-xl font-bold text-gray-800">Acesso Rápido</h3>
-                        <p class="text-sm text-gray-600 mt-1">Acesse rapidamente as principais funcionalidades</p>
-                    </div>
-                    
+                
+                <div>
                     <div class="space-y-3">
                         <?php 
                         $userType = $_SESSION['tipo'] ?? '';
@@ -3196,7 +3936,16 @@ if (isset($_SESSION['tipo']) && strtoupper($_SESSION['tipo']) === 'GESTAO') {
                                     </div>
                                     <div class="text-right">
                                         <div class="text-xs opacity-80">Total</div>
-                                        <div class="text-sm font-bold"><?= $stats->getTotalAlunos() ?></div>
+                                        <div class="text-sm font-bold">
+                                            <?php 
+                                            // Filtrar por escola selecionada se for gestor
+                                            $escolaIdAcessoRapido = null;
+                                            if (isset($_SESSION['tipo']) && $_SESSION['tipo'] === 'GESTAO') {
+                                                $escolaIdAcessoRapido = $_SESSION['escola_selecionada_id'] ?? $_SESSION['escola_id'] ?? null;
+                                            }
+                                            echo $stats->getTotalAlunos($escolaIdAcessoRapido);
+                                            ?>
+                                        </div>
                                     </div>
                                 </div>
                                 <svg class="w-4 h-4 ml-2 opacity-70 group-hover:opacity-100 transition-opacity" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -3219,7 +3968,16 @@ if (isset($_SESSION['tipo']) && strtoupper($_SESSION['tipo']) === 'GESTAO') {
                                     </div>
                                     <div class="text-right">
                                         <div class="text-xs opacity-80">Hoje</div>
-                                        <div class="text-sm font-bold"><?= $stats->getFrequenciasHoje() ?></div>
+                                        <div class="text-sm font-bold">
+                                            <?php 
+                                            // Filtrar por escola selecionada se for gestor
+                                            $escolaIdAcessoRapido = null;
+                                            if (isset($_SESSION['tipo']) && $_SESSION['tipo'] === 'GESTAO') {
+                                                $escolaIdAcessoRapido = $_SESSION['escola_selecionada_id'] ?? $_SESSION['escola_id'] ?? null;
+                                            }
+                                            echo $stats->getFrequenciasHoje($escolaIdAcessoRapido);
+                                            ?>
+                                        </div>
                                     </div>
                                 </div>
                                 <svg class="w-4 h-4 ml-2 opacity-70 group-hover:opacity-100 transition-opacity" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -3242,7 +4000,16 @@ if (isset($_SESSION['tipo']) && strtoupper($_SESSION['tipo']) === 'GESTAO') {
                                     </div>
                                     <div class="text-right">
                                         <div class="text-xs opacity-80">Pendentes</div>
-                                        <div class="text-sm font-bold"><?= $stats->getNotasPendentes() ?></div>
+                                        <div class="text-sm font-bold">
+                                            <?php 
+                                            // Filtrar por escola selecionada se for gestor
+                                            $escolaIdAcessoRapido = null;
+                                            if (isset($_SESSION['tipo']) && $_SESSION['tipo'] === 'GESTAO') {
+                                                $escolaIdAcessoRapido = $_SESSION['escola_selecionada_id'] ?? $_SESSION['escola_id'] ?? null;
+                                            }
+                                            echo $stats->getNotasPendentes($escolaIdAcessoRapido);
+                                            ?>
+                                        </div>
                                     </div>
                                 </div>
                                 <svg class="w-4 h-4 ml-2 opacity-70 group-hover:opacity-100 transition-opacity" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -3299,7 +4066,6 @@ if (isset($_SESSION['tipo']) && strtoupper($_SESSION['tipo']) === 'GESTAO') {
                             <?php } ?>
                         </div>
                 </div>
-                <?php } ?>
                 <?php } ?>
             </section>
 
@@ -3511,7 +4277,7 @@ if (isset($_SESSION['tipo']) && strtoupper($_SESSION['tipo']) === 'GESTAO') {
                         </div>
                     </div>
                     
-                    <a href="cardapios_merenda.php" class="w-full bg-blue-600 text-white py-2.5 px-4 rounded-lg hover:bg-blue-700 transition-colors duration-200 font-medium text-center block">
+                    <a href="#" class="w-full bg-blue-600 text-white py-2.5 px-4 rounded-lg hover:bg-blue-700 transition-colors duration-200 font-medium text-center block">
                         Gerenciar Cardápios
                     </a>
                 </div>';

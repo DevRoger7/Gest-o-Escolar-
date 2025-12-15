@@ -65,6 +65,16 @@ $currentPage = basename($_SERVER['PHP_SELF']);
                     <span>Gestão Escolar</span>
                 </a>
             </li>
+            <?php if ($escolaGestorId): ?>
+            <li>
+                <a href="estoque_escola.php" class="menu-item flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700 <?= $currentPage === 'estoque_escola.php' ? 'bg-primary-green text-white' : 'hover:bg-gray-100' ?>">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path>
+                    </svg>
+                    <span>Estoque</span>
+                </a>
+            </li>
+            <?php endif; ?>
             <li>
                 <a href="transferencias_pendentes.php" class="menu-item flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700 <?= $currentPage === 'transferencias_pendentes.php' ? 'bg-primary-green text-white' : 'hover:bg-gray-100' ?>">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
