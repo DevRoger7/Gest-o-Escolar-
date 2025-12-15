@@ -52,4 +52,3 @@ FROM serie
 WHERE ativo = 0
 ORDER BY nivel_ensino, ordem;
 
-
