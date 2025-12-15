@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1
--- Tempo de geração: 15/12/2025 às 03:17
+-- Tempo de geração: 15/12/2025 às 13:39
 -- Versão do servidor: 10.4.32-MariaDB
 -- Versão do PHP: 8.2.12
 
@@ -115,6 +115,13 @@ CREATE TABLE `aluno_turma` (
   `atualizado_em` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
   `atualizado_por` bigint(20) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Despejando dados para a tabela `aluno_turma`
+--
+
+INSERT INTO `aluno_turma` (`id`, `aluno_id`, `turma_id`, `inicio`, `fim`, `status`, `observacoes`, `criado_em`, `atualizado_em`, `atualizado_por`) VALUES
+(20, 3, 7, '2025-12-15', NULL, 'MATRICULADO', NULL, '2025-12-15 03:56:02', '2025-12-15 03:56:02', NULL);
 
 -- --------------------------------------------------------
 
@@ -443,7 +450,7 @@ CREATE TABLE `consumo_diario` (
   `escola_id` bigint(20) NOT NULL,
   `turma_id` bigint(20) DEFAULT NULL,
   `data` date NOT NULL,
-  `turno` enum('MANHA','TARDE','NOITE') DEFAULT NULL,
+  `turno` enum('MANHA','TARDE','NOITE','INTEGRAL') DEFAULT NULL,
   `total_alunos` int(11) DEFAULT 0,
   `alunos_atendidos` int(11) DEFAULT 0,
   `observacoes` text DEFAULT NULL,
@@ -510,7 +517,7 @@ CREATE TABLE `desperdicio` (
   `id` bigint(20) NOT NULL,
   `escola_id` bigint(20) NOT NULL,
   `data` date NOT NULL,
-  `turno` enum('MANHA','TARDE','NOITE') DEFAULT NULL,
+  `turno` enum('MANHA','TARDE','NOITE','INTEGRAL') DEFAULT NULL,
   `produto_id` bigint(20) DEFAULT NULL,
   `quantidade` decimal(10,3) DEFAULT NULL,
   `unidade_medida` varchar(20) DEFAULT NULL,
@@ -636,8 +643,8 @@ INSERT INTO `escola` (`id`, `codigo`, `nome`, `endereco`, `numero`, `complemento
 (16, '243434', 'Sao Jose', 'Rua Joaninha Vieira', NULL, NULL, NULL, 'Maranguape', 'CE', '61943-290', '(85) 9999-9933', NULL, 'yudipro859@gmail.com', NULL, NULL, NULL, 8, 'ENSINO_FUNDAMENTAL', '', 1, '2025-09-25 17:23:57', '2025-12-11 16:50:29', NULL),
 (17, '12345678', 'Espaco Livre', 'Rua das Flores, 123 - Centro', NULL, NULL, NULL, 'Maranguape', 'CE', '61940-000', '(85) 3333-4444', NULL, 'escola.teste@sigae.com', NULL, NULL, NULL, 20, 'ENSINO_FUNDAMENTAL', 'Escola criada para testes do sistema SIGAE', 0, '2025-12-01 02:34:56', '2025-12-11 16:50:37', NULL),
 (22, 'sdadsasd', 'Direitos Humanos', 'Rua José Batista, 422, campo do ronerio, Aldeoma', NULL, NULL, NULL, 'MARANGUAPE', 'CE', '61948-050', '(85) 98183-5778', NULL, 'cavalcanterogeer@gmail.com', NULL, '12.132.313/1231-32', NULL, 12, 'ENSINO_FUNDAMENTAL', 'Gestor: João Silva (Gestor Teste) | CPF: 12345678900 | Cargo: Diretor | Email: gestor.teste@sigae.com | INEP Escola: dsadadas | Tipo: NORMAL | CNPJ: 12.132.313/1231-32', 1, '2025-12-10 18:54:53', '2025-12-11 16:50:44', NULL),
-(25, 'dsfsdfsdf', 'Ari De Sa', 'Rua José Batista, 12, campo do ronerio, Aldeoma', NULL, NULL, NULL, 'MARANGUAPE', 'CE', '61948-050', '(85) 98183-5778', NULL, 'cavalcanterogeer@gmail.com', NULL, '12.222.222/2222-22', NULL, 21, 'ENSINO_FUNDAMENTAL', 'Gestor: João Silva (Gestor Teste) | CPF: 12345678900 | Cargo: Diretor | Email: gestor.teste@sigae.com | INEP Escola: sdfsdfsd | Tipo: NORMAL | CNPJ: 12.222.222/2222-22', 1, '2025-12-10 19:09:26', '2025-12-11 16:50:55', NULL),
-(26, 'ESC20251215030757', 'Escola de Ensino Médio E.C.M. Pedro Pessoa Câmara', 'Avenida Doutor Argeu Gurgel Braga Herbster, 42, Outra Banda', NULL, NULL, NULL, 'MARANGUAPE', 'CE', '61942-005', '(85) 34545-45345', NULL, '', NULL, '76.754.565/6565-65', NULL, 32, 'ENSINO_FUNDAMENTAL', 'Gestor: João Silva (Gestor Teste) | CPF: 12345678900 | Cargo: Diretor | Email: gestor.teste@sigae.com | INEP Escola: 65656564 | Tipo: INTEGRAL | CNPJ: 76.754.565/6565-65', 1, '2025-12-15 02:07:57', '2025-12-15 02:07:57', NULL);
+(25, 'dsfsdfsdf', 'Ari De Sa', 'Rua José Batista, 12, campo do ronerio, Aldeoma', NULL, NULL, NULL, 'MARANGUAPE', 'CE', '61948-050', '(85) 98183-5778', NULL, 'cavalcanterogeer@gmail.com', NULL, '12.222.222/2222-22', NULL, 21, 'ENSINO_FUNDAMENTAL,ENSINO_MEDIO', 'Gestor: João Silva (Gestor Teste) | CPF: 12345678900 | Cargo: Diretor | Email: gestor.teste@sigae.com | INEP Escola: sdfsdfsd | Tipo: NORMAL | CNPJ: 12.222.222/2222-22', 1, '2025-12-10 19:09:26', '2025-12-15 03:20:19', NULL),
+(26, 'ESC20251215030757', 'Escola de Ensino Médio E.C.M. Pedro Pessoa Câmara', 'Avenida Doutor Argeu Gurgel Braga Herbster, 42, Outra Banda', NULL, NULL, NULL, 'MARANGUAPE', 'CE', '61942-005', '(85) 34545-45345', NULL, '', NULL, '76.754.565/6565-65', NULL, 32, 'ENSINO_FUNDAMENTAL', '', 1, '2025-12-15 02:07:57', '2025-12-15 04:11:08', NULL);
 
 -- --------------------------------------------------------
 
@@ -905,8 +912,7 @@ INSERT INTO `gestor_lotacao` (`id`, `gestor_id`, `escola_id`, `inicio`, `fim`, `
 (29, 3, 25, '2025-12-10', NULL, 1, NULL, NULL, '2025-12-10 19:09:26', '2025-12-10 19:09:26', NULL),
 (31, 3, 17, '2025-11-30', NULL, 1, 'Diretor', NULL, '2025-12-11 15:03:58', '2025-12-11 15:03:58', NULL),
 (33, 1, 3, '2025-10-03', NULL, 1, NULL, NULL, '2025-12-14 05:16:36', '2025-12-14 05:16:36', NULL),
-(34, 2, 16, '2025-10-01', NULL, 1, 'Coordenador PedagÃ³gico', NULL, '2025-12-14 05:19:43', '2025-12-14 05:19:43', NULL),
-(35, 3, 26, '2025-12-14', NULL, 1, NULL, NULL, '2025-12-15 02:07:57', '2025-12-15 02:07:57', NULL);
+(34, 2, 16, '2025-10-01', NULL, 1, 'Coordenador PedagÃ³gico', NULL, '2025-12-14 05:19:43', '2025-12-14 05:19:43', NULL);
 
 -- --------------------------------------------------------
 
@@ -1499,8 +1505,8 @@ INSERT INTO `professor` (`id`, `pessoa_id`, `matricula`, `formacao`, `especializ
 (6, 45, 'PROF-000045', 'Licenciatura em História', NULL, NULL, NULL, '2025-12-01 02:40:04', '2025-12-01 02:40:04', NULL, '2025-11-30', 1, NULL),
 (7, 2, 'MAT-7582935', 'COMPUTARIA', 'COMPUTARIA', 'na', 'na', '2025-12-08 18:17:31', '2025-12-08 18:17:31', NULL, '2025-12-08', 1, NULL),
 (8, 52, '123532523', 'MESTRADO', 'duas', 'CREA', NULL, '2025-12-11 12:31:49', '2025-12-11 12:31:49', 11, '2025-12-19', 1, NULL),
-(9, 53, '34111KEK', 'MATEMATICA', 'AUTISTAS', 'cera', NULL, '2025-12-11 12:40:33', '2025-12-11 12:40:33', 11, '2025-12-11', 1, NULL),
-(10, 55, 'MAT-034968', 'MATEMATICA', 'todas', 'creaf', NULL, '2025-12-11 12:56:40', '2025-12-11 12:56:40', 11, '2025-12-11', 1, NULL);
+(9, 53, '34111KEK', 'MATEMATICA', 'AUTISTAS', 'cera', NULL, '2025-12-11 12:40:33', '2025-12-15 12:27:41', 11, '2025-12-11', 0, NULL),
+(10, 55, 'MAT-034968', 'MATEMATICA', 'todas', 'creaf', NULL, '2025-12-11 12:56:40', '2025-12-15 12:33:45', 11, '2025-12-11', 1, NULL);
 
 -- --------------------------------------------------------
 
@@ -1622,9 +1628,18 @@ CREATE TABLE `serie` (
 --
 
 INSERT INTO `serie` (`id`, `nome`, `codigo`, `nivel_ensino`, `ordem`, `idade_minima`, `idade_maxima`, `descricao`, `ativo`, `criado_em`, `atualizado_em`, `criado_por`) VALUES
-(1, '1º Ano', '1ANO', 'ENSINO_FUNDAMENTAL', 1, 6, 7, 'Primeiro ano do Ensino Fundamental', 1, '2025-12-01 02:34:57', '2025-12-01 02:34:57', NULL),
+(1, '1º Ano', '1ANO', 'ENSINO_FUNDAMENTAL', 1, 8, 7, 'Primeiro ano do Ensino Fundamental', 1, '2025-12-01 02:34:57', '2025-12-15 12:34:59', NULL),
 (2, '2º Ano', '2ANO', 'ENSINO_FUNDAMENTAL', 2, 7, 8, 'Segundo ano do Ensino Fundamental', 1, '2025-12-01 02:34:57', '2025-12-01 02:34:57', NULL),
-(3, '3º Ano', '3ANO', 'ENSINO_FUNDAMENTAL', 3, 8, 9, 'Terceiro ano do Ensino Fundamental', 1, '2025-12-01 02:34:57', '2025-12-01 02:34:57', NULL);
+(3, '3º Ano', '3ANO', 'ENSINO_FUNDAMENTAL', 3, 8, 9, 'Terceiro ano do Ensino Fundamental', 1, '2025-12-01 02:34:57', '2025-12-01 02:34:57', NULL),
+(5, '4º Ano', '4ANO', 'ENSINO_FUNDAMENTAL', 4, 9, 10, 'Quarto ano do Ensino Fundamental', 1, '2025-12-15 02:20:47', '2025-12-15 02:20:47', NULL),
+(6, '5º Ano', '5ANO', 'ENSINO_FUNDAMENTAL', 5, 10, 11, 'Quinto ano do Ensino Fundamental', 1, '2025-12-15 02:20:47', '2025-12-15 02:20:47', NULL),
+(7, '6º Ano', '6ANO', 'ENSINO_FUNDAMENTAL', 6, 11, 12, 'Sexto ano do Ensino Fundamental', 1, '2025-12-15 02:20:47', '2025-12-15 02:20:47', NULL),
+(8, '7º Ano', '7ANO', 'ENSINO_FUNDAMENTAL', 7, 12, 13, 'Sétimo ano do Ensino Fundamental', 1, '2025-12-15 02:20:47', '2025-12-15 02:20:47', NULL),
+(9, '8º Ano', '8ANO', 'ENSINO_FUNDAMENTAL', 8, 13, 14, 'Oitavo ano do Ensino Fundamental', 1, '2025-12-15 02:20:47', '2025-12-15 02:20:47', NULL),
+(10, '9º Ano', '9ANO', 'ENSINO_FUNDAMENTAL', 9, 14, 15, 'Nono ano do Ensino Fundamental', 1, '2025-12-15 02:20:47', '2025-12-15 02:20:47', NULL),
+(11, '1º Ano', '1MEDIO', 'ENSINO_MEDIO', 10, 15, 16, 'Primeiro ano do Ensino Médio', 1, '2025-12-15 02:20:47', '2025-12-15 02:20:47', NULL),
+(12, '2º Ano', '2MEDIO', 'ENSINO_MEDIO', 11, 16, 17, 'Segundo ano do Ensino Médio', 1, '2025-12-15 02:20:47', '2025-12-15 02:20:47', NULL),
+(13, '3º Ano', '3MEDIO', 'ENSINO_MEDIO', 12, 17, 18, 'Terceiro ano do Ensino Médio', 1, '2025-12-15 02:20:47', '2025-12-15 02:20:47', NULL);
 
 -- --------------------------------------------------------
 
@@ -1662,7 +1677,7 @@ CREATE TABLE `turma` (
   `ano_letivo` int(11) DEFAULT NULL,
   `serie` varchar(20) DEFAULT NULL,
   `letra` varchar(3) DEFAULT NULL,
-  `turno` enum('MANHA','TARDE','NOITE') DEFAULT NULL,
+  `turno` enum('MANHA','TARDE','NOITE','INTEGRAL') DEFAULT NULL,
   `capacidade` int(11) DEFAULT NULL,
   `sala` varchar(50) DEFAULT NULL,
   `coordenador_id` bigint(20) DEFAULT NULL,
@@ -1683,7 +1698,8 @@ INSERT INTO `turma` (`id`, `escola_id`, `serie_id`, `ano_letivo`, `serie`, `letr
 (3, 17, 3, 2025, '3º Ano', 'A', 'MANHA', 30, NULL, NULL, NULL, 1, '2025-12-01 02:34:57', '2025-12-01 02:34:57', NULL),
 (4, 22, NULL, 2025, '7º ANO', 'B', 'MANHA', 25, '04', NULL, NULL, 1, '2025-12-12 00:09:56', '2025-12-12 00:26:05', NULL),
 (5, 22, NULL, 2025, '7º Ano', 'A', 'MANHA', 25, '04', NULL, NULL, 1, '2025-12-12 00:20:45', '2025-12-12 00:20:45', NULL),
-(6, 22, NULL, 2025, '7º ANO', 'C', 'MANHA', 25, '04', NULL, NULL, 1, '2025-12-12 00:20:50', '2025-12-12 00:26:13', NULL);
+(6, 22, NULL, 2025, '7º ANO', 'C', 'MANHA', 25, '04', NULL, NULL, 1, '2025-12-12 00:20:50', '2025-12-12 00:26:13', NULL),
+(7, 25, 11, 2025, '1º ANO', 'A', 'MANHA', 23, '04', NULL, NULL, 1, '2025-12-15 03:53:26', '2025-12-15 03:53:26', NULL);
 
 -- --------------------------------------------------------
 
@@ -1737,14 +1753,14 @@ CREATE TABLE `usuario` (
 INSERT INTO `usuario` (`id`, `pessoa_id`, `username`, `senha_hash`, `role`, `ativo`, `email_verificado`, `token_recuperacao`, `token_expiracao`, `tentativas_login`, `bloqueado_ate`, `ultimo_login`, `ultimo_acesso`, `created_at`, `atualizado_em`, `atualizado_por`) VALUES
 (1, 1, 'Roger', '1', 'ADM', 1, 0, NULL, NULL, 0, NULL, NULL, NULL, '2025-09-19 16:35:40', '2025-11-29 22:14:02', NULL),
 (2, 2, 'lavosier', '$2y$10$cJ4zJP1As7NtakAsDLmRfu2X.2z53ZEDo1SRT1131di5djhclf6Zi', 'PROFESSOR', 1, 0, NULL, NULL, 0, NULL, '2025-12-10 12:48:08', NULL, '2025-09-22 19:17:23', '2025-12-10 12:48:08', NULL),
-(3, 3, 'francisco', '$2y$10$RqVIvLDU2B3aMH8D5DCUeubFZ0dVMgvfNgzbhCqWr6REia5O/69gy', 'ADM', 1, 0, NULL, NULL, 0, NULL, '2025-12-14 23:50:44', NULL, '2025-09-22 19:42:40', '2025-12-14 23:50:44', NULL),
+(3, 3, 'francisco', '$2y$10$RqVIvLDU2B3aMH8D5DCUeubFZ0dVMgvfNgzbhCqWr6REia5O/69gy', 'ADM', 1, 0, NULL, NULL, 0, NULL, '2025-12-15 12:15:50', NULL, '2025-09-22 19:42:40', '2025-12-15 12:15:50', NULL),
 (4, 4, 'yudi', '$2y$10$3WUQGohoZf8tiE0UvSC43uxF4kQCrjERBG8NmfyMQZ8FgMHN0vKnS', 'GESTAO', 1, 0, NULL, NULL, 0, NULL, NULL, NULL, '2025-09-23 17:56:04', '2025-11-29 22:14:02', NULL),
 (5, 5, 'raimundo', '$2y$10$yAoiZi1i3HOosehIwKCg5OMua7tXjlpVIlm5SJAuIIfZ/tcoNbup.', 'GESTAO', 1, 0, NULL, NULL, 0, NULL, '2025-12-08 13:04:56', NULL, '2025-09-23 17:58:50', '2025-12-08 13:04:56', NULL),
 (6, 6, 'cabra', '$2y$10$KjDXdWEqd.98YRW6bHErve.JEjPU6hx0Nb1QjJd4DvjcSRZJMlyoG', 'PROFESSOR', 1, 0, NULL, NULL, 0, NULL, '2025-09-29 17:00:01', NULL, '2025-09-29 16:56:48', '2025-11-29 22:14:02', NULL),
 (7, 10, 'joao.silva', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'ALUNO', 1, 0, NULL, NULL, 0, NULL, NULL, NULL, '2025-11-29 23:05:38', '2025-11-29 23:05:38', NULL),
 (8, 11, 'gestor.teste', '$2y$10$97/wPF7UQfMIuhy17lkgpOzvzcOLawjW.wB6Y8ctM2JnxYt5NIAGm', 'GESTAO', 1, 0, NULL, NULL, 0, NULL, NULL, NULL, '2025-12-01 02:34:57', '2025-12-09 12:55:35', NULL),
 (10, 43, 'maria', '$2y$10$FgA0jUH/2TgUfko7QmwmB.qWLPO9kHy9CZ4eX/CbnVDTfSbaqW9.C', 'PROFESSOR', 1, 0, NULL, NULL, 0, NULL, NULL, NULL, '2025-12-01 02:40:04', '2025-12-10 14:20:48', NULL),
-(11, 44, 'josé', '$2y$10$4gl3Gwp/0u7z6EMmR1/IZOPg30t4pYLt2ps.mEMNrZIpLo3Jna4aq', 'PROFESSOR', 1, 0, NULL, NULL, 0, NULL, '2025-12-15 01:09:32', NULL, '2025-12-01 02:40:04', '2025-12-15 01:09:32', NULL),
+(11, 44, 'josé', '$2y$10$4gl3Gwp/0u7z6EMmR1/IZOPg30t4pYLt2ps.mEMNrZIpLo3Jna4aq', 'PROFESSOR', 1, 0, NULL, NULL, 0, NULL, '2025-12-15 03:53:39', NULL, '2025-12-01 02:40:04', '2025-12-15 03:53:39', NULL),
 (12, 45, 'patrícia', '1', 'PROFESSOR', 1, 0, NULL, NULL, 0, NULL, NULL, NULL, '2025-12-01 02:40:04', '2025-12-08 18:12:21', NULL),
 (13, 28, 'ana.silva.santos', '$2y$10$5Tcc269FHgJLZYq4PeqUZe.QC9L0xuQS5FZ2d/.Ph6WGi3.8zKtu6', 'ALUNO', 1, 0, NULL, NULL, 0, NULL, NULL, NULL, '2025-12-01 04:11:43', '2025-12-01 04:14:38', NULL),
 (14, 29, 'bruno.oliveira.costa', '$2y$10$KEX8cchujO5TOR46UuGr3uWAKj4VNdXnNVFuiCjGOt6g0awnz0ZLi', 'ALUNO', 1, 0, NULL, NULL, 0, NULL, NULL, NULL, '2025-12-01 04:11:43', '2025-12-15 00:11:20', NULL),
@@ -1762,7 +1778,7 @@ INSERT INTO `usuario` (`id`, `pessoa_id`, `username`, `senha_hash`, `role`, `ati
 (26, 41, 'otávio.ribeiro.campos', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'ALUNO', 1, 0, NULL, NULL, 0, NULL, NULL, NULL, '2025-12-01 04:11:43', '2025-12-01 04:11:43', NULL),
 (27, 42, 'paula.cristina.moreira', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'ALUNO', 1, 0, NULL, NULL, 0, NULL, NULL, NULL, '2025-12-01 04:11:43', '2025-12-01 04:11:43', NULL),
 (28, 46, 'merenda.teste', '$2y$10$t/nUJBD4VyWkx6YK5fcRAu3kaOFsMX0nZ9zWBdHvlqZQstiVAZCji', 'ADM_MERENDA', 1, 1, NULL, NULL, 0, NULL, '2025-12-10 16:35:00', NULL, '2025-12-02 00:08:28', '2025-12-10 16:35:00', NULL),
-(29, 47, 'nutricionista.teste', '$2y$10$MDKU1U5HUkVOcWh1yDOB1emNwjYG8PEYlOY0I4MDkDZ90q0y/fG1G', 'NUTRICIONISTA', 1, 1, NULL, NULL, 0, NULL, '2025-12-15 00:11:34', NULL, '2025-12-08 13:12:49', '2025-12-15 00:11:34', NULL),
+(29, 47, 'nutricionista.teste', '$2y$10$MDKU1U5HUkVOcWh1yDOB1emNwjYG8PEYlOY0I4MDkDZ90q0y/fG1G', 'NUTRICIONISTA', 1, 1, NULL, NULL, 0, NULL, '2025-12-15 03:55:18', NULL, '2025-12-08 13:12:49', '2025-12-15 03:55:18', NULL),
 (30, 48, 'antoniosilva6723', '$2y$10$cL858W9Dyst4Jua46DJxLOxjqFB03IzY3eDZPTYInM21eAPsR6Kpy', 'RESPONSAVEL', 0, 0, NULL, NULL, 0, NULL, NULL, NULL, '2025-12-09 13:28:36', '2025-12-09 13:38:19', NULL),
 (31, 50, 'antoniosilva6728', '$2y$10$J/v3PtK5otOtvD13Yh7JgOlUusPhkl4nHhdbAHnONzuCetXfz1Fkq', 'RESPONSAVEL', 1, 0, NULL, NULL, 0, NULL, NULL, NULL, '2025-12-09 13:45:00', '2025-12-10 17:18:35', NULL),
 (32, 52, 'testeeeeeeeeee', '$2y$10$0gGssazv/8s8U0S94wizGuTeOOTL2539Ok9j8i8H5XkRcEPS9T2ie', 'PROFESSOR', 1, 0, NULL, NULL, 0, NULL, NULL, NULL, '2025-12-11 12:31:49', '2025-12-11 12:31:49', NULL),
@@ -2513,7 +2529,7 @@ ALTER TABLE `aluno_responsavel`
 -- AUTO_INCREMENT de tabela `aluno_turma`
 --
 ALTER TABLE `aluno_turma`
-  MODIFY `id` bigint(20) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=20;
+  MODIFY `id` bigint(20) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=22;
 
 --
 -- AUTO_INCREMENT de tabela `avaliacao`
@@ -2855,7 +2871,7 @@ ALTER TABLE `role_permissao`
 -- AUTO_INCREMENT de tabela `serie`
 --
 ALTER TABLE `serie`
-  MODIFY `id` bigint(20) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=5;
+  MODIFY `id` bigint(20) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=14;
 
 --
 -- AUTO_INCREMENT de tabela `substituicao_alimento`
@@ -2867,7 +2883,7 @@ ALTER TABLE `substituicao_alimento`
 -- AUTO_INCREMENT de tabela `turma`
 --
 ALTER TABLE `turma`
-  MODIFY `id` bigint(20) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=7;
+  MODIFY `id` bigint(20) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=8;
 
 --
 -- AUTO_INCREMENT de tabela `turma_professor`
