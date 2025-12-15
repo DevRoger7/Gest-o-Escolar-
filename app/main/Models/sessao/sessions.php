@@ -216,8 +216,41 @@ class sessions {
             }
         }
         
-        // Atualiza o último acesso
+        // Atualiza o último acesso na sessão
         $_SESSION['ultimo_acesso'] = time();
+        
+        // Atualizar ultimo_acesso no banco de dados (a cada 5 minutos ou na primeira vez)
+        $usuarioId = $_SESSION['usuario_id'] ?? null;
+        if ($usuarioId) {
+            // Verificar se já passou 5 minutos desde a última atualização no banco
+            $ultimaAtualizacaoBanco = $_SESSION['ultima_atualizacao_banco'] ?? 0;
+            $tempoDesdeUltimaAtualizacao = time() - $ultimaAtualizacaoBanco;
+            $intervaloAtualizacao = 5 * 60; // 5 minutos em segundos
+            
+            if ($tempoDesdeUltimaAtualizacao >= $intervaloAtualizacao) {
+                try {
+                    require_once("../../config/Database.php");
+                    $db = Database::getInstance();
+                    $conn = $db->getConnection();
+                    
+                    date_default_timezone_set('America/Sao_Paulo');
+                    $dataHoraAtual = date('Y-m-d H:i:s');
+                    
+                    $sql = "UPDATE usuario SET ultimo_acesso = :ultimo_acesso WHERE id = :id";
+                    $stmt = $conn->prepare($sql);
+                    $stmt->bindParam(':ultimo_acesso', $dataHoraAtual);
+                    $stmt->bindParam(':id', $usuarioId, PDO::PARAM_INT);
+                    $stmt->execute();
+                    
+                    // Atualizar timestamp da última atualização no banco
+                    $_SESSION['ultima_atualizacao_banco'] = time();
+                    
+                } catch (Exception $e) {
+                    // Log do erro mas não interromper a execução
+                    error_log("Erro ao atualizar ultimo_acesso no banco: " . $e->getMessage());
+                }
+            }
+        }
     }
     
     public function destruir_session() {

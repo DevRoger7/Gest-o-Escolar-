@@ -1,6 +1,13 @@
 <?php
 session_start();
 
+// Registrar logout antes de destruir a sessão
+if (isset($_SESSION['usuario_id'])) {
+    require_once(__DIR__ . '/../../Models/log/SystemLogger.php');
+    $logger = SystemLogger::getInstance();
+    $logger->logLogout($_SESSION['usuario_id']);
+}
+
 // Destruir todas as variáveis de sessão
 $_SESSION = array();
 

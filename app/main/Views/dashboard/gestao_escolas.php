@@ -439,6 +439,15 @@ function cadastrarEscola($dados)
 
         $conn->commit();
 
+        // Registrar log de criação de escola
+        if (session_status() == PHP_SESSION_NONE) {
+            session_start();
+        }
+        $usuarioLogadoId = $_SESSION['usuario_id'] ?? null;
+        require_once(__DIR__ . '/../../Models/log/SystemLogger.php');
+        $logger = SystemLogger::getInstance();
+        $logger->logCriarEscola($usuarioLogadoId, $escolaId, $dados['nome']);
+
         return ['status' => true, 'mensagem' => 'Escola cadastrada com sucesso!'];
     } catch (PDOException $e) {
         $conn->rollBack();
@@ -1244,12 +1253,28 @@ function excluirEscola($id)
             // Tabela pode não existir, ignorar
         }
 
+        // Buscar nome da escola antes de excluir para o log
+        $stmtNome = $conn->prepare("SELECT nome FROM escola WHERE id = :id");
+        $stmtNome->bindParam(':id', $id, PDO::PARAM_INT);
+        $stmtNome->execute();
+        $escola = $stmtNome->fetch(PDO::FETCH_ASSOC);
+        $nomeEscola = $escola['nome'] ?? null;
+
         // Excluir a escola
         $stmt = $conn->prepare("DELETE FROM escola WHERE id = :id");
         $stmt->bindParam(':id', $id, PDO::PARAM_INT);
         $stmt->execute();
 
         $conn->commit();
+
+        // Registrar log de exclusão de escola
+        if (session_status() == PHP_SESSION_NONE) {
+            session_start();
+        }
+        $usuarioLogadoId = $_SESSION['usuario_id'] ?? null;
+        require_once(__DIR__ . '/../../Models/log/SystemLogger.php');
+        $logger = SystemLogger::getInstance();
+        $logger->logExcluirEscola($usuarioLogadoId, $id, $nomeEscola);
 
         return ['status' => true, 'mensagem' => 'Escola excluída com sucesso!'];
     } catch (PDOException $e) {
@@ -1387,6 +1412,22 @@ function atualizarEscola($id, $dados)
         }
 
         $conn->commit();
+
+        // Buscar nome da escola para o log
+        $stmtNome = $conn->prepare("SELECT nome FROM escola WHERE id = :id");
+        $stmtNome->bindParam(':id', $id, PDO::PARAM_INT);
+        $stmtNome->execute();
+        $escola = $stmtNome->fetch(PDO::FETCH_ASSOC);
+        $nomeEscola = $escola['nome'] ?? null;
+
+        // Registrar log de edição de escola
+        if (session_status() == PHP_SESSION_NONE) {
+            session_start();
+        }
+        $usuarioLogadoId = $_SESSION['usuario_id'] ?? null;
+        require_once(__DIR__ . '/../../Models/log/SystemLogger.php');
+        $logger = SystemLogger::getInstance();
+        $logger->logEditarEscola($usuarioLogadoId, $id, $nomeEscola);
 
         return ['status' => true, 'mensagem' => 'Escola atualizada com sucesso!'];
     } catch (PDOException $e) {
@@ -4276,16 +4317,26 @@ if ($_SESSION['tipo'] === 'ADM') {
                         document.getElementById('nenhum-gestor-section').classList.remove('hidden');
                     }
                     
-                    // Armazenar dados originais para comparação
+                    // Armazenar dados originais para comparação (usar valores dos campos do formulário)
                     dadosOriginaisEscola = {
-                        nome: escola.nome || '',
-                        endereco: escola.endereco || '',
-                        telefone: escola.telefone || '',
-                        email: escola.email || '',
-                        municipio: escola.municipio || '',
-                        cep: escola.cep || '',
-                        qtd_salas: escola.qtd_salas || '',
-                        codigo: escola.codigo || ''
+                        nome: document.getElementById('edit_nome').value || '',
+                        inep: document.getElementById('edit_inep').value || '',
+                        nome_curto: document.getElementById('edit_nome_curto').value || '',
+                        codigo: document.getElementById('edit_codigo').value || '',
+                        cnpj: document.getElementById('edit_cnpj').value || '',
+                        tipo_escola: document.getElementById('edit_tipo_escola').value || '',
+                        qtd_salas: document.getElementById('edit_qtd_salas').value || '',
+                        nivel_ensino_fundamental: document.getElementById('edit_nivel_ensino_fundamental').checked ? 'ENSINO_FUNDAMENTAL' : '',
+                        nivel_ensino_medio: document.getElementById('edit_nivel_ensino_medio').checked ? 'ENSINO_MEDIO' : '',
+                        cep: document.getElementById('edit_cep').value || '',
+                        logradouro: document.getElementById('edit_logradouro').value || '',
+                        numero: document.getElementById('edit_numero').value || '',
+                        complemento: document.getElementById('edit_complemento').value || '',
+                        bairro: document.getElementById('edit_bairro').value || '',
+                        telefone_fixo: document.getElementById('edit_telefone_fixo').value || '',
+                        telefone_movel: document.getElementById('edit_telefone_movel').value || '',
+                        email: document.getElementById('edit_email').value || '',
+                        site: document.getElementById('edit_site').value || ''
                     };
                     
                     // Carregar professores da escola
@@ -4342,15 +4393,25 @@ if ($_SESSION['tipo'] === 'ADM') {
         // Função para configurar monitoramento de mudanças nos campos
         function configurarMonitoramentoMudancas() {
             const campos = [
-                'edit_nome', 'edit_endereco', 'edit_telefone', 'edit_email',
-                'edit_municipio', 'edit_cep', 'edit_qtd_salas', 'edit_codigo'
+                'edit_nome', 'edit_inep', 'edit_nome_curto', 'edit_codigo', 'edit_cnpj',
+                'edit_tipo_escola', 'edit_qtd_salas', 'edit_nivel_ensino_fundamental', 'edit_nivel_ensino_medio',
+                'edit_cep', 'edit_logradouro', 'edit_numero', 'edit_complemento', 'edit_bairro',
+                'edit_telefone_fixo', 'edit_telefone_movel', 'edit_email', 'edit_site'
             ];
             
             campos.forEach(campoId => {
                 const campo = document.getElementById(campoId);
                 if (campo) {
-                    campo.removeEventListener('input', verificarMudancas); // Remove listeners anteriores
+                    // Remove listeners anteriores
+                    campo.removeEventListener('input', verificarMudancas);
+                    campo.removeEventListener('change', verificarMudancas);
+                    
+                    // Adiciona novos listeners
+                    if (campo.type === 'checkbox') {
+                        campo.addEventListener('change', verificarMudancas);
+                    } else {
                     campo.addEventListener('input', verificarMudancas);
+                    }
                 }
             });
         }
@@ -4359,13 +4420,23 @@ if ($_SESSION['tipo'] === 'ADM') {
         function verificarMudancas() {
             const camposAtuais = {
                 nome: document.getElementById('edit_nome').value || '',
-                endereco: document.getElementById('edit_endereco').value || '',
-                telefone: document.getElementById('edit_telefone').value || '',
-                email: document.getElementById('edit_email').value || '',
-                municipio: document.getElementById('edit_municipio').value || '',
-                cep: document.getElementById('edit_cep').value || '',
+                inep: document.getElementById('edit_inep').value || '',
+                nome_curto: document.getElementById('edit_nome_curto').value || '',
+                codigo: document.getElementById('edit_codigo').value || '',
+                cnpj: document.getElementById('edit_cnpj').value || '',
+                tipo_escola: document.getElementById('edit_tipo_escola').value || '',
                 qtd_salas: document.getElementById('edit_qtd_salas').value || '',
-                codigo: document.getElementById('edit_codigo').value || ''
+                nivel_ensino_fundamental: document.getElementById('edit_nivel_ensino_fundamental').checked ? 'ENSINO_FUNDAMENTAL' : '',
+                nivel_ensino_medio: document.getElementById('edit_nivel_ensino_medio').checked ? 'ENSINO_MEDIO' : '',
+                cep: document.getElementById('edit_cep').value || '',
+                logradouro: document.getElementById('edit_logradouro').value || '',
+                numero: document.getElementById('edit_numero').value || '',
+                complemento: document.getElementById('edit_complemento').value || '',
+                bairro: document.getElementById('edit_bairro').value || '',
+                telefone_fixo: document.getElementById('edit_telefone_fixo').value || '',
+                telefone_movel: document.getElementById('edit_telefone_movel').value || '',
+                email: document.getElementById('edit_email').value || '',
+                site: document.getElementById('edit_site').value || ''
             };
             
             // Comparar com dados originais

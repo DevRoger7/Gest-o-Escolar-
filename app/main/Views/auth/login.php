@@ -302,6 +302,24 @@ $nomeSistemaCurto = getNomeSistemaCurto();
                     <span>CPF/Email ou senha incorretos. Tente novamente.</span>
                 </div>
                 <?php endif; ?>
+                
+                <?php if(isset($_GET['erro']) && $_GET['erro'] == 'bloqueado'): ?>
+                <?php 
+                $minutos = isset($_GET['minutos']) ? (int)$_GET['minutos'] : 30;
+                ?>
+                <div class="mb-4 bg-orange-100 border border-orange-400 text-orange-800 px-4 py-3 rounded-lg text-sm">
+                    <div class="flex items-start">
+                        <svg class="w-5 h-5 mr-2 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z"></path>
+                        </svg>
+                        <div>
+                            <strong>Conta temporariamente bloqueada!</strong>
+                            <p class="mt-1">Muitas tentativas de login falharam. Sua conta foi bloqueada por <?php echo $minutos; ?> minuto(s) por segurança.</p>
+                            <p class="mt-1 text-xs">Tente novamente após o período de bloqueio.</p>
+                        </div>
+                    </div>
+                </div>
+                <?php endif; ?>
         <div id="errorMessage" class="error-message">
             <div class="flex items-center">
                 <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -428,6 +446,24 @@ $nomeSistemaCurto = getNomeSistemaCurto();
                 <?php if(isset($_GET['erro']) && $_GET['erro'] == '1'): ?>
                 <div class="mb-4 bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-lg text-sm">
                     <span>CPF/Email ou senha incorretos. Tente novamente.</span>
+                </div>
+                <?php endif; ?>
+                
+                <?php if(isset($_GET['erro']) && $_GET['erro'] == 'bloqueado'): ?>
+                <?php 
+                $minutos = isset($_GET['minutos']) ? (int)$_GET['minutos'] : 30;
+                ?>
+                <div class="mb-4 bg-orange-100 border border-orange-400 text-orange-800 px-4 py-3 rounded-lg text-sm">
+                    <div class="flex items-start">
+                        <svg class="w-5 h-5 mr-2 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z"></path>
+                        </svg>
+                        <div>
+                            <strong>Conta temporariamente bloqueada!</strong>
+                            <p class="mt-1">Muitas tentativas de login falharam. Sua conta foi bloqueada por <?php echo $minutos; ?> minuto(s) por segurança.</p>
+                            <p class="mt-1 text-xs">Tente novamente após o período de bloqueio.</p>
+                        </div>
+                    </div>
                 </div>
                 <?php endif; ?>
                 <div id="errorMessageDesktop" class="error-message">

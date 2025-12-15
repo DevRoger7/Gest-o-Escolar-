@@ -18,6 +18,13 @@ if(isset($_POST["cpf"]) && isset($_POST["senha"]))
             exit();
         }
         
+        // Verificar se a conta está bloqueada
+        if (is_array($resultado) && isset($resultado['bloqueado'])) {
+            $minutosRestantes = $resultado['minutos_restantes'] ?? 30;
+            header("Location: ../../Views/auth/login.php?erro=bloqueado&minutos=" . $minutosRestantes);
+            exit();
+        }
+        
         // Login bem-sucedido - as sessões já foram criadas no model
         // Redireciona para o dashboard
         header("Location: ../../Views/dashboard/dashboard.php");

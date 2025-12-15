@@ -71,8 +71,48 @@ Class ModelLogin {
         
         $resultado = $stmt->fetch(PDO::FETCH_ASSOC);
         
+        // Se usuário não encontrado, retornar false
+        if (!$resultado) {
+            // Registrar tentativa de login com usuário inexistente
+            require_once(__DIR__ . '/../log/SystemLogger.php');
+            $logger = SystemLogger::getInstance();
+            $logger->logLoginFalha($cpfOuEmail, 'Usuário não encontrado');
+            return false;
+        }
+        
+        // Verificar se a conta está bloqueada por tentativas
+        $tentativasLogin = (int)($resultado['tentativas_login'] ?? 0);
+        $bloqueadoAte = $resultado['bloqueado_ate'] ?? null;
+        
+        // Se está bloqueado, verificar se o bloqueio já expirou
+        if ($bloqueadoAte) {
+            $dataBloqueio = strtotime($bloqueadoAte);
+            $dataAtual = time();
+            
+            // Se ainda está bloqueado, retornar erro
+            if ($dataBloqueio > $dataAtual) {
+                $tempoRestante = $dataBloqueio - $dataAtual;
+                $minutosRestantes = ceil($tempoRestante / 60);
+                error_log("Tentativa de login bloqueada para usuário ID: " . $resultado['id'] . " - Bloqueado até: " . $bloqueadoAte);
+                
+                // Registrar tentativa de login em conta bloqueada
+                require_once(__DIR__ . '/../log/SystemLogger.php');
+                $logger = SystemLogger::getInstance();
+                $logger->logLoginFalha($cpfOuEmail, "Conta bloqueada - {$minutosRestantes} minutos restantes");
+                
+                return ['bloqueado' => true, 'minutos_restantes' => $minutosRestantes];
+            } else {
+                // Bloqueio expirou, resetar tentativas
+                $sqlResetBloqueio = "UPDATE usuario SET tentativas_login = 0, bloqueado_ate = NULL WHERE id = :id";
+                $stmtResetBloqueio = $conn->prepare($sqlResetBloqueio);
+                $stmtResetBloqueio->bindParam(':id', $resultado['id'], PDO::PARAM_INT);
+                $stmtResetBloqueio->execute();
+                $tentativasLogin = 0;
+            }
+        }
+        
         // Verificar se o usuário existe e se a senha está correta usando password_verify
-        if ($resultado && password_verify($senha, $resultado['senha_hash'])) {
+        if (password_verify($senha, $resultado['senha_hash'])) {
             // Senha correta, mas ANTES de criar a sessão, verificar se a escola está ativa
             
             $tipoUsuario = $resultado['role'] ?? '';
@@ -227,13 +267,28 @@ Class ModelLogin {
             // Definir o fuso horário para América/Sao_Paulo (GMT-3)
             date_default_timezone_set('America/Sao_Paulo');
             
-            // Atualizar o campo ultimo_login com a data e hora atual no fuso horário correto
+            // Atualizar o campo ultimo_login, ultimo_acesso, zerar tentativas_login e remover bloqueio
+            date_default_timezone_set('America/Sao_Paulo');
             $dataHoraAtual = date('Y-m-d H:i:s');
-            $sqlAtualizarLogin = "UPDATE usuario SET ultimo_login = :ultimo_login WHERE id = :id";
+            
+            $sqlAtualizarLogin = "UPDATE usuario SET 
+                                    ultimo_login = :ultimo_login,
+                                    ultimo_acesso = :ultimo_acesso,
+                                    tentativas_login = 0,
+                                    bloqueado_ate = NULL
+                                  WHERE id = :id";
             $stmtAtualizarLogin = $conn->prepare($sqlAtualizarLogin);
             $stmtAtualizarLogin->bindParam(':ultimo_login', $dataHoraAtual);
-            $stmtAtualizarLogin->bindParam(':id', $resultado['id']);
+            $stmtAtualizarLogin->bindParam(':ultimo_acesso', $dataHoraAtual);
+            $stmtAtualizarLogin->bindParam(':id', $resultado['id'], PDO::PARAM_INT);
             $stmtAtualizarLogin->execute();
+            
+            error_log("Login bem-sucedido - Usuário ID: " . $resultado['id'] . " - Tentativas resetadas");
+            
+            // Registrar login bem-sucedido no log do sistema
+            require_once(__DIR__ . '/../log/SystemLogger.php');
+            $logger = SystemLogger::getInstance();
+            $logger->logLogin($resultado['id'], $resultado['username'] ?? $resultado['nome']);
             
             // Criar as sessões com os dados do usuário
             $_SESSION['logado'] = true;
@@ -356,7 +411,53 @@ Class ModelLogin {
             
             return $resultado;
         } else {
-            // Usuário não encontrado ou senha incorreta
+            // Senha incorreta - incrementar tentativas de login
+            $tentativasLogin++;
+            $maxTentativas = 5; // Máximo de tentativas antes de bloquear
+            $tempoBloqueioMinutos = 30; // Tempo de bloqueio em minutos
+            
+            date_default_timezone_set('America/Sao_Paulo');
+            $dataHoraAtual = date('Y-m-d H:i:s');
+            
+            // Registrar tentativa de login falha
+            require_once(__DIR__ . '/../log/SystemLogger.php');
+            $logger = SystemLogger::getInstance();
+            
+            if ($tentativasLogin >= $maxTentativas) {
+                // Bloquear conta por 30 minutos
+                $dataBloqueio = date('Y-m-d H:i:s', strtotime("+{$tempoBloqueioMinutos} minutes"));
+                
+                $sqlAtualizarTentativas = "UPDATE usuario SET 
+                                            tentativas_login = :tentativas,
+                                            bloqueado_ate = :bloqueado_ate
+                                          WHERE id = :id";
+                $stmtAtualizarTentativas = $conn->prepare($sqlAtualizarTentativas);
+                $stmtAtualizarTentativas->bindParam(':tentativas', $tentativasLogin, PDO::PARAM_INT);
+                $stmtAtualizarTentativas->bindParam(':bloqueado_ate', $dataBloqueio);
+                $stmtAtualizarTentativas->bindParam(':id', $resultado['id'], PDO::PARAM_INT);
+                $stmtAtualizarTentativas->execute();
+                
+                error_log("Conta bloqueada após " . $tentativasLogin . " tentativas falhas - Usuário ID: " . $resultado['id'] . " - Bloqueado até: " . $dataBloqueio);
+                
+                // Registrar bloqueio de conta
+                $logger->logBloqueioConta($resultado['id'], "{$tentativasLogin} tentativas falhas de login");
+                $logger->logLoginFalha($cpfOuEmail, "Senha incorreta - Conta bloqueada por {$tempoBloqueioMinutos} minutos");
+                
+                return ['bloqueado' => true, 'tentativas' => $tentativasLogin, 'minutos_restantes' => $tempoBloqueioMinutos];
+            } else {
+                // Apenas incrementar tentativas
+                $sqlAtualizarTentativas = "UPDATE usuario SET tentativas_login = :tentativas WHERE id = :id";
+                $stmtAtualizarTentativas = $conn->prepare($sqlAtualizarTentativas);
+                $stmtAtualizarTentativas->bindParam(':tentativas', $tentativasLogin, PDO::PARAM_INT);
+                $stmtAtualizarTentativas->bindParam(':id', $resultado['id'], PDO::PARAM_INT);
+                $stmtAtualizarTentativas->execute();
+                
+                error_log("Tentativa de login falhou - Usuário ID: " . $resultado['id'] . " - Tentativas: " . $tentativasLogin . "/" . $maxTentativas);
+                
+                // Registrar tentativa de login falha
+                $logger->logLoginFalha($cpfOuEmail, "Senha incorreta - Tentativa {$tentativasLogin}/{$maxTentativas}");
+            }
+            
             return false;
         }
     }

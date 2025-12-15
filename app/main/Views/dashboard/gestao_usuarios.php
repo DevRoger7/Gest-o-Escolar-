@@ -20,10 +20,11 @@ function listarUsuarios($busca = '', $role = '') {
     $db = Database::getInstance();
     $conn = $db->getConnection();
     
-    $sql = "SELECT u.id, u.role as tipo, u.ativo, 
+    // Usar alias específico para evitar conflito de nomes entre u.id e p.id
+    $sql = "SELECT u.id as usuario_id, u.pessoa_id, u.role as tipo, u.ativo, 
                    CASE WHEN u.ativo = 0 THEN 1 ELSE 0 END as bloqueado, 
                    u.ultimo_login, u.created_at as data_criacao, u.username,
-                   p.nome, p.cpf, p.email, p.telefone 
+                   p.id as pessoa_id_original, p.nome, p.cpf, p.email, p.telefone 
             FROM usuario u 
             JOIN pessoa p ON u.pessoa_id = p.id 
             WHERE 1=1";
@@ -50,7 +51,15 @@ function listarUsuarios($busca = '', $role = '') {
     }
     
     $stmt->execute();
-    return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    $usuarios = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    
+    // Garantir que o campo 'id' seja o ID do usuário (não da pessoa)
+    foreach ($usuarios as &$usuario) {
+        $usuario['id'] = $usuario['usuario_id'];
+    }
+    unset($usuario); // Limpar referência
+    
+    return $usuarios;
 }
 
 function obterEstatisticasUsuarios() {
@@ -99,10 +108,11 @@ function listarGestores() {
     $db = Database::getInstance();
     $conn = $db->getConnection();
     
-    $sql = "SELECT u.id, u.role as tipo, u.ativo, 
+    // Usar alias específico para evitar conflito de nomes entre u.id e p.id
+    $sql = "SELECT u.id as usuario_id, u.pessoa_id, u.role as tipo, u.ativo, 
                    CASE WHEN u.ativo = 0 THEN 1 ELSE 0 END as bloqueado, 
                    u.ultimo_login, u.created_at as data_criacao, u.username,
-                   p.nome, p.cpf, p.email, p.telefone 
+                   p.id as pessoa_id_original, p.nome, p.cpf, p.email, p.telefone 
             FROM usuario u 
             JOIN pessoa p ON u.pessoa_id = p.id 
             WHERE u.role = 'GESTAO'
@@ -110,7 +120,15 @@ function listarGestores() {
     
     $stmt = $conn->prepare($sql);
     $stmt->execute();
-    return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    $gestores = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    
+    // Garantir que o campo 'id' seja o ID do usuário (não da pessoa)
+    foreach ($gestores as &$gestor) {
+        $gestor['id'] = $gestor['usuario_id'];
+    }
+    unset($gestor); // Limpar referência
+    
+    return $gestores;
 }
 
 function cadastrarUsuario($dados) {
@@ -197,9 +215,19 @@ function cadastrarUsuario($dados) {
         $stmt->bindParam(':role', $dados['tipo']);
         
         $stmt->execute();
+        $novoUsuarioId = $conn->lastInsertId();
         
         // Confirmar transação
         $conn->commit();
+        
+        // Registrar log de criação de usuário
+        if (session_status() == PHP_SESSION_NONE) {
+            session_start();
+        }
+        $usuarioLogadoId = $_SESSION['usuario_id'] ?? null;
+        require_once(__DIR__ . '/../../Models/log/SystemLogger.php');
+        $logger = SystemLogger::getInstance();
+        $logger->logCriarUsuario($usuarioLogadoId, $novoUsuarioId, $dados['nome']);
         
         return ['status' => true, 'mensagem' => 'Usuário cadastrado com sucesso!'];
     } catch (PDOException $e) {
@@ -226,6 +254,13 @@ function excluirUsuario($id) {
         
         $pessoaId = $usuario['pessoa_id'];
         
+        // Buscar nome do usuário para o log
+        $stmtNome = $conn->prepare("SELECT nome FROM pessoa WHERE id = :pessoa_id");
+        $stmtNome->bindParam(':pessoa_id', $pessoaId);
+        $stmtNome->execute();
+        $pessoa = $stmtNome->fetch(PDO::FETCH_ASSOC);
+        $nomeUsuario = $pessoa['nome'] ?? null;
+        
         // Iniciar transação
         $conn->beginTransaction();
         
@@ -239,6 +274,15 @@ function excluirUsuario($id) {
         
         // Confirmar transação
         $conn->commit();
+        
+        // Registrar log de exclusão/desativação de usuário
+        if (session_status() == PHP_SESSION_NONE) {
+            session_start();
+        }
+        $usuarioLogadoId = $_SESSION['usuario_id'] ?? null;
+        require_once(__DIR__ . '/../../Models/log/SystemLogger.php');
+        $logger = SystemLogger::getInstance();
+        $logger->logExcluirUsuario($usuarioLogadoId, $id, $nomeUsuario);
         
         return ['status' => true, 'mensagem' => 'Usuário desativado com sucesso!'];
     } catch (PDOException $e) {
@@ -263,38 +307,128 @@ function atualizarUsuario($dados) {
         // Iniciar transação
         $conn->beginTransaction();
         
+        // Validar se pessoa_id e id foram fornecidos
+        if (empty($dados['pessoa_id']) || empty($dados['id'])) {
+            $conn->rollBack();
+            return ['status' => false, 'mensagem' => 'Dados incompletos. ID do usuário ou pessoa não fornecido.'];
+        }
+        
         // Verificar se o CPF já existe (exceto para o próprio usuário)
         $stmt = $conn->prepare("SELECT id FROM pessoa WHERE cpf = :cpf AND id != :pessoa_id");
         $stmt->bindParam(':cpf', $cpfLimpo);
-        $stmt->bindParam(':pessoa_id', $dados['pessoa_id']);
+        $stmt->bindParam(':pessoa_id', $dados['pessoa_id'], PDO::PARAM_INT);
         $stmt->execute();
         
         if ($stmt->rowCount() > 0) {
+            $conn->rollBack();
             return ['status' => false, 'mensagem' => 'CPF já cadastrado para outro usuário.'];
         }
         
         // Verificar se o email já existe (exceto para o próprio usuário)
         $stmt = $conn->prepare("SELECT id FROM pessoa WHERE email = :email AND id != :pessoa_id");
         $stmt->bindParam(':email', $dados['email']);
-        $stmt->bindParam(':pessoa_id', $dados['pessoa_id']);
+        $stmt->bindParam(':pessoa_id', $dados['pessoa_id'], PDO::PARAM_INT);
         $stmt->execute();
         
         if ($stmt->rowCount() > 0) {
+            $conn->rollBack();
             return ['status' => false, 'mensagem' => 'E-mail já cadastrado para outro usuário.'];
         }
         
-        // Verificar se o username já existe (exceto para o próprio usuário)
-        $stmt = $conn->prepare("SELECT id FROM usuario WHERE username = :username AND id != :id");
-        $stmt->bindParam(':username', $dados['username']);
-        $stmt->bindParam(':id', $dados['id']);
-        $stmt->execute();
+        // Validar e garantir que o ID do usuário está correto
+        $usuarioId = (int)$dados['id'];
+        $pessoaId = (int)$dados['pessoa_id'];
         
-        if ($stmt->rowCount() > 0) {
-            return ['status' => false, 'mensagem' => 'Username já cadastrado para outro usuário.'];
+        // Log para depuração
+        error_log("=== Início da atualização ===");
+        error_log("ID do usuário recebido: " . $usuarioId);
+        error_log("ID da pessoa recebido: " . $pessoaId);
+        
+        // Verificar se o usuário existe e se o pessoa_id corresponde
+        $stmt = $conn->prepare("SELECT id, pessoa_id, username FROM usuario WHERE id = :id");
+        $stmt->bindParam(':id', $usuarioId, PDO::PARAM_INT);
+        $stmt->execute();
+        $usuarioAtual = $stmt->fetch(PDO::FETCH_ASSOC);
+        
+        if (!$usuarioAtual) {
+            $conn->rollBack();
+            error_log("ERRO: Usuário não encontrado com ID: " . $usuarioId);
+            return ['status' => false, 'mensagem' => 'Usuário não encontrado no banco de dados. ID: ' . $usuarioId];
         }
         
-        // Tratar data de nascimento - converter string vazia para NULL
-        $dataNascimento = !empty($dados['data_nascimento']) ? $dados['data_nascimento'] : null;
+        // Verificar se o pessoa_id corresponde
+        if ($usuarioAtual['pessoa_id'] != $pessoaId) {
+            $conn->rollBack();
+            error_log("ERRO: pessoa_id não corresponde. Esperado: " . $usuarioAtual['pessoa_id'] . ", Recebido: " . $pessoaId);
+            return ['status' => false, 'mensagem' => 'Dados inconsistentes. O ID da pessoa não corresponde ao usuário.'];
+        }
+        
+        // Normalizar username (trim + lowercase para comparação)
+        $usernameNormalizado = strtolower(trim($dados['username']));
+        
+        // Validar se username não está vazio após normalização
+        if (empty($usernameNormalizado)) {
+            $conn->rollBack();
+            return ['status' => false, 'mensagem' => 'Username não pode estar vazio.'];
+        }
+        
+        $usernameAtualNormalizado = strtolower(trim($usuarioAtual['username']));
+        
+        // Log para depuração
+        error_log("=== Validação de Username ===");
+        error_log("Username atual no banco: '" . $usuarioAtual['username'] . "'");
+        error_log("Username atual normalizado: '" . $usernameAtualNormalizado . "'");
+        error_log("Username novo recebido: '" . $dados['username'] . "'");
+        error_log("Username novo normalizado: '" . $usernameNormalizado . "'");
+        error_log("ID do usuário: " . $usuarioId);
+        error_log("ID da pessoa: " . $pessoaId);
+        error_log("São iguais? " . ($usernameNormalizado === $usernameAtualNormalizado ? 'SIM' : 'NÃO'));
+        
+        // Só verificar se o username mudou
+        if ($usernameNormalizado !== $usernameAtualNormalizado) {
+            error_log("Username mudou, verificando se já existe...");
+            
+            // Verificar se o novo username já existe (exceto para o próprio usuário)
+            // Usar comparação case-insensitive no SQL usando o username normalizado
+            $stmt = $conn->prepare("SELECT id, username FROM usuario WHERE LOWER(TRIM(username)) = :username AND id != :id");
+            $stmt->bindParam(':username', $usernameNormalizado); // Usar o username normalizado
+            $stmt->bindParam(':id', $usuarioId, PDO::PARAM_INT);
+            $stmt->execute();
+            $usuarioExistente = $stmt->fetch(PDO::FETCH_ASSOC);
+            
+            if ($usuarioExistente) {
+                $conn->rollBack();
+                error_log("Username já existe para outro usuário (ID: " . $usuarioExistente['id'] . ", Username: " . $usuarioExistente['username'] . ")");
+                return ['status' => false, 'mensagem' => 'Username já cadastrado para outro usuário.'];
+            }
+            
+            error_log("Username disponível!");
+        } else {
+            error_log("Username não mudou, não precisa verificar duplicidade.");
+        }
+        
+        // Usar o username normalizado para atualização (manter lowercase)
+        $dados['username'] = $usernameNormalizado;
+        
+        // Validar campos obrigatórios
+        if (empty($dados['nome']) || trim($dados['nome']) === '') {
+            $conn->rollBack();
+            return ['status' => false, 'mensagem' => 'O nome é obrigatório.'];
+        }
+        
+        if (empty($dados['cpf']) || strlen($cpfLimpo) !== 11) {
+            $conn->rollBack();
+            return ['status' => false, 'mensagem' => 'CPF inválido. Deve conter 11 dígitos.'];
+        }
+        
+        if (empty($dados['email']) || !filter_var($dados['email'], FILTER_VALIDATE_EMAIL)) {
+            $conn->rollBack();
+            return ['status' => false, 'mensagem' => 'E-mail inválido.'];
+        }
+        
+        // Tratar campos opcionais - converter string vazia para NULL
+        $dataNascimento = !empty($dados['data_nascimento']) && trim($dados['data_nascimento']) !== '' ? $dados['data_nascimento'] : null;
+        $telefone = !empty($dados['telefone']) && trim($dados['telefone']) !== '' ? $dados['telefone'] : null;
         
         // Atualizar dados na tabela pessoa
         $stmt = $conn->prepare("UPDATE pessoa SET 
@@ -308,11 +442,26 @@ function atualizarUsuario($dados) {
         $stmt->bindParam(':nome', $dados['nome']);
         $stmt->bindParam(':cpf', $cpfLimpo);
         $stmt->bindParam(':email', $dados['email']);
-        $stmt->bindParam(':telefone', $dados['telefone']);
-        $stmt->bindParam(':data_nascimento', $dataNascimento);
-        $stmt->bindParam(':pessoa_id', $dados['pessoa_id']);
+        $stmt->bindParam(':telefone', $telefone, PDO::PARAM_STR | PDO::PARAM_NULL);
+        $stmt->bindParam(':data_nascimento', $dataNascimento, PDO::PARAM_STR | PDO::PARAM_NULL);
+        $stmt->bindParam(':pessoa_id', $dados['pessoa_id'], PDO::PARAM_INT);
         
         $stmt->execute();
+        
+        // Validar campos obrigatórios da tabela usuario (antes de preparar o statement)
+        if (empty($dados['username']) || trim($dados['username']) === '') {
+            $conn->rollBack();
+            return ['status' => false, 'mensagem' => 'Username é obrigatório.'];
+        }
+        
+        if (empty($dados['tipo']) || trim($dados['tipo']) === '') {
+            $conn->rollBack();
+            return ['status' => false, 'mensagem' => 'Tipo de usuário é obrigatório.'];
+        }
+        
+        // Garantir que ativo seja 0 ou 1
+        $ativo = isset($dados['ativo']) ? (int)$dados['ativo'] : 1;
+        $ativo = ($ativo === 1) ? 1 : 0;
         
         // Preparar a atualização na tabela usuario
         if (!empty($dados['senha'])) {
@@ -338,8 +487,8 @@ function atualizarUsuario($dados) {
         
         $stmt->bindParam(':username', $dados['username']);
         $stmt->bindParam(':role', $dados['tipo']);
-        $stmt->bindParam(':ativo', $dados['ativo']);
-        $stmt->bindParam(':id', $dados['id']);
+        $stmt->bindParam(':ativo', $ativo, PDO::PARAM_INT);
+        $stmt->bindParam(':id', $usuarioId, PDO::PARAM_INT);
         
         $stmt->execute();
         
@@ -347,14 +496,45 @@ function atualizarUsuario($dados) {
         $conn->commit();
         
         error_log("Transação confirmada com sucesso!");
+        
+        // Registrar log de edição de usuário
+        if (session_status() == PHP_SESSION_NONE) {
+            session_start();
+        }
+        $usuarioLogadoId = $_SESSION['usuario_id'] ?? null;
+        require_once(__DIR__ . '/../../Models/log/SystemLogger.php');
+        $logger = SystemLogger::getInstance();
+        $logger->logEditarUsuario($usuarioLogadoId, $dados['id'], $dados['nome']);
+        
         return ['status' => true, 'mensagem' => 'Usuário atualizado com sucesso!'];
     } catch (PDOException $e) {
         // Reverter transação em caso de erro
-        $conn->rollBack();
+        if ($conn->inTransaction()) {
+            $conn->rollBack();
+        }
         error_log("Erro na transação: " . $e->getMessage());
-        error_log("SQL State: " . $e->errorInfo[0]);
-        error_log("Error Code: " . $e->errorInfo[1]);
-        error_log("Error Message: " . $e->errorInfo[2]);
+        error_log("SQL State: " . ($e->errorInfo[0] ?? 'N/A'));
+        error_log("Error Code: " . ($e->errorInfo[1] ?? 'N/A'));
+        error_log("Error Message: " . ($e->errorInfo[2] ?? 'N/A'));
+        error_log("Stack trace: " . $e->getTraceAsString());
+        
+        // Mensagem de erro mais amigável
+        $mensagemErro = 'Erro ao atualizar usuário.';
+        if (strpos($e->getMessage(), 'Duplicate entry') !== false) {
+            $mensagemErro = 'Já existe um registro com esses dados no sistema.';
+        } elseif (strpos($e->getMessage(), 'foreign key') !== false) {
+            $mensagemErro = 'Não é possível atualizar: existem registros relacionados.';
+        } elseif (strpos($e->getMessage(), 'Data too long') !== false) {
+            $mensagemErro = 'Um dos campos excede o tamanho máximo permitido.';
+        }
+        
+        return ['status' => false, 'mensagem' => $mensagemErro];
+    } catch (Exception $e) {
+        // Reverter transação em caso de erro genérico
+        if ($conn->inTransaction()) {
+            $conn->rollBack();
+        }
+        error_log("Erro genérico na atualização: " . $e->getMessage());
         return ['status' => false, 'mensagem' => 'Erro ao atualizar usuário: ' . $e->getMessage()];
     }
 }
@@ -385,33 +565,71 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         
         // Editar usuário
         if ($_POST['acao'] === 'editar' && isset($_POST['id'])) {
-            // Log para depuração
-            error_log("Iniciando edição de usuário: " . $_POST['id']);
-            
-            $dados = [
-                'id' => $_POST['id'],
-                'pessoa_id' => $_POST['pessoa_id'],
-                'nome' => $_POST['nome'] ?? '',
-                'cpf' => $_POST['cpf'] ?? '',
-                'email' => $_POST['email'] ?? '',
-                'senha' => $_POST['senha'] ?? '',
-                'tipo' => $_POST['tipo'] ?? '',
-                'telefone' => $_POST['telefone'] ?? '',
-                'username' => $_POST['username'] ?? '',
-                'ativo' => $_POST['ativo'] ?? '1',
-                'data_nascimento' => $_POST['data_nascimento'] ?? null
-            ];
-            
-            // Log dos dados recebidos
-            error_log("Dados para atualização: " . json_encode($dados));
-            
-            $resultado = atualizarUsuario($dados);
-            
-            // Log do resultado
-            error_log("Resultado da atualização: " . json_encode($resultado));
-            
-            $mensagem = $resultado['mensagem'];
-            $tipoMensagem = $resultado['status'] ? 'success' : 'error';
+            try {
+                // Log para depuração
+                error_log("Iniciando edição de usuário: " . ($_POST['id'] ?? 'N/A'));
+                
+                // Validar campos obrigatórios antes de processar
+                if (empty($_POST['id']) || empty($_POST['pessoa_id'])) {
+                    throw new Exception('ID do usuário ou pessoa não fornecido.');
+                }
+                
+                if (empty($_POST['nome']) || trim($_POST['nome']) === '') {
+                    throw new Exception('Nome é obrigatório.');
+                }
+                
+                if (empty($_POST['cpf']) || trim($_POST['cpf']) === '') {
+                    throw new Exception('CPF é obrigatório.');
+                }
+                
+                if (empty($_POST['email']) || trim($_POST['email']) === '') {
+                    throw new Exception('E-mail é obrigatório.');
+                }
+                
+                if (empty($_POST['username']) || trim($_POST['username']) === '') {
+                    throw new Exception('Username é obrigatório.');
+                }
+                
+                if (empty($_POST['tipo']) || trim($_POST['tipo']) === '') {
+                    throw new Exception('Tipo de usuário é obrigatório.');
+                }
+                
+                // Preparar dados com validação
+                // Normalizar username (trim + lowercase)
+                $usernameInput = trim($_POST['username'] ?? '');
+                
+                $dados = [
+                    'id' => (int)$_POST['id'],
+                    'pessoa_id' => (int)$_POST['pessoa_id'],
+                    'nome' => trim($_POST['nome'] ?? ''),
+                    'cpf' => trim($_POST['cpf'] ?? ''),
+                    'email' => trim($_POST['email'] ?? ''),
+                    'senha' => !empty($_POST['senha']) ? trim($_POST['senha']) : '',
+                    'tipo' => trim($_POST['tipo'] ?? ''),
+                    'telefone' => !empty($_POST['telefone']) ? trim($_POST['telefone']) : '',
+                    'username' => $usernameInput, // Será normalizado na função atualizarUsuario
+                    'ativo' => isset($_POST['ativo']) ? $_POST['ativo'] : '1',
+                    'data_nascimento' => !empty($_POST['data_nascimento']) && trim($_POST['data_nascimento']) !== '' ? $_POST['data_nascimento'] : null
+                ];
+                
+                // Log dos dados recebidos (sem senha)
+                $dadosLog = $dados;
+                unset($dadosLog['senha']);
+                error_log("Dados para atualização: " . json_encode($dadosLog));
+                
+                $resultado = atualizarUsuario($dados);
+                
+                // Log do resultado
+                error_log("Resultado da atualização: " . json_encode($resultado));
+                
+                $mensagem = $resultado['mensagem'];
+                $tipoMensagem = $resultado['status'] ? 'success' : 'error';
+                
+            } catch (Exception $e) {
+                error_log("Erro ao processar edição de usuário: " . $e->getMessage());
+                $mensagem = 'Erro ao processar solicitação: ' . $e->getMessage();
+                $tipoMensagem = 'error';
+            }
         }
         
         // Excluir usuário
@@ -1546,7 +1764,7 @@ $gestores = listarGestores();
                                         </td>
                                         <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                                             <div class="flex space-x-2">
-                                                <button class="text-blue-600 hover:text-blue-900" onclick="editarUsuario(<?php echo $usuario['id']; ?>)">
+                                                <button class="text-blue-600 hover:text-blue-900" onclick="editarUsuario(<?php echo $usuario['id']; ?>)" data-usuario-id="<?php echo $usuario['id']; ?>" data-usuario-nome="<?php echo htmlspecialchars($usuario['nome']); ?>">
                                                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
                                                     </svg>
@@ -1836,28 +2054,107 @@ $gestores = listarGestores();
         
         // Função para abrir o modal de edição e carregar os dados do usuário
         function editarUsuario(id) {
+            // Log para depuração
+            console.log('=== INÍCIO editarUsuario ===');
+            console.log('ID recebido:', id);
+            console.log('Tipo do ID:', typeof id);
+            
+            // Limpar campos do formulário antes de carregar novos dados
+            document.getElementById('edit_id').value = '';
+            document.getElementById('edit_pessoa_id').value = '';
+            document.getElementById('edit_nome').value = '';
+            document.getElementById('edit_cpf').value = '';
+            document.getElementById('edit_email').value = '';
+            document.getElementById('edit_telefone').value = '';
+            document.getElementById('edit_username').value = '';
+            document.getElementById('edit_tipo').value = '';
+            document.getElementById('edit_ativo').value = '';
+            document.getElementById('edit_data_nascimento').value = '';
+            document.getElementById('edit_senha').value = '';
+            
+            // Construir URL com timestamp para evitar cache
+            const url = `../../Controllers/gestao/UsuarioController.php?id=${id}&_t=${Date.now()}`;
+            console.log('URL da requisição:', url);
+            
             // Fazer uma requisição AJAX para obter os dados do usuário
-            fetch(`../../Controllers/gestao/UsuarioController.php?id=${id}`, {
+            fetch(url, {
                 method: 'GET',
                 credentials: 'same-origin',
                 headers: {
                     'X-Requested-With': 'XMLHttpRequest',
-                    'Cache-Control': 'no-cache'
-                }
+                    'Cache-Control': 'no-cache',
+                    'Pragma': 'no-cache'
+                },
+                cache: 'no-store'
             })
-                .then(response => response.json())
+                .then(response => {
+                    console.log('Status da resposta:', response.status);
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+                    return response.json();
+                })
                 .then(data => {
+                    console.log('Resposta completa:', data);
+                    
                     if (data.status) {
+                        // Log para depuração
+                        console.log('=== DADOS DO USUÁRIO RECEBIDOS ===');
+                        console.log('Dados completos:', data.usuario);
+                        console.log('ID do usuário:', data.usuario.id);
+                        console.log('ID da pessoa:', data.usuario.pessoa_id);
+                        console.log('Nome:', data.usuario.nome);
+                        console.log('CPF:', data.usuario.cpf);
+                        console.log('Email:', data.usuario.email);
+                        console.log('Username:', data.usuario.username);
+                        
+                        // Verificar se os campos existem antes de preencher
+                        const editId = document.getElementById('edit_id');
+                        const editPessoaId = document.getElementById('edit_pessoa_id');
+                        const editNome = document.getElementById('edit_nome');
+                        const editCpf = document.getElementById('edit_cpf');
+                        const editEmail = document.getElementById('edit_email');
+                        const editTelefone = document.getElementById('edit_telefone');
+                        const editUsername = document.getElementById('edit_username');
+                        const editTipo = document.getElementById('edit_tipo');
+                        const editAtivo = document.getElementById('edit_ativo');
+                        const editDataNascimento = document.getElementById('edit_data_nascimento');
+                        
+                        if (!editId || !editPessoaId || !editNome || !editCpf || !editEmail || !editUsername || !editTipo || !editAtivo) {
+                            console.error('Erro: Algum campo do formulário não foi encontrado!');
+                            alert('Erro: Formulário não encontrado. Recarregue a página.');
+                            return;
+                        }
+                        
                         // Preencher o formulário com os dados do usuário
-                        document.getElementById('edit_id').value = data.usuario.id;
-                        document.getElementById('edit_pessoa_id').value = data.usuario.pessoa_id;
-                        document.getElementById('edit_nome').value = data.usuario.nome;
-                        document.getElementById('edit_cpf').value = data.usuario.cpf;
-                        document.getElementById('edit_email').value = data.usuario.email;
-                        document.getElementById('edit_telefone').value = data.usuario.telefone || '';
-                        document.getElementById('edit_username').value = data.usuario.username;
-                        document.getElementById('edit_tipo').value = data.usuario.role;
-                        document.getElementById('edit_ativo').value = data.usuario.ativo;
+                        editId.value = data.usuario.id || '';
+                        editPessoaId.value = data.usuario.pessoa_id || '';
+                        editNome.value = data.usuario.nome || '';
+                        
+                        // Formatar CPF antes de preencher (aplicar máscara)
+                        let cpfValue = (data.usuario.cpf || '').replace(/\D/g, '');
+                        if (cpfValue.length === 11) {
+                            cpfValue = cpfValue.replace(/^(\d{3})(\d{3})(\d{3})(\d{2}).*/, '$1.$2.$3-$4');
+                        }
+                        editCpf.value = cpfValue;
+                        
+                        editEmail.value = data.usuario.email || '';
+                        
+                        // Formatar telefone antes de preencher (aplicar máscara)
+                        let telefoneValue = (data.usuario.telefone || '').replace(/\D/g, '');
+                        if (telefoneValue.length === 11) {
+                            telefoneValue = telefoneValue.replace(/^(\d{2})(\d{5})(\d{4}).*/, '($1) $2-$3');
+                        } else if (telefoneValue.length === 10) {
+                            telefoneValue = telefoneValue.replace(/^(\d{2})(\d{4})(\d{4}).*/, '($1) $2-$3');
+                        }
+                        editTelefone.value = telefoneValue;
+                        
+                        editUsername.value = data.usuario.username || '';
+                        editTipo.value = data.usuario.role || '';
+                        editAtivo.value = data.usuario.ativo !== undefined ? data.usuario.ativo : '1';
+                        
+                        // Aplicar máscaras nos campos de edição
+                        aplicarMascarasEdicao();
                         
                         // Formatar a data de nascimento para o formato do input date (YYYY-MM-DD)
                         if (data.usuario.data_nascimento) {
@@ -1865,24 +2162,42 @@ $gestores = listarGestores();
                             const ano = dataNascimento.getFullYear();
                             const mes = String(dataNascimento.getMonth() + 1).padStart(2, '0');
                             const dia = String(dataNascimento.getDate()).padStart(2, '0');
-                            document.getElementById('edit_data_nascimento').value = `${ano}-${mes}-${dia}`;
+                            editDataNascimento.value = `${ano}-${mes}-${dia}`;
+                            console.log('Data de nascimento formatada:', editDataNascimento.value);
                         } else {
-                            document.getElementById('edit_data_nascimento').value = '';
+                            editDataNascimento.value = '';
                         }
                         
                         // Limpar o campo de senha, pois não queremos mostrar a senha atual
                         document.getElementById('edit_senha').value = '';
                         
+                        // Verificar se os dados foram preenchidos corretamente
+                        console.log('=== VERIFICAÇÃO FINAL DOS CAMPOS ===');
+                        console.log('edit_id:', editId.value);
+                        console.log('edit_pessoa_id:', editPessoaId.value);
+                        console.log('edit_nome:', editNome.value);
+                        console.log('edit_cpf:', editCpf.value);
+                        console.log('edit_email:', editEmail.value);
+                        console.log('edit_username:', editUsername.value);
+                        console.log('edit_tipo:', editTipo.value);
+                        console.log('edit_ativo:', editAtivo.value);
+                        console.log('===================================');
+                        
                         // Abrir o modal
                         const modal = document.getElementById('editarUsuarioModal');
                         modal.classList.remove('hidden');
                         modal.classList.add('flex');
+                        
+                        console.log('Modal aberto com sucesso!');
                     } else {
-                        alert('Erro ao obter dados do usuário: ' + data.mensagem);
+                        console.error('Erro na resposta:', data);
+                        alert('Erro ao obter dados do usuário: ' + (data.mensagem || 'Erro desconhecido'));
                     }
                 })
                 .catch(error => {
-                    console.error('Erro na requisição:', error);
+                    console.error('=== ERRO NA REQUISIÇÃO ===');
+                    console.error('Erro completo:', error);
+                    console.error('Stack:', error.stack);
                     alert('Erro ao obter dados do usuário. Verifique o console para mais detalhes.');
                 });
         }
@@ -1917,42 +2232,79 @@ $gestores = listarGestores();
             }
         });
         
-        // Máscara para CPF
-        document.getElementById('cpf').addEventListener('input', function (e) {
-            let value = e.target.value.replace(/\D/g, '');
-            if (value.length > 11) value = value.slice(0, 11);
-            
-            if (value.length > 9) {
-                value = value.replace(/^(\d{3})(\d{3})(\d{3})(\d{2}).*/, '$1.$2.$3-$4');
-            } else if (value.length > 6) {
-                value = value.replace(/^(\d{3})(\d{3})(\d{0,3}).*/, '$1.$2.$3');
-            } else if (value.length > 3) {
-                value = value.replace(/^(\d{3})(\d{0,3}).*/, '$1.$2');
-            }
-            
-            e.target.value = value;
-        });
+        // Função para aplicar máscara de CPF
+        function aplicarMascaraCPF(input) {
+            input.addEventListener('input', function (e) {
+                let value = e.target.value.replace(/\D/g, '');
+                if (value.length > 11) value = value.slice(0, 11);
+                
+                if (value.length > 9) {
+                    value = value.replace(/^(\d{3})(\d{3})(\d{3})(\d{2}).*/, '$1.$2.$3-$4');
+                } else if (value.length > 6) {
+                    value = value.replace(/^(\d{3})(\d{3})(\d{0,3}).*/, '$1.$2.$3');
+                } else if (value.length > 3) {
+                    value = value.replace(/^(\d{3})(\d{0,3}).*/, '$1.$2');
+                }
+                
+                e.target.value = value;
+            });
+        }
         
-        // Máscara para telefone
-        document.getElementById('telefone').addEventListener('input', function (e) {
-            let value = e.target.value.replace(/\D/g, '');
-            if (value.length > 11) value = value.slice(0, 11);
+        // Função para aplicar máscara de telefone
+        function aplicarMascaraTelefone(input) {
+            input.addEventListener('input', function (e) {
+                let value = e.target.value.replace(/\D/g, '');
+                if (value.length > 11) value = value.slice(0, 11);
+                
+                if (value.length > 10) {
+                    value = value.replace(/^(\d{2})(\d{5})(\d{4}).*/, '($1) $2-$3');
+                } else if (value.length > 6) {
+                    value = value.replace(/^(\d{2})(\d{4})(\d{0,4}).*/, '($1) $2-$3');
+                } else if (value.length > 2) {
+                    value = value.replace(/^(\d{2})(\d{0,5}).*/, '($1) $2');
+                }
+                
+                e.target.value = value;
+            });
+        }
+        
+        // Aplicar máscaras nos campos do formulário de cadastro
+        const cpfInput = document.getElementById('cpf');
+        const telefoneInput = document.getElementById('telefone');
+        
+        if (cpfInput) {
+            aplicarMascaraCPF(cpfInput);
+        }
+        
+        if (telefoneInput) {
+            aplicarMascaraTelefone(telefoneInput);
+        }
+        
+        // Aplicar máscaras nos campos do formulário de edição (quando o modal for aberto)
+        function aplicarMascarasEdicao() {
+            const editCpfInput = document.getElementById('edit_cpf');
+            const editTelefoneInput = document.getElementById('edit_telefone');
             
-            if (value.length > 10) {
-                value = value.replace(/^(\d{2})(\d{5})(\d{4}).*/, '($1) $2-$3');
-            } else if (value.length > 6) {
-                value = value.replace(/^(\d{2})(\d{4})(\d{0,4}).*/, '($1) $2-$3');
-            } else if (value.length > 2) {
-                value = value.replace(/^(\d{2})(\d{0,5}).*/, '($1) $2');
+            // Verificar se já tem máscara aplicada para evitar duplicação
+            if (editCpfInput && !editCpfInput.hasAttribute('data-mask-applied')) {
+                aplicarMascaraCPF(editCpfInput);
+                editCpfInput.setAttribute('data-mask-applied', 'true');
             }
             
-            e.target.value = value;
-        });
+            if (editTelefoneInput && !editTelefoneInput.hasAttribute('data-mask-applied')) {
+                aplicarMascaraTelefone(editTelefoneInput);
+                editTelefoneInput.setAttribute('data-mask-applied', 'true');
+            }
+        }
         
         // Função toggleSidebar já definida globalmente
 
-        // Close sidebar when clicking overlay
+        // Aplicar máscaras quando a página carregar
         document.addEventListener('DOMContentLoaded', function() {
+            // Aplicar máscaras nos campos de edição (mesmo que estejam ocultos)
+            aplicarMascarasEdicao();
+            
+            // Close sidebar when clicking overlay
             const overlay = document.getElementById('mobileOverlay');
             if (overlay) {
                 overlay.addEventListener('click', function() {
@@ -1995,20 +2347,59 @@ $gestores = listarGestores();
                     // Verificar se todos os campos obrigatórios estão preenchidos
                     const camposObrigatorios = ['edit_nome', 'edit_cpf', 'edit_email', 'edit_username', 'edit_tipo'];
                     let camposValidos = true;
+                    let camposVazios = [];
                     
                     camposObrigatorios.forEach(campo => {
                         const input = document.getElementById(campo);
-                        if (!input.value.trim()) {
+                        if (!input || !input.value.trim()) {
                             camposValidos = false;
-                            input.classList.add('border-red-500');
+                            if (input) {
+                                input.classList.add('border-red-500');
+                            }
+                            camposVazios.push(campo.replace('edit_', ''));
                         } else {
-                            input.classList.remove('border-red-500');
+                            if (input) {
+                                input.classList.remove('border-red-500');
+                            }
                         }
                     });
                     
+                    // Verificar se pessoa_id e id estão presentes
+                    const pessoaId = document.getElementById('edit_pessoa_id');
+                    const userId = document.getElementById('edit_id');
+                    if (!pessoaId || !pessoaId.value) {
+                        alert('Erro: ID da pessoa não encontrado. Por favor, recarregue a página e tente novamente.');
+                        event.preventDefault();
+                        return false;
+                    }
+                    if (!userId || !userId.value) {
+                        alert('Erro: ID do usuário não encontrado. Por favor, recarregue a página e tente novamente.');
+                        event.preventDefault();
+                        return false;
+                    }
+                    
                     if (!camposValidos) {
                         event.preventDefault();
-                        alert('Por favor, preencha todos os campos obrigatórios.');
+                        alert('Por favor, preencha todos os campos obrigatórios: ' + camposVazios.join(', '));
+                        return false;
+                    }
+                    
+                    // Validar formato de email
+                    const email = document.getElementById('edit_email').value;
+                    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+                    if (!emailRegex.test(email)) {
+                        event.preventDefault();
+                        alert('Por favor, insira um e-mail válido.');
+                        document.getElementById('edit_email').focus();
+                        return false;
+                    }
+                    
+                    // Validar CPF (deve ter pelo menos 11 dígitos após remover formatação)
+                    const cpf = document.getElementById('edit_cpf').value.replace(/\D/g, '');
+                    if (cpf.length !== 11) {
+                        event.preventDefault();
+                        alert('CPF inválido. Deve conter 11 dígitos.');
+                        document.getElementById('edit_cpf').focus();
                         return false;
                     }
                     
