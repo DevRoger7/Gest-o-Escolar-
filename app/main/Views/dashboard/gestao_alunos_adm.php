@@ -472,15 +472,30 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['acao'])) {
         if (!empty($_GET['escola_id'])) $filtros['escola_id'] = $_GET['escola_id'];
         if (!empty($_GET['busca'])) $filtros['busca'] = $_GET['busca'];
         
-        $sql = "SELECT a.*, p.nome, p.cpf, p.email, p.telefone, p.data_nascimento, e.nome as escola_nome
+        // Buscar escola: primeiro do campo escola_id do aluno, depois da turma (se não tiver escola_id)
+        $sql = "SELECT a.*, p.nome, p.cpf, p.email, p.telefone, p.data_nascimento,
+                       COALESCE(e_direta.nome, e_turma.nome) as escola_nome,
+                       COALESCE(e_direta.id, e_turma.id) as escola_id,
+                       CASE WHEN at.turma_id IS NOT NULL OR a.situacao IN ('MATRICULADO', 'TRANSFERIDO') THEN 'Sim' ELSE 'Não' END as matriculado_turma
                 FROM aluno a
                 INNER JOIN pessoa p ON a.pessoa_id = p.id
-                LEFT JOIN escola e ON a.escola_id = e.id
+                LEFT JOIN escola e_direta ON a.escola_id = e_direta.id
+                LEFT JOIN (
+                    SELECT at1.aluno_id, at1.turma_id, at1.status, at1.fim
+                    FROM aluno_turma at1
+                    INNER JOIN (
+                        SELECT aluno_id, MAX(inicio) as max_inicio
+                        FROM aluno_turma
+                        GROUP BY aluno_id
+                    ) at_max ON at1.aluno_id = at_max.aluno_id AND at1.inicio = at_max.max_inicio
+                ) at ON a.id = at.aluno_id
+                LEFT JOIN turma t ON at.turma_id = t.id
+                LEFT JOIN escola e_turma ON t.escola_id = e_turma.id
                 WHERE a.ativo = 1";
         
         $params = [];
         if (!empty($filtros['escola_id'])) {
-            $sql .= " AND a.escola_id = :escola_id";
+            $sql .= " AND (COALESCE(e_direta.id, e_turma.id) = :escola_id)";
             $params[':escola_id'] = $filtros['escola_id'];
         }
         if (!empty($filtros['busca'])) {
@@ -504,10 +519,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['acao'])) {
 
 // Buscar alunos iniciais (apenas ativos)
 try {
-$sqlAlunos = "SELECT a.*, p.nome, p.cpf, p.email, p.telefone, p.data_nascimento, e.nome as escola_nome
+// Buscar escola: primeiro do campo escola_id do aluno, depois da turma (se não tiver escola_id)
+$sqlAlunos = "SELECT a.*, p.nome, p.cpf, p.email, p.telefone, p.data_nascimento,
+                     COALESCE(e_direta.nome, e_turma.nome) as escola_nome,
+                     COALESCE(e_direta.id, e_turma.id) as escola_id,
+                     CASE WHEN at.turma_id IS NOT NULL OR a.situacao IN ('MATRICULADO', 'TRANSFERIDO') THEN 'Sim' ELSE 'Não' END as matriculado_turma
               FROM aluno a
               INNER JOIN pessoa p ON a.pessoa_id = p.id
-              LEFT JOIN escola e ON a.escola_id = e.id
+              LEFT JOIN escola e_direta ON a.escola_id = e_direta.id
+              LEFT JOIN (
+                  SELECT at1.aluno_id, at1.turma_id, at1.status, at1.fim
+                  FROM aluno_turma at1
+                  INNER JOIN (
+                      SELECT aluno_id, MAX(inicio) as max_inicio
+                      FROM aluno_turma
+                      GROUP BY aluno_id
+                  ) at_max ON at1.aluno_id = at_max.aluno_id AND at1.inicio = at_max.max_inicio
+              ) at ON a.id = at.aluno_id
+              LEFT JOIN turma t ON at.turma_id = t.id
+              LEFT JOIN escola e_turma ON t.escola_id = e_turma.id
               WHERE a.ativo = 1
               ORDER BY p.nome ASC
               LIMIT 50";

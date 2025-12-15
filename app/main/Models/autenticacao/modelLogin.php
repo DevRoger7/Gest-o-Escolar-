@@ -181,8 +181,8 @@ Class ModelLogin {
                     if (!$escolaAtiva) {
                         // Buscar professor_id do professor
                         $sqlProfessor = "SELECT p.id as professor_id FROM professor p 
-                                        INNER JOIN usuario u ON p.pessoa_id = u.pessoa_id 
-                                        WHERE u.id = :usuario_id LIMIT 1";
+                                     INNER JOIN usuario u ON p.pessoa_id = u.pessoa_id 
+                                     WHERE u.id = :usuario_id LIMIT 1";
                         $stmtProfessor = $conn->prepare($sqlProfessor);
                         $stmtProfessor->bindParam(':usuario_id', $usuarioId, PDO::PARAM_INT);
                         $stmtProfessor->execute();
@@ -298,6 +298,43 @@ Class ModelLogin {
                     }
                 } catch (Exception $e) {
                     error_log("ERRO ao buscar escola do gestor no login: " . $e->getMessage());
+                }
+            } elseif (strtoupper($resultado['role'] ?? '') === 'ALUNO') {
+                try {
+                    $pessoaId = $resultado['pessoa_id'] ?? null;
+                    
+                    if ($pessoaId) {
+                        // Buscar a escola do aluno: primeiro do campo escola_id, depois da turma
+                        $sqlEscolaAluno = "SELECT COALESCE(e_direta.id, e_turma.id) as escola_id,
+                                                  COALESCE(e_direta.nome, e_turma.nome) as escola_nome
+                                           FROM aluno a
+                                           LEFT JOIN escola e_direta ON a.escola_id = e_direta.id
+                                           LEFT JOIN (
+                                               SELECT at1.aluno_id, at1.turma_id
+                                               FROM aluno_turma at1
+                                               INNER JOIN (
+                                                   SELECT aluno_id, MAX(inicio) as max_inicio
+                                                   FROM aluno_turma
+                                                   GROUP BY aluno_id
+                                               ) at_max ON at1.aluno_id = at_max.aluno_id AND at1.inicio = at_max.max_inicio
+                                           ) at ON a.id = at.aluno_id
+                                           LEFT JOIN turma t ON at.turma_id = t.id
+                                           LEFT JOIN escola e_turma ON t.escola_id = e_turma.id
+                                           WHERE a.pessoa_id = :pessoa_id 
+                                           AND a.ativo = 1
+                                           LIMIT 1";
+                        $stmtEscolaAluno = $conn->prepare($sqlEscolaAluno);
+                        $stmtEscolaAluno->bindParam(':pessoa_id', $pessoaId);
+                        $stmtEscolaAluno->execute();
+                        $escolaAluno = $stmtEscolaAluno->fetch(PDO::FETCH_ASSOC);
+                        
+                        if ($escolaAluno && !empty($escolaAluno['escola_id']) && !empty($escolaAluno['escola_nome'])) {
+                            $escolaSelecionadaId = (int)$escolaAluno['escola_id'];
+                            $escolaSelecionadaNome = $escolaAluno['escola_nome'];
+                        }
+                    }
+                } catch (Exception $e) {
+                    error_log("ERRO ao buscar escola do aluno no login: " . $e->getMessage());
                 }
             }
             

@@ -730,10 +730,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao'])) {
                                 $stmt->execute();
                             } else {
                                 // Aluno existe - apenas atualizar escola_id
-                                $stmt = $conn->prepare("UPDATE aluno SET escola_id = :escola_id WHERE id = :id");
-                                $stmt->bindValue(':escola_id', $dadosEscola['id'], PDO::PARAM_INT);
-                                $stmt->bindValue(':id', $aluno['id'], PDO::PARAM_INT);
-                                $stmt->execute();
+                            $stmt = $conn->prepare("UPDATE aluno SET escola_id = :escola_id WHERE id = :id");
+                            $stmt->bindValue(':escola_id', $dadosEscola['id'], PDO::PARAM_INT);
+                            $stmt->bindValue(':id', $aluno['id'], PDO::PARAM_INT);
+                            $stmt->execute();
                             }
                         } catch (PDOException $e) {
                             error_log("Erro ao restaurar aluno ID " . ($aluno['id'] ?? 'N/A') . ": " . $e->getMessage());

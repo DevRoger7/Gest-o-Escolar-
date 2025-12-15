@@ -316,8 +316,35 @@ function cadastrarEscola($dados)
 
         // Inserir escola
         $cnpj = !empty($dados['cnpj']) ? $dados['cnpj'] : null;
-        $stmt = $conn->prepare("INSERT INTO escola (nome, endereco, telefone, email, municipio, cep, qtd_salas, obs, codigo, cnpj) 
-                                VALUES (:nome, :endereco, :telefone, :email, :municipio, :cep, :qtd_salas, :obs, :codigo, :cnpj)");
+        
+        // Processar múltiplos níveis de ensino (array de checkboxes)
+        $niveisEnsino = [];
+        if (!empty($dados['nivel_ensino']) && is_array($dados['nivel_ensino'])) {
+            $niveisEnsino = $dados['nivel_ensino'];
+        } elseif (!empty($dados['nivel_ensino'])) {
+            // Se vier como string única, converter para array
+            $niveisEnsino = [$dados['nivel_ensino']];
+        }
+        
+        // Se nenhum nível foi selecionado, usar padrão
+        if (empty($niveisEnsino)) {
+            $niveisEnsino = ['ENSINO_FUNDAMENTAL'];
+        }
+        
+        // Converter array para string separada por vírgula (formato SET do MySQL)
+        $nivelEnsino = implode(',', $niveisEnsino);
+        
+        // Verificar se a coluna nivel_ensino existe
+        $stmtCheck = $conn->query("SHOW COLUMNS FROM escola LIKE 'nivel_ensino'");
+        $colunaExiste = $stmtCheck->rowCount() > 0;
+        
+        if ($colunaExiste) {
+            $stmt = $conn->prepare("INSERT INTO escola (nome, endereco, telefone, email, municipio, cep, qtd_salas, nivel_ensino, obs, codigo, cnpj) 
+                                    VALUES (:nome, :endereco, :telefone, :email, :municipio, :cep, :qtd_salas, :nivel_ensino, :obs, :codigo, :cnpj)");
+        } else {
+            $stmt = $conn->prepare("INSERT INTO escola (nome, endereco, telefone, email, municipio, cep, qtd_salas, obs, codigo, cnpj) 
+                                    VALUES (:nome, :endereco, :telefone, :email, :municipio, :cep, :qtd_salas, :obs, :codigo, :cnpj)");
+        }
 
         $telefone = $dados['telefone_fixo'] ?? $dados['telefone_movel'] ?? '';
         $municipio = $dados['municipio'] ?? 'MARANGUAPE';
@@ -333,6 +360,9 @@ function cadastrarEscola($dados)
         $stmt->bindParam(':obs', $obs);
         $stmt->bindParam(':codigo', $codigo);
         $stmt->bindParam(':cnpj', $cnpj);
+        if ($colunaExiste) {
+            $stmt->bindParam(':nivel_ensino', $nivelEnsino);
+        }
 
         $stmt->execute();
         $escolaId = $conn->lastInsertId();
@@ -1259,18 +1289,56 @@ function atualizarEscola($id, $dados)
 
         // Atualizar dados da escola
         $cnpj = !empty($dados['cnpj']) ? $dados['cnpj'] : null;
-        $stmt = $conn->prepare("UPDATE escola SET 
-                                nome = :nome, 
-                                endereco = :endereco, 
-                                telefone = :telefone, 
-                                email = :email, 
-                                municipio = :municipio, 
-                                cep = :cep, 
-                                qtd_salas = :qtd_salas, 
-                                obs = :obs, 
-                                codigo = :codigo,
-                                cnpj = :cnpj 
-                                WHERE id = :id");
+        
+        // Processar múltiplos níveis de ensino (array de checkboxes)
+        $niveisEnsino = [];
+        if (!empty($dados['nivel_ensino']) && is_array($dados['nivel_ensino'])) {
+            $niveisEnsino = $dados['nivel_ensino'];
+        } elseif (!empty($dados['nivel_ensino'])) {
+            // Se vier como string única, converter para array
+            $niveisEnsino = [$dados['nivel_ensino']];
+        }
+        
+        // Se nenhum nível foi selecionado, usar padrão
+        if (empty($niveisEnsino)) {
+            $niveisEnsino = ['ENSINO_FUNDAMENTAL'];
+        }
+        
+        // Converter array para string separada por vírgula (formato SET do MySQL)
+        $nivelEnsino = implode(',', $niveisEnsino);
+        
+        // Verificar se a coluna nivel_ensino existe
+        $stmtCheck = $conn->query("SHOW COLUMNS FROM escola LIKE 'nivel_ensino'");
+        $colunaExiste = $stmtCheck->rowCount() > 0;
+        
+        if ($colunaExiste) {
+            $stmt = $conn->prepare("UPDATE escola SET 
+                                    nome = :nome, 
+                                    endereco = :endereco, 
+                                    telefone = :telefone, 
+                                    email = :email, 
+                                    municipio = :municipio, 
+                                    cep = :cep, 
+                                    qtd_salas = :qtd_salas, 
+                                    nivel_ensino = :nivel_ensino,
+                                    obs = :obs, 
+                                    codigo = :codigo,
+                                    cnpj = :cnpj 
+                                    WHERE id = :id");
+        } else {
+            $stmt = $conn->prepare("UPDATE escola SET 
+                                    nome = :nome, 
+                                    endereco = :endereco, 
+                                    telefone = :telefone, 
+                                    email = :email, 
+                                    municipio = :municipio, 
+                                    cep = :cep, 
+                                    qtd_salas = :qtd_salas, 
+                                    obs = :obs, 
+                                    codigo = :codigo,
+                                    cnpj = :cnpj 
+                                    WHERE id = :id");
+        }
 
         $stmt->bindParam(':id', $id);
         $stmt->bindParam(':nome', $dados['nome']);
@@ -1283,6 +1351,9 @@ function atualizarEscola($id, $dados)
         $stmt->bindParam(':obs', $dados['obs']);
         $stmt->bindParam(':codigo', $dados['codigo']);
         $stmt->bindParam(':cnpj', $cnpj);
+        if ($colunaExiste) {
+            $stmt->bindParam(':nivel_ensino', $nivelEnsino);
+        }
 
         $stmt->execute();
 
@@ -1401,6 +1472,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 'municipio' => $_POST['municipio'] ?? 'MARANGUAPE',
                 'cep' => $_POST['cep'] ?? '',
                 'qtd_salas' => $_POST['qtd_salas'] ?? null,
+                'nivel_ensino' => $_POST['nivel_ensino'] ?? 'ENSINO_FUNDAMENTAL',
                 'obs' => $obs,
                 'codigo' => $_POST['codigo'] ?? '',
                 'gestor_id' => $_POST['gestor_id'] ?? null,
@@ -2743,6 +2815,20 @@ if ($_SESSION['tipo'] === 'ADM') {
                                     <label for="qtd_salas" class="block text-sm font-medium text-gray-700 mb-2">Quantidade de Salas</label>
                                     <input type="number" id="qtd_salas" name="qtd_salas" min="1" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-green focus:border-transparent transition-colors" placeholder="Ex: 12">
                                 </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">Nível de Ensino *</label>
+                                    <div class="space-y-2">
+                                        <label class="flex items-center space-x-2 cursor-pointer">
+                                            <input type="checkbox" name="nivel_ensino[]" value="ENSINO_FUNDAMENTAL" class="w-4 h-4 text-primary-green border-gray-300 rounded focus:ring-primary-green">
+                                            <span class="text-gray-700">Ensino Fundamental</span>
+                                        </label>
+                                        <label class="flex items-center space-x-2 cursor-pointer">
+                                            <input type="checkbox" name="nivel_ensino[]" value="ENSINO_MEDIO" class="w-4 h-4 text-primary-green border-gray-300 rounded focus:ring-primary-green">
+                                            <span class="text-gray-700">Ensino Médio</span>
+                                        </label>
+                                    </div>
+                                    <p class="text-xs text-gray-500 mt-1">Selecione um ou ambos os níveis de ensino oferecidos pela escola</p>
+                                </div>
                             </div>
                         </div>
                         <!-- Seção: Endereço -->
@@ -3444,6 +3530,22 @@ if ($_SESSION['tipo'] === 'ADM') {
                                                class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-green focus:border-transparent transition-colors"
                                                placeholder="Ex: 12">
                                     </div>
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-2">
+                                            Nível de Ensino *
+                                        </label>
+                                        <div class="space-y-2">
+                                            <label class="flex items-center space-x-2 cursor-pointer">
+                                                <input type="checkbox" id="edit_nivel_ensino_fundamental" name="nivel_ensino[]" value="ENSINO_FUNDAMENTAL" class="w-4 h-4 text-primary-green border-gray-300 rounded focus:ring-primary-green">
+                                                <span class="text-gray-700">Ensino Fundamental</span>
+                                            </label>
+                                            <label class="flex items-center space-x-2 cursor-pointer">
+                                                <input type="checkbox" id="edit_nivel_ensino_medio" name="nivel_ensino[]" value="ENSINO_MEDIO" class="w-4 h-4 text-primary-green border-gray-300 rounded focus:ring-primary-green">
+                                                <span class="text-gray-700">Ensino Médio</span>
+                                            </label>
+                                        </div>
+                                        <p class="text-xs text-gray-500 mt-1">Selecione um ou ambos os níveis de ensino oferecidos pela escola</p>
+                                    </div>
                                 </div>
                             </div>
 
@@ -4057,6 +4159,31 @@ if ($_SESSION['tipo'] === 'ADM') {
                     document.getElementById('edit_qtd_salas').value = escola.qtd_salas || '';
                     document.getElementById('edit_codigo').value = escola.codigo || '';
                     document.getElementById('edit_cnpj').value = escola.cnpj || '';
+                    
+                    // Preencher nível de ensino
+                    // Processar múltiplos níveis de ensino (SET retorna string separada por vírgula)
+                    const editNivelEnsinoFundamental = document.getElementById('edit_nivel_ensino_fundamental');
+                    const editNivelEnsinoMedio = document.getElementById('edit_nivel_ensino_medio');
+                    
+                    if (escola.nivel_ensino) {
+                        // Converter string SET para array (ex: "ENSINO_FUNDAMENTAL,ENSINO_MEDIO")
+                        const niveis = escola.nivel_ensino.split(',').map(n => n.trim());
+                        
+                        if (editNivelEnsinoFundamental) {
+                            editNivelEnsinoFundamental.checked = niveis.includes('ENSINO_FUNDAMENTAL');
+                        }
+                        if (editNivelEnsinoMedio) {
+                            editNivelEnsinoMedio.checked = niveis.includes('ENSINO_MEDIO');
+                        }
+                    } else {
+                        // Padrão: apenas Ensino Fundamental
+                        if (editNivelEnsinoFundamental) {
+                            editNivelEnsinoFundamental.checked = true;
+                        }
+                        if (editNivelEnsinoMedio) {
+                            editNivelEnsinoMedio.checked = false;
+                        }
+                    }
                     
                     // Preencher campos padrão
                     document.getElementById('edit_nome_curto').value = '';
@@ -5034,6 +5161,22 @@ if ($_SESSION['tipo'] === 'ADM') {
                     formData.append('municipio', 'MARANGUAPE');
                     formData.append('cep', document.getElementById('edit_cep').value);
                     formData.append('qtd_salas', document.getElementById('edit_qtd_salas').value);
+                    // Coletar checkboxes de nível de ensino
+                    const editNivelEnsinoFundamental = document.getElementById('edit_nivel_ensino_fundamental');
+                    const editNivelEnsinoMedio = document.getElementById('edit_nivel_ensino_medio');
+                    
+                    if (editNivelEnsinoFundamental && editNivelEnsinoFundamental.checked) {
+                        formData.append('nivel_ensino[]', 'ENSINO_FUNDAMENTAL');
+                    }
+                    if (editNivelEnsinoMedio && editNivelEnsinoMedio.checked) {
+                        formData.append('nivel_ensino[]', 'ENSINO_MEDIO');
+                    }
+                    
+                    // Validar que pelo menos um nível foi selecionado
+                    if (!editNivelEnsinoFundamental?.checked && !editNivelEnsinoMedio?.checked) {
+                        alert('Por favor, selecione pelo menos um nível de ensino.');
+                        return;
+                    }
                     formData.append('obs', '');
                     formData.append('codigo', document.getElementById('edit_codigo').value);
                     formData.append('cnpj', document.getElementById('edit_cnpj').value);

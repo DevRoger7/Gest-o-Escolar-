@@ -265,6 +265,130 @@ if (isset($_SESSION['mensagem_erro'])) {
 }
 
 // Processar requisições GET (AJAX)
+// Endpoint para buscar séries por nível de ensino
+if ($_SERVER['REQUEST_METHOD'] === 'GET' && !empty($_GET['acao']) && $_GET['acao'] === 'buscar_series_por_nivel') {
+    header('Content-Type: application/json');
+    $nivelEnsino = $_GET['nivel_ensino'] ?? 'ENSINO_FUNDAMENTAL';
+    
+    // Se nivel_ensino é uma string com múltiplos valores separados por vírgula (formato SET)
+    // Precisamos buscar séries que correspondam a qualquer um dos níveis
+    
+    // Garantir que seja string
+    $nivelEnsino = (string)$nivelEnsino;
+    
+    // Separar por vírgula e processar
+    $niveis = explode(',', $nivelEnsino);
+    $niveis = array_map('trim', $niveis);
+    $niveis = array_filter($niveis, function($nivel) {
+        return !empty($nivel) && in_array($nivel, ['ENSINO_FUNDAMENTAL', 'ENSINO_MEDIO']);
+    });
+    
+    // Se não houver níveis válidos, usar padrão
+    if (empty($niveis)) {
+        $niveis = ['ENSINO_FUNDAMENTAL'];
+    }
+    
+    // Construir query com IN para múltiplos valores
+    $placeholders = [];
+    $params = [];
+    foreach ($niveis as $index => $nivel) {
+        $placeholders[] = ":nivel_{$index}";
+        $params[":nivel_{$index}"] = $nivel;
+    }
+    
+    // Garantir que temos pelo menos um placeholder
+    if (empty($placeholders)) {
+        $placeholders = [':nivel_0'];
+        $params[':nivel_0'] = 'ENSINO_FUNDAMENTAL';
+    }
+    
+    $sqlSeries = "SELECT id, nome, codigo, nivel_ensino FROM serie WHERE ativo = 1 AND nivel_ensino IN (" . implode(',', $placeholders) . ") ORDER BY nivel_ensino ASC, ordem ASC";
+    $stmtSeries = $conn->prepare($sqlSeries);
+    
+    foreach ($params as $key => $value) {
+        $stmtSeries->bindValue($key, $value, PDO::PARAM_STR);
+    }
+    
+    $stmtSeries->execute();
+    $series = $stmtSeries->fetchAll(PDO::FETCH_ASSOC);
+    
+    echo json_encode(['success' => true, 'series' => $series]);
+    exit;
+}
+
+// Endpoint para buscar nível de ensino da escola
+if ($_SERVER['REQUEST_METHOD'] === 'GET' && !empty($_GET['acao']) && $_GET['acao'] === 'buscar_nivel_escola') {
+    header('Content-Type: application/json');
+    $escolaId = $_GET['escola_id'] ?? null;
+    
+    if (!$escolaId) {
+        echo json_encode(['success' => false, 'message' => 'ID da escola não informado']);
+        exit;
+    }
+    
+    // Verificar se a coluna nivel_ensino existe
+    $stmtCheck = $conn->query("SHOW COLUMNS FROM escola LIKE 'nivel_ensino'");
+    $colunaExiste = $stmtCheck->rowCount() > 0;
+    
+    if ($colunaExiste) {
+        // Buscar os níveis usando múltiplas abordagens para garantir compatibilidade
+        $sqlEscola = "SELECT 
+                        nivel_ensino,
+                        CAST(nivel_ensino AS CHAR) as nivel_ensino_str,
+                        FIND_IN_SET('ENSINO_FUNDAMENTAL', nivel_ensino) as tem_fundamental,
+                        FIND_IN_SET('ENSINO_MEDIO', nivel_ensino) as tem_medio
+                      FROM escola WHERE id = :escola_id";
+        $stmtEscola = $conn->prepare($sqlEscola);
+        $stmtEscola->bindParam(':escola_id', $escolaId, PDO::PARAM_INT);
+        $stmtEscola->execute();
+        $escola = $stmtEscola->fetch(PDO::FETCH_ASSOC);
+        
+        if ($escola) {
+            $niveisArray = [];
+            
+            // Método 1: Usar FIND_IN_SET (retorna posição > 0 ou 0)
+            $temFundamental = isset($escola['tem_fundamental']) && (int)$escola['tem_fundamental'] > 0;
+            $temMedio = isset($escola['tem_medio']) && (int)$escola['tem_medio'] > 0;
+            
+            // Método 2: Se FIND_IN_SET não funcionar, processar a string diretamente
+            if (!$temFundamental && !$temMedio && !empty($escola['nivel_ensino_str'])) {
+                $nivelStr = trim($escola['nivel_ensino_str']);
+                if (strpos($nivelStr, 'ENSINO_FUNDAMENTAL') !== false) {
+                    $temFundamental = true;
+                }
+                if (strpos($nivelStr, 'ENSINO_MEDIO') !== false) {
+                    $temMedio = true;
+                }
+            }
+            
+            if ($temFundamental) {
+                $niveisArray[] = 'ENSINO_FUNDAMENTAL';
+            }
+            
+            if ($temMedio) {
+                $niveisArray[] = 'ENSINO_MEDIO';
+            }
+            
+            // Se não tiver nenhum nível válido, usar padrão
+            if (empty($niveisArray)) {
+                $niveisArray = ['ENSINO_FUNDAMENTAL'];
+            }
+            
+            // Retornar como string separada por vírgula
+            $nivelEnsino = implode(',', $niveisArray);
+            
+            echo json_encode(['success' => true, 'nivel_ensino' => $nivelEnsino]);
+        } else {
+            // Se não tiver valor ou escola não encontrada, usar padrão
+            echo json_encode(['success' => true, 'nivel_ensino' => 'ENSINO_FUNDAMENTAL']);
+        }
+    } else {
+        // Se a coluna não existe, retornar padrão
+        echo json_encode(['success' => true, 'nivel_ensino' => 'ENSINO_FUNDAMENTAL']);
+    }
+    exit;
+}
+
 if ($_SERVER['REQUEST_METHOD'] === 'GET' && !empty($_GET['acao'])) {
     $acao = $_GET['acao'] ?? '';
     
@@ -327,17 +451,39 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 exit;
             }
 
+            $serieId = $_POST['serie_id'] ?? null;
             $serie = strtoupper(trim($_POST['serie'] ?? ''));
             $letra = strtoupper(trim($_POST['letra'] ?? ''));
             $turno = $_POST['turno'] ?? 'MANHA';
             $anoLetivo = $_POST['ano_letivo'] ?? date('Y');
 
             // Validar campos obrigatórios
-            if (empty($serie) || empty($letra) || empty($escolaIdTurma)) {
+            // Série pode ser informada via serie_id (select) OU serie (texto manual)
+            $serieValida = (!empty($serieId) || !empty($serie));
+            
+            if (!$serieValida || empty($letra) || empty($escolaIdTurma)) {
                 $_SESSION['mensagem_erro'] = 'Série, Letra e Escola são obrigatórios.';
                 header('Location: gestao_escolar.php');
                 exit;
             }
+            
+            // Se não tiver serie (texto) mas tiver serie_id, buscar o nome da série do banco
+            if (empty($serie) && !empty($serieId)) {
+                $sqlSerie = "SELECT nome FROM serie WHERE id = :serie_id AND ativo = 1";
+                $stmtSerie = $conn->prepare($sqlSerie);
+                $stmtSerie->bindParam(':serie_id', $serieId, PDO::PARAM_INT);
+                $stmtSerie->execute();
+                $serieData = $stmtSerie->fetch(PDO::FETCH_ASSOC);
+                if ($serieData) {
+                    $serie = strtoupper(trim($serieData['nome']));
+                } else {
+                    // Se não encontrou a série, usar um valor padrão
+                    $serie = 'SÉRIE';
+                }
+            }
+            
+            // Se não tiver serie_id mas tiver serie (texto manual), está ok
+            // Se não tiver nenhum dos dois, a validação acima já bloqueou
 
             // Verificar se já existe turma com os mesmos dados (escola, série, letra, turno, ano letivo)
             $sqlVerificar = "SELECT id FROM turma 
@@ -363,7 +509,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             
             $resultado = $turmaModel->criar([
                 'escola_id' => $escolaIdTurma,
-                'serie_id' => $_POST['serie_id'] ?? null,
+                'serie_id' => !empty($serieId) ? $serieId : null,
                 'ano_letivo' => $anoLetivo,
                 'serie' => $serie,
                 'letra' => $letra,
@@ -1138,7 +1284,17 @@ $conn = $db->getConnection();
 
 // Buscar escolas (filtrar pela escola do gestor se necessário)
 $isGestorComEscola = isset($_SESSION['tipo']) && strtoupper($_SESSION['tipo']) === 'GESTAO' && !empty($escolaGestorId) && $escolaGestorId > 0;
-$sqlEscolas = "SELECT id, nome FROM escola WHERE ativo = 1";
+
+// Verificar se a coluna nivel_ensino existe
+$stmtCheck = $conn->query("SHOW COLUMNS FROM escola LIKE 'nivel_ensino'");
+$colunaExiste = $stmtCheck->rowCount() > 0;
+
+if ($colunaExiste) {
+    $sqlEscolas = "SELECT id, nome, nivel_ensino FROM escola WHERE ativo = 1";
+} else {
+    $sqlEscolas = "SELECT id, nome, 'ENSINO_FUNDAMENTAL' as nivel_ensino FROM escola WHERE ativo = 1";
+}
+
 if ($isGestorComEscola) {
     // Gestor só vê sua escola
     $sqlEscolas .= " AND id = :escola_id";
@@ -1173,7 +1329,7 @@ error_log("DEBUG TURMAS - Total de turmas encontradas: " . count($turmas));
 error_log("DEBUG TURMAS - Filtros aplicados: " . json_encode($filtrosTurma));
 
 // Buscar séries para os formulários
-$sqlSeries = "SELECT id, nome, codigo FROM serie WHERE ativo = 1 ORDER BY ordem ASC";
+$sqlSeries = "SELECT id, nome, codigo, nivel_ensino FROM serie WHERE ativo = 1 ORDER BY nivel_ensino ASC, ordem ASC";
 $stmtSeries = $conn->prepare($sqlSeries);
 $stmtSeries->execute();
 $series = $stmtSeries->fetchAll(PDO::FETCH_ASSOC);
@@ -3164,24 +3320,24 @@ if (!defined('BASE_URL')) {
                                             <input type="text" value="<?= htmlspecialchars($escolaGestor) ?>" disabled 
                                                    class="w-full px-4 py-3 border border-gray-300 rounded-lg bg-gray-100 text-gray-700">
                                         <?php else: ?>
-                                            <select name="escola_id" required 
+                                            <select name="escola_id" id="nova-turma-escola" required 
+                                                    onchange="filtrarSeriesPorEscola(this.value)"
                                                     class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-green focus:border-primary-green transition-colors">
                                                 <option value="">Selecione uma escola...</option>
                                                 <?php foreach ($escolas as $escola): ?>
-                                                    <option value="<?= $escola['id'] ?>"><?= htmlspecialchars($escola['nome']) ?></option>
+                                                    <option value="<?= $escola['id'] ?>" data-nivel="<?= htmlspecialchars($escola['nivel_ensino'] ?? 'ENSINO_FUNDAMENTAL') ?>"><?= htmlspecialchars($escola['nome']) ?></option>
                                                 <?php endforeach; ?>
                                             </select>
                                         <?php endif; ?>
                                     </div>
                                     
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-2">Série</label>
-                                        <select name="serie_id" 
+                    <label class="block text-sm font-medium text-gray-700 mb-2">
+                        Série <span class="text-red-500">*</span>
+                    </label>
+                                        <select name="serie_id" id="nova-turma-serie" required
                                                 class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-green focus:border-primary-green transition-colors">
-                                            <option value="">Selecione uma série...</option>
-                                            <?php foreach ($series as $serie): ?>
-                                                <option value="<?= $serie['id'] ?>"><?= htmlspecialchars($serie['nome']) ?></option>
-                                            <?php endforeach; ?>
+                                            <option value="">Selecione uma escola primeiro...</option>
                                         </select>
                 </div>
                                     
@@ -3209,6 +3365,7 @@ if (!defined('BASE_URL')) {
                         <option value="MANHA">Manhã</option>
                         <option value="TARDE">Tarde</option>
                         <option value="NOITE">Noite</option>
+                        <option value="INTEGRAL">Integral</option>
                     </select>
                 </div>
                                     
@@ -3342,7 +3499,15 @@ if (!defined('BASE_URL')) {
                                 <select name="serie_id" id="editar-serie-id" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-green focus:border-transparent">
                                     <option value="">Selecione...</option>
                                     <?php foreach ($series as $serie): ?>
-                                        <option value="<?= $serie['id'] ?>"><?= htmlspecialchars($serie['nome']) ?></option>
+                                        <?php 
+                                        $nivelTexto = '';
+                                        if ($serie['nivel_ensino'] === 'ENSINO_FUNDAMENTAL') {
+                                            $nivelTexto = ' - Ensino Fundamental';
+                                        } elseif ($serie['nivel_ensino'] === 'ENSINO_MEDIO') {
+                                            $nivelTexto = ' - Ensino Médio';
+                                        }
+                                        ?>
+                                        <option value="<?= $serie['id'] ?>"><?= htmlspecialchars($serie['nome'] . $nivelTexto) ?></option>
                                     <?php endforeach; ?>
                                 </select>
                             </div>
@@ -3360,6 +3525,7 @@ if (!defined('BASE_URL')) {
                                     <option value="MANHA">Manhã</option>
                                     <option value="TARDE">Tarde</option>
                                     <option value="NOITE">Noite</option>
+                                    <option value="INTEGRAL">Integral</option>
                                 </select>
                             </div>
                             <div>
@@ -4381,8 +4547,117 @@ if (!defined('BASE_URL')) {
         // Modal Criar Turma
         function abrirModalCriarTurma() {
             document.getElementById('modal-criar-turma').classList.remove('hidden');
+            
+            // Se for gestor, carregar séries automaticamente da escola dele
+            <?php if ($_SESSION['tipo'] === 'GESTAO' && $escolaGestorId): ?>
+            const escolaIdGestor = <?= $escolaGestorId ?>;
+            if (escolaIdGestor) {
+                // Aguardar um pouco para garantir que o modal está renderizado
+                setTimeout(() => {
+                    filtrarSeriesPorEscola(escolaIdGestor);
+                }, 100);
+            }
+            <?php else: ?>
+            // Se não for gestor, limpar o select de séries
+            const selectSerie = document.getElementById('nova-turma-serie');
+            if (selectSerie) {
+                selectSerie.innerHTML = '<option value="">Selecione uma escola primeiro...</option>';
+            }
+            <?php endif; ?>
         }
 
+        // Função para filtrar séries baseado no nível de ensino da escola
+        async function filtrarSeriesPorEscola(escolaId) {
+            const selectSerie = document.getElementById('nova-turma-serie');
+            
+            if (!escolaId || !selectSerie) {
+                return;
+            }
+            
+            // Limpar opções atuais
+            selectSerie.innerHTML = '<option value="">Carregando séries...</option>';
+            selectSerie.disabled = true;
+            
+            try {
+                // Buscar nível de ensino da escola
+                const responseNivel = await fetch(`?acao=buscar_nivel_escola&escola_id=${escolaId}`);
+                const dataNivel = await responseNivel.json();
+                
+                if (!dataNivel.success) {
+                    throw new Error(dataNivel.message || 'Erro ao buscar nível de ensino da escola');
+                }
+                
+                const nivelEnsino = dataNivel.nivel_ensino || 'ENSINO_FUNDAMENTAL';
+                
+                // Garantir que nivelEnsino seja uma string válida
+                if (!nivelEnsino || typeof nivelEnsino !== 'string') {
+                    throw new Error('Nível de ensino inválido retornado pelo servidor');
+                }
+                
+                // Buscar séries do nível de ensino
+                const responseSeries = await fetch(`?acao=buscar_series_por_nivel&nivel_ensino=${encodeURIComponent(nivelEnsino)}`);
+                
+                if (!responseSeries.ok) {
+                    throw new Error(`Erro HTTP: ${responseSeries.status}`);
+                }
+                
+                const dataSeries = await responseSeries.json();
+                
+                if (!dataSeries.success) {
+                    throw new Error(dataSeries.message || 'Erro ao buscar séries');
+                }
+                
+                // Preencher select com séries
+                selectSerie.innerHTML = '<option value="">Selecione uma série...</option>';
+                
+                if (dataSeries.series && dataSeries.series.length > 0) {
+                    dataSeries.series.forEach(serie => {
+                        const option = document.createElement('option');
+                        option.value = serie.id;
+                        option.setAttribute('data-nome', serie.nome); // Armazenar nome original
+                        
+                        // Formatar nome da série com nível de ensino
+                        let nomeSerie = serie.nome;
+                        if (serie.nivel_ensino) {
+                            const nivelTexto = serie.nivel_ensino === 'ENSINO_FUNDAMENTAL' 
+                                ? 'Ensino Fundamental' 
+                                : serie.nivel_ensino === 'ENSINO_MEDIO' 
+                                    ? 'Ensino Médio' 
+                                    : serie.nivel_ensino;
+                            nomeSerie = `${serie.nome} - ${nivelTexto}`;
+                        }
+                        
+                        option.textContent = nomeSerie;
+                        selectSerie.appendChild(option);
+                    });
+                } else {
+                    selectSerie.innerHTML = '<option value="">Nenhuma série disponível para este nível</option>';
+                }
+                
+                // Preencher automaticamente o campo serie (texto) quando uma série for selecionada
+                // Remover listener anterior se existir para evitar duplicatas
+                const oldHandler = selectSerie.onchange;
+                selectSerie.onchange = function() {
+                    const selectedOption = this.options[this.selectedIndex];
+                    if (selectedOption && selectedOption.value) {
+                        const serieNome = selectedOption.getAttribute('data-nome') || selectedOption.textContent.split(' - ')[0].trim();
+                        const inputSerie = document.querySelector('input[name="serie"]');
+                        if (inputSerie) {
+                            inputSerie.value = serieNome;
+                        }
+                    }
+                    // Chamar handler anterior se existir
+                    if (oldHandler) oldHandler.call(this);
+                };
+                
+                selectSerie.disabled = false;
+            } catch (error) {
+                console.error('Erro ao filtrar séries:', error);
+                selectSerie.innerHTML = '<option value="">Erro ao carregar séries</option>';
+                selectSerie.disabled = false;
+            }
+        }
+        
         function fecharModalCriarTurma() {
             document.getElementById('modal-criar-turma').classList.add('hidden');
         }
@@ -6066,6 +6341,7 @@ if (!defined('BASE_URL')) {
                                 <option value="MANHA">Manhã</option>
                                 <option value="TARDE">Tarde</option>
                                 <option value="NOITE">Noite</option>
+                                <option value="INTEGRAL">Integral</option>
                             </select>
                         </div>
                         <div>

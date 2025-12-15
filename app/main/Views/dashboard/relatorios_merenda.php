@@ -180,7 +180,7 @@ if ($tipo !== 'adm_merenda') {
                 WHERE escola_id = ? AND data >= ? AND data < DATE_ADD(?, INTERVAL 1 DAY)";
         $types = "iss";
         $params = [$escolaId, $date, $date];
-        if ($turno && in_array($turno, ['MANHA','TARDE','NOITE'])) {
+        if ($turno && in_array($turno, ['MANHA','TARDE','NOITE','INTEGRAL'])) {
             $sql .= " AND turno = ?";
             $types .= "s";
             $params[] = $turno;
@@ -205,7 +205,7 @@ if ($tipo !== 'adm_merenda') {
         $types = "iss";
         $params = [$escolaId, $startDate, $endDate];
 
-        if ($turno && in_array($turno, ['MANHA','TARDE','NOITE'])) {
+        if ($turno && in_array($turno, ['MANHA','TARDE','NOITE','INTEGRAL'])) {
             $sql .= " AND turno = ?";
             $types .= "s";
             $params[] = $turno;
@@ -239,7 +239,7 @@ if ($tipo !== 'adm_merenda') {
         $params = [$date, $date];
 
         if ($escolaId) { $sql .= " AND escola_id = ?"; $types .= "i"; $params[] = $escolaId; }
-        if ($turno && in_array($turno, ['MANHA','TARDE','NOITE'])) { $sql .= " AND turno = ?"; $types .= "s"; $params[] = $turno; }
+        if ($turno && in_array($turno, ['MANHA','TARDE','NOITE','INTEGRAL'])) { $sql .= " AND turno = ?"; $types .= "s"; $params[] = $turno; }
 
         $sql .= " ORDER BY escola_id, turno";
 
@@ -275,7 +275,7 @@ if ($tipo !== 'adm_merenda') {
         $paramsCons = [$startMonth, $endMonth];
 
         if ($escolaIdM) { $sqlCons .= " AND escola_id = ?"; $typesCons .= "i"; $paramsCons[] = $escolaIdM; }
-        if ($turnoM && in_array($turnoM, ['MANHA','TARDE','NOITE'])) { $sqlCons .= " AND turno = ?"; $typesCons .= "s"; $paramsCons[] = $turnoM; }
+        if ($turnoM && in_array($turnoM, ['MANHA','TARDE','NOITE','INTEGRAL'])) { $sqlCons .= " AND turno = ?"; $typesCons .= "s"; $paramsCons[] = $turnoM; }
 
         $sqlCons .= " GROUP BY escola_id, turno ORDER BY escola_id, turno";
 
@@ -301,7 +301,7 @@ if ($tipo !== 'adm_merenda') {
         $paramsW = [$startMonth, $endMonth];
 
         if ($escolaIdM) { $sqlW .= " AND escola_id = ?"; $typesW .= "i"; $paramsW[] = $escolaIdM; }
-        if ($turnoM && in_array($turnoM, ['MANHA','TARDE','NOITE'])) { $sqlW .= " AND turno = ?"; $typesW .= "s"; $paramsW[] = $turnoM; }
+        if ($turnoM && in_array($turnoM, ['MANHA','TARDE','NOITE','INTEGRAL'])) { $sqlW .= " AND turno = ?"; $typesW .= "s"; $paramsW[] = $turnoM; }
 
         $sqlW .= " GROUP BY escola_id, turno";
 
@@ -349,7 +349,7 @@ if ($tipo !== 'adm_merenda') {
         $params = [$start, $end];
 
         if ($escolaIdW) { $sql .= " AND escola_id = ?"; $types .= "i"; $params[] = $escolaIdW; }
-        if ($turnoW && in_array($turnoW, ['MANHA','TARDE','NOITE'])) { $sql .= " AND turno = ?"; $types .= "s"; $params[] = $turnoW; }
+        if ($turnoW && in_array($turnoW, ['MANHA','TARDE','NOITE','INTEGRAL'])) { $sql .= " AND turno = ?"; $types .= "s"; $params[] = $turnoW; }
         if ($motivo && in_array($motivo, ['EXCESSO_PREPARO','REJEICAO_ALUNOS','VALIDADE_VENCIDA','PREPARO_INCORRETO','OUTROS'])) {
             $sql .= " AND motivo = ?";
             $types .= "s";
@@ -477,6 +477,7 @@ if ($tipo !== 'adm_merenda') {
                         <option value="MANHA" <?php echo (($_GET['turno'] ?? '') === 'MANHA') ? 'selected' : ''; ?>>Manhã</option>
                         <option value="TARDE" <?php echo (($_GET['turno'] ?? '') === 'TARDE') ? 'selected' : ''; ?>>Tarde</option>
                         <option value="NOITE" <?php echo (($_GET['turno'] ?? '') === 'NOITE') ? 'selected' : ''; ?>>Noite</option>
+                        <option value="INTEGRAL" <?php echo (($_GET['turno'] ?? '') === 'INTEGRAL') ? 'selected' : ''; ?>>Integral</option>
                     </select>
                 </div>
                 <div class="flex items-end">
@@ -571,6 +572,7 @@ if ($tipo !== 'adm_merenda') {
                         <option value="MANHA" <?php echo (($_GET['turno'] ?? '') === 'MANHA') ? 'selected' : ''; ?>>Manhã</option>
                         <option value="TARDE" <?php echo (($_GET['turno'] ?? '') === 'TARDE') ? 'selected' : ''; ?>>Tarde</option>
                         <option value="NOITE" <?php echo (($_GET['turno'] ?? '') === 'NOITE') ? 'selected' : ''; ?>>Noite</option>
+                        <option value="INTEGRAL" <?php echo (($_GET['turno'] ?? '') === 'INTEGRAL') ? 'selected' : ''; ?>>Integral</option>
                     </select>
                 </div>
                 <div class="flex items-end">
@@ -685,6 +687,7 @@ if ($tipo !== 'adm_merenda') {
                         <option value="MANHA" <?php echo (($_GET['turno'] ?? '') === 'MANHA') ? 'selected' : ''; ?>>Manhã</option>
                         <option value="TARDE" <?php echo (($_GET['turno'] ?? '') === 'TARDE') ? 'selected' : ''; ?>>Tarde</option>
                         <option value="NOITE" <?php echo (($_GET['turno'] ?? '') === 'NOITE') ? 'selected' : ''; ?>>Noite</option>
+                        <option value="INTEGRAL" <?php echo (($_GET['turno'] ?? '') === 'INTEGRAL') ? 'selected' : ''; ?>>Integral</option>
                     </select>
                 </div>
                 <div>

@@ -30,14 +30,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao'])) {
             
             $nome = trim($_POST['nome']);
             $ordem = (int)$_POST['ordem'];
-            $nivel = !empty($_POST['nivel']) ? $_POST['nivel'] : 'FUNDAMENTAL';
+            $nivelEnsino = !empty($_POST['nivel_ensino']) ? $_POST['nivel_ensino'] : 'ENSINO_FUNDAMENTAL';
+            $codigo = !empty($_POST['codigo']) ? trim($_POST['codigo']) : null;
+            $idadeMinima = !empty($_POST['idade_minima']) ? (int)$_POST['idade_minima'] : null;
+            $idadeMaxima = !empty($_POST['idade_maxima']) ? (int)$_POST['idade_maxima'] : null;
+            $descricao = !empty($_POST['descricao']) ? trim($_POST['descricao']) : null;
             
-            $sql = "INSERT INTO serie (nome, ordem, nivel, ativo, criado_em) 
-                    VALUES (:nome, :ordem, :nivel, 1, NOW())";
+            $sql = "INSERT INTO serie (nome, codigo, nivel_ensino, ordem, idade_minima, idade_maxima, descricao, ativo, criado_em) 
+                    VALUES (:nome, :codigo, :nivel_ensino, :ordem, :idade_minima, :idade_maxima, :descricao, 1, NOW())";
             $stmt = $conn->prepare($sql);
             $stmt->bindParam(':nome', $nome);
+            $stmt->bindParam(':codigo', $codigo);
+            $stmt->bindParam(':nivel_ensino', $nivelEnsino);
             $stmt->bindParam(':ordem', $ordem);
-            $stmt->bindParam(':nivel', $nivel);
+            $stmt->bindParam(':idade_minima', $idadeMinima);
+            $stmt->bindParam(':idade_maxima', $idadeMaxima);
+            $stmt->bindParam(':descricao', $descricao);
             $resultado = $stmt->execute();
             echo json_encode(['success' => $resultado, 'id' => $conn->lastInsertId()]);
         } catch (Exception $e) {
@@ -59,15 +67,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao'])) {
             $id = (int)$_POST['id'];
             $nome = trim($_POST['nome']);
             $ordem = (int)$_POST['ordem'];
-            $nivel = !empty($_POST['nivel']) ? $_POST['nivel'] : 'FUNDAMENTAL';
+            $nivelEnsino = !empty($_POST['nivel_ensino']) ? $_POST['nivel_ensino'] : 'ENSINO_FUNDAMENTAL';
+            $codigo = !empty($_POST['codigo']) ? trim($_POST['codigo']) : null;
+            $idadeMinima = !empty($_POST['idade_minima']) ? (int)$_POST['idade_minima'] : null;
+            $idadeMaxima = !empty($_POST['idade_maxima']) ? (int)$_POST['idade_maxima'] : null;
+            $descricao = !empty($_POST['descricao']) ? trim($_POST['descricao']) : null;
             $ativo = isset($_POST['ativo']) ? (int)$_POST['ativo'] : 1;
             
-            $sql = "UPDATE serie SET nome = :nome, ordem = :ordem, nivel = :nivel, ativo = :ativo WHERE id = :id";
+            $sql = "UPDATE serie SET nome = :nome, codigo = :codigo, nivel_ensino = :nivel_ensino, ordem = :ordem, idade_minima = :idade_minima, idade_maxima = :idade_maxima, descricao = :descricao, ativo = :ativo WHERE id = :id";
             $stmt = $conn->prepare($sql);
             $stmt->bindParam(':id', $id);
             $stmt->bindParam(':nome', $nome);
+            $stmt->bindParam(':codigo', $codigo);
+            $stmt->bindParam(':nivel_ensino', $nivelEnsino);
             $stmt->bindParam(':ordem', $ordem);
-            $stmt->bindParam(':nivel', $nivel);
+            $stmt->bindParam(':idade_minima', $idadeMinima);
+            $stmt->bindParam(':idade_maxima', $idadeMaxima);
+            $stmt->bindParam(':descricao', $descricao);
             $stmt->bindParam(':ativo', $ativo);
             $resultado = $stmt->execute();
             echo json_encode(['success' => $resultado]);
@@ -94,9 +110,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['acao'])) {
         $sql = "SELECT * FROM serie WHERE 1=1";
         $params = [];
         
-        if (!empty($_GET['nivel'])) {
-            $sql .= " AND nivel = :nivel";
-            $params[':nivel'] = $_GET['nivel'];
+        if (!empty($_GET['nivel_ensino'])) {
+            $sql .= " AND nivel_ensino = :nivel_ensino";
+            $params[':nivel_ensino'] = $_GET['nivel_ensino'];
         }
         
         $sql .= " ORDER BY ordem ASC";
@@ -111,9 +127,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['acao'])) {
         echo json_encode(['success' => true, 'series' => $series]);
         exit;
     }
+    
+    if ($_GET['acao'] === 'buscar_serie') {
+        $id = (int)$_GET['id'];
+        $sql = "SELECT * FROM serie WHERE id = :id";
+        $stmt = $conn->prepare($sql);
+        $stmt->bindParam(':id', $id, PDO::PARAM_INT);
+        $stmt->execute();
+        $serie = $stmt->fetch(PDO::FETCH_ASSOC);
+        
+        if ($serie) {
+            echo json_encode(['success' => true, 'serie' => $serie]);
+        } else {
+            echo json_encode(['success' => false, 'message' => 'Série não encontrada']);
+        }
+        exit;
+    }
 }
 
-$sqlSeries = "SELECT * FROM serie ORDER BY ordem ASC";
+$sqlSeries = "SELECT * FROM serie ORDER BY nivel_ensino ASC, ordem ASC";
 $stmtSeries = $conn->prepare($sqlSeries);
 $stmtSeries->execute();
 $series = $stmtSeries->fetchAll(PDO::FETCH_ASSOC);
@@ -227,7 +259,18 @@ $series = $stmtSeries->fetchAll(PDO::FETCH_ASSOC);
                                         <tr class="border-b border-gray-100 hover:bg-gray-50">
                                             <td class="py-3 px-4 font-medium"><?= htmlspecialchars($serie['nome']) ?></td>
                                             <td class="py-3 px-4"><?= htmlspecialchars($serie['ordem']) ?></td>
-                                            <td class="py-3 px-4"><?= htmlspecialchars($serie['nivel'] ?? 'FUNDAMENTAL') ?></td>
+                                            <td class="py-3 px-4">
+                                                <?php
+                                                $nivel = $serie['nivel_ensino'] ?? 'ENSINO_FUNDAMENTAL';
+                                                $nivelTexto = [
+                                                    'EDUCACAO_INFANTIL' => 'Educação Infantil',
+                                                    'ENSINO_FUNDAMENTAL' => 'Ensino Fundamental',
+                                                    'ENSINO_MEDIO' => 'Ensino Médio',
+                                                    'EJA' => 'EJA'
+                                                ];
+                                                echo htmlspecialchars($nivelTexto[$nivel] ?? $nivel);
+                                                ?>
+                                            </td>
                                             <td class="py-3 px-4">
                                                 <span class="px-2 py-1 rounded text-xs <?= $serie['ativo'] ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800' ?>">
                                                     <?= $serie['ativo'] ? 'Ativa' : 'Inativa' ?>
@@ -253,6 +296,96 @@ $series = $stmtSeries->fetchAll(PDO::FETCH_ASSOC);
             </div>
         </div>
     </main>
+    
+    <!-- Modal Editar Série -->
+    <div id="modal-editar-serie" class="fixed inset-0 bg-black bg-opacity-50 z-[60] hidden items-center justify-center p-4" style="display: none;">
+        <div class="bg-white rounded-2xl p-6 max-w-2xl w-full mx-4 shadow-2xl max-h-[90vh] overflow-y-auto">
+            <div class="flex items-center justify-between mb-6">
+                <h3 class="text-xl font-semibold text-gray-900">Editar Série</h3>
+                <button onclick="fecharModalEditarSerie()" class="text-gray-400 hover:text-gray-600">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+            </div>
+            
+            <form id="form-editar-serie" class="space-y-4">
+                <input type="hidden" id="editar-serie-id" name="id">
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Nome <span class="text-red-500">*</span></label>
+                        <input type="text" id="editar-serie-nome" name="nome" required
+                               class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500">
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Código</label>
+                        <input type="text" id="editar-serie-codigo" name="codigo"
+                               class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500">
+                    </div>
+                </div>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Nível de Ensino <span class="text-red-500">*</span></label>
+                        <select id="editar-serie-nivel-ensino" name="nivel_ensino" required
+                                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500">
+                            <option value="EDUCACAO_INFANTIL">Educação Infantil</option>
+                            <option value="ENSINO_FUNDAMENTAL">Ensino Fundamental</option>
+                            <option value="ENSINO_MEDIO">Ensino Médio</option>
+                            <option value="EJA">EJA</option>
+                        </select>
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Ordem <span class="text-red-500">*</span></label>
+                        <input type="number" id="editar-serie-ordem" name="ordem" required min="1"
+                               class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500">
+                    </div>
+                </div>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Idade Mínima</label>
+                        <input type="number" id="editar-serie-idade-minima" name="idade_minima" min="0"
+                               class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500">
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Idade Máxima</label>
+                        <input type="number" id="editar-serie-idade-maxima" name="idade_maxima" min="0"
+                               class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500">
+                    </div>
+                </div>
+                
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Descrição</label>
+                    <textarea id="editar-serie-descricao" name="descricao" rows="3"
+                              class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500"></textarea>
+                </div>
+                
+                <div>
+                    <label class="flex items-center space-x-2">
+                        <input type="checkbox" id="editar-serie-ativo" name="ativo" value="1" checked
+                               class="w-4 h-4 text-yellow-600 border-gray-300 rounded focus:ring-yellow-500">
+                        <span class="text-sm font-medium text-gray-700">Série Ativa</span>
+                    </label>
+                </div>
+                
+                <div class="flex space-x-3 pt-4">
+                    <button type="button" onclick="fecharModalEditarSerie()" 
+                            class="flex-1 px-4 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg font-medium transition-colors duration-200">
+                        Cancelar
+                    </button>
+                    <button type="submit" 
+                            class="flex-1 px-4 py-2 text-white bg-yellow-600 hover:bg-yellow-700 rounded-lg font-medium transition-colors duration-200">
+                        Salvar Alterações
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
     
     <div id="logoutModal" class="fixed inset-0 bg-black bg-opacity-50 z-[60] hidden items-center justify-center p-4" style="display: none;">
         <div class="bg-white rounded-2xl p-6 max-w-md w-full mx-4 shadow-2xl">
@@ -315,13 +448,29 @@ $series = $stmtSeries->fetchAll(PDO::FETCH_ASSOC);
             const ordem = prompt('Ordem (número):');
             if (!ordem) return;
             
-            const nivel = prompt('Nível (FUNDAMENTAL/MEDIO):', 'FUNDAMENTAL');
+            const nivelEnsino = prompt('Nível de Ensino:\n1 - Educação Infantil\n2 - Ensino Fundamental\n3 - Ensino Médio\n4 - EJA\n\nDigite o número:', '2');
+            const niveis = {
+                '1': 'EDUCACAO_INFANTIL',
+                '2': 'ENSINO_FUNDAMENTAL',
+                '3': 'ENSINO_MEDIO',
+                '4': 'EJA'
+            };
+            const nivelSelecionado = niveis[nivelEnsino] || 'ENSINO_FUNDAMENTAL';
+            
+            const codigo = prompt('Código (opcional):', '');
+            const idadeMinima = prompt('Idade Mínima (opcional):', '');
+            const idadeMaxima = prompt('Idade Máxima (opcional):', '');
+            const descricao = prompt('Descrição (opcional):', '');
             
             const formData = new FormData();
             formData.append('acao', 'criar_serie');
             formData.append('nome', nome);
             formData.append('ordem', ordem);
-            formData.append('nivel', nivel);
+            formData.append('nivel_ensino', nivelSelecionado);
+            if (codigo) formData.append('codigo', codigo);
+            if (idadeMinima) formData.append('idade_minima', idadeMinima);
+            if (idadeMaxima) formData.append('idade_maxima', idadeMaxima);
+            if (descricao) formData.append('descricao', descricao);
             
             fetch('', {
                 method: 'POST',
@@ -333,7 +482,7 @@ $series = $stmtSeries->fetchAll(PDO::FETCH_ASSOC);
                     alert('Série criada com sucesso!');
                     location.reload();
                 } else {
-                    alert('Erro ao criar série.');
+                    alert('Erro ao criar série: ' + (data.message || 'Erro desconhecido'));
                 }
             })
             .catch(error => {
@@ -343,8 +492,70 @@ $series = $stmtSeries->fetchAll(PDO::FETCH_ASSOC);
         }
 
         function editarSerie(id) {
-            alert('Funcionalidade de edição de série em desenvolvimento. ID: ' + id);
+            // Buscar dados da série
+            fetch('?acao=buscar_serie&id=' + id)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success && data.serie) {
+                        const serie = data.serie;
+                        
+                        // Preencher formulário
+                        document.getElementById('editar-serie-id').value = serie.id;
+                        document.getElementById('editar-serie-nome').value = serie.nome || '';
+                        document.getElementById('editar-serie-codigo').value = serie.codigo || '';
+                        document.getElementById('editar-serie-nivel-ensino').value = serie.nivel_ensino || 'ENSINO_FUNDAMENTAL';
+                        document.getElementById('editar-serie-ordem').value = serie.ordem || '';
+                        document.getElementById('editar-serie-idade-minima').value = serie.idade_minima || '';
+                        document.getElementById('editar-serie-idade-maxima').value = serie.idade_maxima || '';
+                        document.getElementById('editar-serie-descricao').value = serie.descricao || '';
+                        document.getElementById('editar-serie-ativo').checked = serie.ativo == 1;
+                        
+                        // Abrir modal
+                        const modal = document.getElementById('modal-editar-serie');
+                        modal.style.display = 'flex';
+                        modal.classList.remove('hidden');
+                    } else {
+                        alert('Erro ao buscar dados da série.');
+                    }
+                })
+                .catch(error => {
+                    console.error('Erro:', error);
+                    alert('Erro ao buscar dados da série.');
+                });
         }
+        
+        function fecharModalEditarSerie() {
+            const modal = document.getElementById('modal-editar-serie');
+            modal.style.display = 'none';
+            modal.classList.add('hidden');
+        }
+        
+        // Submeter formulário de edição
+        document.getElementById('form-editar-serie').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const formData = new FormData(this);
+            formData.append('acao', 'editar_serie');
+            
+            fetch('', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert('Série atualizada com sucesso!');
+                    fecharModalEditarSerie();
+                    location.reload();
+                } else {
+                    alert('Erro ao atualizar série: ' + (data.message || 'Erro desconhecido'));
+                }
+            })
+            .catch(error => {
+                console.error('Erro:', error);
+                alert('Erro ao atualizar série.');
+            });
+        });
 
         function excluirSerie(id) {
             if (confirm('Tem certeza que deseja excluir esta série?')) {

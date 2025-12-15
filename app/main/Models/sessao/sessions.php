@@ -142,8 +142,8 @@ class sessions {
                 if (!$escolaExiste) {
                     // Buscar professor_id do professor
                     $sqlProfessor = "SELECT p.id as professor_id FROM professor p 
-                                    INNER JOIN usuario u ON p.pessoa_id = u.pessoa_id 
-                                    WHERE u.id = :usuario_id LIMIT 1";
+                                 INNER JOIN usuario u ON p.pessoa_id = u.pessoa_id 
+                                 WHERE u.id = :usuario_id LIMIT 1";
                     $stmtProfessor = $conn->prepare($sqlProfessor);
                     $stmtProfessor->bindParam(':usuario_id', $usuarioId, PDO::PARAM_INT);
                     $stmtProfessor->execute();

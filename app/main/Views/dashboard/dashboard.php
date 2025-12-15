@@ -433,6 +433,51 @@ if (isset($_SESSION['tipo']) && strtolower($_SESSION['tipo']) === 'professor') {
     }
 }
 
+// Buscar escola do aluno logado (se não estiver na sessão)
+if (isset($_SESSION['tipo']) && strtolower($_SESSION['tipo']) === 'aluno') {
+    // Se não tem escola na sessão, buscar do banco
+    if (empty($_SESSION['escola_atual']) || empty($_SESSION['escola_selecionada_id'])) {
+        $pessoaId = $_SESSION['pessoa_id'] ?? null;
+        
+        if ($pessoaId) {
+            try {
+                // Buscar a escola do aluno: primeiro do campo escola_id, depois da turma
+                $sqlEscolaAluno = "SELECT COALESCE(e_direta.id, e_turma.id) as escola_id,
+                                          COALESCE(e_direta.nome, e_turma.nome) as escola_nome
+                                   FROM aluno a
+                                   LEFT JOIN escola e_direta ON a.escola_id = e_direta.id
+                                   LEFT JOIN (
+                                       SELECT at1.aluno_id, at1.turma_id
+                                       FROM aluno_turma at1
+                                       INNER JOIN (
+                                           SELECT aluno_id, MAX(inicio) as max_inicio
+                                           FROM aluno_turma
+                                           GROUP BY aluno_id
+                                       ) at_max ON at1.aluno_id = at_max.aluno_id AND at1.inicio = at_max.max_inicio
+                                   ) at ON a.id = at.aluno_id
+                                   LEFT JOIN turma t ON at.turma_id = t.id
+                                   LEFT JOIN escola e_turma ON t.escola_id = e_turma.id
+                                   WHERE a.pessoa_id = :pessoa_id 
+                                   AND a.ativo = 1
+                                   LIMIT 1";
+                $stmtEscolaAluno = $conn->prepare($sqlEscolaAluno);
+                $stmtEscolaAluno->bindParam(':pessoa_id', $pessoaId);
+                $stmtEscolaAluno->execute();
+                $escolaAluno = $stmtEscolaAluno->fetch(PDO::FETCH_ASSOC);
+                
+                if ($escolaAluno && !empty($escolaAluno['escola_id']) && !empty($escolaAluno['escola_nome'])) {
+                    $_SESSION['escola_atual'] = $escolaAluno['escola_nome'];
+                    $_SESSION['escola_selecionada_id'] = (int)$escolaAluno['escola_id'];
+                    $_SESSION['escola_selecionada_nome'] = $escolaAluno['escola_nome'];
+                    $_SESSION['escola_id'] = (int)$escolaAluno['escola_id'];
+                }
+            } catch (Exception $e) {
+                error_log("ERRO ao buscar escola do aluno no dashboard: " . $e->getMessage());
+            }
+        }
+    }
+}
+
 // Código de processamento AJAX do professor removido - agora está nas páginas separadas
 ?>
 <!DOCTYPE html>
