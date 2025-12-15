@@ -1239,8 +1239,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['acao'])) {
                     // Buscar gestor pela pessoa_id
                     // IMPORTANTE: g.id AS id garante que o id seja sempre do gestor
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
                     $sqlGestorPorPessoa = "SELECT g.id, g.pessoa_id, g.cargo, g.formacao, g.registro_profissional, 
 =======
+=======
+>>>>>>> Stashed changes
                     $camposEspecializacao = $temEspecializacao ? ', g.especializacao' : '';
                     $camposCor = '';
                     if ($temCor) {
@@ -1250,6 +1253,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['acao'])) {
                     }
                     
                     $sqlGestorPorPessoa = "SELECT g.id, g.pessoa_id, g.cargo, g.formacao{$camposEspecializacao}, g.registro_profissional, 
+<<<<<<< Updated upstream
+>>>>>>> Stashed changes
+=======
 >>>>>>> Stashed changes
                                                  g.observacoes, g.ativo, g.criado_por, g.criado_em,
                                                  p.id AS pessoa_id_explicit, p.cpf, p.nome, p.data_nascimento, p.sexo, p.email, 
