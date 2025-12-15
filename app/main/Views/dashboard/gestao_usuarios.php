@@ -7,7 +7,11 @@ $session->autenticar_session();
 $session->tempo_session();
 
 // Verificar permissão usando o sistema de permissões
-if (!temPermissao('cadastrar_pessoas') && !eAdm()) {
+// ADM pode tudo, ADM_TRANSPORTE pode criar TRANSPORTE_ALUNO
+$tipoUsuario = $_SESSION['tipo'] ?? '';
+$podeAcessar = eAdm() || temPermissao('cadastrar_pessoas') || strtoupper($tipoUsuario) === 'ADM_TRANSPORTE';
+
+if (!$podeAcessar) {
     header('Location: ../auth/login.php?erro=sem_permissao');
     exit;
 }
@@ -76,7 +80,9 @@ function obterEstatisticasUsuarios() {
                 SUM(CASE WHEN u.role = 'PROFESSOR' THEN 1 ELSE 0 END) as professor,
                 SUM(CASE WHEN u.role = 'ALUNO' THEN 1 ELSE 0 END) as aluno,
                 SUM(CASE WHEN u.role = 'NUTRICIONISTA' THEN 1 ELSE 0 END) as nutricionista,
-                SUM(CASE WHEN u.role = 'ADM_MERENDA' THEN 1 ELSE 0 END) as adm_merenda
+                SUM(CASE WHEN u.role = 'ADM_MERENDA' THEN 1 ELSE 0 END) as adm_merenda,
+                SUM(CASE WHEN u.role = 'ADM_TRANSPORTE' THEN 1 ELSE 0 END) as adm_transporte,
+                SUM(CASE WHEN u.role = 'TRANSPORTE_ALUNO' THEN 1 ELSE 0 END) as transporte_aluno
             FROM usuario u";
     
     $stmt = $conn->prepare($sql);
@@ -547,20 +553,29 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (isset($_POST['acao'])) {
         // Cadastrar novo usuário
         if ($_POST['acao'] === 'cadastrar') {
-            $dados = [
-                'nome' => $_POST['nome'] ?? '',
-                'cpf' => $_POST['cpf'] ?? '',
-                'email' => $_POST['email'] ?? '',
-                'senha' => $_POST['senha'] ?? '',
-                'tipo' => $_POST['tipo'] ?? 'funcionario',
-                'telefone' => $_POST['telefone'] ?? '',
-                'endereco' => $_POST['endereco'] ?? '',
-                'data_nascimento' => $_POST['data_nascimento'] ?? null
-            ];
+            $tipoUsuarioLogado = $_SESSION['tipo'] ?? '';
+            $tipoUsuarioNovo = $_POST['tipo'] ?? '';
             
-            $resultado = cadastrarUsuario($dados);
-            $mensagem = $resultado['mensagem'];
-            $tipoMensagem = $resultado['status'] ? 'success' : 'error';
+            // Validação: ADM_TRANSPORTE só pode criar TRANSPORTE_ALUNO
+            if (strtoupper($tipoUsuarioLogado) === 'ADM_TRANSPORTE' && strtoupper($tipoUsuarioNovo) !== 'TRANSPORTE_ALUNO') {
+                $mensagem = 'Você só pode criar usuários do tipo TRANSPORTE_ALUNO.';
+                $tipoMensagem = 'error';
+            } else {
+                $dados = [
+                    'nome' => $_POST['nome'] ?? '',
+                    'cpf' => $_POST['cpf'] ?? '',
+                    'email' => $_POST['email'] ?? '',
+                    'senha' => $_POST['senha'] ?? '',
+                    'tipo' => $_POST['tipo'] ?? 'funcionario',
+                    'telefone' => $_POST['telefone'] ?? '',
+                    'endereco' => $_POST['endereco'] ?? '',
+                    'data_nascimento' => $_POST['data_nascimento'] ?? null
+                ];
+                
+                $resultado = cadastrarUsuario($dados);
+                $mensagem = $resultado['mensagem'];
+                $tipoMensagem = $resultado['status'] ? 'success' : 'error';
+            }
         }
         
         // Editar usuário
@@ -1677,6 +1692,8 @@ $gestores = listarGestores();
                                     <option value="ALUNO" <?php echo $role === 'ALUNO' ? 'selected' : ''; ?>>Aluno</option>
                                     <option value="NUTRICIONISTA" <?php echo $role === 'NUTRICIONISTA' ? 'selected' : ''; ?>>Nutricionista</option>
                                     <option value="ADM_MERENDA" <?php echo $role === 'ADM_MERENDA' ? 'selected' : ''; ?>>Adm. Merenda</option>
+                                    <option value="ADM_TRANSPORTE" <?php echo $role === 'ADM_TRANSPORTE' ? 'selected' : ''; ?>>Adm. Transporte</option>
+                                    <option value="TRANSPORTE_ALUNO" <?php echo $role === 'TRANSPORTE_ALUNO' ? 'selected' : ''; ?>>Transporte Escolar (Aluno)</option>
                                 </select>
                             </div>
                         </div>
@@ -1845,6 +1862,8 @@ $gestores = listarGestores();
                                     <option value="ALUNO">Aluno</option>
                                     <option value="NUTRICIONISTA">Nutricionista</option>
                                     <option value="ADM_MERENDA">Administrador de Merenda</option>
+                                    <option value="ADM_TRANSPORTE">Administrador de Transporte</option>
+                                    <option value="TRANSPORTE_ALUNO">Transporte Escolar (Aluno)</option>
                                     <option value="ADM">Administrador</option>
                                 </select>
                             </div>
@@ -2671,6 +2690,23 @@ $gestores = listarGestores();
                 }
             });
         })();
+        
+        // Filtrar tipos de usuário para ADM_TRANSPORTE
+        document.addEventListener('DOMContentLoaded', function() {
+            const tipoUsuario = '<?= strtoupper($tipoUsuario) ?>';
+            const selectTipo = document.getElementById('tipo');
+            
+            if (selectTipo && tipoUsuario === 'ADM_TRANSPORTE') {
+                // Esconder todas as opções exceto TRANSPORTE_ALUNO
+                Array.from(selectTipo.options).forEach(option => {
+                    if (option.value !== 'TRANSPORTE_ALUNO') {
+                        option.style.display = 'none';
+                    }
+                });
+                // Selecionar TRANSPORTE_ALUNO por padrão
+                selectTipo.value = 'TRANSPORTE_ALUNO';
+            }
+        });
     </script>
     
     <!-- Modal de Logout -->

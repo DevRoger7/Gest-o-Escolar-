@@ -147,7 +147,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao'])) {
                         'responsavel_id' => !empty($_POST['responsavel_id']) ? $_POST['responsavel_id'] : null,
                         'escola_id' => !empty($_POST['escola_id']) ? $_POST['escola_id'] : null,
                 'data_matricula' => $_POST['data_matricula'] ?? date('Y-m-d'),
-                'situacao' => $_POST['situacao'] ?? 'MATRICULADO'
+                'situacao' => $_POST['situacao'] ?? 'MATRICULADO',
+                'precisa_transporte' => isset($_POST['precisa_transporte']) ? 1 : 0,
+                'distrito_transporte' => !empty($_POST['distrito_transporte']) ? trim($_POST['distrito_transporte']) : null
             ];
             
             // Validar campos obrigatórios
@@ -320,7 +322,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao'])) {
                         'escola_id' => !empty($_POST['escola_id']) ? $_POST['escola_id'] : null,
                 'data_matricula' => $_POST['data_matricula'] ?? $aluno['data_matricula'],
                 'situacao' => $_POST['situacao'] ?? 'MATRICULADO',
-                'ativo' => isset($_POST['ativo']) ? (int)$_POST['ativo'] : 1
+                'ativo' => isset($_POST['ativo']) ? (int)$_POST['ativo'] : 1,
+                'precisa_transporte' => isset($_POST['precisa_transporte']) ? 1 : 0,
+                'distrito_transporte' => !empty($_POST['distrito_transporte']) ? trim($_POST['distrito_transporte']) : null
             ];
             
             // Validar campos obrigatórios
@@ -849,6 +853,49 @@ if (ob_get_level()) {
                     </div>
                 </div>
                 
+                <!-- Informações de Transporte -->
+                <div>
+                    <h3 class="text-lg font-semibold text-gray-800 mb-4 pb-2 border-b border-gray-200">Transporte Escolar</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="flex items-center space-x-2 cursor-pointer">
+                                <input type="checkbox" name="precisa_transporte" id="editar_precisa_transporte" value="1" 
+                                       onchange="toggleDistritoTransporteEditar()"
+                                       class="w-5 h-5 text-blue-600 border-gray-300 rounded focus:ring-blue-500">
+                                <span class="text-sm font-medium text-gray-700">Aluno precisa de transporte escolar</span>
+                            </label>
+                        </div>
+                        <div id="container-distrito-transporte-editar" class="hidden">
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Distrito de Origem</label>
+                            <div class="autocomplete-container">
+                                <input type="text" name="distrito_transporte" id="editar_distrito_transporte" 
+                                       list="distritos-maranguape-editar"
+                                       class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" 
+                                       placeholder="Digite o distrito...">
+                                <datalist id="distritos-maranguape-editar">
+                                    <option value="Amanari">
+                                    <option value="Antônio Marques">
+                                    <option value="Cachoeira">
+                                    <option value="Itapebussu">
+                                    <option value="Jubaia">
+                                    <option value="Ladeira Grande">
+                                    <option value="Lages">
+                                    <option value="Lagoa do Juvenal">
+                                    <option value="Manoel Guedes">
+                                    <option value="Maranguape">
+                                    <option value="Papara">
+                                    <option value="Penedo">
+                                    <option value="Sapupara">
+                                    <option value="São João do Amanari">
+                                    <option value="Tanques">
+                                    <option value="Umarizeiras">
+                                    <option value="Vertentes do Lagedo">
+                                </datalist>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
                 </form>
             </div>
             
@@ -994,6 +1041,50 @@ if (ob_get_level()) {
                                 <option value="CONCLUIDO">Concluído</option>
                                 <option value="CANCELADO">Cancelado</option>
                             </select>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Informações de Transporte -->
+                <div>
+                    <h3 class="text-lg font-semibold text-gray-800 mb-4 pb-2 border-b border-gray-200">Transporte Escolar</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="flex items-center space-x-2 cursor-pointer">
+                                <input type="checkbox" name="precisa_transporte" id="precisa_transporte" value="1" 
+                                       onchange="toggleDistritoTransporte()"
+                                       class="w-5 h-5 text-blue-600 border-gray-300 rounded focus:ring-blue-500">
+                                <span class="text-sm font-medium text-gray-700">Aluno precisa de transporte escolar</span>
+                            </label>
+                        </div>
+                        <div id="container-distrito-transporte" class="hidden">
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Distrito de Origem *</label>
+                            <div class="autocomplete-container">
+                                <input type="text" name="distrito_transporte" id="distrito_transporte" 
+                                       list="distritos-maranguape"
+                                       class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" 
+                                       placeholder="Digite o distrito...">
+                                <datalist id="distritos-maranguape">
+                                    <option value="Amanari">
+                                    <option value="Antônio Marques">
+                                    <option value="Cachoeira">
+                                    <option value="Itapebussu">
+                                    <option value="Jubaia">
+                                    <option value="Ladeira Grande">
+                                    <option value="Lages">
+                                    <option value="Lagoa do Juvenal">
+                                    <option value="Manoel Guedes">
+                                    <option value="Maranguape">
+                                    <option value="Papara">
+                                    <option value="Penedo">
+                                    <option value="Sapupara">
+                                    <option value="São João do Amanari">
+                                    <option value="Tanques">
+                                    <option value="Umarizeiras">
+                                    <option value="Vertentes do Lagedo">
+                                </datalist>
+                            </div>
+                            <p class="text-xs text-gray-500 mt-1">Selecione o distrito onde o aluno precisa de transporte</p>
                         </div>
                     </div>
                 </div>
@@ -1405,6 +1496,12 @@ if (ob_get_level()) {
                 document.getElementById('editar_situacao').value = aluno.situacao || 'MATRICULADO';
                 document.getElementById('editar_ativo').value = aluno.ativo !== undefined ? aluno.ativo : 1;
                 
+                // Transporte
+                const precisaTransporte = aluno.precisa_transporte == 1 || aluno.precisa_transporte === '1';
+                document.getElementById('editar_precisa_transporte').checked = precisaTransporte;
+                document.getElementById('editar_distrito_transporte').value = aluno.distrito_transporte || '';
+                toggleDistritoTransporteEditar();
+                
                 // Abrir modal
                 const modal = document.getElementById('modalEditarAluno');
                 if (modal) {
@@ -1563,6 +1660,34 @@ if (ob_get_level()) {
             }
         }
 
+        function toggleDistritoTransporte() {
+            const precisaTransporte = document.getElementById('precisa_transporte').checked;
+            const container = document.getElementById('container-distrito-transporte');
+            const input = document.getElementById('distrito_transporte');
+            
+            if (precisaTransporte) {
+                container.classList.remove('hidden');
+                input.required = true;
+            } else {
+                container.classList.add('hidden');
+                input.required = false;
+                input.value = '';
+            }
+        }
+        
+        function toggleDistritoTransporteEditar() {
+            const precisaTransporte = document.getElementById('editar_precisa_transporte').checked;
+            const container = document.getElementById('container-distrito-transporte-editar');
+            const input = document.getElementById('editar_distrito_transporte');
+            
+            if (precisaTransporte) {
+                container.classList.remove('hidden');
+            } else {
+                container.classList.add('hidden');
+                input.value = '';
+            }
+        }
+        
         function filtrarAlunos() {
             const busca = document.getElementById('filtro-busca').value;
             const escolaId = document.getElementById('filtro-escola').value;

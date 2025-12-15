@@ -608,7 +608,7 @@ $series = $stmtSeries->fetchAll(PDO::FETCH_ASSOC);
                     abrirModalSucessoAtualizacao();
                 } else {
                     alert('Erro ao atualizar série: ' + (data.message || 'Erro desconhecido'));
-                }
+        }
             })
             .catch(error => {
                 console.error('Erro:', error);
