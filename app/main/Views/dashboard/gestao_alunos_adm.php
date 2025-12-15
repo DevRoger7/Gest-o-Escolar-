@@ -114,7 +114,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao'])) {
                 $matricula = $ano . str_pad($proximoNumero, 4, '0', STR_PAD_LEFT);
             }
             
-            // Verificar se matrícula já existe
             $sqlVerificarMatricula = "SELECT id FROM aluno WHERE matricula = :matricula";
             $stmtVerificarMat = $conn->prepare($sqlVerificarMatricula);
             $stmtVerificarMat->bindParam(':matricula', $matricula);
@@ -149,7 +148,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao'])) {
                 'data_matricula' => $_POST['data_matricula'] ?? date('Y-m-d'),
                 'situacao' => $_POST['situacao'] ?? 'MATRICULADO',
                 'precisa_transporte' => isset($_POST['precisa_transporte']) ? 1 : 0,
-                'distrito_transporte' => !empty($_POST['distrito_transporte']) ? trim($_POST['distrito_transporte']) : null
+                'distrito_transporte' => !empty($_POST['distrito_transporte']) ? trim($_POST['distrito_transporte']) : null,
+                'nome_social' => !empty($_POST['nome_social']) ? trim($_POST['nome_social']) : null,
+                'raca' => !empty($_POST['raca']) ? trim($_POST['raca']) : null
             ];
             
             // Validar campos obrigatórios
@@ -309,7 +310,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao'])) {
                         }
                     }
             
-            // Preparar dados para atualização
                     $dados = [
                         'nome' => trim($_POST['nome'] ?? ''),
                         'data_nascimento' => $_POST['data_nascimento'] ?? null,
@@ -324,10 +324,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao'])) {
                 'situacao' => $_POST['situacao'] ?? 'MATRICULADO',
                 'ativo' => isset($_POST['ativo']) ? (int)$_POST['ativo'] : 1,
                 'precisa_transporte' => isset($_POST['precisa_transporte']) ? 1 : 0,
-                'distrito_transporte' => !empty($_POST['distrito_transporte']) ? trim($_POST['distrito_transporte']) : null
+                'distrito_transporte' => !empty($_POST['distrito_transporte']) ? trim($_POST['distrito_transporte']) : null,
+                'nome_social' => !empty($_POST['nome_social']) ? trim($_POST['nome_social']) : null,
+                'raca' => !empty($_POST['raca']) ? trim($_POST['raca']) : null
             ];
             
-            // Validar campos obrigatórios
             if (empty($dados['nome'])) {
                 throw new Exception('Nome é obrigatório.');
             }
@@ -338,7 +339,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao'])) {
                 throw new Exception('Sexo é obrigatório.');
             }
             
-            // Validar NIS (se fornecido, deve ter 11 dígitos)
             if (!empty($dados['nis'])) {
                 $nis = preg_replace('/[^0-9]/', '', $dados['nis']);
                 if (strlen($nis) !== 11) {
@@ -597,6 +597,46 @@ if (ob_get_level()) {
             from { opacity: 0; transform: translateY(10px); }
             to { opacity: 1; transform: translateY(0); }
         }
+        /* Autocomplete customizado */
+        .autocomplete-container {
+            position: relative;
+        }
+        .autocomplete-dropdown {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background: white;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            max-height: 200px;
+            overflow-y: auto;
+            z-index: 1000;
+            margin-top: 4px;
+            display: none;
+        }
+        .autocomplete-dropdown.show {
+            display: block;
+        }
+        .autocomplete-item {
+            padding: 10px 12px;
+            cursor: pointer;
+            transition: background-color 0.15s;
+            border-bottom: 1px solid #f3f4f6;
+        }
+        .autocomplete-item:last-child {
+            border-bottom: none;
+        }
+        .autocomplete-item:hover,
+        .autocomplete-item.selected {
+            background-color: #f3f4f6;
+        }
+        .autocomplete-item .distrito-nome {
+            font-size: 14px;
+            color: #374151;
+            font-weight: 500;
+        }
         @media (max-width: 1023px) {
             .sidebar-mobile { transform: translateX(-100%); }
             .sidebar-mobile.open { transform: translateX(0); }
@@ -758,7 +798,7 @@ if (ob_get_level()) {
                 
                 <!-- Informações Pessoais -->
                 <div>
-                    <h3 class="text-lg font-semibold text-gray-800 mb-4 pb-2 border-b border-gray-200">Informações Pessoais</h3>
+                    <h3 class="text-base font-semibold text-gray-800 mb-4 pb-2 border-b border-gray-200">Informações Pessoais</h3>
                     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-2">Nome Completo *</label>
@@ -798,12 +838,31 @@ if (ob_get_level()) {
                                    class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                                    oninput="formatarTelefone(this)">
                         </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Nome Social</label>
+                            <input type="text" name="nome_social" id="editar_nome_social"
+                                   class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                   placeholder="Nome pelo qual prefere ser chamado">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Raça/Cor</label>
+                            <select name="raca" id="editar_raca"
+                                    class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                                <option value="">Selecione...</option>
+                                <option value="BRANCA">Branca</option>
+                                <option value="PRETA">Preta</option>
+                                <option value="PARDA">Parda</option>
+                                <option value="AMARELA">Amarela</option>
+                                <option value="INDIGENA">Indígena</option>
+                                <option value="NAO_DECLARADA">Não declarada</option>
+                            </select>
+                        </div>
                     </div>
                 </div>
                 
                 <!-- Informações Acadêmicas -->
                 <div>
-                    <h3 class="text-lg font-semibold text-gray-800 mb-4 pb-2 border-b border-gray-200">Informações Acadêmicas</h3>
+                    <h3 class="text-base font-semibold text-gray-800 mb-4 pb-2 border-b border-gray-200">Informações Acadêmicas</h3>
                     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-2">Matrícula</label>
@@ -855,7 +914,7 @@ if (ob_get_level()) {
                 
                 <!-- Informações de Transporte -->
                 <div>
-                    <h3 class="text-lg font-semibold text-gray-800 mb-4 pb-2 border-b border-gray-200">Transporte Escolar</h3>
+                    <h3 class="text-base font-semibold text-gray-800 mb-4 pb-2 border-b border-gray-200">Transporte Escolar</h3>
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
                             <label class="flex items-center space-x-2 cursor-pointer">
@@ -869,28 +928,9 @@ if (ob_get_level()) {
                             <label class="block text-sm font-medium text-gray-700 mb-2">Distrito de Origem</label>
                             <div class="autocomplete-container">
                                 <input type="text" name="distrito_transporte" id="editar_distrito_transporte" 
-                                       list="distritos-maranguape-editar"
                                        class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" 
-                                       placeholder="Digite o distrito...">
-                                <datalist id="distritos-maranguape-editar">
-                                    <option value="Amanari">
-                                    <option value="Antônio Marques">
-                                    <option value="Cachoeira">
-                                    <option value="Itapebussu">
-                                    <option value="Jubaia">
-                                    <option value="Ladeira Grande">
-                                    <option value="Lages">
-                                    <option value="Lagoa do Juvenal">
-                                    <option value="Manoel Guedes">
-                                    <option value="Maranguape">
-                                    <option value="Papara">
-                                    <option value="Penedo">
-                                    <option value="Sapupara">
-                                    <option value="São João do Amanari">
-                                    <option value="Tanques">
-                                    <option value="Umarizeiras">
-                                    <option value="Vertentes do Lagedo">
-                                </datalist>
+                                       placeholder="Digite o distrito..." autocomplete="off">
+                                <div id="autocomplete-dropdown-transporte-editar" class="autocomplete-dropdown"></div>
                             </div>
                         </div>
                     </div>
@@ -955,7 +995,7 @@ if (ob_get_level()) {
                 
                 <!-- Informações Pessoais -->
                 <div>
-                    <h3 class="text-lg font-semibold text-gray-800 mb-4 pb-2 border-b border-gray-200">Informações Pessoais</h3>
+                    <h3 class="text-base font-semibold text-gray-800 mb-4 pb-2 border-b border-gray-200">Informações Pessoais</h3>
                     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-2">Nome Completo *</label>
@@ -995,12 +1035,31 @@ if (ob_get_level()) {
                                    class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                                    oninput="formatarTelefone(this)">
                         </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Nome Social</label>
+                            <input type="text" name="nome_social" id="nome_social"
+                                   class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                   placeholder="Nome pelo qual prefere ser chamado">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Raça/Cor</label>
+                            <select name="raca" id="raca"
+                                    class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                                <option value="">Selecione...</option>
+                                <option value="BRANCA">Branca</option>
+                                <option value="PRETA">Preta</option>
+                                <option value="PARDA">Parda</option>
+                                <option value="AMARELA">Amarela</option>
+                                <option value="INDIGENA">Indígena</option>
+                                <option value="NAO_DECLARADA">Não declarada</option>
+                            </select>
+                        </div>
                     </div>
                 </div>
                 
                 <!-- Informações Acadêmicas -->
                 <div>
-                    <h3 class="text-lg font-semibold text-gray-800 mb-4 pb-2 border-b border-gray-200">Informações Acadêmicas</h3>
+                    <h3 class="text-base font-semibold text-gray-800 mb-4 pb-2 border-b border-gray-200">Informações Acadêmicas</h3>
                     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-2">Matrícula</label>
@@ -1047,7 +1106,7 @@ if (ob_get_level()) {
                 
                 <!-- Informações de Transporte -->
                 <div>
-                    <h3 class="text-lg font-semibold text-gray-800 mb-4 pb-2 border-b border-gray-200">Transporte Escolar</h3>
+                    <h3 class="text-base font-semibold text-gray-800 mb-4 pb-2 border-b border-gray-200">Transporte Escolar</h3>
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
                             <label class="flex items-center space-x-2 cursor-pointer">
@@ -1061,28 +1120,9 @@ if (ob_get_level()) {
                             <label class="block text-sm font-medium text-gray-700 mb-2">Distrito de Origem *</label>
                             <div class="autocomplete-container">
                                 <input type="text" name="distrito_transporte" id="distrito_transporte" 
-                                       list="distritos-maranguape"
                                        class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" 
-                                       placeholder="Digite o distrito...">
-                                <datalist id="distritos-maranguape">
-                                    <option value="Amanari">
-                                    <option value="Antônio Marques">
-                                    <option value="Cachoeira">
-                                    <option value="Itapebussu">
-                                    <option value="Jubaia">
-                                    <option value="Ladeira Grande">
-                                    <option value="Lages">
-                                    <option value="Lagoa do Juvenal">
-                                    <option value="Manoel Guedes">
-                                    <option value="Maranguape">
-                                    <option value="Papara">
-                                    <option value="Penedo">
-                                    <option value="Sapupara">
-                                    <option value="São João do Amanari">
-                                    <option value="Tanques">
-                                    <option value="Umarizeiras">
-                                    <option value="Vertentes do Lagedo">
-                                </datalist>
+                                       placeholder="Digite o distrito..." autocomplete="off">
+                                <div id="autocomplete-dropdown-transporte" class="autocomplete-dropdown"></div>
                             </div>
                             <p class="text-xs text-gray-500 mt-1">Selecione o distrito onde o aluno precisa de transporte</p>
                         </div>
@@ -1660,6 +1700,109 @@ if (ob_get_level()) {
             }
         }
 
+        // Lista de distritos de Maranguape
+        const distritosMaranguape = [
+            'Amanari', 'Antônio Marques', 'Cachoeira', 'Itapebussu', 'Jubaia',
+            'Ladeira Grande', 'Lages', 'Lagoa do Juvenal', 'Manoel Guedes',
+            'Sede', 'Papara', 'Penedo', 'Sapupara', 'São João do Amanari',
+            'Tanques', 'Umarizeiras', 'Vertentes do Lagedo'
+        ];
+        
+        // Inicializar autocomplete para distrito de transporte (cadastro)
+        function initAutocompleteDistrito(inputId, dropdownId) {
+            const input = document.getElementById(inputId);
+            const dropdown = document.getElementById(dropdownId);
+            if (!input || !dropdown) return;
+            
+            let selectedIndex = -1;
+            let filteredDistritos = [];
+            
+            input.addEventListener('input', function() {
+                const query = this.value.trim().toLowerCase();
+                selectedIndex = -1;
+                
+                if (query.length === 0) {
+                    dropdown.classList.remove('show');
+                    return;
+                }
+                
+                // Filtrar distritos que contêm o texto digitado
+                filteredDistritos = distritosMaranguape.filter(distrito => 
+                    distrito.toLowerCase().includes(query)
+                );
+                
+                if (filteredDistritos.length === 0) {
+                    dropdown.classList.remove('show');
+                    return;
+                }
+                
+                // Renderizar dropdown
+                renderDropdown();
+                dropdown.classList.add('show');
+            });
+            
+            // Navegação com teclado
+            input.addEventListener('keydown', function(e) {
+                if (!dropdown.classList.contains('show')) return;
+                
+                const items = dropdown.querySelectorAll('.autocomplete-item');
+                
+                if (e.key === 'ArrowDown') {
+                    e.preventDefault();
+                    selectedIndex = Math.min(selectedIndex + 1, items.length - 1);
+                    updateSelection(items);
+                } else if (e.key === 'ArrowUp') {
+                    e.preventDefault();
+                    selectedIndex = Math.max(selectedIndex - 1, -1);
+                    updateSelection(items);
+                } else if (e.key === 'Enter') {
+                    e.preventDefault();
+                    if (selectedIndex >= 0 && filteredDistritos[selectedIndex]) {
+                        selecionarDistritoAutocomplete(inputId, filteredDistritos[selectedIndex]);
+                    }
+                } else if (e.key === 'Escape') {
+                    dropdown.classList.remove('show');
+                }
+            });
+            
+            // Fechar dropdown ao clicar fora
+            document.addEventListener('click', function(e) {
+                if (!input.contains(e.target) && !dropdown.contains(e.target)) {
+                    dropdown.classList.remove('show');
+                }
+            });
+            
+            function renderDropdown() {
+                dropdown.innerHTML = filteredDistritos.map((distrito, index) => `
+                    <div class="autocomplete-item ${index === selectedIndex ? 'selected' : ''}" 
+                         data-index="${index}" 
+                         onclick="selecionarDistritoAutocomplete('${inputId}', '${distrito}')">
+                        <div class="distrito-nome">${distrito}</div>
+                    </div>
+                `).join('');
+            }
+            
+            function updateSelection(items) {
+                items.forEach((item, index) => {
+                    if (index === selectedIndex) {
+                        item.classList.add('selected');
+                        item.scrollIntoView({ block: 'nearest' });
+                    } else {
+                        item.classList.remove('selected');
+                    }
+                });
+            }
+        }
+        
+        window.selecionarDistritoAutocomplete = function(inputId, distrito) {
+            const input = document.getElementById(inputId);
+            const dropdown = document.getElementById(inputId === 'distrito_transporte' ? 'autocomplete-dropdown-transporte' : 'autocomplete-dropdown-transporte-editar');
+            if (input) {
+                input.value = distrito;
+                if (dropdown) dropdown.classList.remove('show');
+            }
+        };
+        
         function toggleDistritoTransporte() {
             const precisaTransporte = document.getElementById('precisa_transporte').checked;
             const container = document.getElementById('container-distrito-transporte');
@@ -1668,6 +1811,8 @@ if (ob_get_level()) {
             if (precisaTransporte) {
                 container.classList.remove('hidden');
                 input.required = true;
+                // Inicializar autocomplete quando aparecer
+                setTimeout(() => initAutocompleteDistrito('distrito_transporte', 'autocomplete-dropdown-transporte'), 100);
             } else {
                 container.classList.add('hidden');
                 input.required = false;
@@ -1682,6 +1827,8 @@ if (ob_get_level()) {
             
             if (precisaTransporte) {
                 container.classList.remove('hidden');
+                // Inicializar autocomplete quando aparecer
+                setTimeout(() => initAutocompleteDistrito('editar_distrito_transporte', 'autocomplete-dropdown-transporte-editar'), 100);
             } else {
                 container.classList.add('hidden');
                 input.value = '';

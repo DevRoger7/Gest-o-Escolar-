@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1
--- Tempo de geração: 15/12/2025 às 13:39
+-- Tempo de geração: 15/12/2025 às 18:07
 -- Versão do servidor: 10.4.32-MariaDB
 -- Versão do PHP: 8.2.12
 
@@ -68,7 +68,8 @@ INSERT INTO `aluno` (`id`, `pessoa_id`, `matricula`, `nis`, `responsavel_id`, `e
 (14, 40, 'MAT-000040', NULL, NULL, NULL, '2025-11-30', 'MATRICULADO', NULL, 'Brasileira', NULL, NULL, NULL, '2025-12-01 02:40:04', '2025-12-11 15:02:04', NULL, 1),
 (15, 41, 'MAT-000041', NULL, NULL, NULL, '2025-11-30', 'MATRICULADO', NULL, 'Brasileira', NULL, NULL, NULL, '2025-12-01 02:40:04', '2025-12-11 15:02:04', NULL, 1),
 (16, 42, 'MAT-000042', NULL, NULL, NULL, '2025-11-30', 'MATRICULADO', NULL, 'Brasileira', NULL, NULL, NULL, '2025-12-01 02:40:04', '2025-12-11 15:02:04', NULL, 1),
-(17, 51, '20250001', '5542556672', NULL, NULL, '2025-12-10', 'MATRICULADO', NULL, 'Brasileira', NULL, NULL, NULL, '2025-12-10 12:32:01', '2025-12-11 15:02:04', 3, 1);
+(17, 51, '20250001', '5542556672', NULL, NULL, '2025-12-10', 'MATRICULADO', NULL, 'Brasileira', NULL, NULL, NULL, '2025-12-10 12:32:01', '2025-12-11 15:02:04', 3, 1),
+(18, 58, '20250002', '21132343434', NULL, 3, '2025-12-15', 'TRANSFERIDO', NULL, 'Brasileira', NULL, NULL, 'TRANSFERENCIA_ORIGEM:25', '2025-12-15 16:16:29', '2025-12-15 16:52:00', 3, 1);
 
 -- --------------------------------------------------------
 
@@ -95,7 +96,30 @@ CREATE TABLE `aluno_responsavel` (
 
 INSERT INTO `aluno_responsavel` (`id`, `aluno_id`, `responsavel_id`, `parentesco`, `principal`, `observacoes`, `criado_em`, `atualizado_em`, `criado_por`, `ativo`) VALUES
 (2, 2, 50, 'PAI', 0, NULL, '2025-12-09 13:45:00', '2025-12-09 13:45:00', 11, 1),
-(3, 6, 50, 'PAI', 0, NULL, '2025-12-09 14:13:27', '2025-12-09 14:13:27', 11, 1);
+(3, 6, 50, 'PAI', 0, NULL, '2025-12-09 14:13:27', '2025-12-09 14:13:27', 11, 1),
+(4, 18, 59, 'PAI', 0, NULL, '2025-12-15 16:16:29', '2025-12-15 16:16:29', 3, 1);
+
+-- --------------------------------------------------------
+
+--
+-- Estrutura para tabela `aluno_rota`
+--
+
+CREATE TABLE `aluno_rota` (
+  `id` bigint(20) NOT NULL,
+  `aluno_id` bigint(20) NOT NULL,
+  `rota_id` bigint(20) NOT NULL,
+  `ponto_embarque_id` bigint(20) DEFAULT NULL COMMENT 'ID do ponto_rota onde o aluno embarca',
+  `ponto_desembarque_id` bigint(20) DEFAULT NULL COMMENT 'ID do ponto_rota onde o aluno desembarca',
+  `geolocalizacao_id` bigint(20) DEFAULT NULL COMMENT 'ID da geolocalização do aluno usada para criar/atribuir a rota',
+  `inicio` date DEFAULT NULL,
+  `fim` date DEFAULT NULL,
+  `status` enum('ATIVO','INATIVO','SUSPENSO') DEFAULT 'ATIVO',
+  `observacoes` text DEFAULT NULL,
+  `criado_em` timestamp NOT NULL DEFAULT current_timestamp(),
+  `atualizado_em` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
+  `criado_por` bigint(20) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 -- --------------------------------------------------------
 
@@ -565,6 +589,57 @@ INSERT INTO `disciplina` (`id`, `codigo`, `nome`, `descricao`, `carga_horaria`, 
 -- --------------------------------------------------------
 
 --
+-- Estrutura para tabela `distrito_localidade`
+--
+
+CREATE TABLE `distrito_localidade` (
+  `id` bigint(20) NOT NULL,
+  `distrito` varchar(100) NOT NULL COMMENT 'Nome do distrito (ex: Amanari, Sede, Itapebussu)',
+  `localidade` varchar(255) NOT NULL COMMENT 'Nome da localidade dentro do distrito (ex: Alto das Vassouras, Centro)',
+  `latitude` decimal(10,8) DEFAULT NULL COMMENT 'Latitude da localidade',
+  `longitude` decimal(11,8) DEFAULT NULL COMMENT 'Longitude da localidade',
+  `endereco` text DEFAULT NULL,
+  `bairro` varchar(100) DEFAULT NULL,
+  `cidade` varchar(100) DEFAULT 'Maranguape',
+  `estado` char(2) DEFAULT 'CE',
+  `cep` varchar(10) DEFAULT NULL,
+  `descricao` text DEFAULT NULL COMMENT 'Descrição da localidade',
+  `distancia_centro_km` decimal(10,2) DEFAULT NULL COMMENT 'Distância em km do ponto central do distrito',
+  `ativo` tinyint(1) DEFAULT 1,
+  `criado_em` timestamp NOT NULL DEFAULT current_timestamp(),
+  `atualizado_em` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
+  `criado_por` bigint(20) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+-- --------------------------------------------------------
+
+--
+-- Estrutura para tabela `distrito_ponto_central`
+--
+
+CREATE TABLE `distrito_ponto_central` (
+  `id` bigint(20) NOT NULL,
+  `distrito` varchar(100) NOT NULL COMMENT 'Nome do distrito',
+  `nome` varchar(255) DEFAULT NULL COMMENT 'Nome do ponto central (ex: Sede Distrital, Escola de Referência)',
+  `latitude` decimal(10,8) NOT NULL COMMENT 'Latitude do ponto central',
+  `longitude` decimal(11,8) NOT NULL COMMENT 'Longitude do ponto central',
+  `endereco` text DEFAULT NULL,
+  `bairro` varchar(100) DEFAULT NULL,
+  `cidade` varchar(100) DEFAULT 'Maranguape',
+  `estado` char(2) DEFAULT 'CE',
+  `cep` varchar(10) DEFAULT NULL,
+  `tipo` enum('SEDE_DISTRITAL','ESCOLA_REFERENCIA','OUTRO') DEFAULT 'SEDE_DISTRITAL',
+  `escola_id` bigint(20) DEFAULT NULL COMMENT 'ID da escola se for escola de referência',
+  `descricao` text DEFAULT NULL,
+  `ativo` tinyint(1) DEFAULT 1,
+  `criado_em` timestamp NOT NULL DEFAULT current_timestamp(),
+  `atualizado_em` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
+  `criado_por` bigint(20) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+-- --------------------------------------------------------
+
+--
 -- Estrutura para tabela `entrega`
 --
 
@@ -845,6 +920,34 @@ CREATE TABLE `funcionario_lotacao` (
 -- --------------------------------------------------------
 
 --
+-- Estrutura para tabela `geolocalizacao_aluno`
+--
+
+CREATE TABLE `geolocalizacao_aluno` (
+  `id` bigint(20) NOT NULL,
+  `aluno_id` bigint(20) NOT NULL,
+  `tipo` enum('RESIDENCIA','PONTO_REFERENCIA','OUTRO') DEFAULT 'RESIDENCIA',
+  `nome` varchar(255) DEFAULT NULL COMMENT 'Nome do local (ex: Casa, Ponto de referência)',
+  `localidade` varchar(100) DEFAULT NULL COMMENT 'Nome da localidade/região (ex: Lagoa, Itapebussu, Amanari)',
+  `latitude` decimal(10,8) NOT NULL,
+  `longitude` decimal(11,8) NOT NULL,
+  `endereco` text DEFAULT NULL,
+  `numero` varchar(20) DEFAULT NULL,
+  `complemento` varchar(100) DEFAULT NULL,
+  `bairro` varchar(100) DEFAULT NULL,
+  `cidade` varchar(100) DEFAULT NULL,
+  `estado` char(2) DEFAULT NULL,
+  `cep` varchar(10) DEFAULT NULL,
+  `principal` tinyint(1) DEFAULT 0 COMMENT '1 = localização principal do aluno',
+  `observacoes` text DEFAULT NULL,
+  `criado_em` timestamp NOT NULL DEFAULT current_timestamp(),
+  `atualizado_em` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
+  `criado_por` bigint(20) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+-- --------------------------------------------------------
+
+--
 -- Estrutura para tabela `gestor`
 --
 
@@ -996,6 +1099,62 @@ CREATE TABLE `log_sistema` (
   `ip` varchar(45) DEFAULT NULL,
   `user_agent` text DEFAULT NULL,
   `criado_em` timestamp NOT NULL DEFAULT current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Despejando dados para a tabela `log_sistema`
+--
+
+INSERT INTO `log_sistema` (`id`, `usuario_id`, `acao`, `tipo`, `descricao`, `ip`, `user_agent`, `criado_em`) VALUES
+(1, 3, 'LOGOUT', 'SECURITY', 'Usuário realizou logout', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36', '2025-12-15 15:06:10'),
+(2, NULL, 'LOGIN_FALHA', 'SECURITY', 'Tentativa de login falhou para: adm.transporte@sigae.com - Motivo: Senha incorreta - Tentativa 1/5', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36', '2025-12-15 15:07:18'),
+(3, 56, 'LOGIN', 'SECURITY', 'Login realizado por: adm.transporte', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36', '2025-12-15 15:07:51'),
+(4, 56, 'LOGIN', 'SECURITY', 'Login realizado por: adm.transporte', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36', '2025-12-15 15:08:21'),
+(5, 11, 'LOGOUT', 'SECURITY', 'Usuário realizou logout', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36', '2025-12-15 15:08:38'),
+(6, 57, 'LOGIN', 'SECURITY', 'Login realizado por: transporte.aluno', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36', '2025-12-15 15:10:19'),
+(7, 56, 'LOGOUT', 'SECURITY', 'Usuário realizou logout', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36', '2025-12-15 15:54:11'),
+(8, 3, 'LOGIN', 'SECURITY', 'Login realizado por: francisco', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36', '2025-12-15 15:54:21'),
+(9, 3, 'LOGOUT', 'SECURITY', 'Usuário realizou logout', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36', '2025-12-15 16:55:55'),
+(10, 56, 'LOGIN', 'SECURITY', 'Login realizado por: adm.transporte', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36', '2025-12-15 16:56:08'),
+(11, 57, 'LOGIN', 'SECURITY', 'Login realizado por: transporte.aluno', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36', '2025-12-15 16:56:35');
+
+-- --------------------------------------------------------
+
+--
+-- Estrutura para tabela `motorista`
+--
+
+CREATE TABLE `motorista` (
+  `id` bigint(20) NOT NULL,
+  `pessoa_id` bigint(20) NOT NULL,
+  `cnh` varchar(20) NOT NULL,
+  `categoria_cnh` varchar(5) DEFAULT NULL COMMENT 'B, C, D, E',
+  `validade_cnh` date DEFAULT NULL,
+  `data_admissao` date DEFAULT NULL,
+  `data_demissao` date DEFAULT NULL,
+  `observacoes` text DEFAULT NULL,
+  `ativo` tinyint(1) DEFAULT 1,
+  `criado_em` timestamp NOT NULL DEFAULT current_timestamp(),
+  `atualizado_em` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
+  `criado_por` bigint(20) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+-- --------------------------------------------------------
+
+--
+-- Estrutura para tabela `motorista_veiculo`
+--
+
+CREATE TABLE `motorista_veiculo` (
+  `id` bigint(20) NOT NULL,
+  `motorista_id` bigint(20) NOT NULL,
+  `veiculo_id` bigint(20) NOT NULL,
+  `inicio` date DEFAULT NULL,
+  `fim` date DEFAULT NULL,
+  `principal` tinyint(1) DEFAULT 0 COMMENT '1 = veículo principal do motorista',
+  `observacoes` text DEFAULT NULL,
+  `criado_em` timestamp NOT NULL DEFAULT current_timestamp(),
+  `atualizado_em` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 -- --------------------------------------------------------
@@ -1248,7 +1407,9 @@ INSERT INTO `password_reset_tokens` (`id`, `usuario_id`, `token`, `email`, `expi
 (4, 8, '6c6c8de7bfb84ef7135960521ffe712c4ab8ac051e674bcb6b0a60507d2a21f2', 'gestor.teste@sigae.com', '2025-12-02 04:30:25', 0, '2025-12-01 03:30:25'),
 (5, 29, '2f57a54e0c95186bedc377bfa01b4b2e449e0f7e0ce17a436cb7dd770df2e8a2', 'nutricionista.teste@sigae.com', '2025-12-13 03:04:27', 1, '2025-12-12 02:04:27'),
 (6, 14, 'ca8815e3a2627201ee01380618937d39dc6b804ed01549805f7712d01e3aab91', 'bruno.oliveira.teste@sigae.com', '2025-12-16 01:11:13', 0, '2025-12-15 00:11:13'),
-(7, 14, '52816ad3fd1170957aa1da4698a8293e99e8f36ffe04cafc6ece50a018b1b3c3', 'bruno.oliveira.teste@sigae.com', '2025-12-16 01:11:13', 1, '2025-12-15 00:11:13');
+(7, 14, '52816ad3fd1170957aa1da4698a8293e99e8f36ffe04cafc6ece50a018b1b3c3', 'bruno.oliveira.teste@sigae.com', '2025-12-16 01:11:13', 1, '2025-12-15 00:11:13'),
+(8, 35, '6de6fa6983111613b5a60ed06e162af316f3e2d73702bde28cf23f780283d084', 'adm.transporte@sigae.com', '2025-12-16 16:07:30', 1, '2025-12-15 15:07:30'),
+(9, 36, 'bfa4f68f698c26d703b8dfc6ab8748959017c1edb215e9682eb18d35b15a3288', 'transporte.aluno@sigae.com', '2025-12-16 16:09:58', 1, '2025-12-15 15:09:58');
 
 -- --------------------------------------------------------
 
@@ -1364,7 +1525,11 @@ INSERT INTO `pessoa` (`id`, `cpf`, `nome`, `data_nascimento`, `sexo`, `email`, `
 (52, '43243324432', 'testeeeeeeeeee', '2025-12-01', 'M', 'ladalddaw@sigae.com', '(85) 92343-6453', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'PROFESSOR', NULL, NULL, '2025-12-11 12:31:49', '2025-12-11 12:31:49', 11, 1, NULL, NULL),
 (53, '12421531131', 'abaf', '2025-11-19', 'M', '234ier298@gmail.com', '(85) 99031-4322', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'PROFESSOR', NULL, NULL, '2025-12-11 12:40:33', '2025-12-11 12:40:33', 11, 1, NULL, NULL),
 (54, '124.412.455', 'ssssdssssss', '2025-06-11', 'M', 'dsds3345r298@gmail.com', '(85) 99343-4356', NULL, NULL, 'aguaadddd', '6556', 'em frente ao fumo4', 'emilio conde', 'fortaleza', 'CE', '', NULL, NULL, NULL, '2025-12-11 12:56:40', '2025-12-11 12:56:40', NULL, 1, 'eeeerrrrreeeeee', 'PRETO'),
-(55, '12441245567', 'ssssdssssss', '2025-06-11', 'M', 'dsds3345r298@gmail.com', '(85) 99343-4356', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'PROFESSOR', NULL, NULL, '2025-12-11 12:56:40', '2025-12-11 12:56:40', 11, 1, NULL, NULL);
+(55, '12441245567', 'ssssdssssss', '2025-06-11', 'M', 'dsds3345r298@gmail.com', '(85) 99343-4356', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'PROFESSOR', NULL, NULL, '2025-12-11 12:56:40', '2025-12-11 12:56:40', 11, 1, NULL, NULL),
+(56, '11111111112', 'Administrador de Transporte', '1985-01-15', 'M', 'adm.transporte@sigae.com', '(85) 99999-9999', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'FUNCIONARIO', NULL, NULL, '2025-12-15 15:06:01', '2025-12-15 15:06:01', NULL, 1, NULL, NULL),
+(57, '11111111113', 'Operador de Rotas Escolares', '1990-05-20', 'M', 'transporte.aluno@sigae.com', '(85) 98888-8888', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'FUNCIONARIO', NULL, NULL, '2025-12-15 15:06:01', '2025-12-15 15:06:01', NULL, 1, NULL, NULL),
+(58, '12111111111', 'chico neto', '2008-04-21', 'M', 'chicobestafera@gmail.com', '85989482053', NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'CE', NULL, 'ALUNO', NULL, NULL, '2025-12-15 16:16:29', '2025-12-15 16:16:29', 3, 1, 'chico besta fera', 'PARDA'),
+(59, '12122121212', 'francisco besta fera', '1998-04-21', 'M', 'franciscobesta@gmail.com', '85984797128', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'RESPONSAVEL', NULL, NULL, '2025-12-15 16:16:29', '2025-12-15 16:16:29', 3, 1, NULL, NULL);
 
 -- --------------------------------------------------------
 
@@ -1390,6 +1555,36 @@ CREATE TABLE `plano_aula` (
   `data_aprovacao` timestamp NULL DEFAULT NULL,
   `observacoes` text DEFAULT NULL,
   `criado_por` bigint(20) DEFAULT NULL,
+  `criado_em` timestamp NOT NULL DEFAULT current_timestamp(),
+  `atualizado_em` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+-- --------------------------------------------------------
+
+--
+-- Estrutura para tabela `ponto_rota`
+--
+
+CREATE TABLE `ponto_rota` (
+  `id` bigint(20) NOT NULL,
+  `rota_id` bigint(20) NOT NULL,
+  `nome` varchar(255) DEFAULT NULL,
+  `descricao` text DEFAULT NULL,
+  `localidade` varchar(100) DEFAULT NULL COMMENT 'Localidade/região do ponto (ex: Lagoa, Itapebussu, Amanari)',
+  `latitude` decimal(10,8) NOT NULL,
+  `longitude` decimal(11,8) NOT NULL,
+  `endereco` text DEFAULT NULL,
+  `numero` varchar(20) DEFAULT NULL,
+  `bairro` varchar(100) DEFAULT NULL,
+  `cidade` varchar(100) DEFAULT NULL,
+  `estado` char(2) DEFAULT NULL,
+  `cep` varchar(10) DEFAULT NULL,
+  `ordem` int(11) DEFAULT NULL COMMENT 'Ordem do ponto na rota',
+  `tipo` enum('ORIGEM','PARADA','DESTINO') DEFAULT 'PARADA',
+  `horario_previsto` time DEFAULT NULL,
+  `total_alunos_embarque` int(11) DEFAULT 0 COMMENT 'Quantidade de alunos que embarcam neste ponto',
+  `observacoes` text DEFAULT NULL,
+  `ativo` tinyint(1) DEFAULT 1,
   `criado_em` timestamp NOT NULL DEFAULT current_timestamp(),
   `atualizado_em` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
@@ -1533,13 +1728,17 @@ INSERT INTO `professor_lotacao` (`id`, `professor_id`, `escola_id`, `inicio`, `f
 (11, 4, 17, '2025-11-30', NULL, 20, 'Professora de Língua Portuguesa', '2025-12-11 15:03:58'),
 (12, 5, 17, '2025-11-30', '2025-12-12', 20, 'Professor de Matemática', '2025-12-11 15:03:58'),
 (13, 6, 17, '2025-11-30', NULL, 10, 'Professora de História', '2025-12-11 15:03:58'),
-(14, 8, 17, '2025-12-11', NULL, 20, 'na', '2025-12-11 15:03:58'),
+(14, 8, 17, '2025-12-11', '2025-12-15', 20, 'na', '2025-12-11 15:03:58'),
 (16, 7, 22, '2025-12-12', NULL, 12, NULL, '2025-12-12 13:49:38'),
 (17, 5, 22, '2025-12-12', '2025-12-12', NULL, NULL, '2025-12-12 13:50:58'),
 (18, 5, 22, '2025-12-12', NULL, 20, NULL, '2025-12-12 13:52:58'),
 (19, 5, 25, '2025-12-12', NULL, 30, NULL, '2025-12-12 14:15:12'),
 (20, 9, 16, '2025-12-11', NULL, 30, 'aasaa', '2025-12-14 05:19:43'),
-(21, 10, 16, '2025-12-11', NULL, 20, 'na', '2025-12-14 05:19:43');
+(21, 10, 16, '2025-12-11', NULL, 20, 'na', '2025-12-14 05:19:43'),
+(22, 8, 25, '2025-12-15', '2025-12-15', 16, NULL, '2025-12-15 13:01:52'),
+(23, 8, 22, '2025-12-15', '2025-12-15', 16, NULL, '2025-12-15 13:02:23'),
+(24, 8, 26, '2025-12-15', NULL, 14, NULL, '2025-12-15 13:11:47'),
+(25, 8, 25, '2025-12-15', NULL, 14, NULL, '2025-12-15 13:11:59');
 
 -- --------------------------------------------------------
 
@@ -1595,11 +1794,55 @@ CREATE TABLE `relatorio` (
 
 CREATE TABLE `role_permissao` (
   `id` bigint(20) NOT NULL,
-  `role` enum('ADM','GESTAO','PROFESSOR','ALUNO','NUTRICIONISTA','ADM_MERENDA','RESPONSAVEL') NOT NULL,
+  `role` enum('ADM','GESTAO','PROFESSOR','ALUNO','NUTRICIONISTA','ADM_MERENDA','RESPONSAVEL','ADM_TRANSPORTE','TRANSPORTE_ALUNO') NOT NULL,
   `permissao` varchar(100) NOT NULL,
   `ativo` tinyint(1) DEFAULT 1,
   `criado_em` timestamp NOT NULL DEFAULT current_timestamp(),
   `atualizado_em` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Despejando dados para a tabela `role_permissao`
+--
+
+INSERT INTO `role_permissao` (`id`, `role`, `permissao`, `ativo`, `criado_em`, `atualizado_em`) VALUES
+(1, 'ADM_TRANSPORTE', 'gerenciar_transporte', 1, '2025-12-15 15:03:41', '2025-12-15 15:03:41'),
+(2, 'ADM_TRANSPORTE', 'gerenciar_veiculos', 1, '2025-12-15 15:03:42', '2025-12-15 15:03:42'),
+(3, 'ADM_TRANSPORTE', 'gerenciar_motoristas', 1, '2025-12-15 15:03:42', '2025-12-15 15:03:42'),
+(4, 'ADM_TRANSPORTE', 'gerenciar_rotas', 1, '2025-12-15 15:03:42', '2025-12-15 15:03:42'),
+(5, 'ADM_TRANSPORTE', 'visualizar_relatorios_transporte', 1, '2025-12-15 15:03:42', '2025-12-15 15:03:42'),
+(6, 'TRANSPORTE_ALUNO', 'criar_rotas', 1, '2025-12-15 15:03:42', '2025-12-15 15:03:42'),
+(7, 'TRANSPORTE_ALUNO', 'visualizar_rotas', 1, '2025-12-15 15:03:42', '2025-12-15 15:03:42'),
+(8, 'TRANSPORTE_ALUNO', 'gerenciar_geolocalizacao', 1, '2025-12-15 15:03:42', '2025-12-15 15:03:42'),
+(9, 'TRANSPORTE_ALUNO', 'atribuir_alunos_rotas', 1, '2025-12-15 15:03:42', '2025-12-15 15:03:42');
+
+-- --------------------------------------------------------
+
+--
+-- Estrutura para tabela `rota`
+--
+
+CREATE TABLE `rota` (
+  `id` bigint(20) NOT NULL,
+  `nome` varchar(255) NOT NULL,
+  `codigo` varchar(50) DEFAULT NULL,
+  `descricao` text DEFAULT NULL,
+  `escola_id` bigint(20) DEFAULT NULL,
+  `veiculo_id` bigint(20) DEFAULT NULL,
+  `motorista_id` bigint(20) DEFAULT NULL,
+  `turno` enum('MANHA','TARDE','NOITE','INTEGRAL') DEFAULT NULL,
+  `localidades` text DEFAULT NULL COMMENT 'JSON array com as localidades que a rota atende (ex: ["Lagoa","Itapebussu","Amanari"])',
+  `distrito` varchar(100) DEFAULT NULL COMMENT 'Distrito principal da rota',
+  `total_alunos` int(11) DEFAULT 0 COMMENT 'Total de alunos na rota',
+  `distancia_km` decimal(10,2) DEFAULT NULL,
+  `tempo_estimado_minutos` int(11) DEFAULT NULL,
+  `horario_saida` time DEFAULT NULL,
+  `horario_chegada` time DEFAULT NULL,
+  `observacoes` text DEFAULT NULL,
+  `ativo` tinyint(1) DEFAULT 1,
+  `criado_em` timestamp NOT NULL DEFAULT current_timestamp(),
+  `atualizado_em` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
+  `criado_por` bigint(20) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 -- --------------------------------------------------------
@@ -1732,7 +1975,7 @@ CREATE TABLE `usuario` (
   `pessoa_id` bigint(20) NOT NULL,
   `username` varchar(50) NOT NULL,
   `senha_hash` varchar(255) NOT NULL,
-  `role` enum('ADM','GESTAO','PROFESSOR','ALUNO','NUTRICIONISTA','ADM_MERENDA','RESPONSAVEL') DEFAULT NULL,
+  `role` enum('ADM','GESTAO','PROFESSOR','ALUNO','NUTRICIONISTA','ADM_MERENDA','RESPONSAVEL','ADM_TRANSPORTE','TRANSPORTE_ALUNO') DEFAULT NULL,
   `ativo` tinyint(1) DEFAULT 1,
   `email_verificado` tinyint(1) DEFAULT 0,
   `token_recuperacao` varchar(255) DEFAULT NULL,
@@ -1753,14 +1996,14 @@ CREATE TABLE `usuario` (
 INSERT INTO `usuario` (`id`, `pessoa_id`, `username`, `senha_hash`, `role`, `ativo`, `email_verificado`, `token_recuperacao`, `token_expiracao`, `tentativas_login`, `bloqueado_ate`, `ultimo_login`, `ultimo_acesso`, `created_at`, `atualizado_em`, `atualizado_por`) VALUES
 (1, 1, 'Roger', '1', 'ADM', 1, 0, NULL, NULL, 0, NULL, NULL, NULL, '2025-09-19 16:35:40', '2025-11-29 22:14:02', NULL),
 (2, 2, 'lavosier', '$2y$10$cJ4zJP1As7NtakAsDLmRfu2X.2z53ZEDo1SRT1131di5djhclf6Zi', 'PROFESSOR', 1, 0, NULL, NULL, 0, NULL, '2025-12-10 12:48:08', NULL, '2025-09-22 19:17:23', '2025-12-10 12:48:08', NULL),
-(3, 3, 'francisco', '$2y$10$RqVIvLDU2B3aMH8D5DCUeubFZ0dVMgvfNgzbhCqWr6REia5O/69gy', 'ADM', 1, 0, NULL, NULL, 0, NULL, '2025-12-15 12:15:50', NULL, '2025-09-22 19:42:40', '2025-12-15 12:15:50', NULL),
+(3, 3, 'francisco', '$2y$10$RqVIvLDU2B3aMH8D5DCUeubFZ0dVMgvfNgzbhCqWr6REia5O/69gy', 'ADM', 1, 0, NULL, NULL, 0, NULL, '2025-12-15 15:54:21', '2025-12-15 16:51:34', '2025-09-22 19:42:40', '2025-12-15 16:51:34', NULL),
 (4, 4, 'yudi', '$2y$10$3WUQGohoZf8tiE0UvSC43uxF4kQCrjERBG8NmfyMQZ8FgMHN0vKnS', 'GESTAO', 1, 0, NULL, NULL, 0, NULL, NULL, NULL, '2025-09-23 17:56:04', '2025-11-29 22:14:02', NULL),
 (5, 5, 'raimundo', '$2y$10$yAoiZi1i3HOosehIwKCg5OMua7tXjlpVIlm5SJAuIIfZ/tcoNbup.', 'GESTAO', 1, 0, NULL, NULL, 0, NULL, '2025-12-08 13:04:56', NULL, '2025-09-23 17:58:50', '2025-12-08 13:04:56', NULL),
 (6, 6, 'cabra', '$2y$10$KjDXdWEqd.98YRW6bHErve.JEjPU6hx0Nb1QjJd4DvjcSRZJMlyoG', 'PROFESSOR', 1, 0, NULL, NULL, 0, NULL, '2025-09-29 17:00:01', NULL, '2025-09-29 16:56:48', '2025-11-29 22:14:02', NULL),
 (7, 10, 'joao.silva', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'ALUNO', 1, 0, NULL, NULL, 0, NULL, NULL, NULL, '2025-11-29 23:05:38', '2025-11-29 23:05:38', NULL),
 (8, 11, 'gestor.teste', '$2y$10$97/wPF7UQfMIuhy17lkgpOzvzcOLawjW.wB6Y8ctM2JnxYt5NIAGm', 'GESTAO', 1, 0, NULL, NULL, 0, NULL, NULL, NULL, '2025-12-01 02:34:57', '2025-12-09 12:55:35', NULL),
 (10, 43, 'maria', '$2y$10$FgA0jUH/2TgUfko7QmwmB.qWLPO9kHy9CZ4eX/CbnVDTfSbaqW9.C', 'PROFESSOR', 1, 0, NULL, NULL, 0, NULL, NULL, NULL, '2025-12-01 02:40:04', '2025-12-10 14:20:48', NULL),
-(11, 44, 'josé', '$2y$10$4gl3Gwp/0u7z6EMmR1/IZOPg30t4pYLt2ps.mEMNrZIpLo3Jna4aq', 'PROFESSOR', 1, 0, NULL, NULL, 0, NULL, '2025-12-15 03:53:39', NULL, '2025-12-01 02:40:04', '2025-12-15 03:53:39', NULL),
+(11, 44, 'josé', '$2y$10$4gl3Gwp/0u7z6EMmR1/IZOPg30t4pYLt2ps.mEMNrZIpLo3Jna4aq', 'PROFESSOR', 1, 0, NULL, NULL, 0, NULL, '2025-12-15 12:45:48', '2025-12-15 14:31:06', '2025-12-01 02:40:04', '2025-12-15 14:31:06', NULL),
 (12, 45, 'patrícia', '1', 'PROFESSOR', 1, 0, NULL, NULL, 0, NULL, NULL, NULL, '2025-12-01 02:40:04', '2025-12-08 18:12:21', NULL),
 (13, 28, 'ana.silva.santos', '$2y$10$5Tcc269FHgJLZYq4PeqUZe.QC9L0xuQS5FZ2d/.Ph6WGi3.8zKtu6', 'ALUNO', 1, 0, NULL, NULL, 0, NULL, NULL, NULL, '2025-12-01 04:11:43', '2025-12-01 04:14:38', NULL),
 (14, 29, 'bruno.oliveira.costa', '$2y$10$KEX8cchujO5TOR46UuGr3uWAKj4VNdXnNVFuiCjGOt6g0awnz0ZLi', 'ALUNO', 1, 0, NULL, NULL, 0, NULL, NULL, NULL, '2025-12-01 04:11:43', '2025-12-15 00:11:20', NULL),
@@ -1783,7 +2026,10 @@ INSERT INTO `usuario` (`id`, `pessoa_id`, `username`, `senha_hash`, `role`, `ati
 (31, 50, 'antoniosilva6728', '$2y$10$J/v3PtK5otOtvD13Yh7JgOlUusPhkl4nHhdbAHnONzuCetXfz1Fkq', 'RESPONSAVEL', 1, 0, NULL, NULL, 0, NULL, NULL, NULL, '2025-12-09 13:45:00', '2025-12-10 17:18:35', NULL),
 (32, 52, 'testeeeeeeeeee', '$2y$10$0gGssazv/8s8U0S94wizGuTeOOTL2539Ok9j8i8H5XkRcEPS9T2ie', 'PROFESSOR', 1, 0, NULL, NULL, 0, NULL, NULL, NULL, '2025-12-11 12:31:49', '2025-12-11 12:31:49', NULL),
 (33, 53, 'abaf', '$2y$10$t5hLEyD1CJN1cmN587kI0uVfarDG.t4A75jeF98X6wK9g0VC80VPi', 'PROFESSOR', 1, 0, NULL, NULL, 0, NULL, NULL, NULL, '2025-12-11 12:40:33', '2025-12-11 12:40:33', NULL),
-(34, 55, 'ssssdssssss', '$2y$10$OztU7NreOo5fC1Fz0aJHoub5f6VqiyUajvRSh5Z.yeZNRUKzI6NV6', 'PROFESSOR', 1, 0, NULL, NULL, 0, NULL, NULL, NULL, '2025-12-11 12:56:40', '2025-12-11 12:56:40', NULL);
+(34, 55, 'ssssdssssss', '$2y$10$OztU7NreOo5fC1Fz0aJHoub5f6VqiyUajvRSh5Z.yeZNRUKzI6NV6', 'PROFESSOR', 1, 0, NULL, NULL, 0, NULL, NULL, NULL, '2025-12-11 12:56:40', '2025-12-11 12:56:40', NULL),
+(35, 56, 'adm.transporte', '$2y$10$oArwLQxx/krHzIu0ji1CbuCzvPsirf6cmL5UdTrf2sXUZme2PN7xe', 'ADM_TRANSPORTE', 1, 1, NULL, NULL, 0, NULL, NULL, NULL, '2025-12-15 15:06:01', '2025-12-15 15:07:40', NULL),
+(36, 57, 'transporte.aluno', '$2y$10$mY7.eMKOFCKVGWw.E9LU2.rJWAVXeOrsRIh71CuUN2TFDAq0pL2by', 'TRANSPORTE_ALUNO', 1, 1, NULL, NULL, 0, NULL, NULL, NULL, '2025-12-15 15:06:01', '2025-12-15 15:10:06', NULL),
+(37, 59, 'franciscobestafera1212', '$2y$10$RWOoKRczqVzgrcBA/F/Jz.JVOU0v9d7NDU32JrOO0EiZCEJY0Dr7a', 'RESPONSAVEL', 1, 0, NULL, NULL, 0, NULL, NULL, NULL, '2025-12-15 16:16:29', '2025-12-15 16:16:29', NULL);
 
 -- --------------------------------------------------------
 
@@ -1800,6 +2046,76 @@ CREATE TABLE `validacao` (
   `validado_por` bigint(20) DEFAULT NULL,
   `data_validacao` timestamp NULL DEFAULT NULL,
   `criado_em` timestamp NOT NULL DEFAULT current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+-- --------------------------------------------------------
+
+--
+-- Estrutura para tabela `veiculo`
+--
+
+CREATE TABLE `veiculo` (
+  `id` bigint(20) NOT NULL,
+  `placa` varchar(10) NOT NULL,
+  `renavam` varchar(20) DEFAULT NULL,
+  `marca` varchar(100) DEFAULT NULL,
+  `modelo` varchar(100) DEFAULT NULL,
+  `ano` int(11) DEFAULT NULL,
+  `cor` varchar(50) DEFAULT NULL,
+  `capacidade_maxima` int(11) NOT NULL COMMENT 'Lotação máxima do veículo',
+  `capacidade_minima` int(11) DEFAULT NULL COMMENT 'Lotação mínima recomendada para viabilidade (ex: van pequena = 8, ônibus = 30)',
+  `tipo` enum('ONIBUS','VAN','MICROONIBUS','OUTRO') DEFAULT 'ONIBUS',
+  `numero_frota` varchar(50) DEFAULT NULL,
+  `observacoes` text DEFAULT NULL,
+  `ativo` tinyint(1) DEFAULT 1,
+  `criado_em` timestamp NOT NULL DEFAULT current_timestamp(),
+  `atualizado_em` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
+  `criado_por` bigint(20) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+-- --------------------------------------------------------
+
+--
+-- Estrutura para tabela `viagem`
+--
+
+CREATE TABLE `viagem` (
+  `id` bigint(20) NOT NULL,
+  `rota_id` bigint(20) NOT NULL,
+  `veiculo_id` bigint(20) DEFAULT NULL,
+  `motorista_id` bigint(20) DEFAULT NULL,
+  `data` date NOT NULL,
+  `tipo` enum('IDA','VOLTA','IDA_VOLTA') DEFAULT 'IDA',
+  `horario_saida_previsto` time DEFAULT NULL,
+  `horario_saida_real` time DEFAULT NULL,
+  `horario_chegada_previsto` time DEFAULT NULL,
+  `horario_chegada_real` time DEFAULT NULL,
+  `total_alunos` int(11) DEFAULT 0,
+  `total_alunos_embarcados` int(11) DEFAULT 0,
+  `status` enum('AGENDADA','EM_ANDAMENTO','CONCLUIDA','CANCELADA','ATRASADA') DEFAULT 'AGENDADA',
+  `observacoes` text DEFAULT NULL,
+  `registrado_por` bigint(20) DEFAULT NULL,
+  `registrado_em` timestamp NOT NULL DEFAULT current_timestamp(),
+  `atualizado_em` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+-- --------------------------------------------------------
+
+--
+-- Estrutura para tabela `viagem_aluno`
+--
+
+CREATE TABLE `viagem_aluno` (
+  `id` bigint(20) NOT NULL,
+  `viagem_id` bigint(20) NOT NULL,
+  `aluno_id` bigint(20) NOT NULL,
+  `ponto_embarque_id` bigint(20) DEFAULT NULL,
+  `ponto_desembarque_id` bigint(20) DEFAULT NULL,
+  `horario_embarque` time DEFAULT NULL,
+  `horario_desembarque` time DEFAULT NULL,
+  `presente` tinyint(1) DEFAULT 1,
+  `observacoes` text DEFAULT NULL,
+  `registrado_em` timestamp NOT NULL DEFAULT current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 --
@@ -1831,6 +2147,20 @@ ALTER TABLE `aluno_responsavel`
   ADD KEY `idx_aluno_responsavel_ativo` (`ativo`),
   ADD KEY `idx_responsavel_ativo` (`responsavel_id`,`ativo`),
   ADD KEY `idx_aluno_ativo` (`aluno_id`,`ativo`);
+
+--
+-- Índices de tabela `aluno_rota`
+--
+ALTER TABLE `aluno_rota`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `aluno_id` (`aluno_id`),
+  ADD KEY `rota_id` (`rota_id`),
+  ADD KEY `ponto_embarque_id` (`ponto_embarque_id`),
+  ADD KEY `ponto_desembarque_id` (`ponto_desembarque_id`),
+  ADD KEY `geolocalizacao_id` (`geolocalizacao_id`),
+  ADD KEY `criado_por` (`criado_por`),
+  ADD KEY `idx_aluno_rota_status` (`status`),
+  ADD KEY `idx_aluno_rota_ativo` (`aluno_id`,`status`);
 
 --
 -- Índices de tabela `aluno_turma`
@@ -2042,6 +2372,27 @@ ALTER TABLE `disciplina`
   ADD KEY `idx_disciplina_area` (`area_conhecimento`);
 
 --
+-- Índices de tabela `distrito_localidade`
+--
+ALTER TABLE `distrito_localidade`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `idx_distrito` (`distrito`),
+  ADD KEY `idx_localidade` (`localidade`),
+  ADD KEY `idx_distrito_localidade` (`distrito`,`localidade`),
+  ADD KEY `idx_ativo` (`ativo`),
+  ADD KEY `criado_por` (`criado_por`);
+
+--
+-- Índices de tabela `distrito_ponto_central`
+--
+ALTER TABLE `distrito_ponto_central`
+  ADD PRIMARY KEY (`id`),
+  ADD UNIQUE KEY `distrito` (`distrito`),
+  ADD KEY `escola_id` (`escola_id`),
+  ADD KEY `idx_ativo` (`ativo`),
+  ADD KEY `criado_por` (`criado_por`);
+
+--
 -- Índices de tabela `entrega`
 --
 ALTER TABLE `entrega`
@@ -2156,6 +2507,16 @@ ALTER TABLE `funcionario_lotacao`
   ADD KEY `criado_por` (`criado_por`);
 
 --
+-- Índices de tabela `geolocalizacao_aluno`
+--
+ALTER TABLE `geolocalizacao_aluno`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `aluno_id` (`aluno_id`),
+  ADD KEY `criado_por` (`criado_por`),
+  ADD KEY `idx_geoloc_aluno_principal` (`aluno_id`,`principal`),
+  ADD KEY `idx_geoloc_localidade` (`localidade`);
+
+--
 -- Índices de tabela `gestor`
 --
 ALTER TABLE `gestor`
@@ -2220,6 +2581,25 @@ ALTER TABLE `log_sistema`
   ADD KEY `idx_log_acao` (`acao`),
   ADD KEY `idx_log_tipo_acao` (`tipo`,`acao`),
   ADD KEY `idx_log_usuario_tipo` (`usuario_id`,`tipo`);
+
+--
+-- Índices de tabela `motorista`
+--
+ALTER TABLE `motorista`
+  ADD PRIMARY KEY (`id`),
+  ADD UNIQUE KEY `cnh` (`cnh`),
+  ADD KEY `pessoa_id` (`pessoa_id`),
+  ADD KEY `criado_por` (`criado_por`),
+  ADD KEY `idx_motorista_ativo` (`ativo`);
+
+--
+-- Índices de tabela `motorista_veiculo`
+--
+ALTER TABLE `motorista_veiculo`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `motorista_id` (`motorista_id`),
+  ADD KEY `veiculo_id` (`veiculo_id`),
+  ADD KEY `idx_motorista_veiculo_principal` (`motorista_id`,`principal`);
 
 --
 -- Índices de tabela `movimentacao_estoque`
@@ -2386,6 +2766,16 @@ ALTER TABLE `plano_aula`
   ADD KEY `idx_plano_bimestre` (`bimestre`);
 
 --
+-- Índices de tabela `ponto_rota`
+--
+ALTER TABLE `ponto_rota`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `rota_id` (`rota_id`),
+  ADD KEY `idx_ponto_rota_ordem` (`rota_id`,`ordem`),
+  ADD KEY `idx_ponto_rota_ativo` (`ativo`),
+  ADD KEY `idx_ponto_rota_localidade` (`localidade`);
+
+--
 -- Índices de tabela `produto`
 --
 ALTER TABLE `produto`
@@ -2438,6 +2828,19 @@ ALTER TABLE `relatorio`
 ALTER TABLE `role_permissao`
   ADD PRIMARY KEY (`id`),
   ADD UNIQUE KEY `role_permissao_unique` (`role`,`permissao`);
+
+--
+-- Índices de tabela `rota`
+--
+ALTER TABLE `rota`
+  ADD PRIMARY KEY (`id`),
+  ADD UNIQUE KEY `codigo` (`codigo`),
+  ADD KEY `escola_id` (`escola_id`),
+  ADD KEY `veiculo_id` (`veiculo_id`),
+  ADD KEY `motorista_id` (`motorista_id`),
+  ADD KEY `criado_por` (`criado_por`),
+  ADD KEY `idx_rota_ativo` (`ativo`),
+  ADD KEY `idx_rota_distrito` (`distrito`);
 
 --
 -- Índices de tabela `serie`
@@ -2510,6 +2913,40 @@ ALTER TABLE `validacao`
   ADD KEY `idx_validacao_registro` (`tipo_registro`,`registro_id`);
 
 --
+-- Índices de tabela `veiculo`
+--
+ALTER TABLE `veiculo`
+  ADD PRIMARY KEY (`id`),
+  ADD UNIQUE KEY `placa` (`placa`),
+  ADD KEY `criado_por` (`criado_por`),
+  ADD KEY `idx_veiculo_ativo` (`ativo`),
+  ADD KEY `idx_veiculo_capacidade` (`capacidade_maxima`,`capacidade_minima`);
+
+--
+-- Índices de tabela `viagem`
+--
+ALTER TABLE `viagem`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `rota_id` (`rota_id`),
+  ADD KEY `veiculo_id` (`veiculo_id`),
+  ADD KEY `motorista_id` (`motorista_id`),
+  ADD KEY `registrado_por` (`registrado_por`),
+  ADD KEY `idx_viagem_data` (`data`),
+  ADD KEY `idx_viagem_status` (`status`),
+  ADD KEY `idx_viagem_rota_data` (`rota_id`,`data`);
+
+--
+-- Índices de tabela `viagem_aluno`
+--
+ALTER TABLE `viagem_aluno`
+  ADD PRIMARY KEY (`id`),
+  ADD UNIQUE KEY `unique_viagem_aluno` (`viagem_id`,`aluno_id`),
+  ADD KEY `aluno_id` (`aluno_id`),
+  ADD KEY `ponto_embarque_id` (`ponto_embarque_id`),
+  ADD KEY `ponto_desembarque_id` (`ponto_desembarque_id`),
+  ADD KEY `idx_viagem_aluno_presente` (`presente`);
+
+--
 -- AUTO_INCREMENT para tabelas despejadas
 --
 
@@ -2517,13 +2954,19 @@ ALTER TABLE `validacao`
 -- AUTO_INCREMENT de tabela `aluno`
 --
 ALTER TABLE `aluno`
-  MODIFY `id` bigint(20) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=18;
+  MODIFY `id` bigint(20) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=19;
 
 --
 -- AUTO_INCREMENT de tabela `aluno_responsavel`
 --
 ALTER TABLE `aluno_responsavel`
-  MODIFY `id` bigint(20) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=4;
+  MODIFY `id` bigint(20) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=5;
+
+--
+-- AUTO_INCREMENT de tabela `aluno_rota`
+--
+ALTER TABLE `aluno_rota`
+  MODIFY `id` bigint(20) NOT NULL AUTO_INCREMENT;
 
 --
 -- AUTO_INCREMENT de tabela `aluno_turma`
@@ -2646,6 +3089,18 @@ ALTER TABLE `disciplina`
   MODIFY `id` bigint(20) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=10;
 
 --
+-- AUTO_INCREMENT de tabela `distrito_localidade`
+--
+ALTER TABLE `distrito_localidade`
+  MODIFY `id` bigint(20) NOT NULL AUTO_INCREMENT;
+
+--
+-- AUTO_INCREMENT de tabela `distrito_ponto_central`
+--
+ALTER TABLE `distrito_ponto_central`
+  MODIFY `id` bigint(20) NOT NULL AUTO_INCREMENT;
+
+--
 -- AUTO_INCREMENT de tabela `entrega`
 --
 ALTER TABLE `entrega`
@@ -2706,6 +3161,12 @@ ALTER TABLE `funcionario_lotacao`
   MODIFY `id` bigint(20) NOT NULL AUTO_INCREMENT;
 
 --
+-- AUTO_INCREMENT de tabela `geolocalizacao_aluno`
+--
+ALTER TABLE `geolocalizacao_aluno`
+  MODIFY `id` bigint(20) NOT NULL AUTO_INCREMENT;
+
+--
 -- AUTO_INCREMENT de tabela `gestor`
 --
 ALTER TABLE `gestor`
@@ -2739,6 +3200,18 @@ ALTER TABLE `justificativa`
 -- AUTO_INCREMENT de tabela `log_sistema`
 --
 ALTER TABLE `log_sistema`
+  MODIFY `id` bigint(20) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=12;
+
+--
+-- AUTO_INCREMENT de tabela `motorista`
+--
+ALTER TABLE `motorista`
+  MODIFY `id` bigint(20) NOT NULL AUTO_INCREMENT;
+
+--
+-- AUTO_INCREMENT de tabela `motorista_veiculo`
+--
+ALTER TABLE `motorista_veiculo`
   MODIFY `id` bigint(20) NOT NULL AUTO_INCREMENT;
 
 --
@@ -2805,7 +3278,7 @@ ALTER TABLE `parecer_tecnico`
 -- AUTO_INCREMENT de tabela `password_reset_tokens`
 --
 ALTER TABLE `password_reset_tokens`
-  MODIFY `id` bigint(20) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=8;
+  MODIFY `id` bigint(20) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=10;
 
 --
 -- AUTO_INCREMENT de tabela `pedido_cesta`
@@ -2823,12 +3296,18 @@ ALTER TABLE `pedido_item`
 -- AUTO_INCREMENT de tabela `pessoa`
 --
 ALTER TABLE `pessoa`
-  MODIFY `id` bigint(20) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=56;
+  MODIFY `id` bigint(20) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=60;
 
 --
 -- AUTO_INCREMENT de tabela `plano_aula`
 --
 ALTER TABLE `plano_aula`
+  MODIFY `id` bigint(20) NOT NULL AUTO_INCREMENT;
+
+--
+-- AUTO_INCREMENT de tabela `ponto_rota`
+--
+ALTER TABLE `ponto_rota`
   MODIFY `id` bigint(20) NOT NULL AUTO_INCREMENT;
 
 --
@@ -2847,7 +3326,7 @@ ALTER TABLE `professor`
 -- AUTO_INCREMENT de tabela `professor_lotacao`
 --
 ALTER TABLE `professor_lotacao`
-  MODIFY `id` bigint(20) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=22;
+  MODIFY `id` bigint(20) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=26;
 
 --
 -- AUTO_INCREMENT de tabela `programa`
@@ -2865,6 +3344,12 @@ ALTER TABLE `relatorio`
 -- AUTO_INCREMENT de tabela `role_permissao`
 --
 ALTER TABLE `role_permissao`
+  MODIFY `id` bigint(20) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=10;
+
+--
+-- AUTO_INCREMENT de tabela `rota`
+--
+ALTER TABLE `rota`
   MODIFY `id` bigint(20) NOT NULL AUTO_INCREMENT;
 
 --
@@ -2895,12 +3380,30 @@ ALTER TABLE `turma_professor`
 -- AUTO_INCREMENT de tabela `usuario`
 --
 ALTER TABLE `usuario`
-  MODIFY `id` bigint(20) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=35;
+  MODIFY `id` bigint(20) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=38;
 
 --
 -- AUTO_INCREMENT de tabela `validacao`
 --
 ALTER TABLE `validacao`
+  MODIFY `id` bigint(20) NOT NULL AUTO_INCREMENT;
+
+--
+-- AUTO_INCREMENT de tabela `veiculo`
+--
+ALTER TABLE `veiculo`
+  MODIFY `id` bigint(20) NOT NULL AUTO_INCREMENT;
+
+--
+-- AUTO_INCREMENT de tabela `viagem`
+--
+ALTER TABLE `viagem`
+  MODIFY `id` bigint(20) NOT NULL AUTO_INCREMENT;
+
+--
+-- AUTO_INCREMENT de tabela `viagem_aluno`
+--
+ALTER TABLE `viagem_aluno`
   MODIFY `id` bigint(20) NOT NULL AUTO_INCREMENT;
 
 --
@@ -2922,6 +3425,17 @@ ALTER TABLE `aluno_responsavel`
   ADD CONSTRAINT `aluno_responsavel_ibfk_1` FOREIGN KEY (`aluno_id`) REFERENCES `aluno` (`id`) ON DELETE CASCADE,
   ADD CONSTRAINT `aluno_responsavel_ibfk_2` FOREIGN KEY (`responsavel_id`) REFERENCES `pessoa` (`id`) ON DELETE CASCADE,
   ADD CONSTRAINT `aluno_responsavel_ibfk_3` FOREIGN KEY (`criado_por`) REFERENCES `usuario` (`id`) ON DELETE SET NULL;
+
+--
+-- Restrições para tabelas `aluno_rota`
+--
+ALTER TABLE `aluno_rota`
+  ADD CONSTRAINT `aluno_rota_ibfk_1` FOREIGN KEY (`aluno_id`) REFERENCES `aluno` (`id`) ON DELETE CASCADE,
+  ADD CONSTRAINT `aluno_rota_ibfk_2` FOREIGN KEY (`rota_id`) REFERENCES `rota` (`id`) ON DELETE CASCADE,
+  ADD CONSTRAINT `aluno_rota_ibfk_3` FOREIGN KEY (`ponto_embarque_id`) REFERENCES `ponto_rota` (`id`) ON DELETE SET NULL,
+  ADD CONSTRAINT `aluno_rota_ibfk_4` FOREIGN KEY (`ponto_desembarque_id`) REFERENCES `ponto_rota` (`id`) ON DELETE SET NULL,
+  ADD CONSTRAINT `aluno_rota_ibfk_5` FOREIGN KEY (`geolocalizacao_id`) REFERENCES `geolocalizacao_aluno` (`id`) ON DELETE SET NULL,
+  ADD CONSTRAINT `aluno_rota_ibfk_6` FOREIGN KEY (`criado_por`) REFERENCES `usuario` (`id`) ON DELETE SET NULL;
 
 --
 -- Restrições para tabelas `aluno_turma`
@@ -3060,6 +3574,19 @@ ALTER TABLE `desperdicio`
   ADD CONSTRAINT `desperdicio_ibfk_3` FOREIGN KEY (`registrado_por`) REFERENCES `usuario` (`id`) ON DELETE SET NULL;
 
 --
+-- Restrições para tabelas `distrito_localidade`
+--
+ALTER TABLE `distrito_localidade`
+  ADD CONSTRAINT `distrito_localidade_ibfk_1` FOREIGN KEY (`criado_por`) REFERENCES `usuario` (`id`) ON DELETE SET NULL;
+
+--
+-- Restrições para tabelas `distrito_ponto_central`
+--
+ALTER TABLE `distrito_ponto_central`
+  ADD CONSTRAINT `distrito_ponto_central_ibfk_1` FOREIGN KEY (`escola_id`) REFERENCES `escola` (`id`) ON DELETE SET NULL,
+  ADD CONSTRAINT `distrito_ponto_central_ibfk_2` FOREIGN KEY (`criado_por`) REFERENCES `usuario` (`id`) ON DELETE SET NULL;
+
+--
 -- Restrições para tabelas `entrega`
 --
 ALTER TABLE `entrega`
@@ -3138,6 +3665,13 @@ ALTER TABLE `funcionario_lotacao`
   ADD CONSTRAINT `funcionario_lotacao_ibfk_3` FOREIGN KEY (`criado_por`) REFERENCES `usuario` (`id`) ON DELETE SET NULL;
 
 --
+-- Restrições para tabelas `geolocalizacao_aluno`
+--
+ALTER TABLE `geolocalizacao_aluno`
+  ADD CONSTRAINT `geolocalizacao_aluno_ibfk_1` FOREIGN KEY (`aluno_id`) REFERENCES `aluno` (`id`) ON DELETE CASCADE,
+  ADD CONSTRAINT `geolocalizacao_aluno_ibfk_2` FOREIGN KEY (`criado_por`) REFERENCES `usuario` (`id`) ON DELETE SET NULL;
+
+--
 -- Restrições para tabelas `gestor`
 --
 ALTER TABLE `gestor`
@@ -3175,6 +3709,20 @@ ALTER TABLE `justificativa`
   ADD CONSTRAINT `justificativa_ibfk_1` FOREIGN KEY (`aluno_id`) REFERENCES `aluno` (`id`),
   ADD CONSTRAINT `justificativa_ibfk_2` FOREIGN KEY (`enviado_por`) REFERENCES `usuario` (`id`) ON DELETE SET NULL,
   ADD CONSTRAINT `justificativa_ibfk_3` FOREIGN KEY (`analisado_por`) REFERENCES `usuario` (`id`) ON DELETE SET NULL;
+
+--
+-- Restrições para tabelas `motorista`
+--
+ALTER TABLE `motorista`
+  ADD CONSTRAINT `motorista_ibfk_1` FOREIGN KEY (`pessoa_id`) REFERENCES `pessoa` (`id`),
+  ADD CONSTRAINT `motorista_ibfk_2` FOREIGN KEY (`criado_por`) REFERENCES `usuario` (`id`) ON DELETE SET NULL;
+
+--
+-- Restrições para tabelas `motorista_veiculo`
+--
+ALTER TABLE `motorista_veiculo`
+  ADD CONSTRAINT `motorista_veiculo_ibfk_1` FOREIGN KEY (`motorista_id`) REFERENCES `motorista` (`id`) ON DELETE CASCADE,
+  ADD CONSTRAINT `motorista_veiculo_ibfk_2` FOREIGN KEY (`veiculo_id`) REFERENCES `veiculo` (`id`) ON DELETE CASCADE;
 
 --
 -- Restrições para tabelas `movimentacao_estoque`
@@ -3283,6 +3831,12 @@ ALTER TABLE `plano_aula`
   ADD CONSTRAINT `plano_aula_ibfk_5` FOREIGN KEY (`criado_por`) REFERENCES `usuario` (`id`) ON DELETE SET NULL;
 
 --
+-- Restrições para tabelas `ponto_rota`
+--
+ALTER TABLE `ponto_rota`
+  ADD CONSTRAINT `ponto_rota_ibfk_1` FOREIGN KEY (`rota_id`) REFERENCES `rota` (`id`) ON DELETE CASCADE;
+
+--
 -- Restrições para tabelas `produto`
 --
 ALTER TABLE `produto`
@@ -3310,6 +3864,15 @@ ALTER TABLE `relatorio`
   ADD CONSTRAINT `relatorio_ibfk_1` FOREIGN KEY (`escola_id`) REFERENCES `escola` (`id`) ON DELETE SET NULL,
   ADD CONSTRAINT `relatorio_ibfk_2` FOREIGN KEY (`turma_id`) REFERENCES `turma` (`id`) ON DELETE SET NULL,
   ADD CONSTRAINT `relatorio_ibfk_3` FOREIGN KEY (`gerado_por`) REFERENCES `usuario` (`id`);
+
+--
+-- Restrições para tabelas `rota`
+--
+ALTER TABLE `rota`
+  ADD CONSTRAINT `rota_ibfk_1` FOREIGN KEY (`escola_id`) REFERENCES `escola` (`id`) ON DELETE SET NULL,
+  ADD CONSTRAINT `rota_ibfk_2` FOREIGN KEY (`veiculo_id`) REFERENCES `veiculo` (`id`) ON DELETE SET NULL,
+  ADD CONSTRAINT `rota_ibfk_3` FOREIGN KEY (`motorista_id`) REFERENCES `motorista` (`id`) ON DELETE SET NULL,
+  ADD CONSTRAINT `rota_ibfk_4` FOREIGN KEY (`criado_por`) REFERENCES `usuario` (`id`) ON DELETE SET NULL;
 
 --
 -- Restrições para tabelas `serie`
@@ -3356,6 +3919,30 @@ ALTER TABLE `usuario`
 --
 ALTER TABLE `validacao`
   ADD CONSTRAINT `validacao_ibfk_1` FOREIGN KEY (`validado_por`) REFERENCES `usuario` (`id`) ON DELETE SET NULL;
+
+--
+-- Restrições para tabelas `veiculo`
+--
+ALTER TABLE `veiculo`
+  ADD CONSTRAINT `veiculo_ibfk_1` FOREIGN KEY (`criado_por`) REFERENCES `usuario` (`id`) ON DELETE SET NULL;
+
+--
+-- Restrições para tabelas `viagem`
+--
+ALTER TABLE `viagem`
+  ADD CONSTRAINT `viagem_ibfk_1` FOREIGN KEY (`rota_id`) REFERENCES `rota` (`id`),
+  ADD CONSTRAINT `viagem_ibfk_2` FOREIGN KEY (`veiculo_id`) REFERENCES `veiculo` (`id`) ON DELETE SET NULL,
+  ADD CONSTRAINT `viagem_ibfk_3` FOREIGN KEY (`motorista_id`) REFERENCES `motorista` (`id`) ON DELETE SET NULL,
+  ADD CONSTRAINT `viagem_ibfk_4` FOREIGN KEY (`registrado_por`) REFERENCES `usuario` (`id`) ON DELETE SET NULL;
+
+--
+-- Restrições para tabelas `viagem_aluno`
+--
+ALTER TABLE `viagem_aluno`
+  ADD CONSTRAINT `viagem_aluno_ibfk_1` FOREIGN KEY (`viagem_id`) REFERENCES `viagem` (`id`) ON DELETE CASCADE,
+  ADD CONSTRAINT `viagem_aluno_ibfk_2` FOREIGN KEY (`aluno_id`) REFERENCES `aluno` (`id`) ON DELETE CASCADE,
+  ADD CONSTRAINT `viagem_aluno_ibfk_3` FOREIGN KEY (`ponto_embarque_id`) REFERENCES `ponto_rota` (`id`) ON DELETE SET NULL,
+  ADD CONSTRAINT `viagem_aluno_ibfk_4` FOREIGN KEY (`ponto_desembarque_id`) REFERENCES `ponto_rota` (`id`) ON DELETE SET NULL;
 COMMIT;
 
 /*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;

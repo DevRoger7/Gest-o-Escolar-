@@ -114,13 +114,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao'])) {
             $conn->beginTransaction();
             
             // Criar rota
-            $stmt = $conn->prepare("INSERT INTO rota (nome, codigo, escola_id, turno, localidades, total_alunos, criado_por) 
-                                   VALUES (:nome, :codigo, :escola_id, :turno, :localidades, :total_alunos, :criado_por)");
+            // Nota: Mantemos 'localidades' para compatibilidade, mas agora usamos 'distrito' como campo principal
+            $stmt = $conn->prepare("INSERT INTO rota (nome, codigo, escola_id, turno, distrito, localidades, total_alunos, criado_por) 
+                                   VALUES (:nome, :codigo, :escola_id, :turno, :distrito, :localidades, :total_alunos, :criado_por)");
             $stmt->bindParam(':nome', $_POST['nome']);
             $stmt->bindValue(':codigo', $_POST['codigo'] ?? null);
             $stmt->bindValue(':escola_id', !empty($_POST['escola_id']) ? $_POST['escola_id'] : null, PDO::PARAM_INT);
             $stmt->bindValue(':turno', $_POST['turno'] ?? null);
-            $stmt->bindValue(':localidades', json_encode($_POST['localidades'] ?? []));
+            $stmt->bindValue(':distrito', $_POST['distrito'] ?? null); // Campo principal da nova lógica
+            $stmt->bindValue(':localidades', json_encode($_POST['localidades'] ?? [])); // Mantido para compatibilidade
             $stmt->bindValue(':total_alunos', $_POST['total_alunos'] ?? 0, PDO::PARAM_INT);
             $stmt->bindParam(':criado_por', $usuarioId, PDO::PARAM_INT);
             $stmt->execute();
@@ -416,10 +418,18 @@ try {
                                 </select>
                             </div>
                             <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Distrito Principal *</label>
+                                <div class="autocomplete-container mb-3">
+                                    <input type="text" id="input-distrito-principal" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-green focus:border-primary-green" placeholder="Selecione o distrito principal..." autocomplete="off" required>
+                                    <div id="autocomplete-dropdown-distrito" class="autocomplete-dropdown"></div>
+                                </div>
+                                <input type="hidden" id="distrito-principal" name="distrito">
+                            </div>
+                            <div>
                                 <label class="block text-sm font-medium text-gray-700 mb-1">Localidades</label>
                                 <div id="localidades-selecionadas" class="space-y-2 mb-2"></div>
                                 <div class="autocomplete-container">
-                                    <input type="text" id="input-localidade" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-green focus:border-primary-green" placeholder="Digite o nome do distrito..." autocomplete="off">
+                                    <input type="text" id="input-localidade" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-green focus:border-primary-green" placeholder="Digite o nome da localidade..." autocomplete="off">
                                     <div id="autocomplete-dropdown" class="autocomplete-dropdown"></div>
                                 </div>
                             </div>
@@ -774,6 +784,12 @@ try {
             
             const formData = new FormData(e.target);
             formData.append('acao', 'criar_rota');
+            const distritoPrincipal = document.getElementById('distrito-principal').value;
+            if (!distritoPrincipal) {
+                alert('Selecione o distrito principal da rota');
+                return;
+            }
+            formData.append('distrito', distritoPrincipal);
             formData.append('localidades', JSON.stringify(Array.from(localidadesSelecionadas)));
             formData.append('pontos', JSON.stringify(pontosSelecionados));
             formData.append('alunos', JSON.stringify(alunosSelecionados));
@@ -809,7 +825,7 @@ try {
             'Lages',
             'Lagoa do Juvenal',
             'Manoel Guedes',
-            'Maranguape',
+            'Sede',
             'Papara',
             'Penedo',
             'Sapupara',
@@ -819,7 +835,93 @@ try {
             'Vertentes do Lagedo'
         ];
         
-        // Autocomplete customizado
+        // Autocomplete para distrito principal
+        const inputDistritoPrincipal = document.getElementById('input-distrito-principal');
+        const dropdownDistrito = document.getElementById('autocomplete-dropdown-distrito');
+        let filteredDistritosPrincipal = [];
+        let selectedIndexPrincipal = -1;
+        
+        if (inputDistritoPrincipal && dropdownDistrito) {
+            inputDistritoPrincipal.addEventListener('input', function() {
+                const query = this.value.toLowerCase().trim();
+                selectedIndexPrincipal = -1;
+                
+                if (query.length === 0) {
+                    dropdownDistrito.classList.remove('show');
+                    return;
+                }
+                
+                filteredDistritosPrincipal = distritosMaranguape.filter(distrito => 
+                    distrito.toLowerCase().includes(query)
+                );
+                
+                if (filteredDistritosPrincipal.length === 0) {
+                    dropdownDistrito.classList.remove('show');
+                    return;
+                }
+                
+                renderDropdownPrincipal();
+                dropdownDistrito.classList.add('show');
+            });
+            
+            inputDistritoPrincipal.addEventListener('keydown', function(e) {
+                if (!dropdownDistrito.classList.contains('show')) return;
+                
+                const items = dropdownDistrito.querySelectorAll('.autocomplete-item');
+                
+                if (e.key === 'ArrowDown') {
+                    e.preventDefault();
+                    selectedIndexPrincipal = Math.min(selectedIndexPrincipal + 1, items.length - 1);
+                    updateSelectionPrincipal(items);
+                } else if (e.key === 'ArrowUp') {
+                    e.preventDefault();
+                    selectedIndexPrincipal = Math.max(selectedIndexPrincipal - 1, -1);
+                    updateSelectionPrincipal(items);
+                } else if (e.key === 'Enter') {
+                    e.preventDefault();
+                    if (selectedIndexPrincipal >= 0 && filteredDistritosPrincipal[selectedIndexPrincipal]) {
+                        selecionarDistritoPrincipal(filteredDistritosPrincipal[selectedIndexPrincipal]);
+                    }
+                } else if (e.key === 'Escape') {
+                    dropdownDistrito.classList.remove('show');
+                }
+            });
+            
+            document.addEventListener('click', function(e) {
+                if (!inputDistritoPrincipal.contains(e.target) && !dropdownDistrito.contains(e.target)) {
+                    dropdownDistrito.classList.remove('show');
+                }
+            });
+            
+            function renderDropdownPrincipal() {
+                dropdownDistrito.innerHTML = filteredDistritosPrincipal.map((distrito, index) => `
+                    <div class="autocomplete-item ${index === selectedIndexPrincipal ? 'selected' : ''}" 
+                         data-index="${index}" 
+                         onclick="selecionarDistritoPrincipal('${distrito}')">
+                        <div class="distrito-nome">${distrito}</div>
+                    </div>
+                `).join('');
+            }
+            
+            function updateSelectionPrincipal(items) {
+                items.forEach((item, index) => {
+                    if (index === selectedIndexPrincipal) {
+                        item.classList.add('selected');
+                        item.scrollIntoView({ block: 'nearest' });
+                    } else {
+                        item.classList.remove('selected');
+                    }
+                });
+            }
+            
+            window.selecionarDistritoPrincipal = function(distrito) {
+                document.getElementById('distrito-principal').value = distrito;
+                inputDistritoPrincipal.value = distrito;
+                dropdownDistrito.classList.remove('show');
+            };
+        }
+        
+        // Autocomplete customizado para localidades
         const inputLocalidade = document.getElementById('input-localidade');
         const dropdown = document.getElementById('autocomplete-dropdown');
         let selectedIndex = -1;

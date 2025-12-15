@@ -4259,6 +4259,28 @@ if (isset($_SESSION['tipo']) && strtolower($_SESSION['tipo']) === 'aluno') {
                     </div>
                 </a>';
                 
+                // Card de Localidades por Distrito
+                echo '
+                <a href="gestao_localidades_distrito.php" class="group bg-white rounded-xl border border-gray-200 p-5 hover:shadow-lg transition-all duration-300 cursor-pointer">
+                    <div class="flex items-start justify-between mb-4">
+                        <div class="flex items-center space-x-3">
+                            <div class="w-12 h-12 bg-indigo-50 rounded-xl flex items-center justify-center">
+                                <svg class="w-6 h-6 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path>
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                                </svg>
+                            </div>
+                            <div>
+                                <h3 class="text-lg font-bold text-gray-900">Localidades</h3>
+                                <p class="text-sm text-gray-600">Gerenciar por distrito</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="w-full bg-gradient-to-r from-indigo-500 to-indigo-600 text-white py-2 px-4 rounded-lg text-center font-medium">
+                        Gerenciar Localidades
+                    </div>
+                </a>';
+                
                 // Card de Rotas
                 echo '
                 <a href="gestao_transporte_adm.php#rotas" class="group bg-white rounded-xl border border-gray-200 p-5 hover:shadow-lg transition-all duration-300 cursor-pointer">
@@ -4333,6 +4355,27 @@ if (isset($_SESSION['tipo']) && strtolower($_SESSION['tipo']) === 'aluno') {
                     </div>
                     <div class="w-full bg-gradient-to-r from-green-500 to-green-600 text-white py-2 px-4 rounded-lg text-center font-medium">
                         Gerenciar Localizações
+                    </div>
+                </a>';
+                
+                // Card de Gestão de Localidades
+                echo '
+                <a href="gestao_localidades_distrito.php" class="group bg-white rounded-xl border border-gray-200 p-5 hover:shadow-lg transition-all duration-300 cursor-pointer">
+                    <div class="flex items-start justify-between mb-4">
+                        <div class="flex items-center space-x-3">
+                            <div class="w-12 h-12 bg-orange-50 rounded-xl flex items-center justify-center">
+                                <svg class="w-6 h-6 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"></path>
+                                </svg>
+                            </div>
+                            <div>
+                                <h3 class="text-lg font-bold text-gray-900">Localidades por Distrito</h3>
+                                <p class="text-sm text-gray-600">Gerenciar localidades</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="w-full bg-gradient-to-r from-orange-500 to-orange-600 text-white py-2 px-4 rounded-lg text-center font-medium">
+                        Gerenciar Localidades
                     </div>
                 </a>';
                 
