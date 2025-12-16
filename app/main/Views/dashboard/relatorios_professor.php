@@ -92,92 +92,105 @@ if ($professorId) {
 
 // === BEGIN: PDF handler (view/download report for a turma) ===
 if (isset($_GET['action']) && $_GET['action'] === 'pdf') {
-    // Ensure DB connection is available
-    $db = Database::getInstance();
-    $conn = $db->getConnection();
+    // Iniciar output buffering para evitar qualquer output antes do PDF
+    ob_start();
+    
+    // Desabilitar exibição de erros para evitar output indesejado
+    $oldErrorReporting = error_reporting(0);
+    ini_set('display_errors', 0);
+    
+    try {
+        // Ensure DB connection is available
+        $db = Database::getInstance();
+        $conn = $db->getConnection();
 
-    $turmaId = isset($_GET['turma_id']) ? (int)$_GET['turma_id'] : 0;
-    $disciplinaId = isset($_GET['disciplina_id']) ? (int)$_GET['disciplina_id'] : 0;
-    $modo = $_GET['modo'] ?? 'ver'; // 'ver' or 'baixar'
+        $turmaId = isset($_GET['turma_id']) ? (int)$_GET['turma_id'] : 0;
+        $disciplinaId = isset($_GET['disciplina_id']) ? (int)$_GET['disciplina_id'] : 0;
+        $modo = $_GET['modo'] ?? 'ver'; // 'ver' ou 'baixar'
 
-    if ($turmaId <= 0) {
-        http_response_code(400);
-        echo 'Turma inválida.';
-        exit;
-    }
-
-    // Validar se o professor tem acesso a esta turma
-    if ($professorId) {
-        $sqlValidar = "SELECT COUNT(*) as total
-                      FROM turma_professor tp
-                      WHERE tp.turma_id = :turma_id 
-                      AND tp.professor_id = :professor_id 
-                      AND (tp.fim IS NULL OR tp.fim = '' OR tp.fim = '0000-00-00')";
-        if ($disciplinaId > 0) {
-            $sqlValidar .= " AND tp.disciplina_id = :disciplina_id";
-        }
-        $stmtValidar = $conn->prepare($sqlValidar);
-        $stmtValidar->bindParam(':turma_id', $turmaId, PDO::PARAM_INT);
-        $stmtValidar->bindParam(':professor_id', $professorId, PDO::PARAM_INT);
-        if ($disciplinaId > 0) {
-            $stmtValidar->bindParam(':disciplina_id', $disciplinaId, PDO::PARAM_INT);
-        }
-        $stmtValidar->execute();
-        $validacao = $stmtValidar->fetch(PDO::FETCH_ASSOC);
-        
-        if (!$validacao || $validacao['total'] == 0) {
-            http_response_code(403);
-            echo 'Você não tem permissão para acessar esta turma.';
+        if ($turmaId <= 0) {
+            ob_end_clean();
+            header('Content-Type: text/plain; charset=UTF-8');
+            http_response_code(400);
+            echo 'Turma inválida.';
             exit;
         }
-    } else {
-        http_response_code(401);
-        echo 'Professor não identificado.';
-        exit;
-    }
 
-    // Discover turma and disciplina names from $turmasProfessor
-    $turmaNome = '';
-    $disciplinaNome = '';
-    $escolaNome = '';
-    foreach ($turmasProfessor as $tp) {
-        if ((int)$tp['turma_id'] === $turmaId && ((int)$tp['disciplina_id'] === $disciplinaId || $disciplinaId === 0)) {
-            $turmaNome = $tp['turma_nome'] ?? '';
-            $disciplinaNome = $tp['disciplina_nome'] ?? '';
-            $escolaNome = $tp['escola_nome'] ?? '';
-            break;
+        // Validar se o professor tem acesso a esta turma
+        if ($professorId) {
+            $sqlValidar = "SELECT COUNT(*) as total
+                          FROM turma_professor tp
+                          WHERE tp.turma_id = :turma_id 
+                          AND tp.professor_id = :professor_id 
+                          AND (tp.fim IS NULL OR tp.fim = '' OR tp.fim = '0000-00-00')";
+            if ($disciplinaId > 0) {
+                $sqlValidar .= " AND tp.disciplina_id = :disciplina_id";
+            }
+            $stmtValidar = $conn->prepare($sqlValidar);
+            $stmtValidar->bindParam(':turma_id', $turmaId, PDO::PARAM_INT);
+            $stmtValidar->bindParam(':professor_id', $professorId, PDO::PARAM_INT);
+            if ($disciplinaId > 0) {
+                $stmtValidar->bindParam(':disciplina_id', $disciplinaId, PDO::PARAM_INT);
+            }
+            $stmtValidar->execute();
+            $validacao = $stmtValidar->fetch(PDO::FETCH_ASSOC);
+            
+            if (!$validacao || $validacao['total'] == 0) {
+                ob_end_clean();
+                header('Content-Type: text/plain; charset=UTF-8');
+                http_response_code(403);
+                echo 'Você não tem permissão para acessar esta turma.';
+                exit;
+            }
+        } else {
+            ob_end_clean();
+            header('Content-Type: text/plain; charset=UTF-8');
+            http_response_code(401);
+            echo 'Professor não identificado.';
+            exit;
         }
-    }
-    
-    // Se não encontrou nos dados do professor, buscar diretamente do banco
-    if (empty($turmaNome)) {
-        $sqlTurma = "SELECT 
-                        CONCAT(t.serie, ' ', t.letra, ' - ', t.turno) as turma_nome,
-                        d.nome as disciplina_nome,
-                        e.nome as escola_nome
-                     FROM turma t
-                     LEFT JOIN disciplina d ON d.id = :disciplina_id
-                     INNER JOIN escola e ON t.escola_id = e.id
-                     WHERE t.id = :turma_id AND t.ativo = 1
-                     LIMIT 1";
-        $stmtTurma = $conn->prepare($sqlTurma);
-        $stmtTurma->bindParam(':turma_id', $turmaId, PDO::PARAM_INT);
-        $stmtTurma->bindParam(':disciplina_id', $disciplinaId, PDO::PARAM_INT);
-        $stmtTurma->execute();
-        $turmaData = $stmtTurma->fetch(PDO::FETCH_ASSOC);
-        if ($turmaData) {
-            $turmaNome = $turmaData['turma_nome'] ?? '';
-            $disciplinaNome = $turmaData['disciplina_nome'] ?? '';
-            $escolaNome = $turmaData['escola_nome'] ?? '';
+
+        // Discover turma and disciplina names from $turmasProfessor
+        $turmaNome = '';
+        $disciplinaNome = '';
+        $escolaNome = '';
+        foreach ($turmasProfessor as $tp) {
+            if ((int)$tp['turma_id'] === $turmaId && ((int)$tp['disciplina_id'] === $disciplinaId || $disciplinaId === 0)) {
+                $turmaNome = $tp['turma_nome'] ?? '';
+                $disciplinaNome = $tp['disciplina_nome'] ?? '';
+                $escolaNome = $tp['escola_nome'] ?? '';
+                break;
+            }
         }
-    }
+        
+        // Se não encontrou nos dados do professor, buscar diretamente do banco
+        if (empty($turmaNome)) {
+            $sqlTurma = "SELECT 
+                            CONCAT(t.serie, ' ', t.letra, ' - ', t.turno) as turma_nome,
+                            d.nome as disciplina_nome,
+                            e.nome as escola_nome
+                         FROM turma t
+                         LEFT JOIN disciplina d ON d.id = :disciplina_id
+                         INNER JOIN escola e ON t.escola_id = e.id
+                         WHERE t.id = :turma_id AND t.ativo = 1
+                         LIMIT 1";
+            $stmtTurma = $conn->prepare($sqlTurma);
+            $stmtTurma->bindParam(':turma_id', $turmaId, PDO::PARAM_INT);
+            $stmtTurma->bindParam(':disciplina_id', $disciplinaId, PDO::PARAM_INT);
+            $stmtTurma->execute();
+            $turmaData = $stmtTurma->fetch(PDO::FETCH_ASSOC);
+            if ($turmaData) {
+                $turmaNome = $turmaData['turma_nome'] ?? '';
+                $disciplinaNome = $turmaData['disciplina_nome'] ?? '';
+                $escolaNome = $turmaData['escola_nome'] ?? '';
+            }
+        }
 
-    // Placeholder dataset (kept as-is)
-    $dadosRelatorio = []; // Example: [['aluno' => 'Fulano', 'nota' => 7.5, 'situacao' => 'Aprovado'], ...];
+        // Inicializar dataset vazio
+        $dadosRelatorio = [];
 
-    // === ADDED: Populate $dadosRelatorio with alunos da turma ===
-    try {
-        // Helper checks to adapt to your real schema
+        // === Populate $dadosRelatorio with alunos da turma ===
+        // Helper functions
         $tableExists = function(PDO $c, string $t): bool {
             try {
                 $q = "SELECT COUNT(*) FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = :t";
@@ -190,6 +203,7 @@ if (isset($_GET['action']) && $_GET['action'] === 'pdf') {
                 return false;
             }
         };
+        
         $columnExists = function(PDO $c, string $t, string $col): bool {
             try {
                 $q = "SELECT COUNT(*) FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = :t AND COLUMN_NAME = :c";
@@ -304,19 +318,21 @@ if (isset($_GET['action']) && $_GET['action'] === 'pdf') {
                         if ($disciplinaId > 0 && !empty($row['aluno_id'])) {
                             try {
                                 // Tentar consulta com campos opcionais primeiro
-                                $sqlNota = "SELECT n.nota
-                                    FROM nota n
-                                    WHERE 
-                                        n.turma_id = :turma_id
-                                        AND n.disciplina_id = :disciplina_id
-                                        AND n.aluno_id = :aluno_id
-                                    ORDER BY 
-                                        COALESCE(n.bimestre, 0) DESC,
-                                        COALESCE(n.criado_em, n.lancado_em, '0000-00-00 00:00:00') DESC
-                                    LIMIT 1";
+                                $sqlNota = "SELECT ROUND(AVG(sub.nota), 1) as nota
+                                    FROM (
+                                        SELECT n.nota
+                                        FROM nota n
+                                        WHERE 
+                                            n.disciplina_id = :disciplina_id
+                                            AND n.aluno_id = :aluno_id
+                                        ORDER BY 
+                                            COALESCE(n.bimestre, 0) DESC,
+                                            COALESCE(n.atualizado_em, n.lancado_em, '0000-00-00 00:00:00') DESC
+                                        LIMIT 3
+                                    ) as sub";
                                 
                                 $stmtNota = $conn->prepare($sqlNota);
-                                $stmtNota->bindValue(':turma_id', $turmaId, PDO::PARAM_INT);
+                                // $stmtNota->bindValue(':turma_id', $turmaId, PDO::PARAM_INT); // Removido para buscar notas independente da turma
                                 $stmtNota->bindValue(':disciplina_id', $disciplinaId, PDO::PARAM_INT);
                                 $stmtNota->bindValue(':aluno_id', (int)$row['aluno_id'], PDO::PARAM_INT);
                                 $stmtNota->execute();
@@ -375,257 +391,410 @@ if (isset($_GET['action']) && $_GET['action'] === 'pdf') {
             ], JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
             exit;
         }
-    } catch (Throwable $e) {
-        // Caso qualquer erro inesperado ocorra, log e mantém $dadosRelatorio como array vazio
-        error_log("Erro ao buscar dados do relatório para turma $turmaId: " . $e->getMessage());
-        error_log("Stack trace: " . $e->getTraceAsString());
-    }
-    // === END ADDED ===
 
-    // --- BEGIN: Use FPDF (like gerar_relatorio.php) ---
-    $fpdfLoaded = false;
-    
-    // Caminho correto do autoload: app/main/Views/dashboard -> ../../../../vendor/autoload.php
-    $baseDir = dirname(dirname(dirname(dirname(__DIR__)))); // Volta até a raiz do projeto
-    $vendorAutoload = $baseDir . DIRECTORY_SEPARATOR . 'vendor' . DIRECTORY_SEPARATOR . 'autoload.php';
-    
-    $composerAutoloads = [
-        $vendorAutoload, // Caminho calculado dinamicamente
-        __DIR__ . '/../../../../vendor/autoload.php',    // Gest-o-Escolar-\vendor
-        __DIR__ . '/../../../../../vendor/autoload.php', // projeto estagio\vendor (fallback)
-        'c:\\xampp\\htdocs\\GitHub\\Gest-o-Escolar-\\vendor\\autoload.php', // Caminho absoluto
-        'c:\\xampp\\htdocs\\projeto estagio\\vendor\\autoload.php' // Fallback antigo
-    ];
-    
-    foreach ($composerAutoloads as $autoloadPath) {
-        if (file_exists($autoloadPath)) {
-            require_once($autoloadPath);
-            if (class_exists('FPDF', false)) {
-                $fpdfLoaded = true;
-                break;
-            }
-        }
-    }
-
-    if (!$fpdfLoaded) {
-        // Tentar carregar diretamente o arquivo fpdf.php
-        $fpdfCandidates = [
-            $baseDir . DIRECTORY_SEPARATOR . 'vendor' . DIRECTORY_SEPARATOR . 'setasign' . DIRECTORY_SEPARATOR . 'fpdf' . DIRECTORY_SEPARATOR . 'fpdf.php',
-            __DIR__ . '/../../../../vendor/setasign/fpdf/fpdf.php',
-            __DIR__ . '/../../../../../vendor/setasign/fpdf/fpdf.php',
-            __DIR__ . '/../../../../../vendor/fpdf/fpdf.php',
-            'c:\\xampp\\htdocs\\GitHub\\Gest-o-Escolar-\\vendor\\setasign\\fpdf\\fpdf.php',
-            'c:\\xampp\\htdocs\\projeto estagio\\vendor\\setasign\\fpdf\\fpdf.php',
-            'c:\\xampp\\htdocs\\projeto estagio\\vendor\\fpdf\\fpdf.php',
-            __DIR__ . '/../../../libs/fpdf/fpdf.php',
-            __DIR__ . '/../../../library/fpdf/fpdf.php'
+        // --- BEGIN: Load and use FPDF (like gerar_relatorio.php) ---
+        $fpdfLoaded = false;
+        
+        // Caminho correto do autoload: app/main/Views/dashboard -> ../../../../vendor/autoload.php
+        $baseDir = dirname(dirname(dirname(dirname(__DIR__)))); // Volta até a raiz do projeto
+        $vendorAutoload = $baseDir . DIRECTORY_SEPARATOR . 'vendor' . DIRECTORY_SEPARATOR . 'autoload.php';
+        
+        $composerAutoloads = [
+            $vendorAutoload, // Caminho calculado dinamicamente
+            __DIR__ . '/../../../../vendor/autoload.php',    // Gest-o-Escolar-\vendor
+            __DIR__ . '/../../../../../vendor/autoload.php', // projeto estagio\vendor (fallback)
+            'c:\\xampp\\htdocs\\GitHub\\Gest-o-Escolar-\\vendor\\autoload.php', // Caminho absoluto
+            'c:\\xampp\\htdocs\\projeto estagio\\vendor\\autoload.php' // Fallback antigo
         ];
-        foreach ($fpdfCandidates as $path) {
-            if (file_exists($path)) {
-                require_once($path);
-                $fpdfLoaded = class_exists('FPDF', false);
-                if ($fpdfLoaded) {
+        
+        foreach ($composerAutoloads as $autoloadPath) {
+            if (file_exists($autoloadPath)) {
+                require_once($autoloadPath);
+                if (class_exists('FPDF', false)) {
+                    $fpdfLoaded = true;
                     break;
                 }
             }
         }
-        
-        // Se ainda não encontrou, tentar baixar automaticamente do GitHub
+
         if (!$fpdfLoaded) {
-            $fpdfDir = $baseDir . DIRECTORY_SEPARATOR . 'vendor' . DIRECTORY_SEPARATOR . 'setasign' . DIRECTORY_SEPARATOR . 'fpdf';
-            $fpdfFile = $fpdfDir . DIRECTORY_SEPARATOR . 'fpdf.php';
-            
-            if (!file_exists($fpdfFile)) {
-                // Tentar criar o diretório e baixar o arquivo
-                if (!is_dir($fpdfDir)) {
-                    @mkdir($fpdfDir, 0755, true);
-                }
-                
-                if (is_dir($fpdfDir) && is_writable($fpdfDir)) {
-                    // Baixar fpdf.php do GitHub (versão 1.8.2)
-                    $fpdfUrl = 'https://raw.githubusercontent.com/Setasign/FPDF/1.8.2/fpdf.php';
-                    $fpdfContent = @file_get_contents($fpdfUrl);
-                    
-                    if ($fpdfContent !== false && strlen($fpdfContent) > 1000) {
-                        // Arquivo parece válido (mais de 1000 bytes)
-                        @file_put_contents($fpdfFile, $fpdfContent);
-                        
-                        if (file_exists($fpdfFile)) {
-                            require_once($fpdfFile);
-                            $fpdfLoaded = class_exists('FPDF', false);
-                        }
+            // Tentar carregar diretamente o arquivo fpdf.php
+            $fpdfCandidates = [
+                $baseDir . DIRECTORY_SEPARATOR . 'vendor' . DIRECTORY_SEPARATOR . 'setasign' . DIRECTORY_SEPARATOR . 'fpdf' . DIRECTORY_SEPARATOR . 'fpdf.php',
+                __DIR__ . '/../../../../vendor/setasign/fpdf/fpdf.php',
+                __DIR__ . '/../../../../../vendor/setasign/fpdf/fpdf.php',
+                __DIR__ . '/../../../../../vendor/fpdf/fpdf.php',
+                'c:\\xampp\\htdocs\\GitHub\\Gest-o-Escolar-\\vendor\\setasign\\fpdf\\fpdf.php',
+                'c:\\xampp\\htdocs\\projeto estagio\\vendor\\setasign\\fpdf\\fpdf.php',
+                'c:\\xampp\\htdocs\\projeto estagio\\vendor\\fpdf\\fpdf.php',
+                __DIR__ . '/../../../libs/fpdf/fpdf.php',
+                __DIR__ . '/../../../library/fpdf/fpdf.php'
+            ];
+            foreach ($fpdfCandidates as $path) {
+                if (file_exists($path)) {
+                    require_once($path);
+                    $fpdfLoaded = class_exists('FPDF', false);
+                    if ($fpdfLoaded) {
+                        break;
                     }
                 }
-            } else {
-                // Arquivo existe, tentar carregar
-                require_once($fpdfFile);
-                $fpdfLoaded = class_exists('FPDF', false);
+            }
+            
+            // Se ainda não encontrou, tentar baixar automaticamente do GitHub
+            if (!$fpdfLoaded) {
+                $fpdfDir = $baseDir . DIRECTORY_SEPARATOR . 'vendor' . DIRECTORY_SEPARATOR . 'setasign' . DIRECTORY_SEPARATOR . 'fpdf';
+                $fpdfFile = $fpdfDir . DIRECTORY_SEPARATOR . 'fpdf.php';
+                
+                if (!file_exists($fpdfFile)) {
+                    // Tentar criar o diretório e baixar o arquivo
+                    if (!is_dir($fpdfDir)) {
+                        @mkdir($fpdfDir, 0755, true);
+                    }
+                    
+                    if (is_dir($fpdfDir) && is_writable($fpdfDir)) {
+                        // Baixar fpdf.php do GitHub (versão 1.8.2)
+                        $fpdfUrl = 'https://raw.githubusercontent.com/Setasign/FPDF/1.8.2/fpdf.php';
+                        $fpdfContent = @file_get_contents($fpdfUrl);
+                        
+                        if ($fpdfContent !== false && strlen($fpdfContent) > 1000) {
+                            // Arquivo parece válido (mais de 1000 bytes)
+                            @file_put_contents($fpdfFile, $fpdfContent);
+                            
+                            if (file_exists($fpdfFile)) {
+                                require_once($fpdfFile);
+                                $fpdfLoaded = class_exists('FPDF', false);
+                            }
+                        }
+                    }
+                } else {
+                    // Arquivo existe, tentar carregar
+                    require_once($fpdfFile);
+                    $fpdfLoaded = class_exists('FPDF', false);
+                }
             }
         }
-    }
 
-    if (!$fpdfLoaded) {
-        // Mensagem de erro mais informativa com debug
-        header('Content-Type: text/html; charset=UTF-8');
-        http_response_code(500);
-        $debugInfo = '';
-        if (isset($_GET['debug']) && $_GET['debug'] === '1') {
-            $debugInfo = '<h3>Caminhos de autoload testados:</h3><ul>';
-            foreach ($composerAutoloads as $path) {
-                $exists = file_exists($path) ? '✓' : '✗';
-                $debugInfo .= '<li>' . $exists . ' ' . htmlspecialchars($path) . '</li>';
-            }
-            $debugInfo .= '</ul><h3>Arquivos FPDF testados:</h3><ul>';
-            if (isset($fpdfCandidates)) {
-                foreach ($fpdfCandidates as $path) {
+        if (!$fpdfLoaded) {
+            // Mensagem de erro mais informativa com debug
+            header('Content-Type: text/html; charset=UTF-8');
+            http_response_code(500);
+            $debugInfo = '';
+            if (isset($_GET['debug']) && $_GET['debug'] === '1') {
+                $debugInfo = '<h3>Caminhos de autoload testados:</h3><ul>';
+                foreach ($composerAutoloads as $path) {
                     $exists = file_exists($path) ? '✓' : '✗';
                     $debugInfo .= '<li>' . $exists . ' ' . htmlspecialchars($path) . '</li>';
                 }
-            }
-            $debugInfo .= '</ul>';
-            $debugInfo .= '<p><strong>__DIR__:</strong> ' . htmlspecialchars(__DIR__) . '</p>';
-            $debugInfo .= '<p><strong>Base Dir calculado:</strong> ' . htmlspecialchars($baseDir ?? 'não definido') . '</p>';
-        }
-        echo '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Erro - FPDF não encontrado</title></head><body>';
-        echo '<h1>Biblioteca FPDF não encontrada</h1>';
-        echo '<p>O sistema não conseguiu localizar a biblioteca FPDF necessária para gerar os relatórios em PDF.</p>';
-        echo '<p><strong>Solução:</strong> Execute <code>composer install</code> na raiz do projeto para instalar as dependências.</p>';
-        echo '<p>Ou adicione <code>&debug=1</code> à URL para ver os caminhos testados.</p>';
-        echo $debugInfo;
-        echo '</body></html>';
-        exit;
-    }
-
-    // Small helper subclass for layout
-    class TurmaPDF extends FPDF {
-        // <<< CHANGED: adjust widths to fit 4 columns (Aluno, Nota, Situação, Circunstância) totaling 180mm
-        public $colWidths = [90, 20, 35, 35];
-        public $turmaNome = '';
-        public $disciplinaNome = '';
-        public $escolaNome = '';
-
-        // Sobrescrever _loadfont para evitar carregar arquivos de fonte inexistentes
-        protected function _loadfont($font) {
-            // Se fontpath estiver vazio ou o arquivo não existir, 
-            // retornar estrutura para fontes core
-            if (empty($this->fontpath) || !file_exists($this->fontpath . $font)) {
-                // Extrair nome da família da fonte do nome do arquivo
-                $name = str_replace('.php', '', $font);
-                // Extrair estilo (b, i, bi) e família
-                $style = '';
-                if (preg_match('/([a-z]+)([bi]+)$/i', $name, $matches)) {
-                    $family = $matches[1];
-                    $style = strtoupper($matches[2]);
-                } else {
-                    $family = $name;
-                }
-                
-                // Mapear nomes de fontes para os nomes corretos do FPDF
-                $fontMap = [
-                    'helvetica' => 'Helvetica',
-                    'courier' => 'Courier',
-                    'times' => 'Times-Roman',
-                    'symbol' => 'Symbol',
-                    'zapfdingbats' => 'ZapfDingbats'
-                ];
-                
-                $baseName = isset($fontMap[strtolower($family)]) ? $fontMap[strtolower($family)] : 'Helvetica';
-                
-                // Adicionar estilo ao nome se houver
-                if ($style) {
-                    if ($style == 'B' && $baseName == 'Times-Roman') {
-                        $baseName = 'Times-Bold';
-                    } elseif ($style == 'I' && $baseName == 'Times-Roman') {
-                        $baseName = 'Times-Italic';
-                    } elseif ($style == 'BI' && $baseName == 'Times-Roman') {
-                        $baseName = 'Times-BoldItalic';
-                    } elseif ($style == 'B') {
-                        $baseName .= '-Bold';
-                    } elseif ($style == 'I') {
-                        $baseName .= '-Oblique';
-                    } elseif ($style == 'BI') {
-                        $baseName .= '-BoldOblique';
+                $debugInfo .= '</ul><h3>Arquivos FPDF testados:</h3><ul>';
+                if (isset($fpdfCandidates)) {
+                    foreach ($fpdfCandidates as $path) {
+                        $exists = file_exists($path) ? '✓' : '✗';
+                        $debugInfo .= '<li>' . $exists . ' ' . htmlspecialchars($path) . '</li>';
                     }
                 }
-                
-                return [
-                    'name' => $baseName,
-                    'type' => 'Core',  // Com C maiúsculo, como o FPDF espera
-                    'up' => -100,
-                    'ut' => 50,
-                    'cw' => array(),
-                    'enc' => 'cp1252',
-                    'file' => '',
-                    'desc' => array(),
-                    'originalsize' => 0
-                ];
+                $debugInfo .= '</ul>';
+                $debugInfo .= '<p><strong>__DIR__:</strong> ' . htmlspecialchars(__DIR__) . '</p>';
+                $debugInfo .= '<p><strong>Base Dir calculado:</strong> ' . htmlspecialchars($baseDir ?? 'não definido') . '</p>';
+            }
+            echo '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Erro - FPDF não encontrado</title></head><body>';
+            echo '<h1>Biblioteca FPDF não encontrada</h1>';
+            echo '<p>O sistema não conseguiu localizar a biblioteca FPDF necessária para gerar os relatórios em PDF.</p>';
+            echo '<p><strong>Solução:</strong> Execute <code>composer install</code> na raiz do projeto para instalar as dependências.</p>';
+            echo '<p>Ou adicione <code>&debug=1</code> à URL para ver os caminhos testados.</p>';
+            echo $debugInfo;
+            echo '</body></html>';
+            exit;
+        }
+
+        // Classe para gerar relatório PDF com layout aprimorado
+        class TurmaPDF extends FPDF {
+            // Configurações de layout
+            // Larguras ajustadas: Aluno (65), Nota (20), Situação (50), Circunstância (45) = 180mm
+            public $colWidths = [65, 20, 50, 45]; 
+            public $headerTitle = 'Relatório de Notas';
+            public $turmaNome = '';
+            public $disciplinaNome = '';
+            public $escolaNome = '';
+            private $fill = false; // Para alternar o preenchimento das linhas
+            
+            // Cores personalizadas (RGB)
+            private $headerColor = [30, 90, 150];      // Azul mais escuro para melhor contraste
+            private $headerTextColor = [255, 255, 255]; // Branco puro
+            private $rowColor1 = [255, 255, 255];      // Branco puro
+            private $rowColor2 = [240, 245, 250];      // Azul muito claro suave
+            private $textColor = [40, 40, 40];         // Preto suave para melhor leitura
+            private $borderColor = [200, 210, 220];    // Cor das bordas mais suave
+
+        // Método auxiliar para preparar texto com codificação correta
+        protected function prepareText($text) {
+            if (!is_string($text)) {
+                return $text;
             }
             
-            // Se o arquivo existir, usar o método padrão
+            // Converte diretamente para ISO-8859-1 sem tratamento especial
+            return utf8_decode(html_entity_decode($text, ENT_QUOTES, 'UTF-8'));
+        }
+        
+        // Sobrescrever _loadfont para garantir a codificação correta
+        protected function _loadfont($font) {
+            // Forçar codificação cp1252 para todas as fontes
+            $defaultFont = [
+                'name' => 'Helvetica',
+                'type' => 'Core',
+                'up' => -100,
+                'ut' => 50,
+                'cw' => array_fill(0, 256, 600),
+                'enc' => 'cp1252',
+                'file' => '',
+                'desc' => array('Flags' => 32), // NORMAL
+                'originalsize' => 0
+            ];
+            
+            // Se não for uma fonte padrão, retorna a fonte padrão
+            $standardFonts = ['courier', 'helvetica', 'times', 'symbol', 'zapfdingbats'];
+            $fontBase = strtolower(preg_replace('/[^a-z0-9_]/', '', strtolower($font)));
+            
+            if (!in_array($fontBase, $standardFonts)) {
+                return $defaultFont;
+            }
+            
+            // Tenta carregar a fonte normalmente
             try {
-                return parent::_loadfont($font);
+                $fontData = parent::_loadfont($font);
+                $fontData['enc'] = 'cp1252'; // Força a codificação
+                return $fontData;
             } catch (Exception $e) {
-                // Se houver erro, retornar estrutura para fonte core padrão
-                return [
-                    'name' => 'Helvetica',
-                    'type' => 'Core',
-                    'up' => -100,
-                    'ut' => 50,
-                    'cw' => array(),
-                    'enc' => 'cp1252',
-                    'file' => '',
-                    'desc' => array(),
-                    'originalsize' => 0
-                ];
+                return $defaultFont;
             }
         }
 
         function tableX() {
-            $effective = $this->GetPageWidth() - $this->lMargin - $this->rMargin;
-            $tableWidth = array_sum($this->colWidths);
-            $x = $this->lMargin + max(0, ($effective - $tableWidth) / 2);
+            // Retorna a margem esquerda para alinhar tudo à esquerda
+            return $this->lMargin;
+        }
+
+        function BasicTable($header, $data) {
+            // Configurações básicas
+            $this->SetFont('Helvetica', '', 10);
+            $this->SetTextColor($this->textColor[0], $this->textColor[1], $this->textColor[2]);
+            $this->SetDrawColor($this->borderColor[0], $this->borderColor[1], $this->borderColor[2]);
+            
+            // Define margens e posição inicial
+            $this->SetLeftMargin(15); // Margem esquerda fixa
+            $this->SetRightMargin(15); // Margem direita fixa
+            $x = 15; // Posição X inicial
             $this->SetX($x);
-            return $x;
+            
+            // Larguras fixas para as colunas (aumentando a largura da coluna Situação)
+            $this->colWidths = [100, 30, 60, 60]; // Ajuste conforme necessidade
+            
+            // Dados
+            foreach($data as $row) {
+                // Alterna a cor de fundo das linhas
+                $this->fill = !$this->fill;
+                $fillColor = $this->fill ? $this->rowColor2 : $this->rowColor1;
+                $this->SetFillColor($fillColor[0], $fillColor[1], $fillColor[2]);
+                
+                // Prepara os textos
+                $aluno = $this->prepareText($row[0]);
+                $nota = $this->prepareText($row[1]);
+                $situacao = $this->prepareText($row[2]);
+                $circunstancia = $this->prepareText($row[3]);
+                
+                // Posição Y atual
+                $y_inicial = $this->GetY();
+                
+                // Larguras totais
+                $total_width = array_sum($this->colWidths);
+                
+                // Desenha a linha inteira de uma vez
+                $this->SetX($x);
+                
+                // Célula do Aluno
+                $this->SetFont('Helvetica', '', 9);
+                $this->Cell($this->colWidths[0], 8, $aluno, 1, 0, 'L', true);
+                
+                // Célula da Nota
+                $this->SetFont('Helvetica', 'B', 10);
+                $this->Cell($this->colWidths[1], 8, $nota, 1, 0, 'L', true);
+                
+                // Célula da Situação (ajustada para justificar à esquerda)
+                $this->SetFont('Helvetica', '', 9);
+                $this->Cell($this->colWidths[2], 8, $situacao, 1, 0, 'L', true, 0, 0, true, 0, '', true);
+                
+                // Célula da Circunstância
+                $this->SetFont('Helvetica', '', 8);
+                $this->Cell($this->colWidths[3], 8, $circunstancia, 1, 1, 'L', true);
+                
+                // Pula para próxima linha
+                $this->Ln(0);
+                
+                // Ajusta a posição Y para a próxima linha
+                $this->SetY($y_inicial + $altura_linha_efetiva);
+            }
+            
+            // Ajusta o espaçamento após a tabela
+            $this->Ln(5);
+        }
+        
+        // Função auxiliar para calcular número de linhas
+        function NbLines($w, $txt) {
+            $cw = &$this->CurrentFont['cw'];
+            if($w == 0) {
+                $w = $this->w - $this->rMargin - $this->x;
+            }
+            $wmax = ($w - 2 * $this->cMargin) * 1000 / $this->FontSize;
+            $s = str_replace("\r", '', $txt);
+            $nb = strlen($s);
+            if($nb > 0 && $s[$nb-1] == "\n") {
+                $nb--;
+            }
+            $sep = -1;
+            $i = 0;
+            $j = 0;
+            $l = 0;
+            $nl = 1;
+            while($i < $nb) {
+                $c = $s[$i];
+                if($c == "\n") {
+                    $i++;
+                    $sep = -1;
+                    $j = $i;
+                    $l = 0;
+                    $nl++;
+                    continue;
+                }
+                if($c == ' ') {
+                    $sep = $i;
+                }
+                $l += $cw[$c];
+                if($l > $wmax) {
+                    if($sep == -1) {
+                        if($i == $j) {
+                            $i++;
+                        }
+                    } else {
+                        $i = $sep + 1;
+                    }
+                    $sep = -1;
+                    $j = $i;
+                    $l = 0;
+                    $nl++;
+                } else {
+                    $i++;
+                }
+            }
+            return $nl;
         }
 
         function Header() {
-            // Usar fontes padrão do FPDF (Courier, Helvetica, Times)
-            // 'B' = Bold, '' = Regular, 'I' = Italic
+            // Configuração do cabeçalho
+            $this->SetMargins(15, 15, 15);
+            $this->SetAutoPageBreak(true, 15);
+            
+            // Título principal
+            $this->SetFont('Helvetica', 'B', 16);
+            $this->SetTextColor($this->headerTextColor[0], $this->headerTextColor[1], $this->headerTextColor[2]);
+            $this->SetFillColor($this->headerColor[0], $this->headerColor[1], $this->headerColor[2]);
+            $this->SetX(15);
+            $this->Cell(0, 12, $this->prepareText($this->headerTitle), 0, 1, 'L', true);
+            
+            // Informações da escola
             $this->SetFont('Helvetica', 'B', 12);
-            $this->Cell(0, 8, utf8_decode('SIGEA - Relatório da Turma'), 0, 1, 'C');
-            $this->SetFont('Helvetica', '', 9);
-            $linha1 = 'Turma: ' . ($this->turmaNome ?: '-');
-            $linha2 = 'Disciplina: ' . ($this->disciplinaNome ?: 'Todas');
-            $linha3 = 'Escola: ' . ($this->escolaNome ?: 'Escola Municipal');
-            $linha4 = 'Gerado em: ' . date('d/m/Y H:i');
-
-            $this->Cell(0, 6, utf8_decode($linha1), 0, 1, 'C');
-            $this->Cell(0, 6, utf8_decode($linha2), 0, 1, 'C');
-            $this->Cell(0, 6, utf8_decode($linha3), 0, 1, 'C');
-            $this->Cell(0, 6, utf8_decode($linha4), 0, 1, 'C');
+            $this->SetTextColor($this->textColor[0], $this->textColor[1], $this->textColor[2]);
+            $this->SetX(15);
+            $this->Cell(0, 8, $this->prepareText($this->escolaNome), 0, 1, 'L');
+            
+            // Informações da turma e disciplina
+            $this->SetFont('Helvetica', '', 10);
+            $this->SetX(15);
+            $this->Cell(0, 6, 'Turma: ' . $this->prepareText($this->turmaNome), 0, 1, 'L');
+            $this->SetX(15);
+            $this->Cell(0, 6, 'Disciplina: ' . $this->prepareText($this->disciplinaNome), 0, 1, 'L');
+            
+            // Data de geração
+            date_default_timezone_set('America/Sao_Paulo');
+            $this->SetX(15);
+            $this->Cell(0, 6, 'Gerado em: ' . date('d/m/Y H:i:s'), 0, 1, 'L');
+            
+            // Espaçamento
+            $this->Ln(5);
+            
+            // Linha divisória mais fina e sutil
+            $this->SetDrawColor($this->borderColor[0], $this->borderColor[1], $this->borderColor[2]);
+            $this->Line($this->lMargin, $this->GetY() + 3, $this->GetPageWidth() - $this->rMargin, $this->GetY() + 3);
             $this->Ln(6);
-
-            // Table header
-            $this->SetFont('Helvetica', 'B', 9);
-            $this->SetFillColor(230, 230, 230);
-            $this->SetDrawColor(180, 180, 180);
-
-            $this->tableX();
-            $this->Cell($this->colWidths[0], 9, utf8_decode('Aluno'),           1, 0, 'L', true);
-            $this->Cell($this->colWidths[1], 9, utf8_decode('Nota'),            1, 0, 'C', true);
-            $this->Cell($this->colWidths[2], 9, utf8_decode('Situação'),        1, 0, 'C', true);
-            // <<< ADDED: Circunstância column header
-            $this->Cell($this->colWidths[3], 9, utf8_decode('Circunstância'),   1, 1, 'C', true);
+            
+            // Cabeçalho da tabela já foi movido para cima
+            
+            // Cabeçalho da tabela
+            $this->SetFont('Helvetica', 'B', 10);
+            $this->SetTextColor(255, 255, 255); // Texto branco
+            $this->SetFillColor($this->headerColor[0], $this->headerColor[1], $this->headerColor[2]);
+            $this->SetDrawColor($this->borderColor[0], $this->borderColor[1], $this->borderColor[2]);
+            
+            // Posiciona a tabela centralizada
+            $x = $this->tableX();
+            $this->SetX($x);
+            
+            // Cabeçalhos das colunas com textos pré-definidos
+            // Cabeçalho da tabela já está sendo desenhado acima
+            
+            // Desenha os cabeçalhos
+            $this->SetX(15);
+            $this->SetFont('Helvetica', 'B', 10);
+            $this->SetFillColor($this->headerColor[0], $this->headerColor[1], $this->headerColor[2]);
+            $this->SetTextColor(255, 255, 255);
+            
+            // Usando prepareText para corrigir acentuação e alinhando centralizado (exceto nome)
+            $this->Cell($this->colWidths[0], 8, $this->prepareText('Aluno'), 1, 0, 'L', true);
+            $this->Cell($this->colWidths[1], 8, $this->prepareText('Nota'), 1, 0, 'C', true);
+            $this->Cell($this->colWidths[2], 8, $this->prepareText('Situação'), 1, 0, 'C', true);
+            $this->Cell($this->colWidths[3], 8, $this->prepareText('Circunstância'), 1, 1, 'C', true);
+            
+            // Reseta as cores
+            $this->SetTextColor($this->textColor[0], $this->textColor[1], $this->textColor[2]);
+            $this->SetFillColor($this->rowColor1[0], $this->rowColor1[1], $this->rowColor1[2]);
+            $this->Ln();
+            
+            // Resetar cores para o conteúdo da tabela
+            $this->SetTextColor($this->textColor[0], $this->textColor[1], $this->textColor[2]);
+            $this->SetFillColor($this->rowColor1[0], $this->rowColor1[1], $this->rowColor1[2]);
         }
 
         function Footer() {
+            // Posiciona a 1.5cm da parte inferior
             $this->SetY(-15);
+            
+            // Configura a fonte e cores
             $this->SetFont('Helvetica', 'I', 8);
-            $this->Cell(0, 10, utf8_decode('Página ' . $this->PageNo() . '/{nb}'), 0, 0, 'C');
+            $this->SetTextColor(120, 120, 120); // Cinza mais escuro para melhor legibilidade
+            
+            // Linha superior do rodapé mais sutil
+            $this->SetDrawColor($this->borderColor[0], $this->borderColor[1], $this->borderColor[2]);
+            $this->Line($this->lMargin, $this->GetY(), $this->GetPageWidth() - $this->rMargin, $this->GetY());
+            
+            // Texto do rodapé com fonte mais escura
+            $this->SetFont('Helvetica', 'I', 9);
+            $this->Cell(0, 10, $this->prepareText('Página '.$this->PageNo().' de {nb}'), 0, 0, 'C');
+            
+            // Data e hora de geração (usando a hora atual do servidor)
+            date_default_timezone_set('America/Sao_Paulo');
+            $this->SetX($this->lMargin);
+            $this->SetFont('Helvetica', 'I', 9);
+            $this->Cell(0, 10, $this->prepareText('Gerado em: ' . date('d/m/Y H:i:s')), 0, 0, 'L');
+            
+            // Nome do sistema
+            $this->SetX($this->lMargin);
+            $this->SetFont('Helvetica', 'BI', 8);
+            $this->Cell(0, 10, $this->prepareText('SIGEA - Sistema de Gestão Escolar'), 0, 0, 'R');
         }
     }
 
-    try {
+        // Limpar qualquer output que possa ter sido gerado
+        ob_end_clean();
+        
+        // Generate PDF using FPDF
         header('Content-Type: application/pdf');
         header('Cache-Control: private, max-age=0, must-revalidate');
         header('Pragma: public');
@@ -667,9 +836,10 @@ if (isset($_GET['action']) && $_GET['action'] === 'pdf') {
                 $pdf->tableX();
                 $pdf->Cell($pdf->colWidths[0], 8, utf8_decode($aluno),         1, 0, 'L', true);
                 $pdf->Cell($pdf->colWidths[1], 8, utf8_decode($nota),          1, 0, 'C', true);
-                $pdf->Cell($pdf->colWidths[2], 8, utf8_decode($situacao),      1, 0, 'C', true);
-                // <<< ADDED: Circunstância cell rendering
-                $pdf->Cell($pdf->colWidths[3], 8, utf8_decode($circunstancia), 1, 1, 'C', true);
+                // Situação alinhada à esquerda ('L') com um pequeno recuo visual (espaço no início)
+                $pdf->Cell($pdf->colWidths[2], 8, ' ' . utf8_decode(trim($situacao)), 1, 0, 'L', true);
+                // Circunstância também alinhada à esquerda com recuo, seguindo o padrão
+                $pdf->Cell($pdf->colWidths[3], 8, ' ' . utf8_decode(trim($circunstancia)), 1, 1, 'L', true);
 
                 $fill = !$fill;
             }
@@ -680,6 +850,13 @@ if (isset($_GET['action']) && $_GET['action'] === 'pdf') {
         $pdf->Output($dest, $filename);
         exit;
     } catch (Throwable $e) {
+        // Limpar buffer antes de enviar mensagem de erro
+        ob_end_clean();
+        
+        // Restaurar configurações de erro
+        error_reporting($oldErrorReporting);
+        ini_set('display_errors', 1);
+        
         // Erro ao gerar PDF
         error_log("Erro ao gerar PDF do relatório para turma $turmaId: " . $e->getMessage());
         error_log("Stack trace: " . $e->getTraceAsString());
@@ -696,8 +873,15 @@ if (isset($_GET['action']) && $_GET['action'] === 'pdf') {
         echo '<p><a href="relatorios_professor.php">Voltar para relatórios</a></p>';
         echo '</body></html>';
         exit;
+    } finally {
+        // Garantir que o buffer seja limpo mesmo em caso de erro não capturado
+        if (ob_get_level() > 0) {
+            ob_end_clean();
+        }
+        // Restaurar configurações de erro
+        error_reporting($oldErrorReporting);
+        ini_set('display_errors', 1);
     }
-    // --- END: Use FPDF ---
 }
 // === END: PDF handler ===
 
