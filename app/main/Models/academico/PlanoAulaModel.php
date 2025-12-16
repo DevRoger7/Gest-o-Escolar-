@@ -95,12 +95,12 @@ class PlanoAulaModel {
                 metodologia, recursos, avaliacao, atividades_flexibilizadas, data_aula, bimestre, observacoes,
                 observacoes_complementares, secoes_temas, atividade_permanente, habilidades,
                 competencias_socioemocionais, competencias_especificas, competencias_gerais,
-                disciplinas_componentes, status, criado_por, criado_em)
+                disciplinas_componentes, status, aprovado_por, data_aprovacao, criado_por, criado_em)
                 VALUES (:turma_id, :disciplina_id, :professor_id, :titulo, :conteudo, :objetivos,
                 :metodologia, :recursos, :avaliacao, :atividades_flexibilizadas, :data_aula, :bimestre, :observacoes,
                 :observacoes_complementares, :secoes_temas, :atividade_permanente, :habilidades,
                 :competencias_socioemocionais, :competencias_especificas, :competencias_gerais,
-                :disciplinas_componentes, 'RASCUNHO', :criado_por, NOW())";
+                :disciplinas_componentes, 'APROVADO', :aprovado_por, NOW(), :criado_por, NOW())";
         
         $stmt = $conn->prepare($sql);
         $turmaId = $dados['turma_id'];
@@ -127,6 +127,7 @@ class PlanoAulaModel {
         
         // Validar se o usuario_id existe na tabela usuario antes de usar
         $criadoPor = null;
+        $aprovadoPor = null;
         if (isset($_SESSION['usuario_id']) && is_numeric($_SESSION['usuario_id'])) {
             $usuarioId = (int)$_SESSION['usuario_id'];
             $sqlCheckUsuario = "SELECT id FROM usuario WHERE id = :usuario_id LIMIT 1";
@@ -136,6 +137,7 @@ class PlanoAulaModel {
             $usuarioExiste = $stmtCheckUsuario->fetch(PDO::FETCH_ASSOC);
             if ($usuarioExiste) {
                 $criadoPor = $usuarioId;
+                $aprovadoPor = $usuarioId; // O professor que cria também aprova automaticamente
             }
         }
         
@@ -160,6 +162,7 @@ class PlanoAulaModel {
         $stmt->bindParam(':competencias_especificas', $competenciasEspecificas);
         $stmt->bindParam(':competencias_gerais', $competenciasGerais);
         $stmt->bindParam(':disciplinas_componentes', $disciplinasComponentes);
+        $stmt->bindParam(':aprovado_por', $aprovadoPor);
         $stmt->bindParam(':criado_por', $criadoPor);
         
         if ($stmt->execute()) {

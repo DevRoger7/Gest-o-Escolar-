@@ -406,6 +406,23 @@ try {
                                 ?>
                             </p>
                         </div>
+                        <div>
+                            <label class="info-label block text-slate-500 uppercase mb-1.5">CPF</label>
+                            <p class="info-value text-slate-700 font-mono text-sm">
+                                <?php
+                                if (!empty($dadosUsuario['cpf'])) {
+                                    $cpf = preg_replace('/\D/', '', $dadosUsuario['cpf']);
+                                    if (strlen($cpf) == 11) {
+                                        echo preg_replace('/(\d{3})(\d{3})(\d{3})(\d{2})/', '$1.$2.$3-$4', $cpf);
+                                    } else {
+                                        echo htmlspecialchars($dadosUsuario['cpf']);
+                                    }
+                                } else {
+                                    echo 'N/A';
+                                }
+                                ?>
+                            </p>
+                        </div>
                     </div>
                 </div>
 
@@ -418,15 +435,31 @@ try {
                         <h3 class="text-base font-semibold text-slate-900">Endereço</h3>
                     </div>
                     
+                    <?php 
+                    $temEndereco = !empty($dadosUsuario['endereco']) || 
+                                   !empty($dadosUsuario['cidade']) || 
+                                   !empty($dadosUsuario['estado']) || 
+                                   !empty($dadosUsuario['cep']);
+                    ?>
+                    
+                    <?php if ($temEndereco): ?>
                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-5">
+                        <?php if (!empty($dadosUsuario['endereco'])): ?>
+                        <div class="sm:col-span-2">
+                            <label class="info-label block text-slate-500 uppercase mb-1.5">Endereço Completo</label>
+                            <p class="info-value text-slate-700"><?= htmlspecialchars($dadosUsuario['endereco']) ?></p>
+                        </div>
+                        <?php endif; ?>
                         <div>
-                            <label class="info-label block text-slate-500 uppercase mb-1.5">País</label>
-                            <p class="info-value text-slate-900 font-medium"><?= htmlspecialchars($dadosUsuario['estado'] ? 'Brasil' : 'N/A') ?></p>
+                            <label class="info-label block text-slate-500 uppercase mb-1.5">Cidade</label>
+                            <p class="info-value text-slate-900 font-medium">
+                                <?= !empty($dadosUsuario['cidade']) ? htmlspecialchars($dadosUsuario['cidade']) : 'N/A' ?>
+                            </p>
                         </div>
                         <div>
-                            <label class="info-label block text-slate-500 uppercase mb-1.5">Cidade/Estado</label>
+                            <label class="info-label block text-slate-500 uppercase mb-1.5">Estado</label>
                             <p class="info-value text-slate-900 font-medium">
-                                <?= htmlspecialchars(trim(($dadosUsuario['cidade'] ?? '') . ', ' . ($dadosUsuario['estado'] ?? ''), ', ') ?: 'N/A') ?>
+                                <?= !empty($dadosUsuario['estado']) ? htmlspecialchars($dadosUsuario['estado']) : 'N/A' ?>
                             </p>
                         </div>
                         <div>
@@ -435,7 +468,11 @@ try {
                                 <?php
                                 if (!empty($dadosUsuario['cep'])) {
                                     $cep = preg_replace('/\D/', '', $dadosUsuario['cep']);
-                                    echo preg_replace('/(\d{5})(\d{3})/', '$1-$2', $cep);
+                                    if (strlen($cep) == 8) {
+                                        echo preg_replace('/(\d{5})(\d{3})/', '$1-$2', $cep);
+                                    } else {
+                                        echo htmlspecialchars($dadosUsuario['cep']);
+                                    }
                                 } else {
                                     echo 'N/A';
                                 }
@@ -443,25 +480,16 @@ try {
                             </p>
                         </div>
                         <div>
-                            <label class="info-label block text-slate-500 uppercase mb-1.5">CPF</label>
-                            <p class="info-value text-slate-700 font-mono text-sm">
-                                <?php
-                                if (!empty($dadosUsuario['cpf'])) {
-                                    $cpf = preg_replace('/\D/', '', $dadosUsuario['cpf']);
-                                    echo preg_replace('/(\d{3})(\d{3})(\d{3})(\d{2})/', '$1.$2.$3-$4', $cpf);
-                                } else {
-                                    echo 'N/A';
-                                }
-                                ?>
-                            </p>
+                            <label class="info-label block text-slate-500 uppercase mb-1.5">País</label>
+                            <p class="info-value text-slate-900 font-medium">Brasil</p>
                         </div>
-                        <?php if (!empty($dadosUsuario['endereco'])): ?>
-                        <div class="sm:col-span-2">
-                            <label class="info-label block text-slate-500 uppercase mb-1.5">Endereço Completo</label>
-                            <p class="info-value text-slate-700"><?= htmlspecialchars($dadosUsuario['endereco']) ?></p>
-                        </div>
-                        <?php endif; ?>
                     </div>
+                    <?php else: ?>
+                    <div class="text-center py-8 text-slate-500">
+                        <i class="fas fa-map-marker-alt text-3xl mb-3 text-slate-300"></i>
+                        <p class="text-sm">Nenhum dado de endereço cadastrado</p>
+                    </div>
+                    <?php endif; ?>
                 </div>
 
                 <!-- Cards específicos por tipo com design consistente e compacto -->
