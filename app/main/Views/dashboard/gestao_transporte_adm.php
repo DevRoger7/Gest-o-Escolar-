@@ -8,8 +8,10 @@ $session = new sessions();
 $session->autenticar_session();
 $session->tempo_session();
 
-// Apenas ADM pode acessar
-if (!eAdm()) {
+// Apenas ADM e ADM_TRANSPORTE podem acessar
+$tipoUsuario = $_SESSION['tipo'] ?? '';
+$tipoUsuarioUpper = strtoupper(trim($tipoUsuario));
+if (!eAdm() && $tipoUsuarioUpper !== 'ADM_TRANSPORTE') {
     header('Location: ../auth/login.php?erro=sem_permissao');
     exit;
 }
@@ -240,19 +242,19 @@ try {
         <div class="bg-white border-b border-gray-200">
             <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                 <div class="flex space-x-8 overflow-x-auto">
-                    <button onclick="showTab('usuarios')" class="tab-button tab-active py-4 px-2 border-b-2 border-transparent font-medium text-sm text-gray-500 hover:text-gray-700 hover:border-gray-300 whitespace-nowrap">
+                    <a href="gestao_usuarios_transporte.php" class="py-4 px-2 border-b-2 border-transparent font-medium text-sm text-gray-500 hover:text-gray-700 hover:border-gray-300 whitespace-nowrap">
                         <i class="fas fa-users mr-2"></i>Usuários
-                    </button>
-                    <button onclick="showTab('veiculos')" class="tab-button py-4 px-2 border-b-2 border-transparent font-medium text-sm text-gray-500 hover:text-gray-700 hover:border-gray-300 whitespace-nowrap">
+                    </a>
+                    <button onclick="showTab('veiculos', this)" class="tab-button tab-active py-4 px-2 border-b-2 border-transparent font-medium text-sm text-gray-500 hover:text-gray-700 hover:border-gray-300 whitespace-nowrap">
                         <i class="fas fa-bus mr-2"></i>Veículos
                     </button>
-                    <button onclick="showTab('motoristas')" class="tab-button py-4 px-2 border-b-2 border-transparent font-medium text-sm text-gray-500 hover:text-gray-700 hover:border-gray-300 whitespace-nowrap">
+                    <button onclick="showTab('motoristas', this)" class="tab-button py-4 px-2 border-b-2 border-transparent font-medium text-sm text-gray-500 hover:text-gray-700 hover:border-gray-300 whitespace-nowrap">
                         <i class="fas fa-id-card mr-2"></i>Motoristas
                     </button>
-                    <button onclick="showTab('rotas')" class="tab-button py-4 px-2 border-b-2 border-transparent font-medium text-sm text-gray-500 hover:text-gray-700 hover:border-gray-300 whitespace-nowrap">
+                    <button onclick="showTab('rotas', this)" class="tab-button py-4 px-2 border-b-2 border-transparent font-medium text-sm text-gray-500 hover:text-gray-700 hover:border-gray-300 whitespace-nowrap">
                         <i class="fas fa-route mr-2"></i>Rotas
                     </button>
-                    <button onclick="showTab('relatorios')" class="tab-button py-4 px-2 border-b-2 border-transparent font-medium text-sm text-gray-500 hover:text-gray-700 hover:border-gray-300 whitespace-nowrap">
+                    <button onclick="showTab('relatorios', this)" class="tab-button py-4 px-2 border-b-2 border-transparent font-medium text-sm text-gray-500 hover:text-gray-700 hover:border-gray-300 whitespace-nowrap">
                         <i class="fas fa-chart-bar mr-2"></i>Relatórios
                     </button>
                 </div>
@@ -261,40 +263,6 @@ try {
 
         <!-- Content -->
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-            <!-- Tab: Usuários -->
-            <div id="tab-usuarios" class="tab-content">
-                <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-                    <div class="flex items-center justify-between mb-6">
-                        <h2 class="text-xl font-bold text-gray-900">Usuários do Transporte</h2>
-                        <button onclick="abrirModalCriarUsuario()" class="px-4 py-2 bg-primary-green text-white rounded-lg hover:bg-green-700 transition-colors">
-                            <i class="fas fa-plus mr-2"></i>Criar Usuário ADM Transporte
-                        </button>
-                    </div>
-                    
-                    <div class="mb-4">
-                        <input type="text" id="buscar-usuario-transporte" placeholder="Buscar usuários..." 
-                               class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-green focus:border-transparent">
-                    </div>
-                    
-                    <div class="overflow-x-auto">
-                        <table class="min-w-full divide-y divide-gray-200">
-                            <thead class="bg-gray-50">
-                                <tr>
-                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Nome</th>
-                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tipo</th>
-                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
-                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ações</th>
-                                </tr>
-                            </thead>
-                            <tbody id="lista-usuarios-transporte" class="bg-white divide-y divide-gray-200">
-                                <!-- Será preenchido via JavaScript -->
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
-
             <!-- Tab: Veículos -->
             <div id="tab-veiculos" class="tab-content hidden">
                 <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
@@ -430,50 +398,6 @@ try {
                     </div>
                 </div>
             </div>
-        </div>
-    </div>
-
-    <!-- Modal Criar Usuário -->
-    <div id="modalCriarUsuario" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50 flex items-center justify-center">
-        <div class="bg-white rounded-lg p-6 max-w-md w-full mx-4">
-            <div class="flex items-center justify-between mb-4">
-                <h3 class="text-lg font-bold text-gray-900">Criar Usuário ADM Transporte</h3>
-                <button onclick="fecharModalCriarUsuario()" class="text-gray-400 hover:text-gray-600">
-                    <i class="fas fa-times"></i>
-                </button>
-            </div>
-            <form id="formCriarUsuario" onsubmit="criarUsuario(event)">
-                <div class="space-y-4">
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Nome Completo *</label>
-                        <input type="text" name="nome" required class="w-full px-3 py-2 border border-gray-300 rounded-lg">
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">CPF *</label>
-                        <input type="text" name="cpf" required class="w-full px-3 py-2 border border-gray-300 rounded-lg" placeholder="000.000.000-00">
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Email *</label>
-                        <input type="email" name="email" required class="w-full px-3 py-2 border border-gray-300 rounded-lg">
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Telefone</label>
-                        <input type="text" name="telefone" class="w-full px-3 py-2 border border-gray-300 rounded-lg" placeholder="(85) 99999-9999">
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Senha *</label>
-                        <input type="password" name="senha" required class="w-full px-3 py-2 border border-gray-300 rounded-lg">
-                    </div>
-                </div>
-                <div class="mt-6 flex justify-end space-x-3">
-                    <button type="button" onclick="fecharModalCriarUsuario()" class="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300">
-                        Cancelar
-                    </button>
-                    <button type="submit" class="px-4 py-2 bg-primary-green text-white rounded-lg hover:bg-green-700">
-                        Criar Usuário
-                    </button>
-                </div>
-            </form>
         </div>
     </div>
 
@@ -623,7 +547,7 @@ try {
 
     <script>
         // Função para alternar tabs
-        function showTab(tabName) {
+        function showTab(tabName, buttonElement = null) {
             // Esconder todas as tabs
             document.querySelectorAll('.tab-content').forEach(tab => {
                 tab.classList.add('hidden');
@@ -637,8 +561,18 @@ try {
             // Mostrar tab selecionada
             document.getElementById('tab-' + tabName).classList.remove('hidden');
             
-            // Adicionar classe active ao botão
-            event.target.classList.add('tab-active');
+            // Adicionar classe active ao botão (se fornecido ou encontrar pelo texto)
+            if (buttonElement) {
+                buttonElement.classList.add('tab-active');
+            } else {
+                // Encontrar o botão pela aba
+                const buttons = document.querySelectorAll('.tab-button');
+                buttons.forEach(btn => {
+                    if (btn.getAttribute('onclick') && btn.getAttribute('onclick').includes("showTab('" + tabName + "')")) {
+                        btn.classList.add('tab-active');
+                    }
+                });
+            }
             
             // Carregar dados da tab
             if (tabName === 'veiculos') {
@@ -647,21 +581,10 @@ try {
                 carregarMotoristas();
             } else if (tabName === 'rotas') {
                 carregarRotas();
-            } else if (tabName === 'usuarios') {
-                carregarUsuariosTransporte();
             }
         }
 
         // Modais
-        function abrirModalCriarUsuario() {
-            document.getElementById('modalCriarUsuario').classList.remove('hidden');
-        }
-
-        function fecharModalCriarUsuario() {
-            document.getElementById('modalCriarUsuario').classList.add('hidden');
-            document.getElementById('formCriarUsuario').reset();
-        }
-
         function abrirModalCriarVeiculo() {
             document.getElementById('modalCriarVeiculo').classList.remove('hidden');
         }
@@ -678,33 +601,6 @@ try {
         function fecharModalCriarMotorista() {
             document.getElementById('modalCriarMotorista').classList.add('hidden');
             document.getElementById('formCriarMotorista').reset();
-        }
-
-        // Criar Usuário
-        function criarUsuario(e) {
-            e.preventDefault();
-            const formData = new FormData(e.target);
-            formData.append('acao', 'cadastrar');
-            formData.append('tipo', 'ADM_TRANSPORTE');
-            
-            fetch('gestao_usuarios.php', {
-                method: 'POST',
-                body: formData
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.status) {
-                    alert(data.mensagem);
-                    fecharModalCriarUsuario();
-                    carregarUsuariosTransporte();
-                } else {
-                    alert('Erro: ' + data.mensagem);
-                }
-            })
-            .catch(error => {
-                console.error('Erro:', error);
-                alert('Erro ao criar usuário');
-            });
         }
 
         // Criar Veículo
@@ -757,13 +653,6 @@ try {
                 console.error('Erro:', error);
                 alert('Erro ao cadastrar motorista');
             });
-        }
-
-        // Carregar dados
-        function carregarUsuariosTransporte() {
-            const busca = document.getElementById('buscar-usuario-transporte')?.value || '';
-            // Implementar busca de usuários de transporte
-            console.log('Carregar usuários de transporte');
         }
 
         function carregarVeiculos() {
@@ -893,6 +782,22 @@ try {
             });
         }
 
+        // Verificar hash na URL e abrir a aba correspondente
+        function verificarHashEAbrirAba() {
+            const hash = window.location.hash.replace('#', '');
+            if (hash && ['veiculos', 'motoristas', 'rotas', 'relatorios'].includes(hash)) {
+                showTab(hash);
+            }
+        }
+        
+        // Executar ao carregar a página
+        document.addEventListener('DOMContentLoaded', function() {
+            verificarHashEAbrirAba();
+        });
+        
+        // Executar também quando o hash mudar (caso o usuário clique em um link com hash)
+        window.addEventListener('hashchange', verificarHashEAbrirAba);
+        
         // Event listeners
         document.getElementById('buscar-veiculo')?.addEventListener('input', debounce(carregarVeiculos, 500));
         document.getElementById('buscar-motorista')?.addEventListener('input', debounce(carregarMotoristas, 500));
@@ -912,7 +817,7 @@ try {
 
         // Carregar dados iniciais
         document.addEventListener('DOMContentLoaded', function() {
-            carregarUsuariosTransporte();
+            carregarVeiculos();
         });
     </script>
 </body>

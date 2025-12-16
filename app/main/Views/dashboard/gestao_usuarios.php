@@ -7,7 +7,7 @@ $session->autenticar_session();
 $session->tempo_session();
 
 // Verificar permissão usando o sistema de permissões
-// ADM pode tudo, ADM_TRANSPORTE pode criar TRANSPORTE_ALUNO
+// ADM pode tudo, ADM_TRANSPORTE pode ver todos os usuários (especialmente alunos) e criar TRANSPORTE_ALUNO
 $tipoUsuario = $_SESSION['tipo'] ?? '';
 $podeAcessar = eAdm() || temPermissao('cadastrar_pessoas') || strtoupper($tipoUsuario) === 'ADM_TRANSPORTE';
 

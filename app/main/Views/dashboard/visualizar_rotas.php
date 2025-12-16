@@ -10,7 +10,8 @@ $session->tempo_session();
 
 // Apenas ADM_TRANSPORTE, TRANSPORTE_ALUNO e ADM podem acessar
 $tipoUsuario = $_SESSION['tipo'] ?? '';
-if (!eAdm() && strtoupper($tipoUsuario) !== 'ADM_TRANSPORTE' && strtoupper($tipoUsuario) !== 'TRANSPORTE_ALUNO') {
+$tipoUsuarioUpper = strtoupper(trim($tipoUsuario));
+if (!eAdm() && $tipoUsuarioUpper !== 'ADM_TRANSPORTE' && $tipoUsuarioUpper !== 'TRANSPORTE_ALUNO') {
     header('Location: ../auth/login.php?erro=sem_permissao');
     exit;
 }
@@ -133,22 +134,62 @@ try {
     <title>Visualizar Rotas</title>
     <link rel="icon" href="https://upload.wikimedia.org/wikipedia/commons/thumb/1/19/Bras%C3%A3o_de_Maranguape.png/250px-Bras%C3%A3o_de_Maranguape.png" type="image/png">
     <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
-        .leaflet-control-attribution {
-            display: none !important;
+        .sidebar-transition {
+            transition: transform 0.3s ease-in-out;
         }
-        #map {
-            height: 600px;
-            width: 100%;
-            border-radius: 8px;
+        .content-transition {
+            transition: margin-left 0.3s ease-in-out;
+        }
+        .menu-item {
+            transition: all 0.2s ease;
+        }
+        .menu-item:hover {
+            background: linear-gradient(90deg, rgba(45, 90, 39, 0.08) 0%, rgba(45, 90, 39, 0.04) 100%);
+            transform: translateX(4px);
+        }
+        .menu-item.active {
+            background: linear-gradient(90deg, rgba(45, 90, 39, 0.12) 0%, rgba(45, 90, 39, 0.06) 100%);
+            border-right: 3px solid #2D5A27;
+        }
+        .menu-item.active svg {
+            color: #2D5A27;
+        }
+        @media (max-width: 1023px) {
+            .sidebar-mobile {
+                transform: translateX(-100%);
+                transition: transform 0.3s ease-in-out;
+                z-index: 999 !important;
+                position: fixed !important;
+                left: 0 !important;
+                top: 0 !important;
+                height: 100vh !important;
+                width: 16rem !important;
+            }
+            .sidebar-mobile.open {
+                transform: translateX(0) !important;
+                z-index: 999 !important;
+            }
         }
     </style>
 </head>
 <body class="bg-gray-50">
-    <?php include 'components/sidebar_adm.php'; ?>
+    <?php 
+    // Incluir sidebar correta baseada no tipo de usuário
+    $tipoUsuario = $_SESSION['tipo'] ?? '';
+    $tipoUsuarioUpper = strtoupper(trim($tipoUsuario));
+    
+    if ($tipoUsuarioUpper === 'ADM_TRANSPORTE') {
+        include 'components/sidebar_transporte.php';
+    } elseif ($tipoUsuarioUpper === 'TRANSPORTE_ALUNO') {
+        include 'components/sidebar_transporte_aluno.php';
+    } elseif (eAdm()) {
+        include 'components/sidebar_adm.php';
+    } else {
+        include 'components/sidebar_adm.php'; // Fallback
+    }
+    ?>
     
     <main class="content-transition ml-0 lg:ml-64 min-h-screen">
         <div class="p-6">
@@ -177,44 +218,19 @@ try {
                 </div>
             </div>
             
-            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                <!-- Lista de Rotas -->
-                <div class="lg:col-span-1 bg-white rounded-lg shadow">
-                    <div class="p-4 border-b border-gray-200">
-                        <h2 class="text-xl font-bold text-gray-900">Rotas</h2>
-                    </div>
-                    <div id="lista-rotas" class="p-4 max-h-[600px] overflow-y-auto">
-                        <p class="text-gray-500 text-center py-8">Carregando rotas...</p>
-                    </div>
+            <!-- Lista de Rotas -->
+            <div class="bg-white rounded-lg shadow">
+                <div class="p-4 border-b border-gray-200">
+                    <h2 class="text-xl font-bold text-gray-900">Rotas</h2>
                 </div>
-                
-                <!-- Mapa -->
-                <div class="lg:col-span-2 bg-white rounded-lg shadow">
-                    <div class="p-4 border-b border-gray-200">
-                        <h2 class="text-xl font-bold text-gray-900">Mapa</h2>
-                    </div>
-                    <div class="p-4">
-                        <div id="map"></div>
-                    </div>
+                <div id="lista-rotas" class="p-4 max-h-[600px] overflow-y-auto">
+                    <p class="text-gray-500 text-center py-8">Carregando rotas...</p>
                 </div>
             </div>
         </div>
     </main>
     
     <script>
-        let map;
-        let routeLayers = [];
-        let markers = [];
-        
-        // Inicializar mapa
-        function initMap() {
-            map = L.map('map').setView([-3.890277, -38.625000], 12);
-            
-            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                attribution: '',
-                maxZoom: 19
-            }).addTo(map);
-        }
         
         function carregarTodasRotas() {
             const formData = new FormData();
@@ -228,7 +244,6 @@ try {
             .then(data => {
                 if (data.status) {
                     renderizarRotas(data.dados);
-                    atualizarMapaRotas(data.dados);
                 } else {
                     alert('Erro: ' + data.mensagem);
                 }
@@ -259,7 +274,7 @@ try {
             .then(response => response.json())
             .then(data => {
                 if (data.status) {
-                    desenharRotaNoMapa(data.dados);
+                    // Rota carregada (sem mapa)
                 } else {
                     alert('Erro: ' + data.mensagem);
                 }
@@ -291,90 +306,6 @@ try {
             `).join('');
         }
         
-        function atualizarMapaRotas(rotas) {
-            // Limpar mapas anteriores
-            routeLayers.forEach(layer => map.removeLayer(layer));
-            routeLayers = [];
-            markers.forEach(marker => map.removeLayer(marker));
-            markers = [];
-            
-            // Cores diferentes para cada rota
-            const cores = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899'];
-            
-            rotas.forEach((rota, index) => {
-                // Buscar pontos desta rota
-                const formData = new FormData();
-                formData.append('acao', 'buscar_pontos_rota');
-                formData.append('rota_id', rota.id);
-                
-                fetch('visualizar_rotas.php', {
-                    method: 'POST',
-                    body: formData
-                })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.status && data.dados.length > 0) {
-                        desenharRotaNoMapa(data.dados, cores[index % cores.length], rota.nome);
-                    }
-                })
-                .catch(error => console.error('Erro ao carregar pontos:', error));
-            });
-        }
-        
-        function desenharRotaNoMapa(pontos, cor = '#3B82F6', nomeRota = '') {
-            if (pontos.length === 0) return;
-            
-            // Ordenar pontos por ordem
-            pontos.sort((a, b) => (a.ordem || 0) - (b.ordem || 0));
-            
-            // Criar array de coordenadas
-            const coordenadas = pontos.map(ponto => [parseFloat(ponto.latitude), parseFloat(ponto.longitude)]);
-            
-            // Desenhar linha da rota
-            const polyline = L.polyline(coordenadas, {
-                color: cor,
-                weight: 4,
-                opacity: 0.7
-            }).addTo(map);
-            
-            routeLayers.push(polyline);
-            
-            // Adicionar marcadores
-            pontos.forEach((ponto, index) => {
-                const isInicio = index === 0;
-                const isFim = index === pontos.length - 1;
-                
-                let iconUrl = 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-blue.png';
-                if (isInicio) {
-                    iconUrl = 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-green.png';
-                } else if (isFim) {
-                    iconUrl = 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-red.png';
-                }
-                
-                const marker = L.marker([parseFloat(ponto.latitude), parseFloat(ponto.longitude)], {
-                    icon: L.icon({
-                        iconUrl: iconUrl,
-                        iconSize: [25, 41],
-                        iconAnchor: [12, 41]
-                    })
-                }).addTo(map);
-                
-                marker.bindPopup(`
-                    <strong>${ponto.nome || 'Ponto ' + (index + 1)}</strong><br>
-                    ${ponto.localidade || ''}<br>
-                    ${ponto.total_alunos_embarque || 0} alunos
-                `);
-                
-                markers.push(marker);
-            });
-            
-            // Ajustar zoom
-            if (coordenadas.length > 0) {
-                const bounds = L.latLngBounds(coordenadas);
-                map.fitBounds(bounds.pad(0.1));
-            }
-        }
-        
         function selecionarRota(rotaId) {
             document.getElementById('filtro-rota').value = rotaId;
             carregarRota();
@@ -382,9 +313,36 @@ try {
         
         // Carregar todas as rotas ao iniciar
         document.addEventListener('DOMContentLoaded', function() {
-            initMap();
             carregarTodasRotas();
         });
+
+        // Função de toggle sidebar (mobile)
+        window.toggleSidebar = function() {
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.getElementById('mobileOverlay');
+            
+            if (sidebar && overlay) {
+                sidebar.classList.toggle('open');
+                overlay.classList.toggle('hidden');
+            }
+        };
+
+        // Fechar sidebar ao clicar no overlay
+        document.addEventListener('DOMContentLoaded', function() {
+            const overlay = document.getElementById('mobileOverlay');
+            if (overlay) {
+                overlay.addEventListener('click', function() {
+                    window.toggleSidebar();
+                });
+            }
+        });
+
+        // Função de logout
+        window.confirmLogout = function() {
+            if (confirm('Tem certeza que deseja sair?')) {
+                window.location.href = '../auth/logout.php';
+            }
+        };
     </script>
 </body>
 </html>
