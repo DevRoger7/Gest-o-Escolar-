@@ -34,6 +34,7 @@ function buscarEscolaPorId($id) {
     $conn = $db->getConnection();
 
     try {
+        // O SELECT e.* já traz todos os campos da tabela escola, incluindo numero, complemento, bairro, telefone, telefone_secundario, localidade_escola (se existir), etc.
         $sql = "SELECT e.*, p.nome AS gestor_nome, p.email AS gestor_email, p.telefone AS gestor_telefone, 
                        p.cpf AS gestor_cpf, g.id AS gestor_id, g.cargo AS gestor_cargo
             FROM escola e 
@@ -51,6 +52,9 @@ function buscarEscolaPorId($id) {
         // Log para debug (remover em produção se necessário)
         if (!$result) {
             error_log("Escola não encontrada com ID: " . $id);
+        } else {
+            // Log dos campos retornados para debug
+            error_log("Escola encontrada - Campos disponíveis: " . implode(', ', array_keys($result)));
         }
         
         return $result;

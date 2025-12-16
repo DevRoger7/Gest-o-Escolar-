@@ -34,6 +34,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao'])) {
     try {
         // Cadastrar Motorista
         if ($acao === 'cadastrar_motorista') {
+            // Verificar se o usuário tem permissão para cadastrar motoristas
+            if (!$podeEditar) {
+                $resposta = ['status' => false, 'mensagem' => 'Você não tem permissão para cadastrar motoristas.'];
+                echo json_encode($resposta, JSON_UNESCAPED_UNICODE);
+                exit;
+            }
+            
             $cpf = preg_replace('/[^0-9]/', '', $_POST['cpf'] ?? '');
             $cnh = preg_replace('/[^0-9A-Z]/', '', strtoupper($_POST['cnh'] ?? ''));
             
@@ -343,71 +350,76 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao'])) {
 
     <!-- Modal Criar Motorista -->
     <div id="modalCriarMotorista" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50 flex items-center justify-center">
-        <div class="bg-white rounded-lg p-6 max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
-            <div class="flex items-center justify-between mb-4">
+        <div class="bg-white rounded-lg max-w-2xl w-full mx-4 max-h-[90vh] flex flex-col">
+            <!-- Header -->
+            <div class="flex items-center justify-between p-6 border-b border-gray-200 flex-shrink-0">
                 <h3 class="text-lg font-bold text-gray-900">Cadastrar Motorista</h3>
-                <button onclick="fecharModalCriarMotorista()" class="text-gray-400 hover:text-gray-600">
+                <button onclick="fecharModalCriarMotorista()" class="text-gray-400 hover:text-gray-600 transition-colors p-1 rounded-lg hover:bg-gray-100">
                     <i class="fas fa-times"></i>
                 </button>
             </div>
-            <form id="formCriarMotorista" onsubmit="criarMotorista(event)">
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Nome Completo *</label>
-                        <input type="text" name="nome" required class="w-full px-3 py-2 border border-gray-300 rounded-lg">
+            <!-- Content (scrollable) -->
+            <div class="flex-1 overflow-y-auto p-6">
+                <form id="formCriarMotorista" onsubmit="criarMotorista(event)" class="flex flex-col h-full">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 flex-1">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Nome Completo *</label>
+                            <input type="text" name="nome" required class="w-full px-3 py-2 border border-gray-300 rounded-lg">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">CPF *</label>
+                            <input type="text" name="cpf" id="cpf-criar-motorista" required class="w-full px-3 py-2 border border-gray-300 rounded-lg" placeholder="000.000.000-00" maxlength="14" oninput="formatarCPFMotorista(this)">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                            <input type="email" name="email" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Telefone</label>
+                            <input type="text" name="telefone" id="telefone-criar-motorista" class="w-full px-3 py-2 border border-gray-300 rounded-lg" placeholder="(85) 99999-9999" maxlength="15" oninput="formatarTelefoneMotorista(this)">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Data de Nascimento</label>
+                            <input type="date" name="data_nascimento" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">CNH *</label>
+                            <input type="text" name="cnh" id="cnh-criar-motorista" required class="w-full px-3 py-2 border border-gray-300 rounded-lg" placeholder="00000000000" maxlength="11" oninput="formatarCNH(this)">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Categoria CNH</label>
+                            <select name="categoria_cnh" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
+                                <option value="">Selecione</option>
+                                <option value="B">B</option>
+                                <option value="C">C</option>
+                                <option value="D">D</option>
+                                <option value="E">E</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Validade CNH</label>
+                            <input type="date" name="validade_cnh" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Data de Admissão</label>
+                            <input type="date" name="data_admissao" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
+                        </div>
+                        <div class="md:col-span-2">
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Observações</label>
+                            <textarea name="observacoes" rows="3" class="w-full px-3 py-2 border border-gray-300 rounded-lg"></textarea>
+                        </div>
                     </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">CPF *</label>
-                        <input type="text" name="cpf" required class="w-full px-3 py-2 border border-gray-300 rounded-lg" placeholder="000.000.000-00">
+                    <!-- Footer (fixed) -->
+                    <div class="mt-6 flex justify-end space-x-3 flex-shrink-0 border-t border-gray-200 pt-6">
+                        <button type="button" onclick="fecharModalCriarMotorista()" class="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors">
+                            Cancelar
+                        </button>
+                        <button type="submit" class="px-4 py-2 bg-primary-green text-white rounded-lg hover:bg-green-700 transition-colors font-medium shadow-sm" style="background-color: #2D5A27; z-index: 11; min-width: 100px; position: relative;">
+                            Cadastrar
+                        </button>
                     </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Email</label>
-                        <input type="email" name="email" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Telefone</label>
-                        <input type="text" name="telefone" class="w-full px-3 py-2 border border-gray-300 rounded-lg" placeholder="(85) 99999-9999">
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Data de Nascimento</label>
-                        <input type="date" name="data_nascimento" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">CNH *</label>
-                        <input type="text" name="cnh" required class="w-full px-3 py-2 border border-gray-300 rounded-lg">
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Categoria CNH</label>
-                        <select name="categoria_cnh" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
-                            <option value="">Selecione</option>
-                            <option value="B">B</option>
-                            <option value="C">C</option>
-                            <option value="D">D</option>
-                            <option value="E">E</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Validade CNH</label>
-                        <input type="date" name="validade_cnh" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Data de Admissão</label>
-                        <input type="date" name="data_admissao" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
-                    </div>
-                    <div class="md:col-span-2">
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Observações</label>
-                        <textarea name="observacoes" rows="3" class="w-full px-3 py-2 border border-gray-300 rounded-lg"></textarea>
-                    </div>
-                </div>
-                <div class="mt-6 flex justify-end space-x-3">
-                    <button type="button" onclick="fecharModalCriarMotorista()" class="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300">
-                        Cancelar
-                    </button>
-                    <button type="submit" class="px-4 py-2 bg-primary-green text-white rounded-lg hover:bg-green-700">
-                        Cadastrar
-                    </button>
-                </div>
-            </form>
+                </form>
+            </div>
         </div>
     </div>
 
@@ -485,6 +497,41 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao'])) {
     <script>
         const podeEditar = <?= $podeEditar ? 'true' : 'false' ?>;
         
+        // Funções de formatação para motorista
+        function formatarCPFMotorista(input) {
+            let valor = input.value.replace(/\D/g, '');
+            if (valor.length <= 11) {
+                valor = valor.replace(/(\d{3})(\d)/, '$1.$2');
+                valor = valor.replace(/(\d{3})(\d)/, '$1.$2');
+                valor = valor.replace(/(\d{3})(\d{1,2})$/, '$1-$2');
+                input.value = valor;
+            }
+        }
+        
+        function formatarTelefoneMotorista(input) {
+            let valor = input.value.replace(/\D/g, '');
+            if (valor.length <= 11) {
+                if (valor.length <= 10) {
+                    valor = valor.replace(/(\d{2})(\d)/, '($1) $2');
+                    valor = valor.replace(/(\d{4})(\d)/, '$1-$2');
+                } else {
+                    valor = valor.replace(/(\d{2})(\d)/, '($1) $2');
+                    valor = valor.replace(/(\d{5})(\d)/, '$1-$2');
+                }
+                input.value = valor;
+            }
+        }
+        
+        function formatarCNH(input) {
+            // CNH tem 11 dígitos, apenas números
+            let valor = input.value.replace(/\D/g, '');
+            if (valor.length <= 11) {
+                input.value = valor;
+            } else {
+                input.value = valor.substring(0, 11);
+            }
+        }
+        
         // Modais
         function abrirModalCriarMotorista() {
             document.getElementById('modalCriarMotorista').classList.remove('hidden');
@@ -540,6 +587,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao'])) {
         function criarMotorista(e) {
             e.preventDefault();
             const formData = new FormData(e.target);
+            
+            // Remover formatação do CPF, Telefone e CNH antes de enviar
+            const cpfInput = document.getElementById('cpf-criar-motorista');
+            const telefoneInput = document.getElementById('telefone-criar-motorista');
+            const cnhInput = document.getElementById('cnh-criar-motorista');
+            if (cpfInput) {
+                formData.set('cpf', cpfInput.value.replace(/\D/g, ''));
+            }
+            if (telefoneInput && telefoneInput.value) {
+                formData.set('telefone', telefoneInput.value.replace(/\D/g, ''));
+            }
+            if (cnhInput) {
+                // CNH: remover tudo que não for número ou letra, depois converter para maiúsculo
+                formData.set('cnh', cnhInput.value.replace(/[^0-9A-Za-z]/g, '').toUpperCase());
+            }
+            
             formData.append('acao', 'cadastrar_motorista');
             
             fetch('gestao_motoristas.php', {
