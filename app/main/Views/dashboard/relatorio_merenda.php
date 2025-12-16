@@ -20,6 +20,8 @@ if ($tipo !== 'adm_merenda') {
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title><?php echo getPageTitle('Relatório de Merenda'); ?></title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
     <link href="global-theme.css" rel="stylesheet">
     <script src="theme-manager.js"></script>
 
@@ -551,8 +553,12 @@ if ($tipo !== 'adm_merenda') {
             </div>
 
             <div class="mt-4 flex gap-2">
-                <!-- You can wire these to an export endpoint if needed -->
-                <button class="px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg">Exportar PDF</button>
+                <button onclick="exportDailyReportPDF()" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg flex items-center">
+                    <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                    </svg>
+                    Exportar PDF
+                </button>
                 <button class="px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg">Exportar CSV</button>
             </div>
         </div>
@@ -641,7 +647,12 @@ if ($tipo !== 'adm_merenda') {
             </div>
 
             <div class="mt-4 flex gap-2">
-                <button class="px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg">Exportar PDF</button>
+                <button onclick="exportMonthlyReportPDF()" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg flex items-center">
+                    <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                    </svg>
+                    Exportar PDF
+                </button>
                 <button class="px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg">Exportar CSV</button>
             </div>
         </div>
@@ -759,7 +770,12 @@ if ($tipo !== 'adm_merenda') {
             </div>
 
             <div class="mt-4 flex gap-2">
-                <button class="px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg">Exportar PDF</button>
+                <button onclick="exportWasteReportPDF()" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg flex items-center">
+                    <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                    </svg>
+                    Exportar PDF
+                </button>
                 <button class="px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg">Exportar CSV</button>
             </div>
         </div>
@@ -768,5 +784,447 @@ if ($tipo !== 'adm_merenda') {
     </main>
     
     <?php include(__DIR__ . '/components/logout_modal.php'); ?>
+    
+    <script>
+        function exportDailyReportPDF() {
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF('p', 'mm', 'a4');
+            const pageWidth = doc.internal.pageSize.getWidth();
+            const margin = 8; // Reduced margin from 10 to 8
+            let cursorY = 10;
+            
+            // Add title
+            doc.setFont('helvetica', 'bold');
+            doc.setFontSize(16);
+            doc.text('Relatório Diário de Merenda Escolar', pageWidth / 2, cursorY, { align: 'center' });
+            
+            // Add date and filters
+            cursorY += 10;
+            doc.setFontSize(10);
+            doc.setFont('helvetica', 'normal');
+            doc.text(`Gerado em: ${new Date().toLocaleString('pt-BR')}`, pageWidth - margin, cursorY, { align: 'right' });
+            
+            // Add filters info
+            const data = document.querySelector('input[name="date"]').value;
+            const escolaSelect = document.querySelector('select[name="escola_id"]');
+            const escolaNome = escolaSelect.options[escolaSelect.selectedIndex]?.text || 'Todas as escolas';
+            const turnoSelect = document.querySelector('select[name="turno"]');
+            const turno = turnoSelect.options[turnoSelect.selectedIndex]?.text || 'Todos os turnos';
+            
+            cursorY += 10;
+            doc.text(`Data: ${data}`, margin, cursorY);
+            doc.text(`Escola: ${escolaNome}`, pageWidth / 3, cursorY);
+            doc.text(`Turno: ${turno}`, (pageWidth / 3) * 2, cursorY);
+            
+            // Add table
+            cursorY += 15;
+            doc.setFont('helvetica', 'bold');
+            doc.setFontSize(10);
+            
+            // Table headers
+            const headers = ['Unidade Escolar', 'Data', 'Turno', 'Refeições', 'Desperdício (kg)', 'Observações'];
+            const colWidths = [60, 25, 25, 25, 25, pageWidth - 160 - margin * 2];
+            
+            // Draw table header
+            let x = margin;
+            headers.forEach((header, i) => {
+                doc.setFillColor(240, 240, 240);
+                doc.rect(x, cursorY, colWidths[i], 8, 'F');
+                doc.rect(x, cursorY, colWidths[i], 8);
+                doc.text(header, x + 2, cursorY + 6);
+                x += colWidths[i];
+            });
+            
+            cursorY += 8;
+            
+            // Get table data
+            const table = document.querySelector('#dailyReport table tbody');
+            const rows = table.querySelectorAll('tr');
+            let hasData = false;
+            
+            doc.setFont('helvetica', 'normal');
+            doc.setFontSize(9);
+            
+            rows.forEach(row => {
+                const cells = row.querySelectorAll('td');
+                if (cells.length === 0) return; // Skip header row
+                
+                // Check for page break
+                if (cursorY > 180) {
+                    doc.addPage();
+                    cursorY = 20;
+                    // Redraw headers on new page
+                    x = margin;
+                    headers.forEach((header, i) => {
+                        doc.setFont('helvetica', 'bold');
+                        doc.setFillColor(240, 240, 240);
+                        doc.rect(x, cursorY, colWidths[i], 8, 'F');
+                        doc.rect(x, cursorY, colWidths[i], 8);
+                        doc.text(header, x + 2, cursorY + 6);
+                        x += colWidths[i];
+                    });
+                    cursorY += 8;
+                    doc.setFont('helvetica', 'normal');
+                }
+                
+                x = margin;
+                cells.forEach((cell, i) => {
+                    const cellText = cell.textContent.trim();
+                    if (cellText) hasData = true;
+                    
+                    // Alternate row colors
+                    if (row.rowIndex % 2 === 0) {
+                        doc.setFillColor(250, 250, 250);
+                        doc.rect(x, cursorY, colWidths[i], 8, 'F');
+                    }
+                    
+                    doc.rect(x, cursorY, colWidths[i], 8);
+                    doc.text(cellText, x + 2, cursorY + 6, { maxWidth: colWidths[i] - 4 });
+                    x += colWidths[i];
+                });
+                
+                cursorY += 8;
+            });
+            
+            if (!hasData) {
+                doc.text('Nenhum registro encontrado para os filtros informados.', margin, cursorY + 10);
+            }
+            
+            // Add footer
+            doc.setFontSize(8);
+            doc.setFont('helvetica', 'italic');
+            doc.text('SIGAE - Sistema de Gestão Acadêmica Escolar', pageWidth / 2, 200, { align: 'center' });
+            
+            // Save the PDF
+            const filename = `relatorio_merenda_diaria_${data.replace(/\//g, '-')}.pdf`;
+            doc.save(filename);
+        }
+
+        function exportMonthlyReportPDF() {
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF('p', 'mm', 'a4');
+            const pageWidth = doc.internal.pageSize.getWidth();
+            const margin = 8; // Reduced margin from 10 to 8
+            let cursorY = 10;
+            
+            // Add title
+            doc.setFont('helvetica', 'bold');
+            doc.setFontSize(16);
+            doc.text('Relatório Mensal de Merenda Escolar', pageWidth / 2, cursorY, { align: 'center' });
+            
+            // Add date and filters
+            cursorY += 10;
+            doc.setFontSize(10);
+            doc.setFont('helvetica', 'normal');
+            doc.text(`Gerado em: ${new Date().toLocaleString('pt-BR')}`, pageWidth - margin, cursorY, { align: 'right' });
+            
+            // Add filters info
+            const month = document.querySelector('input[name="month"]').value;
+            const [year, monthNum] = month.split('-').map(Number);
+            const date = new Date(year, monthNum - 1, 1); // monthNum - 1 because months are 0-based in JS
+            const monthName = date.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
+            const escolaSelect = document.querySelector('#monthlyReport select[name="escola_id"]');
+            const escolaNome = escolaSelect?.options[escolaSelect.selectedIndex]?.text || 'Todas as escolas';
+            
+            const turnoSelect = document.querySelector('#monthlyReport select[name="turno"]');
+            const turno = turnoSelect?.options[turnoSelect.selectedIndex]?.text || 'Todos os turnos';
+            
+            cursorY += 10;
+            doc.text(`Mês: ${monthName}`, margin, cursorY);
+            doc.text(`Escola: ${escolaNome}`, pageWidth / 3, cursorY);
+            doc.text(`Turno: ${turno}`, (pageWidth / 3) * 2, cursorY);
+            
+            // Add table
+            cursorY += 15;
+            doc.setFont('helvetica', 'bold');
+            doc.setFontSize(10);
+            
+            // Table headers
+            const headers = ['Unidade Escolar', 'Mês', 'Turno', 'Dias', 'Refeições', 'Desperdício (kg)'];
+            const colWidths = [70, 25, 25, 15, 25, 25];
+            
+            // Draw table header
+            let x = margin;
+            headers.forEach((header, i) => {
+                doc.setFillColor(240, 240, 240);
+                doc.rect(x, cursorY, colWidths[i], 8, 'F');
+                doc.rect(x, cursorY, colWidths[i], 8);
+                doc.text(header, x + 2, cursorY + 6);
+                x += colWidths[i];
+            });
+            
+            cursorY += 8;
+            
+            // Get table data
+            const table = document.querySelector('#monthlyReport table tbody');
+            const rows = table.querySelectorAll('tr');
+            let hasData = false;
+            let totalWaste = 0;
+            let totalMeals = 0;
+            
+            doc.setFont('helvetica', 'normal');
+            doc.setFontSize(9);
+            
+            rows.forEach(row => {
+                const cells = row.querySelectorAll('td');
+                if (cells.length === 0) return; // Skip header row
+                
+                // Check for page break
+                if (cursorY > 180) {
+                    doc.addPage();
+                    cursorY = 20;
+                    // Redraw headers on new page
+                    x = margin;
+                    headers.forEach((header, i) => {
+                        doc.setFont('helvetica', 'bold');
+                        doc.setFillColor(240, 240, 240);
+                        doc.rect(x, cursorY, colWidths[i], 8, 'F');
+                        doc.rect(x, cursorY, colWidths[i], 8);
+                        doc.text(header, x + 2, cursorY + 6);
+                        x += colWidths[i];
+                    });
+                    cursorY += 8;
+                    doc.setFont('helvetica', 'normal');
+                }
+                
+                x = margin;
+                cells.forEach((cell, i) => {
+                    const cellText = cell.textContent.trim();
+                    if (cellText) hasData = true;
+                    
+                    // Sum up totals
+                    if (i === 4) totalMeals += parseInt(cellText) || 0;
+                    if (i === 5) totalWaste += parseFloat(cellText.replace('.', '').replace(',', '.')) || 0;
+                    
+                    // Alternate row colors
+                    if (row.rowIndex % 2 === 0) {
+                        doc.setFillColor(250, 250, 250);
+                        doc.rect(x, cursorY, colWidths[i], 8, 'F');
+                    }
+                    
+                    doc.rect(x, cursorY, colWidths[i], 8);
+                    doc.text(cellText, x + 2, cursorY + 6, { maxWidth: colWidths[i] - 4 });
+                    x += colWidths[i];
+                });
+                
+                cursorY += 8;
+            });
+            
+            // Add totals row
+            if (hasData) {
+                if (cursorY > 190) {
+                    doc.addPage();
+                    cursorY = 20;
+                } else {
+                    cursorY += 5;
+                }
+                
+                doc.setFont('helvetica', 'bold');
+                doc.setFillColor(240, 240, 240);
+                
+                // Calculate the width for the total row
+                const totalRowWidth = colWidths.reduce((a, b) => a + b, 0);
+                
+                doc.rect(margin, cursorY, totalRowWidth, 8, 'F');
+                doc.rect(margin, cursorY, totalRowWidth, 8);
+                
+                doc.text('TOTAIS:', margin + 2, cursorY + 6);
+                
+                // Position the total waste value in the Desperdício column
+                const wasteColX = margin + colWidths.slice(0, 5).reduce((a, b) => a + b, 0);
+                doc.text(totalWaste.toFixed(2).replace('.', ','), wasteColX + 2, cursorY + 6);
+            } else {
+                doc.text('Nenhum registro encontrado para os filtros informados.', margin, cursorY + 10);
+            }
+            
+            // Add footer
+            doc.setFontSize(8);
+            doc.setFont('helvetica', 'italic');
+            doc.text('SIGAE - Sistema de Gestão Acadêmica Escolar', pageWidth / 2, 200, { align: 'center' });
+            
+            // Save the PDF
+            const filename = `relatorio_mensal_merenda_${month.replace(/-/g, '')}.pdf`;
+            doc.save(filename);
+        }
+
+        function exportWasteReportPDF() {
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF('p', 'mm', 'a4');
+            const pageWidth = doc.internal.pageSize.getWidth();
+            const margin = 8; // Reduced margin from 10 to 8
+            let cursorY = 10;
+            
+            // Add title
+            doc.setFont('helvetica', 'bold');
+            doc.setFontSize(16);
+            doc.text('Relatório de Desperdício de Merenda Escolar', pageWidth / 2, cursorY, { align: 'center' });
+            
+            // Add date and filters
+            cursorY += 10;
+            doc.setFontSize(10);
+            doc.setFont('helvetica', 'normal');
+            doc.text(`Gerado em: ${new Date().toLocaleString('pt-BR')}`, pageWidth - margin, cursorY, { align: 'right' });
+            
+            // Add filters info
+            const startDate = document.querySelector('input[name="start_date"]').value;
+            const endDate = document.querySelector('input[name="end_date"]');
+            const endDateValue = endDate ? endDate.value : startDate; // If end date is not available, use start date
+            
+            const escolaSelect = document.querySelector('#wasteReport select[name="escola_id"]');
+            const escolaNome = escolaSelect?.options[escolaSelect.selectedIndex]?.text || 'Todas as escolas';
+            
+            const turnoSelect = document.querySelector('#wasteReport select[name="turno"]');
+            const turno = turnoSelect?.options[turnoSelect.selectedIndex]?.text || 'Todos os turnos';
+            
+            const motivoSelect = document.querySelector('#wasteReport select[name="motivo"]');
+            const motivo = motivoSelect?.options[motivoSelect.selectedIndex]?.text || 'Todos os motivos';
+            
+            cursorY += 10;
+            doc.text(`Período: ${formatDate(startDate)} a ${formatDate(endDateValue)}`, margin, cursorY);
+            doc.text(`Escola: ${escolaNome}`, pageWidth / 3, cursorY);
+            doc.text(`Turno: ${turno}`, (pageWidth / 3) * 2, cursorY);
+            
+            cursorY += 5;
+            doc.text(`Motivo: ${motivo}`, margin, cursorY);
+            
+            // Add table
+            cursorY += 10;
+            doc.setFont('helvetica', 'bold');
+            doc.setFontSize(10);
+            
+            // Table headers (excluding Observações to save space)
+            const headers = ['Unidade Escolar', 'Data', 'Turno', 'Produto', 'Quantidade', 'Unidade', 'Peso (kg)', 'Motivo'];
+            const colWidths = [40, 18, 18, 35, 18, 15, 18, 40]; // Adjusted widths to better fit content
+            
+            // Draw table header
+            let x = margin;
+            headers.forEach((header, i) => {
+                doc.setFillColor(240, 240, 240);
+                doc.rect(x, cursorY, colWidths[i], 8, 'F');
+                doc.rect(x, cursorY, colWidths[i], 8);
+                doc.text(header, x + 2, cursorY + 6);
+                x += colWidths[i];
+            });
+            
+            cursorY += 8;
+            
+            // Get table data
+            const table = document.querySelector('#wasteReport table tbody');
+            const rows = table.querySelectorAll('tr');
+            let hasData = false;
+            let totalWaste = 0;
+            
+            doc.setFont('helvetica', 'normal');
+            doc.setFontSize(8); // Smaller font size to fit more data
+            
+            rows.forEach(row => {
+                const cells = row.querySelectorAll('td');
+                if (cells.length === 0) return; // Skip header row
+                
+                // Check for page break
+                if (cursorY > 180) {
+                    doc.addPage();
+                    cursorY = 20;
+                    // Redraw headers on new page
+                    x = margin;
+                    headers.forEach((header, i) => {
+                        doc.setFont('helvetica', 'bold');
+                        doc.setFillColor(240, 240, 240);
+                        doc.rect(x, cursorY, colWidths[i], 8, 'F');
+                        doc.rect(x, cursorY, colWidths[i], 8);
+                        doc.text(header, x + 2, cursorY + 6);
+                        x += colWidths[i];
+                    });
+                    cursorY += 8;
+                    doc.setFont('helvetica', 'normal');
+                }
+                
+                x = margin;
+                cells.forEach((cell, i) => {
+                    // Skip the last column (Observações) to save space
+                    if (i >= headers.length) return;
+                    
+                    let cellText = cell.textContent.trim();
+                    if (cellText) hasData = true;
+                    
+                    // Sum up waste total (6th column, 0-based index 6)
+                    if (i === 6) {
+                        // Convert Brazilian number format (1.234,56) to float
+                        const weight = parseFloat(cellText.replace('.', '').replace(',', '.')) || 0;
+                        totalWaste += weight;
+                    }
+                    
+                    // Alternate row colors
+                    if (row.rowIndex % 2 === 0) {
+                        doc.setFillColor(250, 250, 250);
+                        doc.rect(x, cursorY, colWidths[i], 8, 'F');
+                    }
+                    
+                    doc.rect(x, cursorY, colWidths[i], 8);
+                    
+                    // Handle text overflow with ellipsis
+                    const maxWidth = colWidths[i] - 4;
+                    const textWidth = doc.getTextWidth(cellText);
+                    
+                    if (textWidth > maxWidth) {
+                        // If text is too long, truncate and add ellipsis
+                        while (doc.getTextWidth(cellText + '...') > maxWidth && cellText.length > 0) {
+                            cellText = cellText.substring(0, cellText.length - 1);
+                        }
+                        cellText = cellText + '...';
+                    }
+                    
+                    doc.text(cellText, x + 2, cursorY + 6, { maxWidth: maxWidth });
+                    x += colWidths[i];
+                });
+                
+                cursorY += 8;
+            });
+            
+            // Add totals row
+            if (hasData) {
+                if (cursorY > 190) {
+                    doc.addPage();
+                    cursorY = 20;
+                } else {
+                    cursorY += 5;
+                }
+                
+                doc.setFont('helvetica', 'bold');
+                doc.setFillColor(240, 240, 240);
+                
+                // Calculate the width for the total row
+                const totalRowWidth = colWidths.reduce((a, b) => a + b, 0);
+                
+                doc.rect(margin, cursorY, totalRowWidth, 8, 'F');
+                doc.rect(margin, cursorY, totalRowWidth, 8);
+                
+                doc.text('TOTAL (kg):', margin + 2, cursorY + 6);
+                
+                // Position the total waste value in the Peso (kg) column
+                const wasteColX = margin + colWidths.slice(0, 6).reduce((a, b) => a + b, 0);
+                doc.text(totalWaste.toFixed(2).replace('.', ','), wasteColX + 2, cursorY + 6);
+            } else {
+                doc.text('Nenhum registro encontrado para os filtros informados.', margin, cursorY + 10);
+            }
+            
+            // Add footer
+            doc.setFontSize(8);
+            doc.setFont('helvetica', 'italic');
+            doc.text('SIGAE - Sistema de Gestão Acadêmica Escolar', pageWidth / 2, 200, { align: 'center' });
+            
+            // Save the PDF
+            const dateRange = `${startDate}_to_${endDateValue}`.replace(/-/g, '');
+            const filename = `relatorio_desperdicio_${dateRange}.pdf`;
+            doc.save(filename);
+        }
+        
+        // Helper function to format date from YYYY-MM-DD to DD/MM/YYYY
+        function formatDate(dateString) {
+            if (!dateString) return '';
+            const [year, month, day] = dateString.split('-');
+            return `${day}/${month}/${year}`;
+        }
+    </script>
 </body>
 </html>

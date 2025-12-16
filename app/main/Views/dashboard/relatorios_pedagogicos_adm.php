@@ -37,6 +37,8 @@ $mediaGeral = $stats->getMediaGeral();
     <title>Relatórios Pedagógicos - SIGEA</title>
     <link rel="icon" href="https://upload.wikimedia.org/wikipedia/commons/thumb/1/19/Bras%C3%A3o_de_Maranguape.png/250px-Bras%C3%A3o_de_Maranguape.png" type="image/png">
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
     <link rel="stylesheet" href="global-theme.css">
     <style>
         .sidebar-transition { transition: all 0.3s ease-in-out; }
@@ -258,6 +260,156 @@ $mediaGeral = $stats->getMediaGeral();
             mediaGeral: <?= json_encode((float)$mediaGeral) ?>
         };
 
+        // PDF Export Function
+        function exportarRelatorioPDF() {
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF('p', 'mm', 'a4');
+            const pageWidth = doc.internal.pageSize.getWidth();
+            const margin = 15;
+            let cursorY = 10;
+            
+            // Add logo and header
+            doc.setFont('helvetica', 'bold');
+            doc.setFontSize(16);
+            doc.text('Relatório Pedagógico', pageWidth / 2, cursorY, { align: 'center' });
+            
+            // Add date and filters
+            cursorY += 10;
+            doc.setFontSize(10);
+            doc.setFont('helvetica', 'normal');
+            doc.text(`Gerado em: ${new Date().toLocaleString('pt-BR')}`, pageWidth - margin, cursorY, { align: 'right' });
+            
+            // Add school and year info
+            const escolaSelect = document.getElementById('filtro-escola');
+            const escolaNome = escolaSelect.options[escolaSelect.selectedIndex]?.text || 'Todas as escolas';
+            const ano = document.getElementById('filtro-ano').value;
+            
+            cursorY += 10;
+            doc.text(`Ano Letivo: ${ano}`, margin, cursorY);
+            doc.text(`Escola: ${escolaNome}`, pageWidth / 2, cursorY);
+            
+            // Add stats section
+            cursorY += 15;
+            doc.setFont('helvetica', 'bold');
+            doc.setFontSize(12);
+            doc.text('Indicadores Gerais', margin, cursorY);
+            
+            // Add stats table
+            cursorY += 8;
+            const stats = [
+                { label: 'Alunos', value: baseStats.totalAlunos },
+                { label: 'Professores', value: baseStats.totalProfessores },
+                { label: 'Turmas', value: baseStats.totalTurmas },
+                { label: 'Média Geral', value: Number(baseStats.mediaGeral).toFixed(1) }
+            ];
+            
+            const colWidth = (pageWidth - 2 * margin) / 4;
+            let x = margin;
+            const statBoxHeight = 25;
+            
+            // Draw stats boxes
+            stats.forEach(stat => {
+                // Box background and border
+                doc.setFillColor(240, 240, 240);
+                doc.rect(x, cursorY, colWidth - 5, statBoxHeight, 'F');
+                doc.rect(x, cursorY, colWidth - 5, statBoxHeight);
+                
+                // Label
+                doc.setFontSize(10);
+                doc.setFont('helvetica', 'normal');
+                doc.text(stat.label, x + 5, cursorY + 8);
+                
+                // Value
+                doc.setFontSize(14);
+                doc.setFont('helvetica', 'bold');
+                doc.text(stat.value.toString(), x + 5, cursorY + 18);
+                
+                x += colWidth;
+            });
+            
+            cursorY += statBoxHeight + 15;
+            
+            // Add detailed table
+            doc.setFont('helvetica', 'bold');
+            doc.setFontSize(12);
+            doc.text('Detalhamento dos Indicadores', margin, cursorY);
+            cursorY += 10;
+            
+            // Table headers
+            doc.setFont('helvetica', 'bold');
+            doc.setFontSize(10);
+            doc.text('Indicador', margin, cursorY);
+            doc.text('Valor', margin + 70, cursorY);
+            doc.text('Observação', margin + 120, cursorY);
+            cursorY += 5;
+            
+            // Draw line under header
+            doc.setDrawColor(200, 200, 200);
+            doc.line(margin, cursorY, pageWidth - margin, cursorY);
+            cursorY += 5;
+            
+            // Table data
+            const tableData = [
+                { 
+                    label: 'Total de Alunos', 
+                    value: baseStats.totalAlunos, 
+                    note: 'Contagem geral de matrículas' 
+                },
+                { 
+                    label: 'Total de Professores', 
+                    value: baseStats.totalProfessores, 
+                    note: 'Docentes ativos' 
+                },
+                { 
+                    label: 'Total de Turmas', 
+                    value: baseStats.totalTurmas, 
+                    note: 'Turmas em funcionamento' 
+                },
+                { 
+                    label: 'Média Geral', 
+                    value: Number(baseStats.mediaGeral).toFixed(1), 
+                    note: 'Média das notas no sistema' 
+                }
+            ];
+            
+            // Draw table rows
+            doc.setFont('helvetica', 'normal');
+            doc.setFontSize(10);
+            tableData.forEach((row, index) => {
+                // Check for page break
+                if (cursorY > 250) {
+                    doc.addPage();
+                    cursorY = 20;
+                }
+                
+                // Alternating row colors
+                if (index % 2 === 0) {
+                    doc.setFillColor(250, 250, 250);
+                    doc.rect(margin, cursorY - 2, pageWidth - 2 * margin, 10, 'F');
+                }
+                
+                // Row content
+                doc.text(row.label, margin, cursorY + 5);
+                doc.text(row.value.toString(), margin + 70, cursorY + 5);
+                doc.text(row.note, margin + 120, cursorY + 5, { maxWidth: 80 });
+                
+                cursorY += 8;
+                
+                // Draw line between rows
+                doc.setDrawColor(240, 240, 240);
+                doc.line(margin, cursorY, pageWidth - margin, cursorY);
+                cursorY += 2;
+            });
+            
+            // Add footer
+            doc.setFontSize(9);
+            doc.setFont('helvetica', 'italic');
+            doc.text('SIGAE - Sistema de Gestão Acadêmica Escolar', pageWidth / 2, 285, { align: 'center' });
+            
+            // Save the PDF
+            doc.save(`relatorio_pedagogico_${escolaNome.replace(/\s+/g, '_').toLowerCase()}_${ano}.pdf`);
+        }
+
         // Enhance the report rendering on click
         function gerarRelatorio() {
             const escolaSelect = document.getElementById('filtro-escola');
@@ -274,8 +426,11 @@ $mediaGeral = $stats->getMediaGeral();
                                 Ano letivo: <strong>${ano}</strong> • Escola: <strong>${escolaNome}</strong>
                             </p>
                         </div>
-                        <button onclick="window.print()" class="px-3 py-2 bg-gray-800 text-white rounded-lg hover:bg-gray-900">
-                            Exportar (Imprimir/PDF)
+                        <button onclick="exportarRelatorioPDF()" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center">
+                            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                            </svg>
+                            Exportar PDF
                         </button>
                     </div>
 

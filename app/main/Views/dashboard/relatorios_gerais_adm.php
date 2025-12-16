@@ -188,50 +188,64 @@ $conn = $db->getConnection();
                 return;
             }
 
-            const graficoContainer = document.getElementById('grafico-container');
-            const ctx = document.getElementById('grafico-movimentacao-canvas').getContext('2d');
+            const tabelaContainer = document.getElementById('tabela-container');
+            const tabelaBody = document.getElementById('tabela-movimentacao-body');
 
-            // Show the chart container
-            graficoContainer.classList.remove('hidden');
-            graficoContainer.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            // Show the table container
+            tabelaContainer.classList.remove('hidden');
+            tabelaContainer.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 
-            // Optional: If a chart already exists, destroy it before creating a new one
-            if (window.graficoMovimentacao) {
-                window.graficoMovimentacao.destroy();
-            }
+            // Sample data - replace with actual data from your backend
+            const movimentos = [
+                { data: '2023-01-15', descricao: 'Mensalidade', tipo: 'ENTRADA', valor: 1200.00 },
+                { data: '2023-01-20', descricao: 'Material Didático', tipo: 'SAIDA', valor: 450.00 },
+                { data: '2023-01-25', descricao: 'Mensalidade', tipo: 'ENTRADA', valor: 980.00 },
+                { data: '2023-01-28', descricao: 'Manutenção', tipo: 'SAIDA', valor: 320.00 }
+            ];
 
-            // Simple sample dataset (replace with real data from your backend when available)
-            const labels = ['Entradas', 'Saídas'];
-            const values = tipo === 'ENTRADA' ? [12, 0] : (tipo === 'SAIDA' ? [0, 9] : [12, 9]);
+            // Filter by type if needed
+            const movimentosFiltrados = tipo === 'TODOS' 
+                ? movimentos 
+                : movimentos.filter(m => m.tipo === tipo);
 
-            window.graficoMovimentacao = new Chart(ctx, {
-                type: 'bar',
-                data: {
-                    labels,
-                    datasets: [{
-                        label: `Movimentação (${dataInicio} a ${dataFim})`,
-                        data: values,
-                        backgroundColor: ['#2563eb', '#dc2626'], // blue, red
-                        borderRadius: 6
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    plugins: {
-                        legend: { display: true },
-                        tooltip: { enabled: true }
-                    },
-                    scales: {
-                        y: {
-                            beginAtZero: true,
-                            ticks: { precision: 0 }
-                        }
-                    }
-                }
+            // Clear previous table data
+            tabelaBody.innerHTML = '';
+
+            // Populate table with data
+            movimentosFiltrados.forEach(movimento => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td class="py-4 px-6">${movimento.data}</td>
+                    <td class="py-4 px-6">${movimento.descricao}</td>
+                    <td class="py-4 px-6">${movimento.tipo}</td>
+                    <td class="py-4 px-6">R$ ${movimento.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                `;
+                tabelaBody.appendChild(row);
             });
         }
 
-        // REPLACED: client-side PDF generation using jsPDF + canvas image
+        function gerarTabelaMovimentacao() {
+            const dataInicio = document.getElementById('data-inicio-financeira').value;
+            const dataFim = document.getElementById('data-fim-financeira').value;
+            const tipo = document.getElementById('tipo-movimentacao').value;
+            
+            // Sample data - replace with actual data from your backend
+            const movimentos = [
+                { data: '2023-01-15', descricao: 'Mensalidade', tipo: 'ENTRADA', valor: 1200.00 },
+                { data: '2023-01-20', descricao: 'Material Didático', tipo: 'SAIDA', valor: 450.00 },
+                { data: '2023-01-25', descricao: 'Mensalidade', tipo: 'ENTRADA', valor: 980.00 },
+                { data: '2023-01-28', descricao: 'Manutenção', tipo: 'SAIDA', valor: 320.00 }
+            ];
+            
+            // Filter by type if needed
+            const movimentosFiltrados = tipo === 'TODOS' 
+                ? movimentos 
+                : movimentos.filter(m => m.tipo === tipo);
+                
+            return { movimentos: movimentosFiltrados, totalEntradas: 2180.00, totalSaidas: 770.00 };
+        }
+
+        // Geração de relatório em PDF com tabela
         function gerarPdfMovimentacao() {
             const dataInicio = document.getElementById('data-inicio-financeira').value;
             const dataFim = document.getElementById('data-fim-financeira').value;
@@ -242,103 +256,553 @@ $conn = $db->getConnection();
                 return;
             }
 
-            // Ensure a chart exists for the current filters; if not, create it
-            if (!window.graficoMovimentacao) {
-                gerarGraficoMovimentacao();
-            }
-
-            // Slight delay to ensure Chart.js finished rendering before capturing
-            setTimeout(() => {
-                try {
-                    const canvas = document.getElementById('grafico-movimentacao-canvas');
-                    if (!canvas) {
-                        alert('Não foi possível encontrar o gráfico para gerar o PDF.');
-                        return;
-                    }
-
-                    // Get PDF instance
-                    const { jsPDF } = window.jspdf || {};
-                    if (!jsPDF) {
-                        alert('Biblioteca jsPDF não carregada. Verifique a conexão com a CDN.');
-                        return;
-                    }
-                    const pdf = new jsPDF({ unit: 'pt', format: 'a4' });
-
-                    const pageWidth = pdf.internal.pageSize.getWidth();
-                    const pageHeight = pdf.internal.pageSize.getHeight();
-                    const margin = 40;
-                    let cursorY = margin + 20;
-
-                    // Title
-                    pdf.setFont('helvetica', 'bold');
-                    pdf.setFontSize(16);
-                    pdf.text('Relatório de Movimentação Financeira', margin, cursorY);
-
-                    // Filters info
-                    pdf.setFont('helvetica', 'normal');
-                    pdf.setFontSize(12);
-                    cursorY += 18;
-                    pdf.text(`Período: ${dataInicio} a ${dataFim}`, margin, cursorY);
-                    cursorY += 16;
-                    pdf.text(`Tipo de Movimentação: ${tipo || 'Todos'}`, margin, cursorY);
-
-                    // Chart image (from canvas)
-                    const contentWidth = pageWidth - margin * 2;
-                    const imgData = canvas.toDataURL('image/png', 1.0);
-                    const canvasRatio = canvas.height / canvas.width;
-                    const chartHeightPt = contentWidth * canvasRatio;
-
-                    cursorY += 24;
-                    pdf.addImage(imgData, 'PNG', margin, cursorY, contentWidth, chartHeightPt);
-                    cursorY += chartHeightPt + 24;
-
-                    // Summary values (from Chart dataset)
-                    const dataset = window.graficoMovimentacao?.data?.datasets?.[0];
-                    const labels = window.graficoMovimentacao?.data?.labels || ['Entradas', 'Saídas'];
-                    const values = dataset?.data || [0, 0];
-
-                    pdf.setFont('helvetica', 'bold');
-                    pdf.setFontSize(13);
-                    pdf.text('Resumo', margin, cursorY);
-                    cursorY += 16;
-
-                    pdf.setFont('helvetica', 'normal');
-                    pdf.setFontSize(12);
-
-                    // Entradas line
-                    pdf.setTextColor(37, 99, 235); // blue for Entradas
-                    pdf.text(`${labels[0]}: ${values[0]}`, margin, cursorY);
-                    cursorY += 16;
-
-                    // Saídas line
-                    pdf.setTextColor(220, 38, 38); // red for Saídas
-                    pdf.text(`${labels[1]}: ${values[1]}`, margin, cursorY);
-
-                    // Reset text color
-                    pdf.setTextColor(0, 0, 0);
-
-                    // Footer
-                    const now = new Date();
-                    const footerText = `Gerado em: ${now.toLocaleDateString()} ${now.toLocaleTimeString()}`;
-                    pdf.setFontSize(10);
-                    pdf.text(footerText, margin, pageHeight - margin);
-
-                    // Save PDF file
-                    const fileName = `relatorio_movimentacao_${dataInicio}_${dataFim}.pdf`;
-                    pdf.save(fileName);
-                } catch (err) {
-                    console.error(err);
-                    alert('Erro ao gerar PDF. Verifique o console para mais detalhes.');
+            try {
+                // Obter dados da movimentação
+                const { movimentos, totalEntradas, totalSaidas } = gerarTabelaMovimentacao();
+                
+                // Configuração do PDF
+                const { jsPDF } = window.jspdf || {};
+                if (!jsPDF) {
+                    alert('Biblioteca jsPDF não carregada. Verifique a conexão com a CDN.');
+                    return;
                 }
-            }, 150);
+                
+                const pdf = new jsPDF({ unit: 'pt', format: 'a4' });
+                const pageWidth = pdf.internal.pageSize.getWidth();
+                const margin = 40;
+                let cursorY = margin + 20;
+
+                // Cabeçalho
+                pdf.setFont('helvetica', 'bold');
+                pdf.setFontSize(16);
+                pdf.text('Relatório de Movimentação Financeira', margin, cursorY);
+
+                // Informações do filtro
+                pdf.setFont('helvetica', 'normal');
+                pdf.setFontSize(12);
+                cursorY += 24;
+                pdf.text(`Período: ${dataInicio} a ${dataFim}`, margin, cursorY);
+                cursorY += 18;
+                pdf.text(`Tipo de Movimentação: ${tipo === 'TODOS' ? 'Todos' : tipo}`, margin, cursorY);
+                cursorY += 24;
+
+                // Tabela de movimentações
+                const headers = ['Data', 'Descrição', 'Tipo', 'Valor (R$)'];
+                const colWidths = [80, 200, 80, 100];
+                const rowHeight = 20;
+                
+                // Cabeçalho da tabela
+                pdf.setFillColor(240, 240, 240);
+                pdf.rect(margin, cursorY, pageWidth - 2 * margin, rowHeight, 'F');
+                
+                pdf.setFont('helvetica', 'bold');
+                pdf.setFontSize(12);
+                headers.forEach((header, i) => {
+                    pdf.text(header, margin + (i > 0 ? colWidths.slice(0, i).reduce((a, b) => a + b, 0) : 0), cursorY + 14);
+                });
+                
+                cursorY += rowHeight;
+                
+                // Linhas da tabela
+                pdf.setFont('helvetica', 'normal');
+                pdf.setFontSize(10);
+                
+                movimentos.forEach((mov, idx) => {
+                    if (cursorY > pdf.internal.pageSize.getHeight() - 60) {
+                        pdf.addPage();
+                        cursorY = margin;
+                    }
+                    
+                    const row = [
+                        mov.data,
+                        mov.descricao,
+                        mov.tipo,
+                        mov.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+                    ];
+                    
+                    // Alternar cores das linhas
+                    if (idx % 2 === 0) {
+                        pdf.setFillColor(250, 250, 250);
+                        pdf.rect(margin, cursorY, pageWidth - 2 * margin, rowHeight, 'F');
+                    }
+                    
+                    // Desenhar bordas da célula
+                    pdf.rect(margin, cursorY, pageWidth - 2 * margin, rowHeight);
+                    
+                    // Adicionar texto das células
+                    row.forEach((cell, i) => {
+                        const x = margin + 5 + (i > 0 ? colWidths.slice(0, i).reduce((a, b) => a + b, 0) : 0);
+                        const y = cursorY + 14;
+                        
+                        // Definir cor com base no tipo de movimentação
+                        if (i === 2) { // Coluna de Tipo
+                            pdf.setTextColor(mov.tipo === 'ENTRADA' ? 37 : 220, 99, mov.tipo === 'ENTRADA' ? 235 : 38);
+                        } else if (i === 3) { // Coluna de Valor
+                            pdf.setTextColor(mov.tipo === 'ENTRADA' ? 37 : 220, 99, mov.tipo === 'ENTRADA' ? 235 : 38);
+                        } else {
+                            pdf.setTextColor(0, 0, 0);
+                        }
+                        
+                        pdf.text(cell, x, y);
+                    });
+                    
+                    cursorY += rowHeight;
+                });
+                
+                // Resetar cor do texto
+                pdf.setTextColor(0, 0, 0);
+                
+                // Totais
+                cursorY += 10;
+                pdf.setFont('helvetica', 'bold');
+                pdf.text('Totais:', margin, cursorY);
+                
+                cursorY += 20;
+                pdf.setFillColor(245, 245, 245);
+                pdf.rect(margin, cursorY, pageWidth - 2 * margin, rowHeight, 'F');
+                pdf.rect(margin, cursorY, pageWidth - 2 * margin, rowHeight);
+                
+                pdf.setFillColor(230, 255, 230);
+                pdf.rect(margin, cursorY, pageWidth - 2 * margin - 100, rowHeight, 'F');
+                pdf.text('Total de Entradas:', margin + 5, cursorY + 14);
+                pdf.text(`R$ ${totalEntradas.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, 
+                        pageWidth - margin - 95, cursorY + 14);
+                
+                cursorY += rowHeight;
+                pdf.setFillColor(255, 230, 230);
+                pdf.rect(margin, cursorY, pageWidth - 2 * margin, rowHeight, 'F');
+                pdf.rect(margin, cursorY, pageWidth - 2 * margin, rowHeight);
+                pdf.text('Total de Saídas:', margin + 5, cursorY + 14);
+                pdf.text(`R$ ${totalSaidas.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, 
+                        pageWidth - margin - 95, cursorY + 14);
+                
+                cursorY += rowHeight;
+                pdf.setFillColor(240, 240, 255);
+                pdf.rect(margin, cursorY, pageWidth - 2 * margin, rowHeight, 'F');
+                pdf.rect(margin, cursorY, pageWidth - 2 * margin, rowHeight);
+                pdf.text('Saldo Final:', margin + 5, cursorY + 14);
+                const saldo = totalEntradas - totalSaidas;
+                pdf.setTextColor(saldo >= 0 ? 37 : 220, 99, saldo >= 0 ? 235 : 38);
+                pdf.text(`R$ ${Math.abs(saldo).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${saldo >= 0 ? '' : '-'}`, 
+                        pageWidth - margin - 95, cursorY + 14);
+                
+                // Rodapé
+                pdf.setTextColor(0, 0, 0);
+                pdf.setFont('helvetica', 'normal');
+                pdf.setFontSize(10);
+                const now = new Date();
+                const footerText = `Gerado em: ${now.toLocaleDateString()} ${now.toLocaleTimeString()}`;
+                pdf.text(footerText, margin, pdf.internal.pageSize.getHeight() - margin);
+
+                // Salvar PDF
+                const fileName = `relatorio_movimentacao_${dataInicio}_${dataFim}.pdf`;
+                pdf.save(fileName);
+                
+            } catch (err) {
+                console.error(err);
+                alert('Erro ao gerar PDF. Verifique o console para mais detalhes.');
+            }
         }
 
         function gerarRelatorioAlunos() {
-            window.open('gerar_relatorio.php?tipo=alunos', '_blank');
+            // Show loading indicator
+            const loadingElement = document.createElement('div');
+            loadingElement.innerHTML = `
+                <div style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); display: flex; justify-content: center; align-items: center; z-index: 9999;">
+                    <div class="bg-white p-6 rounded-lg shadow-lg">
+                        <div class="flex items-center space-x-2">
+                            <div class="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500"></div>
+                            <span class="text-gray-700">Gerando relatório de alunos...</span>
+                        </div>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(loadingElement);
+            
+            // Fetch student data
+            fetch('gerar_relatorio.php?tipo=alunos')
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Erro ao carregar dados dos alunos');
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    if (!data.success) {
+                        throw new Error(data.error || 'Erro desconhecido ao processar os dados');
+                    }
+                    
+                    // Generate PDF with the data
+                    gerarPdfAlunos(data.data);
+                })
+                .catch(error => {
+                    console.error('Erro:', error);
+                    alert('Erro ao gerar relatório: ' + error.message);
+                })
+                .finally(() => {
+                    // Remove loading indicator
+                    document.body.removeChild(loadingElement);
+                });
+        }
+        
+        function formatarCPF(cpf) {
+            if (!cpf) return '';
+            cpf = cpf.replace(/\D/g, '');
+            return cpf.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4');
+        }
+        
+        function formatarTelefone(telefone) {
+            if (!telefone) return '';
+            telefone = telefone.replace(/\D/g, '');
+            if (telefone.length === 11) {
+                return telefone.replace(/(\d{2})(\d{5})(\d{4})/, '($1) $2-$3');
+            } else if (telefone.length === 10) {
+                return telefone.replace(/(\d{2})(\d{4})(\d{4})/, '($1) $2-$3');
+            }
+            return telefone;
+        }
+        
+        function formatarData(data) {
+            if (!data) return '';
+            const date = new Date(data);
+            return date.toLocaleDateString('pt-BR');
+        }
+        
+        function gerarPdfAlunos(alunos) {
+            const { jsPDF } = window.jspdf || {};
+            if (!jsPDF) {
+                alert('Biblioteca jsPDF não carregada. Verifique a conexão com a CDN.');
+                return;
+            }
+            
+            const pdf = new jsPDF({
+                orientation: 'portrait',
+                unit: 'mm',
+                format: 'a4'
+            });
+            
+            const pageWidth = pdf.internal.pageSize.getWidth();
+            const margin = 15;
+            let cursorY = margin + 10;
+            
+            // Configurações iniciais
+            pdf.setFont('helvetica');
+            
+            // Título do relatório
+            pdf.setFontSize(16);
+            pdf.setFont('helvetica', 'bold');
+            pdf.text('Relatório de Alunos', pageWidth / 2, cursorY, { align: 'center' });
+            
+            // Data de geração
+            cursorY += 10;
+            pdf.setFontSize(10);
+            pdf.setFont('helvetica', 'normal');
+            pdf.text(`Gerado em: ${new Date().toLocaleString('pt-BR')}`, pageWidth - margin, cursorY, { align: 'right' });
+            
+            // Total de alunos
+            cursorY += 8;
+            pdf.setFont('helvetica', 'bold');
+            pdf.text(`Total de Alunos: ${alunos.length}`, margin, cursorY);
+            
+            // Cabeçalho da tabela
+            cursorY += 10;
+            const headers = ['ID', 'Nome', 'CPF', 'Matrícula'];
+            const colWidths = [15, 70, 50, 70]; // Nome 70mm, Matrícula 70mm
+            const headerHeight = 10;
+            
+            // Desenhar cabeçalho
+            pdf.setFillColor(240, 240, 240);
+            pdf.rect(margin, cursorY, pageWidth - 2 * margin, headerHeight, 'F');
+            pdf.setDrawColor(200, 200, 200);
+            pdf.rect(margin, cursorY, pageWidth - 2 * margin, headerHeight);
+            
+            let x = margin;
+            headers.forEach((header, i) => {
+                pdf.setFont('helvetica', 'bold');
+                pdf.setFontSize(9);
+                pdf.text(header, x + 2, cursorY + 7);
+                
+                // Desenhar linhas verticais
+                if (i > 0) {
+                    pdf.line(x, cursorY, x, cursorY + headerHeight);
+                }
+                
+                x += colWidths[i];
+            });
+            
+            cursorY += headerHeight;
+            
+            // Dados dos alunos
+            pdf.setFont('helvetica', 'normal');
+            pdf.setFontSize(9);
+            
+            alunos.forEach((aluno, index) => {
+                // Verificar se precisa de uma nova página
+                if (cursorY > pdf.internal.pageSize.getHeight() - 20) {
+                    pdf.addPage();
+                    cursorY = margin;
+                    
+                    // Desenhar cabeçalho novamente em novas páginas
+                    pdf.setFillColor(240, 240, 240);
+                    pdf.rect(margin, cursorY, pageWidth - 2 * margin, headerHeight, 'F');
+                    pdf.setDrawColor(200, 200, 200);
+                    pdf.rect(margin, cursorY, pageWidth - 2 * margin, headerHeight);
+                    
+                    let x = margin;
+                    headers.forEach((header, i) => {
+                        pdf.setFont('helvetica', 'bold');
+                        pdf.text(header, x + 2, cursorY + 7);
+                        if (i > 0) {
+                            pdf.line(x, cursorY, x, cursorY + headerHeight);
+                        }
+                        x += colWidths[i];
+                    });
+                    
+                    cursorY += headerHeight;
+                    pdf.setFont('helvetica', 'normal');
+                }
+                
+                // Linha com fundo alternado
+                if (index % 2 === 0) {
+                    pdf.setFillColor(250, 250, 250);
+                    pdf.rect(margin, cursorY, pageWidth - 2 * margin, 8, 'F');
+                }
+                
+                // Bordas da linha
+                pdf.setDrawColor(220, 220, 220);
+                pdf.rect(margin, cursorY, pageWidth - 2 * margin, 8);
+                
+                // Conteúdo das células (apenas ID, Nome, CPF e Matrícula)
+                const rowData = [
+                    String(aluno.id || ''),
+                    String(aluno.nome || ''),
+                    formatarCPF(aluno.cpf || ''),
+                    String(aluno.matricula || '')
+                ];
+                
+                // Posicionar texto nas células
+                let xPos = margin;
+                rowData.forEach((cell, i) => {
+                    // Ajuste do alinhamento: ID centralizado, Nome, CPF e Matrícula alinhados à esquerda
+                    const align = i === 0 ? 'center' : 'left';
+                    const xOffset = i === 0 ? colWidths[i] / 2 : 2; // Centraliza apenas o ID
+                    pdf.text(cell, xPos + xOffset, cursorY + 5, {
+                        align: align,
+                        maxWidth: colWidths[i] - 4
+                    });
+                    
+                    // Desenhar linhas verticais
+                    if (i > 0) {
+                        pdf.line(xPos, cursorY, xPos, cursorY + 8);
+                    }
+                    
+                    xPos += colWidths[i];
+                });
+                
+                cursorY += 8;
+            });
+            
+            // Rodapé
+            cursorY = pdf.internal.pageSize.getHeight() - 10;
+            pdf.setFontSize(8);
+            pdf.setFont('helvetica', 'italic');
+            pdf.text('SIGAE - Sistema de Gestão Acadêmica Escolar', pageWidth / 2, cursorY, { align: 'center' });
+            
+            // Salvar o PDF
+            pdf.save(`relatorio_alunos_${new Date().toISOString().split('T')[0]}.pdf`);
         }
 
         function gerarRelatorioProfessores() {
-            window.open('gerar_relatorio.php?tipo=professores', '_blank');
+            // Show loading indicator
+            const loadingElement = document.createElement('div');
+            loadingElement.innerHTML = `
+                <div style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); display: flex; justify-content: center; align-items: center; z-index: 9999;">
+                    <div class="bg-white p-6 rounded-lg shadow-lg">
+                        <div class="flex items-center space-x-2">
+                            <div class="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500"></div>
+                            <span class="text-gray-700">Gerando relatório de professores...</span>
+                        </div>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(loadingElement);
+            
+            // Fetch professor data
+            fetch('gerar_relatorio.php?tipo=professores')
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Erro ao buscar dados dos professores');
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    if (data.success) {
+                        gerarPdfProfessores(data.data);
+                    } else {
+                        throw new Error(data.error || 'Erro desconhecido ao gerar relatório');
+                    }
+                })
+                .catch(error => {
+                    console.error('Erro:', error);
+                    alert('Erro ao gerar relatório: ' + error.message);
+                })
+                .finally(() => {
+                    document.body.removeChild(loadingElement);
+                });
+        }
+
+        function gerarPdfProfessores(professores) {
+            const { jsPDF } = window.jspdf || {};
+            if (!jsPDF) {
+                alert('Biblioteca jsPDF não carregada. Verifique a conexão com a CDN.');
+                return;
+            }
+
+            try {
+                // Configurações da página
+                const pdf = new jsPDF({
+                    orientation: 'portrait',
+                    unit: 'mm',
+                    format: 'a4'
+                });
+
+                const pageWidth = pdf.internal.pageSize.getWidth();
+                const margin = 15;
+                let cursorY = margin;
+
+                // Adicionar título
+                pdf.setFont('helvetica', 'bold');
+                pdf.setFontSize(16);
+                pdf.text('Relatório de Professores', pageWidth / 2, cursorY, { align: 'center' });
+                
+                // Data de geração
+                cursorY += 10;
+                pdf.setFontSize(10);
+                pdf.setFont('helvetica', 'normal');
+                pdf.text(`Gerado em: ${new Date().toLocaleString('pt-BR')}`, pageWidth - margin, cursorY, { align: 'right' });
+                
+                // Total de professores
+                cursorY += 8;
+                pdf.setFont('helvetica', 'bold');
+                pdf.text(`Total de Professores: ${professores.length}`, margin, cursorY);
+                
+                // Cabeçalho da tabela
+                cursorY += 10;
+                const headers = ['ID', 'Nome', 'CPF', 'Matrícula'];
+                const colWidths = [15, 90, 50, 50]; // Nome 90mm, Matrícula 50mm
+                const headerHeight = 10;
+                
+                // Desenhar cabeçalho
+                pdf.setFillColor(240, 240, 240);
+                pdf.rect(margin, cursorY, pageWidth - 2 * margin, headerHeight, 'F');
+                pdf.setDrawColor(200, 200, 200);
+                pdf.rect(margin, cursorY, pageWidth - 2 * margin, headerHeight);
+                
+                let x = margin;
+                headers.forEach((header, i) => {
+                    pdf.setFont('helvetica', 'bold');
+                    pdf.setFontSize(9);
+                    pdf.text(header, x + 2, cursorY + 7);
+                    
+                    // Desenhar linhas verticais
+                    if (i > 0) {
+                        pdf.line(x, cursorY, x, cursorY + headerHeight);
+                    }
+                    
+                    x += colWidths[i];
+                });
+                
+                cursorY += headerHeight;
+                
+                // Conteúdo da tabela
+                pdf.setFont('helvetica', 'normal');
+                pdf.setFontSize(9);
+                
+                professores.forEach((professor, index) => {
+                    // Verificar se precisa de uma nova página
+                    if (cursorY > pdf.internal.pageSize.getHeight() - 20) {
+                        pdf.addPage();
+                        cursorY = margin;
+                        
+                        // Desenhar cabeçalho novamente na nova página
+                        pdf.setFillColor(240, 240, 240);
+                        pdf.rect(margin, cursorY, pageWidth - 2 * margin, headerHeight, 'F');
+                        pdf.setDrawColor(200, 200, 200);
+                        pdf.rect(margin, cursorY, pageWidth - 2 * margin, headerHeight);
+                        
+                        let x = margin;
+                        headers.forEach((header, i) => {
+                            pdf.setFont('helvetica', 'bold');
+                            pdf.text(header, x + 2, cursorY + 7);
+                            
+                            if (i > 0) {
+                                pdf.line(x, cursorY, x, cursorY + headerHeight);
+                            }
+                            
+                            x += colWidths[i];
+                        });
+                        
+                        cursorY += headerHeight;
+                        pdf.setFont('helvetica', 'normal');
+                    }
+                    
+                    // Linha com fundo alternado
+                    if (index % 2 === 0) {
+                        pdf.setFillColor(250, 250, 250);
+                        pdf.rect(margin, cursorY, pageWidth - 2 * margin, 8, 'F');
+                    }
+                    
+                    // Bordas da linha
+                    pdf.setDrawColor(220, 220, 220);
+                    pdf.rect(margin, cursorY, pageWidth - 2 * margin, 8);
+                    
+                    // Conteúdo das células
+                    const rowData = [
+                        String(professor.id || ''),
+                        String(professor.nome || ''),
+                        formatarCPF(professor.cpf || ''),
+                        String(professor.matricula || '')
+                    ];
+                    
+                    // Posicionar texto nas células
+                    let xPos = margin;
+                    rowData.forEach((cell, i) => {
+                        // Ajuste do alinhamento: ID centralizado, Nome, CPF e Matrícula alinhados à esquerda
+                        const align = i === 0 ? 'center' : 'left';
+                        const xOffset = i === 0 ? colWidths[i] / 2 : 2;
+                        pdf.text(cell, xPos + xOffset, cursorY + 5, {
+                            align: align,
+                            maxWidth: colWidths[i] - 4
+                        });
+                        
+                        // Desenhar linhas verticais
+                        if (i > 0) {
+                            pdf.line(xPos, cursorY, xPos, cursorY + 8);
+                        }
+                        
+                        xPos += colWidths[i];
+                    });
+                    
+                    cursorY += 8;
+                });
+                
+                // Rodapé
+                const dataAtual = new Date().toLocaleDateString('pt-BR');
+                const horaAtual = new Date().toLocaleTimeString('pt-BR');
+                
+                pdf.setFont('helvetica', 'italic');
+                pdf.setFontSize(8);
+                pdf.text(`Gerado em ${dataAtual} às ${horaAtual} - SIGAE`, 
+                        pageWidth / 2, pdf.internal.pageSize.getHeight() - 10, 
+                        { align: 'center' });
+                
+                // Salvar o PDF
+                pdf.save(`relatorio_professores_${new Date().toISOString().split('T')[0]}.pdf`);
+                
+            } catch (error) {
+                console.error('Erro ao gerar PDF:', error);
+                alert('Erro ao gerar o PDF: ' + error.message);
+            }
         }
     </script>
 </body>
