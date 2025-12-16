@@ -383,14 +383,11 @@ $nomeSistemaCurto = getNomeSistemaCurto();
             </div>
 
             <!-- Opções adicionais -->
-            <div class="flex items-center justify-between">
+            <div class="flex items-center">
                 <label class="flex items-center">
                     <input type="checkbox" name="remember" class="w-4 h-4 text-primary-green border-gray-300 rounded focus:ring-primary-green">
                     <span class="ml-2 text-sm text-gray-600">Lembrar de mim</span>
                 </label>
-                <a href="#" onclick="showForgotPassword(); return false;" class="text-sm text-primary-green hover:text-secondary-green transition-colors duration-200">
-                    Esqueceu a senha?
-                </a>
             </div>
 
             <!-- Botão de Login -->
@@ -503,12 +500,11 @@ $nomeSistemaCurto = getNomeSistemaCurto();
                         </div>
                     </div>
 
-                    <div class="flex items-center justify-between">
+                    <div class="flex items-center">
                         <label class="flex items-center">
                             <input type="checkbox" name="remember" class="w-4 h-4 text-forest-600 border-slate-300 rounded focus:ring-forest-500">
                             <span class="ml-2 text-sm text-slate-600">Lembrar de mim</span>
                         </label>
-                        <a href="#" onclick="showForgotPassword(); return false;" class="text-sm text-forest-600 hover:text-forest-700 font-medium">Esqueceu a senha?</a>
                     </div>
 
                     <button type="submit" id="loginBtnDesktop" class="w-full bg-forest-600 text-white py-3 px-4 rounded-xl font-semibold hover:bg-forest-700 hover:shadow-lg transition-all">
@@ -695,11 +691,6 @@ $nomeSistemaCurto = getNomeSistemaCurto();
                 showError('Por favor, preencha todos os campos.', true);
             }
         });
-
-        // Forgot password functionality - redirect to recovery request page
-        function showForgotPassword() {
-            window.location.href = 'esqueceu-senha.php';
-        }
 
         // Função para fechar aviso de desenvolvimento
         function closeDevWarning() {

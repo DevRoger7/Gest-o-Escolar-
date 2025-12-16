@@ -1,0 +1,50 @@
+========================================
+INSTRUÇÕES PARA GERAR SQL DE HABILIDADES FALTANTES
+========================================
+
+PASSO 1: Criar arquivo com o texto completo
+--------------------------------------------
+1. Crie um arquivo chamado "habilidades_texto_completo.txt"
+2. Na pasta: app/main/scripts/
+3. Cole o texto completo fornecido na mensagem do usuário
+   (o texto que começa com "Ensino Fundamental – Anos Iniciais EF15LP01...")
+
+PASSO 2: Executar o script
+--------------------------
+Execute o comando:
+php gerar_sql_direto.php
+
+Ou no Windows:
+C:\xampp\php\php.exe gerar_sql_direto.php
+
+PASSO 3: Verificar o resultado
+-------------------------------
+O script irá gerar um arquivo SQL com nome:
+inserir_habilidades_faltantes_YYYY-MM-DD_HH-MM-SS.sql
+
+Este arquivo contém todos os INSERT statements para as 360 habilidades faltantes.
+
+PASSO 4: Executar no banco de dados
+------------------------------------
+Execute o arquivo SQL gerado no seu banco de dados MySQL/MariaDB.
+
+========================================
+RESUMO DA ANÁLISE
+========================================
+
+Total de habilidades fornecidas: 575
+Habilidades já cadastradas: 215 (37,39%)
+Habilidades faltantes: 360 (62,61%)
+
+Distribuição das habilidades faltantes:
+- Língua Portuguesa: 108
+- Matemática: 101
+- Ensino Religioso: 33
+- Educação Física: 27
+- História: 26
+- Geografia: 26
+- Ciências: 23
+- Artes: 16
+
+========================================
+
