@@ -3,60 +3,13 @@ require_once('../../Models/sessao/sessions.php');
 require_once('../../config/permissions_helper.php');
 require_once('../../config/Database.php');
 
-// Tenta incluir FPDF via Composer autoload primeiro
-$fpdfLoaded = false;
-$composerAutoloads = [
-    __DIR__ . '/../../../../../vendor/autoload.php', // projeto estagio\vendor
-    __DIR__ . '/../../../../vendor/autoload.php',    // Gest-o-Escolar-\vendor (caso exista)
-    'c:\\xampp\\htdocs\\projeto estagio\\vendor\\autoload.php'
-];
-foreach ($composerAutoloads as $autoloadPath) {
-    if (file_exists($autoloadPath)) {
-        require_once($autoloadPath);
-        if (class_exists('FPDF', false)) {
-            $fpdfLoaded = true;
-            break;
-        }
-    }
-}
+// Set JSON content type
+header('Content-Type: application/json; charset=utf-8');
 
-// Se autoload não carregar FPDF, tenta caminhos diretos do fpdf.php
-if (!$fpdfLoaded) {
-    $fpdfCandidates = [
-        // Possíveis vendors no projeto atual
-        __DIR__ . '/../../../../../vendor/setasign/fpdf/fpdf.php', // projeto estagio\vendor\setasign\fpdf
-        __DIR__ . '/../../../../../vendor/fpdf/fpdf.php',          // projeto estagio\vendor\fpdf
-
-        // Vendors no subprojeto Gest-o-Escolar- (caso tenha seu próprio composer)
-        __DIR__ . '/../../../../vendor/setasign/fpdf/fpdf.php',
-        __DIR__ . '/../../../../vendor/fpdf/fpdf.php',
-
-        // Caminhos absolutos comuns no Windows (XAMPP)
-        'c:\\xampp\\htdocs\\projeto estagio\\vendor\\setasign\\fpdf\\fpdf.php',
-        'c:\\xampp\\htdocs\\projeto estagio\\vendor\\fpdf\\fpdf.php',
-
-        // Outros diretórios locais possíveis
-        __DIR__ . '/../../../libs/fpdf/fpdf.php',
-        __DIR__ . '/../../../library/fpdf/fpdf.php'
-    ];
-
-    foreach ($fpdfCandidates as $path) {
-        if (file_exists($path)) {
-            require_once($path);
-            $fpdfLoaded = class_exists('FPDF', false);
-            if ($fpdfLoaded) {
-                break;
-            }
-        }
-    }
-}
-
-if (!$fpdfLoaded) {
-    header('Content-Type: text/plain; charset=UTF-8');
-    http_response_code(500);
-    echo 'Biblioteca FPDF não encontrada. Ajuste o caminho em gerar_relatorio.php.';
-    exit;
-}
+// Enable CORS if needed
+header('Access-Control-Allow-Origin: *');
+header('Access-Control-Allow-Methods: GET, POST');
+header('Access-Control-Allow-Headers: Content-Type');
 
 // Autenticação e permissão
 $session = new sessions();
@@ -64,15 +17,9 @@ $session->autenticar_session();
 $session->tempo_session();
 
 if (!eAdm()) {
-    header('Location: ../auth/login.php?erro=sem_permissao');
-    exit;
-}
-
-// === CHANGE: accept both 'professores' and 'alunos'
-$tipo = $_GET['tipo'] ?? $_POST['tipo'] ?? '';
-if ($tipo !== 'professores' && $tipo !== 'alunos') {
     header('Content-Type: text/plain; charset=UTF-8');
-    echo 'Tipo de relatório não suportado.';
+    http_response_code(401);
+    echo 'Você não tem permissão para acessar essa página.';
     exit;
 }
 
@@ -80,71 +27,179 @@ if ($tipo !== 'professores' && $tipo !== 'alunos') {
 $db = Database::getInstance();
 $conn = $db->getConnection();
 
-// === NEW: early dispatch for alunos, then exit
-if ($tipo === 'alunos') {
+// === Early dispatch for alunos and professores, then exit
+$tipo = $_GET['tipo'] ?? $_POST['tipo'] ?? '';
+
+// Handle professores request
+if ($tipo === 'professores') {
     try {
-        // FIX: use table 'aluno' (singular) and join with 'pessoa' to get nome/cpf
-        $stmt = $conn->prepare("
-            SELECT 
-                a.id AS id,
-                p.nome AS nome,
-                p.cpf AS cpf,
-                a.matricula AS matricula
-            FROM aluno a
-            LEFT JOIN pessoa p ON p.id = a.pessoa_id
-            ORDER BY p.nome ASC
-        ");
+        // First, try to get the list of tables to determine the schema
+        $tables = $conn->query("SHOW TABLES")->fetchAll(PDO::FETCH_COLUMN);
+        
+        // Check if we have a professors table (professor or professores)
+        $hasProfessorTable = in_array('professor', $tables) || in_array('professores', $tables);
+        $tableName = in_array('professor', $tables) ? 'professor' : (in_array('professores', $tables) ? 'professores' : null);
+        
+        if (!$hasProfessorTable) {
+            throw new Exception("Tabela de professores não encontrada no banco de dados.");
+        }
+        
+        // Check if we have a pessoa table for additional info
+        $hasPessoaTable = in_array('pessoa', $tables);
+        
+        // Build the query based on available tables
+        if ($hasPessoaTable) {
+            // Join with pessoa table to get person details
+            $query = "
+                SELECT 
+                    p.id,
+                    p.nome,
+                    p.cpf,
+                    prof.matricula
+                FROM professor prof
+                LEFT JOIN pessoa p ON p.id = prof.pessoa_id
+                WHERE prof.ativo = 1
+                ORDER BY p.nome ASC
+            ";
+        } else {
+            // Fallback if pessoa table doesn't exist (shouldn't happen in this case)
+            $query = "
+                SELECT 
+                    id,
+                    CONCAT(nome, ' (sem dados de pessoa)') as nome,
+                    cpf,
+                    matricula
+                FROM professor
+                WHERE ativo = 1
+                ORDER BY nome ASC
+            ";
+        }
+        
+        $stmt = $conn->prepare($query);
         $stmt->execute();
-        $alunos = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        $professores = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-        header('Content-Type: application/pdf');
-        header('Cache-Control: private, max-age=0, must-revalidate');
-        header('Pragma: public');
-
-        $pdf = new FPDF('P', 'mm', 'A4');
-        $pdf->AddPage();
-
-        // Título
-        $pdf->SetFont('Arial', 'B', 16);
-        $pdf->Cell(0, 10, mb_convert_encoding('Relatório de Alunos', 'ISO-8859-1', 'UTF-8'), 0, 1, 'C');
-        $pdf->Ln(4);
-
-        // Cabeçalho da tabela
-        $pdf->SetFont('Arial', 'B', 11);
-        $pdf->Cell(20, 8, 'ID', 1);
-        $pdf->Cell(80, 8, mb_convert_encoding('Nome', 'ISO-8859-1', 'UTF-8'), 1);
-        $pdf->Cell(40, 8, 'CPF', 1);
-        $pdf->Cell(40, 8, mb_convert_encoding('Matrícula', 'ISO-8859-1', 'UTF-8'), 1);
-        $pdf->Ln();
-
-        // Linhas
-        $pdf->SetFont('Arial', '', 10);
-        foreach ($alunos as $aluno) {
-            $pdf->Cell(20, 8, (string)($aluno['id'] ?? ''), 1);
-            $pdf->Cell(80, 8, mb_convert_encoding((string)($aluno['nome'] ?? ''), 'ISO-8859-1', 'UTF-8'), 1);
-            $pdf->Cell(40, 8, mb_convert_encoding((string)($aluno['cpf'] ?? ''), 'ISO-8859-1', 'UTF-8'), 1);
-            $pdf->Cell(40, 8, mb_convert_encoding((string)($aluno['matricula'] ?? ''), 'ISO-8859-1', 'UTF-8'), 1);
-            $pdf->Ln();
+        if (empty($professores)) {
+            throw new Exception("Nenhum professor cadastrado no sistema.");
         }
 
-        // Exibe no navegador e encerra
-        $pdf->Output('I', 'relatorio_alunos.pdf');
+        // Format the data for the response
+        $response = [
+            'success' => true,
+            'data' => $professores,
+            'total' => count($professores),
+            'gerado_em' => date('Y-m-d H:i:s')
+        ];
+        
+        echo json_encode($response, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
         exit;
+        
     } catch (Throwable $e) {
-        header('Content-Type: text/plain; charset=UTF-8');
         http_response_code(500);
-        echo 'Erro ao gerar relatório de alunos: ' . $e->getMessage();
+        echo json_encode([
+            'success' => false,
+            'error' => 'Erro ao buscar dados dos professores: ' . $e->getMessage(),
+            'trace' => $e->getTraceAsString()
+        ], JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
         exit;
     }
 }
 
-// Ajuste a consulta conforme seu esquema de dados.
-// Esboço: professores como usuários com tipo = 'PROFESSOR' vinculados a pessoa.
+// Handle alunos request
+if ($tipo === 'alunos') {
+    try {
+        // First, try to get the list of tables to determine the schema
+        $tables = $conn->query("SHOW TABLES")->fetchAll(PDO::FETCH_COLUMN);
+        
+        // Check if we have a students table (aluno or alunos)
+        $hasAlunoTable = in_array('aluno', $tables) || in_array('alunos', $tables);
+        $tableName = in_array('aluno', $tables) ? 'aluno' : (in_array('alunos', $tables) ? 'alunos' : null);
+        
+        if (!$hasAlunoTable) {
+            throw new Exception("Tabela de alunos não encontrada no banco de dados.");
+        }
+        
+        // Check if we have a pessoa table for additional info
+        $hasPessoaTable = in_array('pessoa', $tables);
+        
+        // Build the query based on available tables
+        if ($hasPessoaTable) {
+            // If we have a pessoa table, join with it to get additional info
+            $query = "
+                SELECT 
+                    a.id,
+                    p.nome,
+                    p.cpf,
+                    a.matricula,
+                    p.email,
+                    p.telefone,
+                    p.data_nascimento
+                FROM $tableName a
+                LEFT JOIN pessoa p ON p.id = a.pessoa_id
+                ORDER BY p.nome ASC
+            ";
+        } else {
+            // If no pessoa table, assume all data is in the aluno table
+            $query = "
+                SELECT 
+                    id,
+                    nome,
+                    cpf,
+                    matricula,
+                    email,
+                    telefone,
+                    data_nascimento
+                FROM $tableName
+                ORDER BY nome ASC
+            ";
+        }
+        
+        $stmt = $conn->prepare($query);
+        $stmt->execute();
+        $alunos = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-// ======= BEGIN: dynamic schema detection to build the correct SQL =======
+        if (empty($alunos)) {
+            throw new Exception("Nenhum aluno cadastrado no sistema.");
+        }
+
+        // Format the data for the response
+        $response = [
+            'success' => true,
+            'data' => $alunos,
+            'total' => count($alunos),
+            'gerado_em' => date('Y-m-d H:i:s')
+        ];
+        
+        echo json_encode($response, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
+        exit;
+        
+    } catch (Throwable $e) {
+        http_response_code(500);
+        echo json_encode([
+            'success' => false,
+            'error' => 'Erro ao buscar dados dos alunos: ' . $e->getMessage(),
+            'trace' => $e->getTraceAsString()
+        ], JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
+        exit;
+    }
+}
+
+// Se chegou até aqui, é porque o tipo de relatório não é suportado
+http_response_code(400);
+echo json_encode([
+    'success' => false,
+    'error' => 'Tipo de relatório não suportado. Use "alunos" ou "professores".'
+], JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
+exit;
+
+// Funções auxiliares (não usadas no momento, mas mantidas para referência)
 function getDatabaseName(PDO $conn): ?string {
-    $stmt = $conn->query('SELECT DATABASE()');
-    return $stmt ? $stmt->fetchColumn() : null;
+    $dbName = null;
+    $query = $conn->query("SELECT DATABASE()");
+    if ($query) {
+        $dbName = $query->fetchColumn();
+    }
+    return $dbName;
 }
 
 function tableExists(PDO $conn, string $table): bool {
@@ -233,7 +288,7 @@ while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
 }
 $stmt->closeCursor();
 
-class ProfessoresPDF extends FPDF {
+class ProfessoresPDF extends CustomFPDF {
     // NEW: column widths and helper to center the table
     public $colWidths = [15, 65, 30, 50, 20]; // Telefone widened (20mm), Email reduced (50mm) to keep total = 180mm
 
