@@ -140,52 +140,50 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['acao'])) {
             $columnExists = false;
         }
         
+        // Mostrar cada item separadamente (incluindo lotes diferentes)
         if ($columnExists) {
             $sql = "SELECT 
+                        pei.id as item_id,
                         pei.produto_id,
                         pei.estoque_central_id,
                         p.nome as produto_nome,
                         p.unidade_medida,
-                        SUM(pei.quantidade) as quantidade,
-                        COALESCE(ec1.validade, ec2.validade) as validade,
-                        COALESCE(ec1.lote, ec2.lote, 'Sem lote') as lote,
-                        COALESCE(f1.nome, f2.nome) as fornecedor_nome,
-                        MAX(pe.data_envio) as data_envio
+                        pei.quantidade,
+                        COALESCE(ec1.validade, NULL) as validade,
+                        COALESCE(ec1.lote, 'Sem lote') as lote,
+                        COALESCE(f1.nome, NULL) as fornecedor_nome,
+                        pe.data_envio,
+                        pe.id as pacote_id
                     FROM pacote_escola_item pei
                     INNER JOIN pacote_escola pe ON pei.pacote_id = pe.id
                     INNER JOIN produto p ON pei.produto_id = p.id
                     LEFT JOIN estoque_central ec1 ON pei.estoque_central_id = ec1.id
                     LEFT JOIN fornecedor f1 ON ec1.fornecedor_id = f1.id
-                    LEFT JOIN estoque_central ec2 ON pei.produto_id = ec2.produto_id 
-                        AND ec2.quantidade > 0 
-                        AND pei.estoque_central_id IS NULL
-                        AND ec2.id = (
-                            SELECT ec3.id 
-                            FROM estoque_central ec3 
-                            WHERE ec3.produto_id = pei.produto_id 
-                            AND ec3.quantidade > 0 
-                            ORDER BY ec3.validade ASC 
-                            LIMIT 1
-                        )
-                    LEFT JOIN fornecedor f2 ON ec2.fornecedor_id = f2.id
-                    WHERE pe.escola_id = :escola_id";
+                    WHERE pe.escola_id = :escola_id
+                    AND pei.quantidade > 0
+                    ORDER BY p.nome ASC,
+                             CASE WHEN ec1.validade IS NULL THEN 1 ELSE 0 END ASC,
+                             ec1.validade ASC,
+                             pei.id ASC";
         } else {
             $sql = "SELECT 
+                        pei.id as item_id,
                         pei.produto_id,
-                        ec.id as estoque_central_id,
+                        NULL as estoque_central_id,
                         p.nome as produto_nome,
                         p.unidade_medida,
-                        SUM(pei.quantidade) as quantidade,
-                        ec.validade,
-                        COALESCE(ec.lote, 'Sem lote') as lote,
-                        f.nome as fornecedor_nome,
-                        MAX(pe.data_envio) as data_envio
+                        pei.quantidade,
+                        NULL as validade,
+                        'Sem lote' as lote,
+                        NULL as fornecedor_nome,
+                        pe.data_envio,
+                        pe.id as pacote_id
                     FROM pacote_escola_item pei
                     INNER JOIN pacote_escola pe ON pei.pacote_id = pe.id
                     INNER JOIN produto p ON pei.produto_id = p.id
-                    LEFT JOIN estoque_central ec ON pei.produto_id = ec.produto_id AND ec.quantidade > 0
-                    LEFT JOIN fornecedor f ON ec.fornecedor_id = f.id
-                    WHERE pe.escola_id = :escola_id";
+                    WHERE pe.escola_id = :escola_id
+                    AND pei.quantidade > 0
+                    ORDER BY p.nome ASC, pei.id ASC";
         }
         
         $params = [':escola_id' => $escolaId];
@@ -195,14 +193,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['acao'])) {
             $params[':produto_id'] = $_GET['produto_id'];
         }
         
-        // Agrupar por produto_id + estoque_central_id (ou lote) para mostrar cada lote separadamente
+        // Não agrupar - mostrar cada item separadamente (incluindo lotes diferentes)
         if ($columnExists) {
-            $sql .= " GROUP BY pei.produto_id, pei.estoque_central_id, p.nome, p.unidade_medida, 
-                      COALESCE(ec1.validade, ec2.validade), COALESCE(ec1.lote, ec2.lote), COALESCE(f1.nome, f2.nome)
-                      ORDER BY p.nome ASC, COALESCE(ec1.validade, ec2.validade) ASC";
+            $sql .= " ORDER BY p.nome ASC,
+                             CASE WHEN ec1.validade IS NULL THEN 1 ELSE 0 END ASC,
+                             ec1.validade ASC,
+                             pei.id ASC";
         } else {
-            $sql .= " GROUP BY pei.produto_id, ec.id, p.nome, p.unidade_medida, ec.validade, ec.lote, f.nome
-                      ORDER BY p.nome ASC, ec.validade ASC";
+            $sql .= " ORDER BY p.nome ASC,
+                             CASE WHEN ec.validade IS NULL THEN 1 ELSE 0 END ASC,
+                             ec.validade ASC,
+                             pei.id ASC";
         }
         
         $stmt = $conn->prepare($sql);
@@ -212,7 +213,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['acao'])) {
         $stmt->execute();
         $estoque = $stmt->fetchAll(PDO::FETCH_ASSOC);
         
-        // Limpar valores vazios
+        // Limpar valores vazios e formatar dados
         foreach ($estoque as &$item) {
             if (isset($item['lote'])) {
                 $lote = trim($item['lote']);
@@ -223,8 +224,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['acao'])) {
             if (empty($item['fornecedor_nome'])) {
                 $item['fornecedor_nome'] = null;
             }
-            $item['id'] = null;
-            $item['total_produto'] = $item['quantidade'];
+            // Manter item_id para identificação única
+            if (!isset($item['id'])) {
+                $item['id'] = $item['item_id'] ?? null;
+            }
             $item['criado_em'] = $item['data_envio'];
         }
         

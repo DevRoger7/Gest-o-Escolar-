@@ -178,17 +178,38 @@ class TurmaModel {
     public function atribuirProfessor($turmaId, $professorId, $disciplinaId, $regime = 'REGULAR') {
         $conn = $this->db->getConnection();
         
-        $sql = "INSERT INTO turma_professor (turma_id, professor_id, disciplina_id, inicio, regime, criado_em)
-                VALUES (:turma_id, :professor_id, :disciplina_id, CURDATE(), :regime, NOW())
-                ON DUPLICATE KEY UPDATE regime = :regime";
-        
-        $stmt = $conn->prepare($sql);
-        $stmt->bindParam(':turma_id', $turmaId);
-        $stmt->bindParam(':professor_id', $professorId);
-        $stmt->bindParam(':disciplina_id', $disciplinaId);
-        $stmt->bindParam(':regime', $regime);
-        
-        return $stmt->execute();
+        try {
+            // Verificar se já existe uma atribuição ativa para esta combinação
+            $stmtCheck = $conn->prepare("SELECT id FROM turma_professor 
+                                         WHERE turma_id = :turma_id 
+                                         AND professor_id = :professor_id 
+                                         AND disciplina_id = :disciplina_id 
+                                         AND fim IS NULL");
+            $stmtCheck->bindParam(':turma_id', $turmaId);
+            $stmtCheck->bindParam(':professor_id', $professorId);
+            $stmtCheck->bindParam(':disciplina_id', $disciplinaId);
+            $stmtCheck->execute();
+            
+            if ($stmtCheck->fetch()) {
+                // Já existe uma atribuição ativa
+                return false;
+            }
+            
+            // Inserir nova atribuição
+            $sql = "INSERT INTO turma_professor (turma_id, professor_id, disciplina_id, inicio, regime, criado_em)
+                    VALUES (:turma_id, :professor_id, :disciplina_id, CURDATE(), :regime, NOW())";
+            
+            $stmt = $conn->prepare($sql);
+            $stmt->bindParam(':turma_id', $turmaId);
+            $stmt->bindParam(':professor_id', $professorId);
+            $stmt->bindParam(':disciplina_id', $disciplinaId);
+            $stmt->bindParam(':regime', $regime);
+            
+            return $stmt->execute();
+        } catch (PDOException $e) {
+            error_log("Erro ao atribuir professor: " . $e->getMessage());
+            return false;
+        }
     }
     
     /**
@@ -197,16 +218,38 @@ class TurmaModel {
     public function removerProfessor($turmaId, $professorId, $disciplinaId) {
         $conn = $this->db->getConnection();
         
-        $sql = "UPDATE turma_professor SET fim = CURDATE() 
-                WHERE turma_id = :turma_id AND professor_id = :professor_id 
-                AND disciplina_id = :disciplina_id AND fim IS NULL";
-        
-        $stmt = $conn->prepare($sql);
-        $stmt->bindParam(':turma_id', $turmaId);
-        $stmt->bindParam(':professor_id', $professorId);
-        $stmt->bindParam(':disciplina_id', $disciplinaId);
-        
-        return $stmt->execute();
+        try {
+            // Verificar se existe uma atribuição ativa antes de remover
+            $stmtCheck = $conn->prepare("SELECT id FROM turma_professor 
+                                         WHERE turma_id = :turma_id 
+                                         AND professor_id = :professor_id 
+                                         AND disciplina_id = :disciplina_id 
+                                         AND fim IS NULL");
+            $stmtCheck->bindParam(':turma_id', $turmaId);
+            $stmtCheck->bindParam(':professor_id', $professorId);
+            $stmtCheck->bindParam(':disciplina_id', $disciplinaId);
+            $stmtCheck->execute();
+            
+            if (!$stmtCheck->fetch()) {
+                // Não existe atribuição ativa para remover
+                return false;
+            }
+            
+            // Atualizar o campo fim para a data atual (remoção lógica)
+            $sql = "UPDATE turma_professor SET fim = CURDATE() 
+                    WHERE turma_id = :turma_id AND professor_id = :professor_id 
+                    AND disciplina_id = :disciplina_id AND fim IS NULL";
+            
+            $stmt = $conn->prepare($sql);
+            $stmt->bindParam(':turma_id', $turmaId);
+            $stmt->bindParam(':professor_id', $professorId);
+            $stmt->bindParam(':disciplina_id', $disciplinaId);
+            
+            return $stmt->execute() && $stmt->rowCount() > 0;
+        } catch (PDOException $e) {
+            error_log("Erro ao remover professor: " . $e->getMessage());
+            return false;
+        }
     }
     
     /**

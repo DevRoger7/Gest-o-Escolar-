@@ -147,6 +147,8 @@ $produtos = $stmtProdutos->fetchAll(PDO::FETCH_ASSOC);
             alert('Funcionalidade de salvamento de substituições será implementada em breve.');
         });
     </script>
+    
+    <?php include(__DIR__ . '/components/logout_modal.php'); ?>
 </body>
 </html>
 

@@ -1,4 +1,7 @@
 <?php
+// Iniciar output buffering para evitar output antes do JSON
+ob_start();
+
 require_once('../../Models/sessao/sessions.php');
 require_once('../../config/permissions_helper.php');
 require_once('../../config/Database.php');
@@ -88,48 +91,117 @@ if ($professorId) {
 
 // Processar requisições AJAX
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao'])) {
+    ob_clean(); // Limpar qualquer output anterior
     header('Content-Type: application/json');
     
     if ($_POST['acao'] === 'adicionar_observacao' && $professorId) {
-        $dados = [
-            'aluno_id' => $_POST['aluno_id'] ?? null,
-            'turma_id' => $_POST['turma_id'] ?? null,
-            'disciplina_id' => $_POST['disciplina_id'] ?? null,
-            'professor_id' => $professorId,
-            'tipo' => $_POST['tipo'] ?? 'OUTROS',
-            'titulo' => $_POST['titulo'] ?? null,
-            'observacao' => $_POST['observacao'] ?? '',
-            'data' => $_POST['data'] ?? date('Y-m-d'),
-            'bimestre' => !empty($_POST['bimestre']) ? $_POST['bimestre'] : null,
-            'visivel_responsavel' => isset($_POST['visivel_responsavel']) ? 1 : 0
-        ];
-        
-        if ($dados['aluno_id'] && $dados['turma_id'] && !empty($dados['observacao'])) {
+        try {
+            $dados = [
+                'aluno_id' => $_POST['aluno_id'] ?? null,
+                'turma_id' => $_POST['turma_id'] ?? null,
+                'disciplina_id' => $_POST['disciplina_id'] ?? null,
+                'professor_id' => $professorId,
+                'tipo' => $_POST['tipo'] ?? 'OUTROS',
+                'titulo' => $_POST['titulo'] ?? null,
+                'observacao' => trim($_POST['observacao'] ?? ''),
+                'data' => $_POST['data'] ?? date('Y-m-d'),
+                'bimestre' => !empty($_POST['bimestre']) ? $_POST['bimestre'] : null,
+                'visivel_responsavel' => isset($_POST['visivel_responsavel']) && $_POST['visivel_responsavel'] == '1' ? 1 : 0
+            ];
+            
+            // Validações
+            if (!$dados['aluno_id']) {
+                echo json_encode(['success' => false, 'message' => 'Aluno não selecionado']);
+                exit;
+            }
+            
+            if (!$dados['turma_id']) {
+                echo json_encode(['success' => false, 'message' => 'Turma não selecionada']);
+                exit;
+            }
+            
+            if (empty($dados['observacao'])) {
+                echo json_encode(['success' => false, 'message' => 'A observação não pode estar vazia']);
+                exit;
+            }
+            
+            // Validar se o professor tem acesso a esta turma
+            $sqlValidar = "SELECT COUNT(*) as total
+                          FROM turma_professor tp
+                          WHERE tp.turma_id = :turma_id 
+                          AND tp.professor_id = :professor_id 
+                          AND (tp.disciplina_id = :disciplina_id OR :disciplina_id IS NULL)
+                          AND tp.fim IS NULL";
+            $stmtValidar = $conn->prepare($sqlValidar);
+            $stmtValidar->bindParam(':turma_id', $dados['turma_id']);
+            $stmtValidar->bindParam(':professor_id', $professorId);
+            $stmtValidar->bindParam(':disciplina_id', $dados['disciplina_id']);
+            $stmtValidar->execute();
+            $validacao = $stmtValidar->fetch(PDO::FETCH_ASSOC);
+            
+            if (!$validacao || $validacao['total'] == 0) {
+                error_log("Professor $professorId tentou adicionar observação em turma {$dados['turma_id']} sem permissão");
+                echo json_encode(['success' => false, 'message' => 'Você não tem acesso a esta turma']);
+                exit;
+            }
+            
             $resultado = $observacaoModel->adicionar($dados);
             echo json_encode($resultado);
-        } else {
-            echo json_encode(['success' => false, 'message' => 'Dados incompletos']);
+            
+        } catch (Exception $e) {
+            error_log("Erro ao processar adicionar_observacao: " . $e->getMessage());
+            echo json_encode(['success' => false, 'message' => 'Erro ao adicionar observação: ' . $e->getMessage()]);
         }
         exit;
     }
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['acao'])) {
+    ob_clean(); // Limpar qualquer output anterior
     header('Content-Type: application/json');
     
     if ($_GET['acao'] === 'buscar_alunos_turma' && !empty($_GET['turma_id'])) {
-        $turmaId = $_GET['turma_id'];
-        $sql = "SELECT a.id, p.nome, a.matricula
-                FROM aluno_turma at
-                INNER JOIN aluno a ON at.aluno_id = a.id
-                INNER JOIN pessoa p ON a.pessoa_id = p.id
-                WHERE at.turma_id = :turma_id AND at.fim IS NULL
-                ORDER BY p.nome ASC";
-        $stmt = $conn->prepare($sql);
-        $stmt->bindParam(':turma_id', $turmaId);
-        $stmt->execute();
-        $alunos = $stmt->fetchAll(PDO::FETCH_ASSOC);
-        echo json_encode(['success' => true, 'alunos' => $alunos]);
+        try {
+            $turmaId = $_GET['turma_id'];
+            
+            // Validar se o professor tem acesso a esta turma
+            if ($professorId) {
+                $sqlValidar = "SELECT COUNT(*) as total
+                              FROM turma_professor tp
+                              WHERE tp.turma_id = :turma_id 
+                              AND tp.professor_id = :professor_id 
+                              AND tp.fim IS NULL";
+                $stmtValidar = $conn->prepare($sqlValidar);
+                $stmtValidar->bindParam(':turma_id', $turmaId);
+                $stmtValidar->bindParam(':professor_id', $professorId);
+                $stmtValidar->execute();
+                $validacao = $stmtValidar->fetch(PDO::FETCH_ASSOC);
+                
+                if (!$validacao || $validacao['total'] == 0) {
+                    error_log("Professor $professorId tentou acessar alunos da turma $turmaId sem permissão");
+                    echo json_encode(['success' => false, 'message' => 'Você não tem acesso a esta turma', 'alunos' => []]);
+                    exit;
+                }
+            }
+            
+            $sql = "SELECT a.id, p.nome, COALESCE(a.matricula, '') as matricula
+                    FROM aluno_turma at
+                    INNER JOIN aluno a ON at.aluno_id = a.id
+                    INNER JOIN pessoa p ON a.pessoa_id = p.id
+                    WHERE at.turma_id = :turma_id AND at.fim IS NULL AND a.ativo = 1
+                    ORDER BY p.nome ASC";
+            $stmt = $conn->prepare($sql);
+            $stmt->bindParam(':turma_id', $turmaId);
+            $stmt->execute();
+            $alunos = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            echo json_encode(['success' => true, 'alunos' => $alunos]);
+        } catch (PDOException $e) {
+            error_log("PDOException ao buscar alunos: " . $e->getMessage());
+            echo json_encode(['success' => false, 'message' => 'Erro ao buscar alunos: ' . $e->getMessage(), 'alunos' => []]);
+        } catch (Exception $e) {
+            error_log("Exception ao buscar alunos: " . $e->getMessage());
+            echo json_encode(['success' => false, 'message' => 'Erro ao buscar alunos: ' . $e->getMessage(), 'alunos' => []]);
+        }
         exit;
     }
     
@@ -143,14 +215,35 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['acao'])) {
             $turmaId = $_GET['turma_id'];
             $disciplinaId = $_GET['disciplina_id'];
             
+            // Validar se o professor tem acesso a esta turma
+            $sqlValidar = "SELECT COUNT(*) as total
+                          FROM turma_professor tp
+                          WHERE tp.turma_id = :turma_id 
+                          AND tp.professor_id = :professor_id 
+                          AND tp.disciplina_id = :disciplina_id
+                          AND tp.fim IS NULL";
+            $stmtValidar = $conn->prepare($sqlValidar);
+            $stmtValidar->bindParam(':turma_id', $turmaId);
+            $stmtValidar->bindParam(':professor_id', $professorId);
+            $stmtValidar->bindParam(':disciplina_id', $disciplinaId);
+            $stmtValidar->execute();
+            $validacao = $stmtValidar->fetch(PDO::FETCH_ASSOC);
+            
+            if (!$validacao || $validacao['total'] == 0) {
+                error_log("Professor $professorId tentou acessar observações de turma $turmaId sem permissão");
+                echo json_encode(['success' => false, 'message' => 'Você não tem acesso a esta turma', 'observacoes' => []]);
+                exit;
+            }
+            
             $sql = "SELECT od.*, p.nome as aluno_nome, COALESCE(a.matricula, '') as matricula, d.nome as disciplina_nome
                     FROM observacao_desempenho od
                     INNER JOIN aluno a ON od.aluno_id = a.id
                     INNER JOIN pessoa p ON a.pessoa_id = p.id
                     LEFT JOIN disciplina d ON od.disciplina_id = d.id
                     WHERE od.turma_id = :turma_id 
-                    AND od.disciplina_id = :disciplina_id
+                    AND (od.disciplina_id = :disciplina_id OR od.disciplina_id IS NULL)
                     AND od.professor_id = :professor_id
+                    AND a.ativo = 1
                     ORDER BY od.data DESC, od.criado_em DESC";
             $stmt = $conn->prepare($sql);
             $stmt->bindParam(':turma_id', $turmaId);
@@ -159,12 +252,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['acao'])) {
             $stmt->execute();
             $observacoes = $stmt->fetchAll(PDO::FETCH_ASSOC);
             echo json_encode(['success' => true, 'observacoes' => $observacoes]);
+        } catch (PDOException $e) {
+            error_log("PDOException ao listar observações: " . $e->getMessage());
+            echo json_encode(['success' => false, 'message' => 'Erro ao buscar observações: ' . $e->getMessage(), 'observacoes' => []]);
         } catch (Exception $e) {
-            error_log("Erro ao listar observações: " . $e->getMessage());
-            echo json_encode(['success' => false, 'message' => 'Erro ao buscar observações: ' . $e->getMessage()]);
+            error_log("Exception ao listar observações: " . $e->getMessage());
+            echo json_encode(['success' => false, 'message' => 'Erro ao buscar observações: ' . $e->getMessage(), 'observacoes' => []]);
         }
         exit;
     }
+}
+
+// Limpar buffer apenas se não foi uma requisição AJAX
+if (!isset($_GET['acao']) && !isset($_POST['acao'])) {
+    ob_end_flush();
+} else {
+    ob_end_clean();
 }
 ?>
 <!DOCTYPE html>
@@ -581,14 +684,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['acao'])) {
             
             lista.innerHTML = '<div class="text-center py-8"><div class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div><p class="mt-2 text-gray-600">Carregando...</p></div>';
             
-            fetch('?acao=listar_observacoes&turma_id=' + turmaId + '&disciplina_id=' + disciplinaId)
+            fetch('?acao=listar_observacoes&turma_id=' + encodeURIComponent(turmaId) + '&disciplina_id=' + encodeURIComponent(disciplinaId))
                 .then(response => {
+                    console.log('Response status:', response.status);
+                    const contentType = response.headers.get('content-type');
+                    if (!contentType || !contentType.includes('application/json')) {
+                        return response.text().then(text => {
+                            console.error('Resposta não é JSON:', text.substring(0, 500));
+                            throw new Error('Resposta do servidor não é JSON válido. Verifique o console para mais detalhes.');
+                        });
+                    }
                     if (!response.ok) {
                         throw new Error('Erro na resposta do servidor: ' + response.status);
                     }
                     return response.json();
                 })
                 .then(data => {
+                    console.log('Dados recebidos:', data);
                     if (data.success) {
                         if (data.observacoes && data.observacoes.length > 0) {
                         lista.innerHTML = '';
@@ -644,7 +756,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['acao'])) {
                 })
                 .catch(error => {
                     console.error('Erro ao carregar observações:', error);
-                    lista.innerHTML = '<div class="text-center py-12"><p class="text-red-600">Erro ao carregar observações. Verifique o console para mais detalhes.</p></div>';
+                    lista.innerHTML = '<div class="text-center py-8 text-red-400">' +
+                        '<div class="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-3">' +
+                        '<svg class="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">' +
+                        '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>' +
+                        '</svg></div>' +
+                        '<p class="text-sm font-medium text-red-600">Erro ao carregar observações</p>' +
+                        '<p class="text-xs text-gray-500 mt-1">' + error.message + '</p>' +
+                        '</div>';
                 });
             
             // Scroll para o container

@@ -567,8 +567,30 @@ error_log("DEBUG TRANSFERENCIAS - escolaGestor: " . ($escolaGestor ?? 'NULL'));
 
         // Funções de logout
         window.confirmLogout = function() {
-            if (confirm('Tem certeza que deseja sair do sistema?')) {
+            const modal = document.getElementById('logoutModal');
+            if (modal) {
+                modal.style.display = 'flex';
+                modal.classList.remove('hidden');
+                modal.classList.add('flex');
+            } else {
+                console.error('Modal de logout não encontrado');
+            }
+        };
+        
+        window.closeLogoutModal = function() {
+            const modal = document.getElementById('logoutModal');
+            if (modal) {
+                modal.style.display = 'none';
+                modal.classList.add('hidden');
+                modal.classList.remove('flex');
+            }
+        };
+        
+        window.logout = function() {
+            try {
                 window.location.href = '../auth/logout.php';
+            } catch (e) {
+                console.error('Erro ao fazer logout:', e);
             }
         };
 
@@ -859,6 +881,8 @@ error_log("DEBUG TRANSFERENCIAS - escolaGestor: " . ($escolaGestor ?? 'NULL'));
         .aluno-item:first-child { border-top-left-radius: 0.5rem; border-top-right-radius: 0.5rem; }
         .aluno-item:last-child { border-bottom-left-radius: 0.5rem; border-bottom-right-radius: 0.5rem; border-bottom: none; }
     </style>
+    
+    <?php include(__DIR__ . '/components/logout_modal.php'); ?>
 </body>
 </html>
 

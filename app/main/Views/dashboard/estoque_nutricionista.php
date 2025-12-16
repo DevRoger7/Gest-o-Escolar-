@@ -127,7 +127,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['acao']) && $_GET['acao'
                         SUM(pei.quantidade) as quantidade,
                         COALESCE(ec1.validade, ec2.validade) as validade,
                         COALESCE(ec1.lote, ec2.lote, 'Sem lote') as lote,
-                        COALESCE(f1.nome, f2.nome) as fornecedor_nome,
+                        COALESCE(f1.nome, ec1.fornecedor, f2.nome, ec2.fornecedor, NULL) as fornecedor_nome,
                         MAX(pe.data_envio) as data_envio_mais_recente
                     FROM pacote_escola_item pei
                     INNER JOIN pacote_escola pe ON pei.pacote_id = pe.id
@@ -157,7 +157,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['acao']) && $_GET['acao'
                         SUM(pei.quantidade) as quantidade,
                         ec.validade,
                         COALESCE(ec.lote, 'Sem lote') as lote,
-                        f.nome as fornecedor_nome,
+                        COALESCE(f.nome, ec.fornecedor, NULL) as fornecedor_nome,
                         MAX(pe.data_envio) as data_envio_mais_recente
                     FROM pacote_escola_item pei
                     INNER JOIN pacote_escola pe ON pei.pacote_id = pe.id
@@ -235,21 +235,44 @@ $stmtProdutos = $conn->prepare($sqlProdutos);
 $stmtProdutos->execute();
 $produtos = $stmtProdutos->fetchAll(PDO::FETCH_ASSOC);
 
-// Buscar estoque inicial
+// Buscar estoque inicial - mostrar cada item separadamente (incluindo lotes diferentes)
 $sqlEstoque = "SELECT 
+                    pei.id as item_id,
                     pei.produto_id,
                     p.nome as produto_nome,
                     p.unidade_medida,
                     p.estoque_minimo,
-                    SUM(pei.quantidade) as quantidade,
-                    MAX(pe.data_envio) as data_envio_mais_recente
+                    pei.quantidade,
+                    pei.estoque_central_id,
+                    COALESCE(ec1.validade, ec2.validade, NULL) as validade,
+                    COALESCE(ec1.lote, ec2.lote, 'Sem lote') as lote,
+                    COALESCE(f1.nome, ec1.fornecedor, f2.nome, ec2.fornecedor, NULL) as fornecedor_nome,
+                    pe.data_envio,
+                    pe.id as pacote_id
                 FROM pacote_escola_item pei
                 INNER JOIN pacote_escola pe ON pei.pacote_id = pe.id
                 INNER JOIN produto p ON pei.produto_id = p.id
+                LEFT JOIN estoque_central ec1 ON pei.estoque_central_id = ec1.id
+                LEFT JOIN fornecedor f1 ON ec1.fornecedor_id = f1.id
+                LEFT JOIN estoque_central ec2 ON pei.produto_id = ec2.produto_id 
+                    AND ec2.quantidade > 0 
+                    AND pei.estoque_central_id IS NULL
+                    AND ec2.id = (
+                        SELECT ec3.id 
+                        FROM estoque_central ec3 
+                        WHERE ec3.produto_id = pei.produto_id 
+                        AND ec3.quantidade > 0 
+                        ORDER BY ec3.validade ASC 
+                        LIMIT 1
+                    )
+                LEFT JOIN fornecedor f2 ON ec2.fornecedor_id = f2.id
                 WHERE pe.escola_id = :escola_id
-                GROUP BY pei.produto_id, p.nome, p.unidade_medida, p.estoque_minimo
-                ORDER BY p.nome ASC
-                LIMIT 50";
+                AND pei.quantidade > 0
+                ORDER BY p.nome ASC,
+                         CASE WHEN COALESCE(ec1.validade, ec2.validade) IS NULL THEN 1 ELSE 0 END ASC,
+                         COALESCE(ec1.validade, ec2.validade) ASC,
+                         pei.id ASC
+                LIMIT 200";
 $stmtEstoque = $conn->prepare($sqlEstoque);
 $stmtEstoque->bindParam(':escola_id', $escolaId, PDO::PARAM_INT);
 $stmtEstoque->execute();
@@ -451,16 +474,60 @@ if (!$escolaId) {
                                                 </span>
                                             </td>
                                             <td class="py-4 px-6">
-                                                <span class="text-gray-400 italic">-</span>
+                                                <?php 
+                                                $lote = trim($item['lote'] ?? '');
+                                                if (!empty($lote) && $lote !== 'Sem lote' && $lote !== ''): ?>
+                                                    <span class="inline-flex items-center px-3 py-1 bg-gray-100 text-gray-800 rounded-lg text-sm font-medium">
+                                                        <?= htmlspecialchars($lote) ?>
+                                                    </span>
+                                                <?php else: ?>
+                                                    <span class="text-gray-400 italic">-</span>
+                                                <?php endif; ?>
                                             </td>
                                             <td class="py-4 px-6">
-                                                <span class="text-gray-400 italic">-</span>
+                                                <?php if (!empty($item['fornecedor_nome'])): ?>
+                                                    <span class="text-gray-700 font-medium">
+                                                        <?= htmlspecialchars($item['fornecedor_nome']) ?>
+                                                    </span>
+                                                <?php else: ?>
+                                                    <span class="text-gray-400 italic">-</span>
+                                                <?php endif; ?>
                                             </td>
                                             <td class="py-4 px-6 text-center">
-                                                <span class="text-gray-400 italic">Não informada</span>
+                                                <?php if (!empty($item['validade'])): ?>
+                                                    <?php
+                                                    try {
+                                                        $dataValidade = new DateTime($item['validade']);
+                                                        $hoje = new DateTime();
+                                                        $diferenca = $hoje->diff($dataValidade);
+                                                        $diasRestantes = $diferenca->days;
+                                                        $cor = $diasRestantes <= 7 ? 'text-red-600 font-bold' : ($diasRestantes <= 30 ? 'text-orange-600 font-semibold' : 'text-gray-700');
+                                                    ?>
+                                                        <span class="<?= $cor ?>">
+                                                            <?= $dataValidade->format('d/m/Y') ?>
+                                                        </span>
+                                                    <?php
+                                                    } catch (Exception $e) {
+                                                        echo '<span class="text-gray-400 italic">Não informada</span>';
+                                                    }
+                                                    ?>
+                                                <?php else: ?>
+                                                    <span class="text-gray-400 italic">Não informada</span>
+                                                <?php endif; ?>
                                             </td>
                                             <td class="py-4 px-6 text-center">
-                                                <span class="text-gray-600 font-medium">-</span>
+                                                <?php if (!empty($item['data_envio'])): ?>
+                                                    <?php
+                                                    try {
+                                                        $dataEnvio = new DateTime($item['data_envio']);
+                                                        echo '<span class="text-gray-600 font-medium">' . $dataEnvio->format('d/m/Y') . '</span>';
+                                                    } catch (Exception $e) {
+                                                        echo '<span class="text-gray-400 italic">-</span>';
+                                                    }
+                                                    ?>
+                                                <?php else: ?>
+                                                    <span class="text-gray-400 italic">-</span>
+                                                <?php endif; ?>
                                             </td>
                                         </tr>
                                     <?php endforeach; ?>
@@ -648,6 +715,8 @@ if (!$escolaId) {
                 });
         }
     </script>
+    
+    <?php include(__DIR__ . '/components/logout_modal.php'); ?>
 </body>
 </html>
 

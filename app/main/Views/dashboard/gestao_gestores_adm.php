@@ -482,10 +482,44 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao'])) {
             // Buscar gestor existente
             error_log("DEBUG EDITAR GESTOR - Buscando gestor com ID: " . $gestorId . " (tipo: " . gettype($gestorId) . ")");
             
+            // Verificar se a tabela gestor tem campo especializacao
+            try {
+                $stmtCheck = $conn->query("SHOW COLUMNS FROM gestor LIKE 'especializacao'");
+                $temEspecializacao = $stmtCheck->rowCount() > 0;
+            } catch (Exception $e) {
+                $temEspecializacao = false;
+            }
+            
+            // Verificar se a tabela pessoa tem campo cor ou raca
+            try {
+                $stmtCheckCor = $conn->query("SHOW COLUMNS FROM pessoa LIKE 'cor'");
+                $temCor = $stmtCheckCor->rowCount() > 0;
+                if (!$temCor) {
+                    $stmtCheckRaca = $conn->query("SHOW COLUMNS FROM pessoa LIKE 'raca'");
+                    $temRaca = $stmtCheckRaca->rowCount() > 0;
+                } else {
+                    $temRaca = false;
+                }
+            } catch (Exception $e) {
+                $temCor = false;
+                $temRaca = false;
+            }
+            
             // Primeiro, buscar o gestor básico (sem restrição de ativo para permitir edição)
             // Tentar primeiro com JOIN
-            $sqlGestor = "SELECT g.*, p.*, p.id as pessoa_id, p.endereco, p.numero, p.complemento, 
-                         p.bairro, p.cidade, p.estado, p.cep
+            $camposEspecializacao = $temEspecializacao ? ', g.especializacao' : '';
+            $camposCor = '';
+            if ($temCor) {
+                $camposCor = ', p.cor';
+            } elseif ($temRaca) {
+                $camposCor = ', p.raca AS cor';
+            }
+            
+            $sqlGestor = "SELECT g.id, g.pessoa_id, g.cargo, g.formacao{$camposEspecializacao}, g.registro_profissional, 
+                         g.observacoes, g.ativo, g.criado_por, g.criado_em, g.atualizado_em,
+                         p.id as pessoa_id_explicit, p.cpf, p.nome, p.data_nascimento, p.sexo, p.email, 
+                         p.telefone, p.nome_social, p.endereco, p.numero, p.complemento, 
+                         p.bairro, p.cidade, p.estado, p.cep{$camposCor}
                          FROM gestor g 
                          INNER JOIN pessoa p ON g.pessoa_id = p.id 
                          WHERE g.id = :id";
@@ -493,6 +527,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao'])) {
             $stmtGestor->bindParam(':id', $gestorId, PDO::PARAM_INT);
             $stmtGestor->execute();
             $gestor = $stmtGestor->fetch(PDO::FETCH_ASSOC);
+            
+            // Garantir que pessoa_id está definido corretamente
+            if ($gestor && isset($gestor['pessoa_id_explicit'])) {
+                $gestor['pessoa_id'] = $gestor['pessoa_id_explicit'];
+                unset($gestor['pessoa_id_explicit']);
+            }
             
             error_log("DEBUG EDITAR GESTOR - ID recebido: " . var_export($gestorId, true));
             error_log("DEBUG EDITAR GESTOR - Tipo do ID: " . gettype($gestorId));
@@ -550,8 +590,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao'])) {
                         error_log("DEBUG EDITAR GESTOR - ATENÇÃO: O ID " . $gestorId . " existe na tabela pessoa, mas não na tabela gestor!");
                         error_log("DEBUG EDITAR GESTOR - Buscando gestor pela pessoa_id...");
                         // Tentar buscar gestor pela pessoa_id
-                        $sqlGestorPorPessoa = "SELECT g.*, p.*, p.id as pessoa_id, p.endereco, p.numero, p.complemento, 
-                                               p.bairro, p.cidade, p.estado, p.cep
+                        $camposEspecializacao = $temEspecializacao ? ', g.especializacao' : '';
+                        $camposCor = '';
+                        if ($temCor) {
+                            $camposCor = ', p.cor';
+                        } elseif ($temRaca) {
+                            $camposCor = ', p.raca AS cor';
+                        }
+                        
+                        $sqlGestorPorPessoa = "SELECT g.id, g.pessoa_id, g.cargo, g.formacao{$camposEspecializacao}, g.registro_profissional, 
+                                               g.observacoes, g.ativo, g.criado_por, g.criado_em, g.atualizado_em,
+                                               p.id as pessoa_id_explicit, p.cpf, p.nome, p.data_nascimento, p.sexo, p.email, 
+                                               p.telefone, p.nome_social, p.endereco, p.numero, p.complemento, 
+                                               p.bairro, p.cidade, p.estado, p.cep{$camposCor}
                                                FROM gestor g 
                                                INNER JOIN pessoa p ON g.pessoa_id = p.id 
                                                WHERE g.pessoa_id = :pessoa_id
@@ -562,6 +613,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao'])) {
                         $gestorPorPessoa = $stmtGestorPorPessoa->fetch(PDO::FETCH_ASSOC);
                         if ($gestorPorPessoa) {
                             error_log("DEBUG EDITAR GESTOR - Gestor encontrado pela pessoa_id! ID correto do gestor: " . $gestorPorPessoa['id']);
+                            // Garantir que pessoa_id está definido corretamente
+                            if (isset($gestorPorPessoa['pessoa_id_explicit'])) {
+                                $gestorPorPessoa['pessoa_id'] = $gestorPorPessoa['pessoa_id_explicit'];
+                                unset($gestorPorPessoa['pessoa_id_explicit']);
+                            }
                             // Usar o gestor encontrado e corrigir o ID
                             $gestor = $gestorPorPessoa;
                             $gestorId = (int)$gestorPorPessoa['id']; // Corrigir o ID para o ID do gestor
@@ -1063,13 +1119,44 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['acao'])) {
                 exit;
             }
             
+            // Verificar se a tabela gestor tem campo especializacao
+            try {
+                $stmtCheck = $conn->query("SHOW COLUMNS FROM gestor LIKE 'especializacao'");
+                $temEspecializacao = $stmtCheck->rowCount() > 0;
+            } catch (Exception $e) {
+                $temEspecializacao = false;
+            }
+            
+            // Verificar se a tabela pessoa tem campo cor ou raca
+            try {
+                $stmtCheckCor = $conn->query("SHOW COLUMNS FROM pessoa LIKE 'cor'");
+                $temCor = $stmtCheckCor->rowCount() > 0;
+                if (!$temCor) {
+                    $stmtCheckRaca = $conn->query("SHOW COLUMNS FROM pessoa LIKE 'raca'");
+                    $temRaca = $stmtCheckRaca->rowCount() > 0;
+                } else {
+                    $temRaca = false;
+                }
+            } catch (Exception $e) {
+                $temCor = false;
+                $temRaca = false;
+            }
+            
             // Buscar gestor básico primeiro (sem restrição de ativo para permitir visualização)
             // IMPORTANTE: g.id AS id garante que o id seja sempre do gestor, não da pessoa
-            $sql = "SELECT g.id, g.pessoa_id, g.cargo, g.formacao, g.registro_profissional, 
+            $camposEspecializacao = $temEspecializacao ? ', g.especializacao' : '';
+            $camposCor = '';
+            if ($temCor) {
+                $camposCor = ', p.cor';
+            } elseif ($temRaca) {
+                $camposCor = ', p.raca AS cor';
+            }
+            
+            $sql = "SELECT g.id, g.pessoa_id, g.cargo, g.formacao{$camposEspecializacao}, g.registro_profissional, 
                            g.observacoes, g.ativo, g.criado_por, g.criado_em,
                            p.id AS pessoa_id_explicit, p.cpf, p.nome, p.data_nascimento, p.sexo, p.email, 
                            p.telefone, p.nome_social, p.endereco, p.numero, p.complemento, 
-                           p.bairro, p.cidade, p.estado, p.cep
+                           p.bairro, p.cidade, p.estado, p.cep{$camposCor}
                     FROM gestor g
                     INNER JOIN pessoa p ON g.pessoa_id = p.id
                     WHERE g.id = :id";
@@ -1121,11 +1208,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['acao'])) {
                     error_log("DEBUG BUSCAR GESTOR - ID é de uma pessoa! Buscando gestor pela pessoa_id...");
                     // Buscar gestor pela pessoa_id
                     // IMPORTANTE: g.id AS id garante que o id seja sempre do gestor
-                    $sqlGestorPorPessoa = "SELECT g.id, g.pessoa_id, g.cargo, g.formacao, g.registro_profissional, 
+                    $camposEspecializacao = $temEspecializacao ? ', g.especializacao' : '';
+                    $camposCor = '';
+                    if ($temCor) {
+                        $camposCor = ', p.cor';
+                    } elseif ($temRaca) {
+                        $camposCor = ', p.raca AS cor';
+                    }
+                    
+                    $sqlGestorPorPessoa = "SELECT g.id, g.pessoa_id, g.cargo, g.formacao{$camposEspecializacao}, g.registro_profissional, 
                                                  g.observacoes, g.ativo, g.criado_por, g.criado_em,
                                                  p.id AS pessoa_id_explicit, p.cpf, p.nome, p.data_nascimento, p.sexo, p.email, 
                                                  p.telefone, p.nome_social, p.endereco, p.numero, p.complemento, 
-                                                 p.bairro, p.cidade, p.estado, p.cep
+                                                 p.bairro, p.cidade, p.estado, p.cep{$camposCor}
                                           FROM gestor g
                                           INNER JOIN pessoa p ON g.pessoa_id = p.id
                                           WHERE g.pessoa_id = :pessoa_id
@@ -1606,15 +1701,15 @@ unset($gestor);
                                 </button>
                             </div>
                             <div class="md:col-span-2 lg:col-span-3">
-                                <label class="block text-sm font-medium text-gray-700 mb-2">Especializações</label>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Titulações</label>
                                 <div id="editar-especializacoes-container" class="space-y-2 mb-2">
-                                    <!-- Especializações serão adicionadas aqui dinamicamente -->
+                                    <!-- Titulações serão adicionadas aqui dinamicamente -->
                                 </div>
                                 <button type="button" onclick="adicionarEspecializacaoEdicao()" class="text-sm text-indigo-600 hover:text-indigo-700 font-medium flex items-center space-x-1">
                                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
                                     </svg>
-                                    <span>Adicionar Especialização</span>
+                                    <span>Adicionar Titulação</span>
                                 </button>
                             </div>
                             <div>
@@ -1887,15 +1982,15 @@ unset($gestor);
                                 </button>
                             </div>
                             <div class="md:col-span-2 lg:col-span-3">
-                                <label class="block text-sm font-medium text-gray-700 mb-2">Especializações</label>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Titulações</label>
                                 <div id="especializacoes-container" class="space-y-2 mb-2">
-                                    <!-- Especializações serão adicionadas aqui dinamicamente -->
+                                    <!-- Titulações serão adicionadas aqui dinamicamente -->
                                 </div>
                                 <button type="button" onclick="adicionarEspecializacao()" class="text-sm text-indigo-600 hover:text-indigo-700 font-medium flex items-center space-x-1">
                                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
                                     </svg>
-                                    <span>Adicionar Especialização</span>
+                                    <span>Adicionar Titulação</span>
                                 </button>
                             </div>
                             <div>

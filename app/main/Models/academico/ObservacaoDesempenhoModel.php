@@ -19,41 +19,67 @@ class ObservacaoDesempenhoModel {
     public function adicionar($dados) {
         $conn = $this->db->getConnection();
         
-        $sql = "INSERT INTO observacao_desempenho (aluno_id, turma_id, disciplina_id, professor_id, tipo,
-                titulo, observacao, data, bimestre, visivel_responsavel, criado_por, criado_em)
-                VALUES (:aluno_id, :turma_id, :disciplina_id, :professor_id, :tipo,
-                :titulo, :observacao, :data, :bimestre, :visivel_responsavel, :criado_por, NOW())";
-        
-        $stmt = $conn->prepare($sql);
-        $alunoId = $dados['aluno_id'];
-        $turmaId = $dados['turma_id'];
-        $disciplinaId = $dados['disciplina_id'] ?? null;
-        $professorId = $dados['professor_id'];
-        $tipo = $dados['tipo'] ?? 'OUTROS';
-        $titulo = $dados['titulo'] ?? null;
-        $observacao = $dados['observacao'];
-        $data = $dados['data'] ?? date('Y-m-d');
-        $bimestre = $dados['bimestre'] ?? null;
-        $visivelResponsavel = $dados['visivel_responsavel'] ?? 1;
-        $criadoPor = (isset($_SESSION['usuario_id']) && is_numeric($_SESSION['usuario_id'])) ? (int)$_SESSION['usuario_id'] : null;
+        try {
+            $sql = "INSERT INTO observacao_desempenho (aluno_id, turma_id, disciplina_id, professor_id, tipo,
+                    titulo, observacao, data, bimestre, visivel_responsavel, criado_por, criado_em)
+                    VALUES (:aluno_id, :turma_id, :disciplina_id, :professor_id, :tipo,
+                    :titulo, :observacao, :data, :bimestre, :visivel_responsavel, :criado_por, NOW())";
+            
+            $stmt = $conn->prepare($sql);
+            $alunoId = $dados['aluno_id'];
+            $turmaId = $dados['turma_id'];
+            $disciplinaId = $dados['disciplina_id'] ?? null;
+            $professorId = $dados['professor_id'];
+            $tipo = $dados['tipo'] ?? 'OUTROS';
+            $titulo = $dados['titulo'] ?? null;
+            $observacao = $dados['observacao'];
+            $data = $dados['data'] ?? date('Y-m-d');
+            $bimestre = $dados['bimestre'] ?? null;
+            $visivelResponsavel = $dados['visivel_responsavel'] ?? 1;
+            
+            // Validar e obter usuario_id válido
+            $criadoPor = null;
+            if (isset($_SESSION['usuario_id']) && is_numeric($_SESSION['usuario_id'])) {
+                $usuarioIdParam = (int)$_SESSION['usuario_id'];
+                // Verificar se o usuário existe na tabela
+                $sqlVerificarUsuario = "SELECT id FROM usuario WHERE id = :usuario_id LIMIT 1";
+                $stmtVerificarUsuario = $conn->prepare($sqlVerificarUsuario);
+                $stmtVerificarUsuario->bindParam(':usuario_id', $usuarioIdParam);
+                $stmtVerificarUsuario->execute();
+                $usuarioExiste = $stmtVerificarUsuario->fetch(PDO::FETCH_ASSOC);
+                if ($usuarioExiste) {
+                    $criadoPor = $usuarioIdParam;
+                }
+            }
 
-        $stmt->bindParam(':aluno_id', $alunoId);
-        $stmt->bindParam(':turma_id', $turmaId);
-        $stmt->bindParam(':disciplina_id', $disciplinaId);
-        $stmt->bindParam(':professor_id', $professorId);
-        $stmt->bindParam(':tipo', $tipo);
-        $stmt->bindParam(':titulo', $titulo);
-        $stmt->bindParam(':observacao', $observacao);
-        $stmt->bindParam(':data', $data);
-        $stmt->bindParam(':bimestre', $bimestre);
-        $stmt->bindParam(':visivel_responsavel', $visivelResponsavel, PDO::PARAM_BOOL);
-        $stmt->bindParam(':criado_por', $criadoPor);
-        
-        if ($stmt->execute()) {
-            return ['success' => true, 'id' => $conn->lastInsertId()];
+            $stmt->bindParam(':aluno_id', $alunoId);
+            $stmt->bindParam(':turma_id', $turmaId);
+            $stmt->bindParam(':disciplina_id', $disciplinaId);
+            $stmt->bindParam(':professor_id', $professorId);
+            $stmt->bindParam(':tipo', $tipo);
+            $stmt->bindParam(':titulo', $titulo);
+            $stmt->bindParam(':observacao', $observacao);
+            $stmt->bindParam(':data', $data);
+            $stmt->bindParam(':bimestre', $bimestre);
+            $stmt->bindParam(':visivel_responsavel', $visivelResponsavel, PDO::PARAM_INT);
+            $stmt->bindParam(':criado_por', $criadoPor);
+            
+            if ($stmt->execute()) {
+                return ['success' => true, 'id' => $conn->lastInsertId()];
+            }
+            
+            $errorInfo = $stmt->errorInfo();
+            $errorMessage = $errorInfo[2] ?? 'Erro desconhecido ao executar a query';
+            error_log("Erro ao adicionar observação: " . $errorMessage);
+            return ['success' => false, 'message' => 'Erro ao adicionar observação: ' . $errorMessage];
+            
+        } catch (PDOException $e) {
+            error_log("PDOException ao adicionar observação: " . $e->getMessage());
+            return ['success' => false, 'message' => 'Erro ao adicionar observação: ' . $e->getMessage()];
+        } catch (Exception $e) {
+            error_log("Exception ao adicionar observação: " . $e->getMessage());
+            return ['success' => false, 'message' => 'Erro ao adicionar observação: ' . $e->getMessage()];
         }
-        
-        return ['success' => false, 'message' => 'Erro ao adicionar observação'];
     }
     
     /**
