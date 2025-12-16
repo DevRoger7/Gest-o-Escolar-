@@ -1701,15 +1701,15 @@ unset($gestor);
                                 </button>
                             </div>
                             <div class="md:col-span-2 lg:col-span-3">
-                                <label class="block text-sm font-medium text-gray-700 mb-2">Especializações</label>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Titulações</label>
                                 <div id="editar-especializacoes-container" class="space-y-2 mb-2">
-                                    <!-- Especializações serão adicionadas aqui dinamicamente -->
+                                    <!-- Titulações serão adicionadas aqui dinamicamente -->
                                 </div>
                                 <button type="button" onclick="adicionarEspecializacaoEdicao()" class="text-sm text-indigo-600 hover:text-indigo-700 font-medium flex items-center space-x-1">
                                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
                                     </svg>
-                                    <span>Adicionar Especialização</span>
+                                    <span>Adicionar Titulação</span>
                                 </button>
                             </div>
                             <div>
@@ -1982,15 +1982,15 @@ unset($gestor);
                                 </button>
                             </div>
                             <div class="md:col-span-2 lg:col-span-3">
-                                <label class="block text-sm font-medium text-gray-700 mb-2">Especializações</label>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Titulações</label>
                                 <div id="especializacoes-container" class="space-y-2 mb-2">
-                                    <!-- Especializações serão adicionadas aqui dinamicamente -->
+                                    <!-- Titulações serão adicionadas aqui dinamicamente -->
                                 </div>
                                 <button type="button" onclick="adicionarEspecializacao()" class="text-sm text-indigo-600 hover:text-indigo-700 font-medium flex items-center space-x-1">
                                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
                                     </svg>
-                                    <span>Adicionar Especialização</span>
+                                    <span>Adicionar Titulação</span>
                                 </button>
                             </div>
                             <div>

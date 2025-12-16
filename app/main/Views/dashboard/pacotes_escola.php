@@ -451,7 +451,32 @@ $pacotes = $pacoteModel->listar();
         };
         
         window.confirmLogout = function() {
-            if (confirm('Tem certeza que deseja sair do sistema?')) {
+            const modal = document.getElementById('logoutModal');
+            if (modal) {
+                modal.style.display = 'flex';
+                modal.classList.remove('hidden');
+                modal.classList.add('flex');
+            } else {
+                console.error('Modal de logout não encontrado');
+            }
+        };
+        
+        window.closeLogoutModal = function() {
+            const modal = document.getElementById('logoutModal');
+            if (modal) {
+                modal.style.display = 'none';
+                modal.classList.add('hidden');
+                modal.classList.remove('flex');
+            }
+        };
+        
+        window.logout = function() {
+            try {
+                window.location.href = '../auth/logout.php';
+            } catch (e) {
+                console.error('Erro ao fazer logout:', e);
+            }
+        };
                 window.location.href = '../auth/logout.php';
             }
         };
@@ -1012,6 +1037,8 @@ $pacotes = $pacoteModel->listar();
             document.getElementById('modal-detalhes').style.display = 'none';
         }
     </script>
+    
+    <?php include(__DIR__ . '/components/logout_modal.php'); ?>
 </body>
 </html>
 

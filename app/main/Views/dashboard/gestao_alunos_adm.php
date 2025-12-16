@@ -133,6 +133,30 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao'])) {
                 $matricula = $ano . str_pad($proximoNumero, 4, '0', STR_PAD_LEFT);
             }
             
+            // Verificar se endereço é o mesmo do responsável
+            $enderecoMesmoResponsavel = isset($_POST['endereco_mesmo_responsavel']) && $_POST['endereco_mesmo_responsavel'] === '1';
+            
+            // Preparar dados de endereço
+            if ($enderecoMesmoResponsavel) {
+                // Usar endereço do responsável
+                $endereco = !empty($_POST['responsavel_endereco']) ? trim($_POST['responsavel_endereco']) : null;
+                $numero = !empty($_POST['responsavel_numero']) ? trim($_POST['responsavel_numero']) : null;
+                $complemento = !empty($_POST['responsavel_complemento']) ? trim($_POST['responsavel_complemento']) : null;
+                $bairro = !empty($_POST['responsavel_bairro']) ? trim($_POST['responsavel_bairro']) : null;
+                $cidade = !empty($_POST['responsavel_cidade']) ? trim($_POST['responsavel_cidade']) : null;
+                $estado = !empty($_POST['responsavel_estado']) ? trim($_POST['responsavel_estado']) : 'CE';
+                $cep = !empty($_POST['responsavel_cep']) ? preg_replace('/[^0-9]/', '', trim($_POST['responsavel_cep'])) : null;
+            } else {
+                // Usar endereço do aluno
+                $endereco = !empty($_POST['endereco']) ? trim($_POST['endereco']) : null;
+                $numero = !empty($_POST['numero']) ? trim($_POST['numero']) : null;
+                $complemento = !empty($_POST['complemento']) ? trim($_POST['complemento']) : null;
+                $bairro = !empty($_POST['bairro']) ? trim($_POST['bairro']) : null;
+                $cidade = !empty($_POST['cidade']) ? trim($_POST['cidade']) : null;
+                $estado = !empty($_POST['estado']) ? trim($_POST['estado']) : 'CE';
+                $cep = !empty($_POST['cep']) ? preg_replace('/[^0-9]/', '', trim($_POST['cep'])) : null;
+            }
+            
             // Preparar dados para o model
                     $dados = [
                         'cpf' => $cpf,
@@ -141,6 +165,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao'])) {
                         'sexo' => $_POST['sexo'] ?? null,
                         'email' => !empty($emailInformado) ? $emailInformado : null,
                         'telefone' => !empty($telefone) ? $telefone : null,
+                        'endereco' => $endereco,
+                        'numero' => $numero,
+                        'complemento' => $complemento,
+                        'bairro' => $bairro,
+                        'cidade' => $cidade,
+                        'estado' => $estado,
+                        'cep' => $cep,
                         'matricula' => $matricula,
                         'nis' => !empty($_POST['nis']) ? preg_replace('/[^0-9]/', '', trim($_POST['nis'])) : null,
                         'responsavel_id' => !empty($_POST['responsavel_id']) ? $_POST['responsavel_id'] : null,
@@ -150,8 +181,29 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao'])) {
                 'precisa_transporte' => isset($_POST['precisa_transporte']) ? 1 : 0,
                 'distrito_transporte' => !empty($_POST['distrito_transporte']) ? trim($_POST['distrito_transporte']) : null,
                 'nome_social' => !empty($_POST['nome_social']) ? trim($_POST['nome_social']) : null,
-                'raca' => !empty($_POST['raca']) ? trim($_POST['raca']) : null
+                'raca' => !empty($_POST['raca']) ? trim($_POST['raca']) : null,
+                'is_pcd' => isset($_POST['is_pcd']) ? 1 : 0,
+                'cids' => !empty($_POST['cids']) && is_array($_POST['cids']) ? $_POST['cids'] : []
             ];
+            
+            // Validar CIDs se is_pcd for marcado
+            if ($dados['is_pcd'] && empty($dados['cids'])) {
+                throw new Exception('É necessário informar pelo menos um CID quando o aluno é PCD.');
+            }
+            
+            // Validar cada CID
+            if ($dados['is_pcd'] && !empty($dados['cids'])) {
+                foreach ($dados['cids'] as $index => $cid) {
+                    if (empty($cid['codigo']) || trim($cid['codigo']) === '') {
+                        throw new Exception("O código CID #" . ($index + 1) . " é obrigatório.");
+                    }
+                    // Validar formato do CID (letra seguida de números e ponto opcional)
+                    $codigoCID = trim($cid['codigo']);
+                    if (!preg_match('/^[A-Z][0-9]{1,2}(\.[0-9])?$/', $codigoCID)) {
+                        throw new Exception("O código CID #" . ($index + 1) . " está em formato inválido. Use o formato: Letra + Números + Ponto opcional (ex: F84.0)");
+                    }
+                }
+            }
             
             // Validar campos obrigatórios
             if (empty($dados['nome'])) {
@@ -216,6 +268,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao'])) {
                         }
                     }
                     
+                    // Preparar endereço do responsável
+                    $responsavelEndereco = !empty($_POST['responsavel_endereco']) ? trim($_POST['responsavel_endereco']) : null;
+                    $responsavelNumero = !empty($_POST['responsavel_numero']) ? trim($_POST['responsavel_numero']) : null;
+                    $responsavelComplemento = !empty($_POST['responsavel_complemento']) ? trim($_POST['responsavel_complemento']) : null;
+                    $responsavelBairro = !empty($_POST['responsavel_bairro']) ? trim($_POST['responsavel_bairro']) : null;
+                    $responsavelCidade = !empty($_POST['responsavel_cidade']) ? trim($_POST['responsavel_cidade']) : null;
+                    $responsavelEstado = !empty($_POST['responsavel_estado']) ? trim($_POST['responsavel_estado']) : 'CE';
+                    $responsavelCep = !empty($_POST['responsavel_cep']) ? preg_replace('/[^0-9]/', '', trim($_POST['responsavel_cep'])) : null;
+                    
                     // Criar responsável
                     $dadosResponsavel = [
                         'nome' => trim($_POST['responsavel_nome'] ?? ''),
@@ -224,20 +285,40 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao'])) {
                         'sexo' => $_POST['responsavel_sexo'] ?? null,
                         'email' => !empty($responsavelEmail) ? $responsavelEmail : null,
                         'telefone' => !empty($responsavelTelefone) ? $responsavelTelefone : null,
+                        'endereco' => $responsavelEndereco,
+                        'numero' => $responsavelNumero,
+                        'complemento' => $responsavelComplemento,
+                        'bairro' => $responsavelBairro,
+                        'cidade' => $responsavelCidade,
+                        'estado' => $responsavelEstado,
+                        'cep' => $responsavelCep,
                         'senha' => $_POST['responsavel_senha'] ?? ''
                     ];
                     
                     $resultadoResponsavel = $responsavelModel->criar($dadosResponsavel);
                     
                     if ($resultadoResponsavel['success']) {
-                        // Associar responsável ao aluno
-                        $parentesco = $_POST['responsavel_parentesco'] ?? 'OUTRO';
-                        $associacao = $responsavelModel->associarAlunos($resultadoResponsavel['pessoa_id'], [$alunoId], $parentesco);
+                        $responsavelPessoaId = $resultadoResponsavel['pessoa_id'] ?? null;
                         
-                        if ($associacao['success']) {
-                            $mensagem .= ' Responsável cadastrado e associado com sucesso!';
+                        if ($responsavelPessoaId) {
+                            // Atualizar o responsavel_id na tabela aluno
+                            $sqlAtualizarResponsavel = "UPDATE aluno SET responsavel_id = :responsavel_id WHERE id = :aluno_id";
+                            $stmtAtualizarResp = $conn->prepare($sqlAtualizarResponsavel);
+                            $stmtAtualizarResp->bindParam(':responsavel_id', $responsavelPessoaId);
+                            $stmtAtualizarResp->bindParam(':aluno_id', $alunoId);
+                            $stmtAtualizarResp->execute();
+                            
+                            // Associar responsável ao aluno na tabela aluno_responsavel
+                            $parentesco = $_POST['responsavel_parentesco'] ?? 'OUTRO';
+                            $associacao = $responsavelModel->associarAlunos($responsavelPessoaId, [$alunoId], $parentesco);
+                            
+                            if ($associacao['success']) {
+                                $mensagem .= ' Responsável cadastrado e associado com sucesso!';
+                            } else {
+                                $mensagem .= ' Responsável cadastrado e vinculado ao aluno, mas houve erro ao associar na tabela aluno_responsavel: ' . ($associacao['message'] ?? 'Erro desconhecido');
+                            }
                         } else {
-                            $mensagem .= ' Responsável cadastrado, mas houve erro ao associar: ' . ($associacao['message'] ?? 'Erro desconhecido');
+                            throw new Exception('Aluno cadastrado, mas não foi possível obter o ID do responsável criado.');
                         }
                     } else {
                         throw new Exception('Aluno cadastrado, mas erro ao criar responsável: ' . ($resultadoResponsavel['message'] ?? 'Erro desconhecido'));
@@ -326,8 +407,29 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao'])) {
                 'precisa_transporte' => isset($_POST['precisa_transporte']) ? 1 : 0,
                 'distrito_transporte' => !empty($_POST['distrito_transporte']) ? trim($_POST['distrito_transporte']) : null,
                 'nome_social' => !empty($_POST['nome_social']) ? trim($_POST['nome_social']) : null,
-                'raca' => !empty($_POST['raca']) ? trim($_POST['raca']) : null
+                'raca' => !empty($_POST['raca']) ? trim($_POST['raca']) : null,
+                'is_pcd' => isset($_POST['is_pcd']) ? 1 : 0,
+                'cids' => !empty($_POST['cids']) && is_array($_POST['cids']) ? $_POST['cids'] : []
             ];
+            
+            // Validar CIDs se is_pcd for marcado
+            if ($dados['is_pcd'] && empty($dados['cids'])) {
+                throw new Exception('É necessário informar pelo menos um CID quando o aluno é PCD.');
+            }
+            
+            // Validar cada CID
+            if ($dados['is_pcd'] && !empty($dados['cids'])) {
+                foreach ($dados['cids'] as $index => $cid) {
+                    if (empty($cid['codigo']) || trim($cid['codigo']) === '') {
+                        throw new Exception("O código CID #" . ($index + 1) . " é obrigatório.");
+                    }
+                    // Validar formato do CID (letra seguida de números e ponto opcional)
+                    $codigoCID = trim($cid['codigo']);
+                    if (!preg_match('/^[A-Z][0-9]{1,2}(\.[0-9])?$/', $codigoCID)) {
+                        throw new Exception("O código CID #" . ($index + 1) . " está em formato inválido. Use o formato: Letra + Números + Ponto opcional (ex: F84.0)");
+                    }
+                }
+            }
             
             if (empty($dados['nome'])) {
                 throw new Exception('Nome é obrigatório.');
@@ -871,7 +973,8 @@ if (ob_get_level()) {
                         </div>
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-2">NIS (Número de Identificação Social)</label>
-                            <input type="text" name="nis" id="editar_nis" maxlength="11"
+                            <input type="text" name="nis" id="editar_nis" maxlength="14"
+                                   placeholder="000.00000.00-0"
                                    oninput="formatarNIS(this)"
                                    class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
                         </div>
@@ -908,6 +1011,37 @@ if (ob_get_level()) {
                                 <option value="1">Ativo</option>
                                 <option value="0">Inativo</option>
                             </select>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Informações de PCD -->
+                <div>
+                    <h3 class="text-base font-semibold text-gray-800 mb-4 pb-2 border-b border-gray-200">Informações de Deficiência</h3>
+                    <div class="space-y-4">
+                        <div class="flex items-center space-x-3 p-4 bg-gray-50 rounded-lg border border-gray-200">
+                            <input type="checkbox" name="is_pcd" id="editar_is_pcd" value="1" 
+                                   onchange="toggleCamposPCDEditar()"
+                                   class="w-5 h-5 text-blue-600 border-gray-300 rounded focus:ring-blue-500">
+                            <label for="editar_is_pcd" class="text-sm font-medium text-gray-700 cursor-pointer">
+                                Aluno é Pessoa com Deficiência (PCD)
+                            </label>
+                        </div>
+                        <div id="container-cids-editar" class="hidden">
+                            <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                                <label class="block text-sm font-semibold text-gray-800 mb-3">CID (Código de Classificação Internacional de Doenças)</label>
+                                <div id="lista-cids-editar" class="space-y-3 mb-4">
+                                    <!-- CIDs serão adicionados dinamicamente aqui -->
+                                </div>
+                                <button type="button" onclick="adicionarCampoCIDEditar()" 
+                                        class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium flex items-center space-x-2 inline-flex">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+                                    </svg>
+                                    <span>Adicionar CID</span>
+                                </button>
+                                <p class="text-xs text-gray-600 mt-3">Adicione um ou mais códigos CID caso o aluno tenha deficiência</p>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -1057,6 +1191,93 @@ if (ob_get_level()) {
                     </div>
                 </div>
                 
+                <!-- Endereço do Aluno -->
+                <div>
+                    <h3 class="text-base font-semibold text-gray-800 mb-4 pb-2 border-b border-gray-200">Endereço</h3>
+                    <div class="mb-4">
+                        <label class="flex items-center space-x-2 cursor-pointer">
+                            <input type="checkbox" name="endereco_mesmo_responsavel" id="endereco_mesmo_responsavel" value="1" 
+                                   onchange="toggleEnderecoAluno()"
+                                   class="w-5 h-5 text-blue-600 border-gray-300 rounded focus:ring-blue-500">
+                            <span class="text-sm font-medium text-gray-700">Endereço é o mesmo do responsável</span>
+                        </label>
+                        <p class="text-xs text-gray-500 mt-1 ml-7">Se marcado, o endereço do responsável será usado para o aluno</p>
+                    </div>
+                    <div id="container-endereco-aluno" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        <div class="md:col-span-2 lg:col-span-3">
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Logradouro</label>
+                            <input type="text" name="endereco" id="endereco"
+                                   placeholder="Rua, Avenida, etc."
+                                   class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Número</label>
+                            <input type="text" name="numero" id="numero"
+                                   placeholder="Número"
+                                   class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Complemento</label>
+                            <input type="text" name="complemento" id="complemento"
+                                   placeholder="Apartamento, bloco, etc."
+                                   class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Bairro</label>
+                            <input type="text" name="bairro" id="bairro"
+                                   placeholder="Bairro"
+                                   class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Cidade</label>
+                            <input type="text" name="cidade" id="cidade"
+                                   placeholder="Cidade"
+                                   class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Estado</label>
+                            <select name="estado" id="estado"
+                                    class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                                <option value="">Selecione...</option>
+                                <option value="AC">Acre</option>
+                                <option value="AL">Alagoas</option>
+                                <option value="AP">Amapá</option>
+                                <option value="AM">Amazonas</option>
+                                <option value="BA">Bahia</option>
+                                <option value="CE" selected>Ceará</option>
+                                <option value="DF">Distrito Federal</option>
+                                <option value="ES">Espírito Santo</option>
+                                <option value="GO">Goiás</option>
+                                <option value="MA">Maranhão</option>
+                                <option value="MT">Mato Grosso</option>
+                                <option value="MS">Mato Grosso do Sul</option>
+                                <option value="MG">Minas Gerais</option>
+                                <option value="PA">Pará</option>
+                                <option value="PB">Paraíba</option>
+                                <option value="PR">Paraná</option>
+                                <option value="PE">Pernambuco</option>
+                                <option value="PI">Piauí</option>
+                                <option value="RJ">Rio de Janeiro</option>
+                                <option value="RN">Rio Grande do Norte</option>
+                                <option value="RS">Rio Grande do Sul</option>
+                                <option value="RO">Rondônia</option>
+                                <option value="RR">Roraima</option>
+                                <option value="SC">Santa Catarina</option>
+                                <option value="SP">São Paulo</option>
+                                <option value="SE">Sergipe</option>
+                                <option value="TO">Tocantins</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">CEP</label>
+                            <input type="text" name="cep" id="cep" maxlength="9"
+                                   placeholder="00000-000"
+                                   class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                   oninput="formatarCEP(this)">
+                        </div>
+                    </div>
+                </div>
+                
                 <!-- Informações Acadêmicas -->
                 <div>
                     <h3 class="text-base font-semibold text-gray-800 mb-4 pb-2 border-b border-gray-200">Informações Acadêmicas</h3>
@@ -1070,7 +1291,8 @@ if (ob_get_level()) {
                         </div>
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-2">NIS (Número de Identificação Social)</label>
-                            <input type="text" name="nis" id="nis" maxlength="11"
+                            <input type="text" name="nis" id="nis" maxlength="14"
+                                   placeholder="000.00000.00-0"
                                    oninput="formatarNIS(this)"
                                    class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
                         </div>
@@ -1100,6 +1322,37 @@ if (ob_get_level()) {
                                 <option value="CONCLUIDO">Concluído</option>
                                 <option value="CANCELADO">Cancelado</option>
                             </select>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Informações de PCD -->
+                <div>
+                    <h3 class="text-base font-semibold text-gray-800 mb-4 pb-2 border-b border-gray-200">Informações de Deficiência</h3>
+                    <div class="space-y-4">
+                        <div class="flex items-center space-x-3 p-4 bg-gray-50 rounded-lg border border-gray-200">
+                            <input type="checkbox" name="is_pcd" id="is_pcd" value="1" 
+                                   onchange="toggleCamposPCD()"
+                                   class="w-5 h-5 text-blue-600 border-gray-300 rounded focus:ring-blue-500">
+                            <label for="is_pcd" class="text-sm font-medium text-gray-700 cursor-pointer">
+                                Aluno é Pessoa com Deficiência (PCD)
+                            </label>
+                        </div>
+                        <div id="container-cids" class="hidden">
+                            <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                                <label class="block text-sm font-semibold text-gray-800 mb-3">CID (Código de Classificação Internacional de Doenças)</label>
+                                <div id="lista-cids" class="space-y-3 mb-4">
+                                    <!-- CIDs serão adicionados dinamicamente aqui -->
+                                </div>
+                                <button type="button" onclick="adicionarCampoCID()" 
+                                        class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium flex items-center space-x-2 inline-flex">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+                                    </svg>
+                                    <span>Adicionar CID</span>
+                                </button>
+                                <p class="text-xs text-gray-600 mt-3">Adicione um ou mais códigos CID caso o aluno tenha deficiência</p>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -1179,6 +1432,90 @@ if (ob_get_level()) {
                                        placeholder="(00) 00000-0000"
                                        class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                                        oninput="formatarTelefone(this)">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Endereço do Responsável -->
+                    <div>
+                        <h3 class="text-lg font-semibold text-gray-800 mb-4 pb-2 border-b border-gray-200">Endereço do Responsável</h3>
+                        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                            <div class="md:col-span-2 lg:col-span-3">
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Logradouro</label>
+                                <input type="text" name="responsavel_endereco" id="responsavel_endereco"
+                                       placeholder="Rua, Avenida, etc."
+                                       class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                       oninput="copiarEnderecoParaAluno()">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Número</label>
+                                <input type="text" name="responsavel_numero" id="responsavel_numero"
+                                       placeholder="Número"
+                                       class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                       oninput="copiarEnderecoParaAluno()">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Complemento</label>
+                                <input type="text" name="responsavel_complemento" id="responsavel_complemento"
+                                       placeholder="Apartamento, bloco, etc."
+                                       class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                       oninput="copiarEnderecoParaAluno()">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Bairro</label>
+                                <input type="text" name="responsavel_bairro" id="responsavel_bairro"
+                                       placeholder="Bairro"
+                                       class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                       oninput="copiarEnderecoParaAluno()">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Cidade</label>
+                                <input type="text" name="responsavel_cidade" id="responsavel_cidade"
+                                       placeholder="Cidade"
+                                       class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                       oninput="copiarEnderecoParaAluno()">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Estado</label>
+                                <select name="responsavel_estado" id="responsavel_estado"
+                                        class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                        onchange="copiarEnderecoParaAluno()">
+                                    <option value="">Selecione...</option>
+                                    <option value="AC">Acre</option>
+                                    <option value="AL">Alagoas</option>
+                                    <option value="AP">Amapá</option>
+                                    <option value="AM">Amazonas</option>
+                                    <option value="BA">Bahia</option>
+                                    <option value="CE" selected>Ceará</option>
+                                    <option value="DF">Distrito Federal</option>
+                                    <option value="ES">Espírito Santo</option>
+                                    <option value="GO">Goiás</option>
+                                    <option value="MA">Maranhão</option>
+                                    <option value="MT">Mato Grosso</option>
+                                    <option value="MS">Mato Grosso do Sul</option>
+                                    <option value="MG">Minas Gerais</option>
+                                    <option value="PA">Pará</option>
+                                    <option value="PB">Paraíba</option>
+                                    <option value="PR">Paraná</option>
+                                    <option value="PE">Pernambuco</option>
+                                    <option value="PI">Piauí</option>
+                                    <option value="RJ">Rio de Janeiro</option>
+                                    <option value="RN">Rio Grande do Norte</option>
+                                    <option value="RS">Rio Grande do Sul</option>
+                                    <option value="RO">Rondônia</option>
+                                    <option value="RR">Roraima</option>
+                                    <option value="SC">Santa Catarina</option>
+                                    <option value="SP">São Paulo</option>
+                                    <option value="SE">Sergipe</option>
+                                    <option value="TO">Tocantins</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">CEP</label>
+                                <input type="text" name="responsavel_cep" id="responsavel_cep" maxlength="9"
+                                       placeholder="00000-000"
+                                       class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                       oninput="formatarCEP(this); copiarEnderecoParaAluno();">
                             </div>
                         </div>
                     </div>
@@ -1379,6 +1716,165 @@ if (ob_get_level()) {
                 // Resetar para primeira etapa
                 etapaAtual = 1;
                 atualizarNavegacaoEtapas();
+                // Limpar CIDs
+                document.getElementById('lista-cids').innerHTML = '';
+                contadorCID = 0;
+                document.getElementById('is_pcd').checked = false;
+                document.getElementById('container-cids').classList.add('hidden');
+                // Resetar checkbox de endereço e desbloquear campos
+                const checkboxEndereco = document.getElementById('endereco_mesmo_responsavel');
+                if (checkboxEndereco) {
+                    checkboxEndereco.checked = false;
+                    toggleEnderecoAluno();
+                }
+            }
+        }
+        
+        // Funções para gerenciar campos PCD e CID
+        let contadorCID = 0;
+        
+        function toggleCamposPCD() {
+            const isPCD = document.getElementById('is_pcd').checked;
+            const containerCids = document.getElementById('container-cids');
+            
+            if (isPCD) {
+                containerCids.classList.remove('hidden');
+                // Adicionar primeiro campo CID se não houver nenhum
+                if (contadorCID === 0) {
+                    adicionarCampoCID();
+                }
+            } else {
+                containerCids.classList.add('hidden');
+                // Limpar todos os CIDs
+                document.getElementById('lista-cids').innerHTML = '';
+                contadorCID = 0;
+            }
+        }
+        
+        function adicionarCampoCID() {
+            const listaCids = document.getElementById('lista-cids');
+            const cidIndex = contadorCID++;
+            
+            const cidDiv = document.createElement('div');
+            cidDiv.className = 'bg-white rounded-lg border border-gray-300 p-4 shadow-sm';
+            cidDiv.id = `cid-container-${cidIndex}`;
+            cidDiv.innerHTML = `
+                <div class="flex items-start justify-between gap-4">
+                    <div class="flex-1 grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Código CID *</label>
+                            <input type="text" name="cids[${cidIndex}][codigo]" 
+                                   id="cid-codigo-${cidIndex}"
+                                   placeholder="Ex: F84.0" 
+                                   maxlength="10"
+                                   class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                   oninput="formatarCID(this)">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Descrição (Opcional)</label>
+                            <input type="text" name="cids[${cidIndex}][descricao]" 
+                                   id="cid-descricao-${cidIndex}"
+                                   placeholder="Descrição da deficiência" 
+                                   class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                        </div>
+                    </div>
+                    <button type="button" onclick="removerCampoCID(${cidIndex})" 
+                            class="mt-7 px-3 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors text-sm flex-shrink-0"
+                            title="Remover CID">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                        </svg>
+                    </button>
+                </div>
+            `;
+            
+            listaCids.appendChild(cidDiv);
+        }
+        
+        function removerCampoCID(index) {
+            const cidContainer = document.getElementById(`cid-container-${index}`);
+            if (cidContainer) {
+                cidContainer.remove();
+            }
+        }
+        
+        function formatarCID(input) {
+            // Formato CID: letra seguida de números e ponto (ex: F84.0)
+            let valor = input.value.toUpperCase().replace(/[^A-Z0-9.]/g, '');
+            // Limitar a 10 caracteres
+            if (valor.length > 10) {
+                valor = valor.substring(0, 10);
+            }
+            input.value = valor;
+        }
+        
+        // Funções para gerenciar campos PCD e CID no formulário de edição
+        let contadorCIDEditar = 0;
+        
+        function toggleCamposPCDEditar() {
+            const isPCD = document.getElementById('editar_is_pcd').checked;
+            const containerCids = document.getElementById('container-cids-editar');
+            
+            if (isPCD) {
+                containerCids.classList.remove('hidden');
+                // Adicionar primeiro campo CID se não houver nenhum
+                if (contadorCIDEditar === 0) {
+                    adicionarCampoCIDEditar();
+                }
+            } else {
+                containerCids.classList.add('hidden');
+                // Limpar todos os CIDs
+                document.getElementById('lista-cids-editar').innerHTML = '';
+                contadorCIDEditar = 0;
+            }
+        }
+        
+        function adicionarCampoCIDEditar(codigoCID = '', descricaoCID = '') {
+            const listaCids = document.getElementById('lista-cids-editar');
+            const cidIndex = contadorCIDEditar++;
+            
+            const cidDiv = document.createElement('div');
+            cidDiv.className = 'bg-white rounded-lg border border-gray-300 p-4 shadow-sm';
+            cidDiv.id = `cid-container-editar-${cidIndex}`;
+            cidDiv.innerHTML = `
+                <div class="flex items-start justify-between gap-4">
+                    <div class="flex-1 grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Código CID *</label>
+                            <input type="text" name="cids[${cidIndex}][codigo]" 
+                                   id="cid-codigo-editar-${cidIndex}"
+                                   value="${codigoCID}"
+                                   placeholder="Ex: F84.0" 
+                                   maxlength="10"
+                                   class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                   oninput="formatarCID(this)">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Descrição (Opcional)</label>
+                            <input type="text" name="cids[${cidIndex}][descricao]" 
+                                   id="cid-descricao-editar-${cidIndex}"
+                                   value="${descricaoCID}"
+                                   placeholder="Descrição da deficiência" 
+                                   class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                        </div>
+                    </div>
+                    <button type="button" onclick="removerCampoCIDEditar(${cidIndex})" 
+                            class="mt-7 px-3 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors text-sm flex-shrink-0"
+                            title="Remover CID">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                        </svg>
+                    </button>
+                </div>
+            `;
+            
+            listaCids.appendChild(cidDiv);
+        }
+        
+        function removerCampoCIDEditar(index) {
+            const cidContainer = document.getElementById(`cid-container-editar-${index}`);
+            if (cidContainer) {
+                cidContainer.remove();
             }
         }
         
@@ -1416,7 +1912,130 @@ if (ob_get_level()) {
         }
         function formatarNIS(input) {
             let value = input.value.replace(/\D/g, '');
-            input.value = value.slice(0, 11);
+            // Limitar a 11 dígitos
+            value = value.slice(0, 11);
+            
+            // Aplicar máscara: 000.00000.00-0
+            if (value.length > 0) {
+                if (value.length <= 3) {
+                    input.value = value;
+                } else if (value.length <= 8) {
+                    input.value = value.slice(0, 3) + '.' + value.slice(3);
+                } else if (value.length <= 10) {
+                    input.value = value.slice(0, 3) + '.' + value.slice(3, 8) + '.' + value.slice(8);
+                } else {
+                    input.value = value.slice(0, 3) + '.' + value.slice(3, 8) + '.' + value.slice(8, 10) + '-' + value.slice(10);
+                }
+            } else {
+                input.value = '';
+            }
+        }
+        
+        function formatarCEP(input) {
+            let value = input.value.replace(/\D/g, '');
+            // Limitar a 8 dígitos
+            value = value.slice(0, 8);
+            
+            // Aplicar máscara: 00000-000
+            if (value.length > 0) {
+                if (value.length <= 5) {
+                    input.value = value;
+                } else {
+                    input.value = value.slice(0, 5) + '-' + value.slice(5);
+                }
+            } else {
+                input.value = '';
+            }
+            
+            // Buscar endereço quando CEP estiver completo (8 dígitos)
+            if (value.length === 8) {
+                buscarEnderecoPorCEP(value, input.id);
+            }
+        }
+        
+        function buscarEnderecoPorCEP(cep, inputId) {
+            // Determinar se é CEP do aluno ou do responsável
+            const isResponsavel = inputId.includes('responsavel');
+            
+            // Limpar campos antes de buscar
+            if (isResponsavel) {
+                document.getElementById('responsavel_endereco').value = '';
+                document.getElementById('responsavel_bairro').value = '';
+                document.getElementById('responsavel_cidade').value = '';
+                document.getElementById('responsavel_estado').value = '';
+            } else {
+                document.getElementById('endereco').value = '';
+                document.getElementById('bairro').value = '';
+                document.getElementById('cidade').value = '';
+                document.getElementById('estado').value = '';
+            }
+            
+            // Buscar CEP na API ViaCEP
+            fetch(`https://viacep.com.br/ws/${cep}/json/`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.erro) {
+                        console.log('CEP não encontrado');
+                        return;
+                    }
+                    
+                    // Preencher campos de endereço
+                    if (isResponsavel) {
+                        document.getElementById('responsavel_endereco').value = data.logradouro || '';
+                        document.getElementById('responsavel_bairro').value = data.bairro || '';
+                        document.getElementById('responsavel_cidade').value = data.localidade || '';
+                        document.getElementById('responsavel_estado').value = data.uf || '';
+                        
+                        // Copiar para aluno se checkbox estiver marcada
+                        copiarEnderecoParaAluno();
+                    } else {
+                        document.getElementById('endereco').value = data.logradouro || '';
+                        document.getElementById('bairro').value = data.bairro || '';
+                        document.getElementById('cidade').value = data.localidade || '';
+                        document.getElementById('estado').value = data.uf || '';
+                    }
+                })
+                .catch(error => {
+                    console.error('Erro ao buscar CEP:', error);
+                });
+        }
+        
+        function toggleEnderecoAluno() {
+            const checkbox = document.getElementById('endereco_mesmo_responsavel');
+            const containerEndereco = document.getElementById('container-endereco-aluno');
+            const camposEndereco = containerEndereco.querySelectorAll('input, select');
+            
+            if (checkbox.checked) {
+                // Bloquear campos de endereço do aluno
+                camposEndereco.forEach(campo => {
+                    campo.disabled = true;
+                    campo.classList.add('bg-gray-100', 'cursor-not-allowed');
+                });
+                
+                // Copiar endereço do responsável para o aluno
+                copiarEnderecoParaAluno();
+            } else {
+                // Desbloquear campos de endereço do aluno
+                camposEndereco.forEach(campo => {
+                    campo.disabled = false;
+                    campo.classList.remove('bg-gray-100', 'cursor-not-allowed');
+                });
+            }
+        }
+        
+        function copiarEnderecoParaAluno() {
+            const checkbox = document.getElementById('endereco_mesmo_responsavel');
+            
+            if (checkbox && checkbox.checked) {
+                // Copiar valores do responsável para o aluno
+                document.getElementById('endereco').value = document.getElementById('responsavel_endereco').value || '';
+                document.getElementById('numero').value = document.getElementById('responsavel_numero').value || '';
+                document.getElementById('complemento').value = document.getElementById('responsavel_complemento').value || '';
+                document.getElementById('bairro').value = document.getElementById('responsavel_bairro').value || '';
+                document.getElementById('cidade').value = document.getElementById('responsavel_cidade').value || '';
+                document.getElementById('estado').value = document.getElementById('responsavel_estado').value || '';
+                document.getElementById('cep').value = document.getElementById('responsavel_cep').value || '';
+            }
         }
         
         // Submissão do formulário
@@ -1529,12 +2148,40 @@ if (ob_get_level()) {
                 document.getElementById('editar_sexo').value = aluno.sexo || '';
                 document.getElementById('editar_email').value = aluno.email || '';
                 document.getElementById('editar_telefone').value = aluno.telefone_formatado || aluno.telefone || '';
+                document.getElementById('editar_nome_social').value = aluno.nome_social || '';
+                document.getElementById('editar_raca').value = aluno.raca || '';
                 document.getElementById('editar_matricula').value = aluno.matricula || '';
-                document.getElementById('editar_nis').value = aluno.nis || '';
+                // Formatar NIS para exibição se existir
+                if (aluno.nis) {
+                    const nisValue = aluno.nis.replace(/\D/g, '');
+                    if (nisValue.length === 11) {
+                        document.getElementById('editar_nis').value = nisValue.slice(0, 3) + '.' + nisValue.slice(3, 8) + '.' + nisValue.slice(8, 10) + '-' + nisValue.slice(10);
+                    } else {
+                        document.getElementById('editar_nis').value = aluno.nis || '';
+                    }
+                } else {
+                    document.getElementById('editar_nis').value = '';
+                }
                 document.getElementById('editar_escola_id').value = aluno.escola_id || '';
                 document.getElementById('editar_data_matricula').value = aluno.data_matricula || '';
                 document.getElementById('editar_situacao').value = aluno.situacao || 'MATRICULADO';
                 document.getElementById('editar_ativo').value = aluno.ativo !== undefined ? aluno.ativo : 1;
+                
+                // PCD e CIDs
+                const isPCD = aluno.is_pcd == 1 || aluno.is_pcd === '1' || aluno.is_pcd === true;
+                document.getElementById('editar_is_pcd').checked = isPCD;
+                toggleCamposPCDEditar();
+                
+                // Limpar CIDs existentes
+                document.getElementById('lista-cids-editar').innerHTML = '';
+                contadorCIDEditar = 0;
+                
+                // Carregar CIDs se existirem
+                if (isPCD && aluno.cids && Array.isArray(aluno.cids) && aluno.cids.length > 0) {
+                    aluno.cids.forEach(function(cid) {
+                        adicionarCampoCIDEditar(cid.cid, cid.descricao);
+                    });
+                }
                 
                 // Transporte
                 const precisaTransporte = aluno.precisa_transporte == 1 || aluno.precisa_transporte === '1';

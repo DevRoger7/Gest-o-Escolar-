@@ -565,6 +565,8 @@ $pedidos = $stmtPedidos->fetchAll(PDO::FETCH_ASSOC);
             alert('Funcionalidade de edição será implementada em breve.');
         }
     </script>
+    
+    <?php include(__DIR__ . '/components/logout_modal.php'); ?>
 </body>
 </html>
 

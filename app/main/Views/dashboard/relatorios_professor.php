@@ -312,11 +312,19 @@ if (isset($_GET['action']) && $_GET['action'] === 'pdf') {
 
     // --- BEGIN: Use FPDF (like gerar_relatorio.php) ---
     $fpdfLoaded = false;
+    
+    // Caminho correto do autoload: app/main/Views/dashboard -> ../../../../vendor/autoload.php
+    $baseDir = dirname(dirname(dirname(dirname(__DIR__)))); // Volta até a raiz do projeto
+    $vendorAutoload = $baseDir . DIRECTORY_SEPARATOR . 'vendor' . DIRECTORY_SEPARATOR . 'autoload.php';
+    
     $composerAutoloads = [
-        __DIR__ . '/../../../../../vendor/autoload.php', // projeto estagio\vendor
-        __DIR__ . '/../../../../vendor/autoload.php',    // Gest-o-Escolar-\vendor (caso exista)
-        'c:\\xampp\\htdocs\\projeto estagio\\vendor\\autoload.php'
+        $vendorAutoload, // Caminho calculado dinamicamente
+        __DIR__ . '/../../../../vendor/autoload.php',    // Gest-o-Escolar-\vendor
+        __DIR__ . '/../../../../../vendor/autoload.php', // projeto estagio\vendor (fallback)
+        'c:\\xampp\\htdocs\\GitHub\\Gest-o-Escolar-\\vendor\\autoload.php', // Caminho absoluto
+        'c:\\xampp\\htdocs\\projeto estagio\\vendor\\autoload.php' // Fallback antigo
     ];
+    
     foreach ($composerAutoloads as $autoloadPath) {
         if (file_exists($autoloadPath)) {
             require_once($autoloadPath);
@@ -328,11 +336,13 @@ if (isset($_GET['action']) && $_GET['action'] === 'pdf') {
     }
 
     if (!$fpdfLoaded) {
+        // Tentar carregar diretamente o arquivo fpdf.php
         $fpdfCandidates = [
+            $baseDir . DIRECTORY_SEPARATOR . 'vendor' . DIRECTORY_SEPARATOR . 'setasign' . DIRECTORY_SEPARATOR . 'fpdf' . DIRECTORY_SEPARATOR . 'fpdf.php',
+            __DIR__ . '/../../../../vendor/setasign/fpdf/fpdf.php',
             __DIR__ . '/../../../../../vendor/setasign/fpdf/fpdf.php',
             __DIR__ . '/../../../../../vendor/fpdf/fpdf.php',
-            __DIR__ . '/../../../../vendor/setasign/fpdf/fpdf.php',
-            __DIR__ . '/../../../../vendor/fpdf/fpdf.php',
+            'c:\\xampp\\htdocs\\GitHub\\Gest-o-Escolar-\\vendor\\setasign\\fpdf\\fpdf.php',
             'c:\\xampp\\htdocs\\projeto estagio\\vendor\\setasign\\fpdf\\fpdf.php',
             'c:\\xampp\\htdocs\\projeto estagio\\vendor\\fpdf\\fpdf.php',
             __DIR__ . '/../../../libs/fpdf/fpdf.php',
@@ -347,12 +357,70 @@ if (isset($_GET['action']) && $_GET['action'] === 'pdf') {
                 }
             }
         }
+        
+        // Se ainda não encontrou, tentar baixar automaticamente do GitHub
+        if (!$fpdfLoaded) {
+            $fpdfDir = $baseDir . DIRECTORY_SEPARATOR . 'vendor' . DIRECTORY_SEPARATOR . 'setasign' . DIRECTORY_SEPARATOR . 'fpdf';
+            $fpdfFile = $fpdfDir . DIRECTORY_SEPARATOR . 'fpdf.php';
+            
+            if (!file_exists($fpdfFile)) {
+                // Tentar criar o diretório e baixar o arquivo
+                if (!is_dir($fpdfDir)) {
+                    @mkdir($fpdfDir, 0755, true);
+                }
+                
+                if (is_dir($fpdfDir) && is_writable($fpdfDir)) {
+                    // Baixar fpdf.php do GitHub (versão 1.8.2)
+                    $fpdfUrl = 'https://raw.githubusercontent.com/Setasign/FPDF/1.8.2/fpdf.php';
+                    $fpdfContent = @file_get_contents($fpdfUrl);
+                    
+                    if ($fpdfContent !== false && strlen($fpdfContent) > 1000) {
+                        // Arquivo parece válido (mais de 1000 bytes)
+                        @file_put_contents($fpdfFile, $fpdfContent);
+                        
+                        if (file_exists($fpdfFile)) {
+                            require_once($fpdfFile);
+                            $fpdfLoaded = class_exists('FPDF', false);
+                        }
+                    }
+                }
+            } else {
+                // Arquivo existe, tentar carregar
+                require_once($fpdfFile);
+                $fpdfLoaded = class_exists('FPDF', false);
+            }
+        }
     }
 
     if (!$fpdfLoaded) {
-        header('Content-Type: text/plain; charset=UTF-8');
+        // Mensagem de erro mais informativa com debug
+        header('Content-Type: text/html; charset=UTF-8');
         http_response_code(500);
-        echo 'Biblioteca FPDF não encontrada. Ajuste o caminho em relatorios_professor.php.';
+        $debugInfo = '';
+        if (isset($_GET['debug']) && $_GET['debug'] === '1') {
+            $debugInfo = '<h3>Caminhos de autoload testados:</h3><ul>';
+            foreach ($composerAutoloads as $path) {
+                $exists = file_exists($path) ? '✓' : '✗';
+                $debugInfo .= '<li>' . $exists . ' ' . htmlspecialchars($path) . '</li>';
+            }
+            $debugInfo .= '</ul><h3>Arquivos FPDF testados:</h3><ul>';
+            if (isset($fpdfCandidates)) {
+                foreach ($fpdfCandidates as $path) {
+                    $exists = file_exists($path) ? '✓' : '✗';
+                    $debugInfo .= '<li>' . $exists . ' ' . htmlspecialchars($path) . '</li>';
+                }
+            }
+            $debugInfo .= '</ul>';
+            $debugInfo .= '<p><strong>__DIR__:</strong> ' . htmlspecialchars(__DIR__) . '</p>';
+            $debugInfo .= '<p><strong>Base Dir calculado:</strong> ' . htmlspecialchars($baseDir ?? 'não definido') . '</p>';
+        }
+        echo '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Erro - FPDF não encontrado</title></head><body>';
+        echo '<h1>Biblioteca FPDF não encontrada</h1>';
+        echo '<p>O sistema não conseguiu localizar a biblioteca FPDF necessária para gerar os relatórios em PDF.</p>';
+        echo '<p><strong>Solução:</strong> Execute <code>composer install</code> na raiz do projeto para instalar as dependências.</p>';
+        echo '<p>Ou adicione <code>&debug=1</code> à URL para ver os caminhos testados.</p>';
+        echo $debugInfo;
+        echo '</body></html>';
         exit;
     }
 
@@ -500,6 +568,18 @@ if (isset($_GET['action']) && $_GET['action'] === 'pdf') {
                 transform: translateX(0);
             }
         }
+        .header-section {
+            background: linear-gradient(135deg, #fff 0%, #eff6ff 100%);
+        }
+        .turma-card {
+            transition: all 0.3s ease;
+            border-left: 4px solid transparent;
+        }
+        .turma-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+            border-left-color: #3b82f6;
+        }
     </style>
 </head>
 <body class="bg-gray-50">
@@ -516,8 +596,13 @@ if (isset($_GET['action']) && $_GET['action'] === 'pdf') {
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
                         </svg>
                     </button>
-                    <div class="flex-1 text-center lg:text-left">
-                        <h1 class="text-xl font-semibold text-gray-800">Relatórios das Turmas</h1>
+                    <div class="flex-1 text-center lg:text-left flex items-center gap-3">
+                        <div class="hidden lg:block p-2 bg-blue-100 rounded-lg">
+                            <svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                            </svg>
+                        </div>
+                        <h1 class="text-xl font-bold text-gray-900">Relatórios</h1>
                     </div>
                     <div class="flex items-center space-x-4">
                         <!-- School Info (Desktop Only) -->
@@ -547,52 +632,87 @@ if (isset($_GET['action']) && $_GET['action'] === 'pdf') {
             </div>
         </header>
         
-        <div class="p-8">
+        <div class="p-6 lg:p-8">
             <div class="max-w-7xl mx-auto">
-                <!-- BEGIN: Replace turma selection section to be IDENTICAL to frequencia_professor.php -->
-                <div class="bg-white rounded-2xl p-6 shadow-lg">
-                    <div class="flex items-center justify-between mb-6">
-                        <h2 class="text-xl font-bold text-gray-900">Minhas Turmas</h2>
-                        <button onclick="abrirModalLancarFrequencia()" class="bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded-lg font-medium transition-colors duration-200 flex items-center space-x-2">
-                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
-                            </svg>
-                            <span>Registrar Frequência</span>
-                        </button>
-                    </div>
-
-                    <?php if (empty($turmasProfessor)): ?>
-                        <div class="text-center py-12">
-                            <svg class="w-16 h-16 text-gray-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <!-- Header Section -->
+                <div class="header-section rounded-2xl p-6 mb-6 shadow-sm border border-gray-100">
+                    <div class="flex items-center gap-4">
+                        <div class="p-3 bg-blue-100 rounded-xl">
+                            <svg class="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
                             </svg>
+                        </div>
+                        <div>
+                            <h2 class="text-2xl font-bold text-gray-900">Relatórios das Turmas</h2>
+                            <p class="text-sm text-gray-600 mt-1">Visualize e baixe relatórios em PDF das suas turmas</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Turmas Section -->
+                <div class="bg-white rounded-2xl p-6 shadow-lg border border-gray-100">
+                    <?php if (empty($turmasProfessor)): ?>
+                        <div class="text-center py-16">
+                            <div class="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                                <svg class="w-10 h-10 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                                </svg>
+                            </div>
+                            <h3 class="text-lg font-semibold text-gray-900 mb-2">Nenhuma turma encontrada</h3>
                             <p class="text-gray-600">Você não possui turmas atribuídas no momento.</p>
                         </div>
                     <?php else: ?>
-                        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
                             <?php foreach ($turmasProfessor as $turma): ?>
-                                <div class="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow duration-200">
-                                    <div class="mb-3">
-                                        <h3 class="font-semibold text-gray-900"><?= htmlspecialchars($turma['turma_nome']) ?></h3>
-                                        <p class="text-sm text-gray-600"><?= htmlspecialchars($turma['disciplina_nome']) ?></p>
-                                        <p class="text-xs text-gray-500 mt-1"><?= htmlspecialchars($turma['escola_nome']) ?></p>
+                                <div class="turma-card bg-white border-2 border-gray-200 rounded-xl p-5 hover:border-blue-300 shadow-sm">
+                                    <div class="flex items-start justify-between mb-4">
+                                        <div class="flex-1">
+                                            <div class="flex items-center gap-2 mb-2">
+                                                <div class="p-2 bg-blue-50 rounded-lg">
+                                                    <svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path>
+                                                    </svg>
+                                                </div>
+                                                <h3 class="font-bold text-gray-900 text-lg"><?= htmlspecialchars($turma['turma_nome']) ?></h3>
+                                            </div>
+                                            <div class="pl-11 space-y-1">
+                                                <p class="text-sm font-medium text-gray-700 flex items-center gap-2">
+                                                    <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path>
+                                                    </svg>
+                                                    <?= htmlspecialchars($turma['disciplina_nome']) ?>
+                                                </p>
+                                                <p class="text-xs text-gray-500 flex items-center gap-2">
+                                                    <svg class="w-3.5 h-3.5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path>
+                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                                                    </svg>
+                                                    <?= htmlspecialchars($turma['escola_nome']) ?>
+                                                </p>
+                                            </div>
+                                        </div>
                                     </div>
-                                    <div class="flex gap-2">
-                                        <!-- CHANGED: "Ver Histórico" -> "Ver PDF" (opens inline in a new tab) -->
+                                    <div class="flex gap-2 mt-4 pt-4 border-t border-gray-100">
                                         <a
                                             href="?action=pdf&turma_id=<?= (int)$turma['turma_id'] ?>&disciplina_id=<?= (int)$turma['disciplina_id'] ?>&modo=ver"
                                             target="_blank"
-                                            class="flex-1 text-blue-600 hover:text-blue-700 font-medium text-sm py-2 border border-blue-200 rounded-lg hover:bg-blue-50 transition-colors"
+                                            class="flex-1 flex items-center justify-center gap-2 text-blue-600 hover:text-blue-700 font-medium text-sm py-2.5 px-4 border-2 border-blue-200 rounded-lg hover:bg-blue-50 hover:border-blue-300 transition-all duration-200"
                                         >
+                                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
+                                            </svg>
                                             Ver PDF
                                         </a>
                                         
-                                        <!-- CHANGED: "Registrar" -> "Baixar PDF" (forces download) -->
                                         <a
                                             href="?action=pdf&turma_id=<?= (int)$turma['turma_id'] ?>&disciplina_id=<?= (int)$turma['disciplina_id'] ?>&modo=baixar"
-                                            class="flex-1 text-green-600 hover:text-green-700 font-medium text-sm py-2 border border-green-200 rounded-lg hover:bg-green-50 transition-colors"
+                                            class="flex-1 flex items-center justify-center gap-2 text-green-600 hover:text-green-700 font-medium text-sm py-2.5 px-4 border-2 border-green-200 rounded-lg hover:bg-green-50 hover:border-green-300 transition-all duration-200"
                                         >
-                                            Baixar PDF
+                                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
+                                            </svg>
+                                            Baixar
                                         </a>
                                     </div>
                                 </div>
@@ -600,7 +720,6 @@ if (isset($_GET['action']) && $_GET['action'] === 'pdf') {
                         </div>
                     <?php endif; ?>
                 </div>
-                <!-- END: Replace turma selection section to be IDENTICAL -->
             </div>
         </div>
     </main>

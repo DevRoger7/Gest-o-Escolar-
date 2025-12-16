@@ -29,6 +29,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao'])) {
             'mes' => $_POST['mes'] ?? date('m'),
             'ano' => $_POST['ano'] ?? date('Y'),
             'itens' => json_decode($_POST['itens'] ?? '[]', true),
+            'semanas' => json_decode($_POST['semanas'] ?? '[]', true),
             'criado_por' => $_SESSION['usuario_id'] ?? null,
             'status' => $_POST['status'] ?? 'PUBLICADO' // PUBLICADO por padrão, ou RASCUNHO se especificado
         ];
@@ -47,7 +48,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao'])) {
             'escola_id' => $_POST['escola_id'] ?? null,
             'mes' => $_POST['mes'] ?? date('m'),
             'ano' => $_POST['ano'] ?? date('Y'),
-            'itens' => json_decode($_POST['itens'] ?? '[]', true)
+            'itens' => json_decode($_POST['itens'] ?? '[]', true),
+            'semanas' => json_decode($_POST['semanas'] ?? '[]', true)
         ];
         
         $resultado = $cardapioModel->atualizar($_POST['cardapio_id'], $dados);
@@ -106,36 +108,81 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['acao'])) {
         }
         
         try {
-            // Verificar se a coluna estoque_central_id existe
-            try {
-                $checkColumn = $conn->query("SHOW COLUMNS FROM pacote_escola_item LIKE 'estoque_central_id'");
-                $columnExists = $checkColumn->rowCount() > 0;
-            } catch (Exception $e) {
-                $columnExists = false;
+            // Primeiro, identificar quais produtos estão no estoque da escola (via pacote_escola)
+            $sqlProdutosEscola = "SELECT DISTINCT p.id as produto_id
+                                  FROM produto p
+                                  INNER JOIN pacote_escola_item pei ON p.id = pei.produto_id
+                                  INNER JOIN pacote_escola pe ON pei.pacote_id = pe.id
+                                  WHERE p.ativo = 1 
+                                  AND pe.escola_id = :escola_id
+                                  AND (SELECT COALESCE(SUM(pei2.quantidade), 0) 
+                                       FROM pacote_escola_item pei2 
+                                       INNER JOIN pacote_escola pe2 ON pei2.pacote_id = pe2.id 
+                                       WHERE pei2.produto_id = p.id AND pe2.escola_id = :escola_id) > 0";
+            
+            $stmtProdutosEscola = $conn->prepare($sqlProdutosEscola);
+            $stmtProdutosEscola->bindParam(':escola_id', $escolaId, PDO::PARAM_INT);
+            $stmtProdutosEscola->execute();
+            $produtosEscola = $stmtProdutosEscola->fetchAll(PDO::FETCH_COLUMN);
+            
+            if (empty($produtosEscola)) {
+                echo json_encode(['success' => true, 'produtos' => [], 'message' => 'Nenhum produto encontrado no estoque da escola']);
+                exit;
             }
             
-            // Buscar produtos que estão no estoque da escola, com seus lotes do estoque_central
+            // Agora buscar todos os lotes desses produtos do estoque_central
+            // Usar parâmetros nomeados para evitar mistura com posicionais
+            if (empty($produtosEscola)) {
+                echo json_encode(['success' => true, 'produtos' => [], 'message' => 'Nenhum produto encontrado no estoque da escola']);
+                exit;
+            }
+            
+            $placeholders = [];
+            $params = [':escola_id' => $escolaId];
+            foreach ($produtosEscola as $index => $produtoId) {
+                $placeholder = ':produto_id_' . $index;
+                $placeholders[] = $placeholder;
+                $params[$placeholder] = $produtoId;
+            }
+            $placeholdersStr = implode(',', $placeholders);
+            
+            // Buscar produtos do pacote_escola_item com informações de lotes quando disponíveis
+            // Mostrar cada lote separadamente, mas também calcular a quantidade total por produto
             $sql = "SELECT 
                         p.id as produto_id,
-                        ec.id as estoque_id,
+                        pei.id as item_id,
+                        COALESCE(pei.estoque_central_id, 0) as estoque_id,
                         p.nome, 
                         p.unidade_medida,
-                        ec.quantidade as estoque_quantidade,
-                        ec.validade,
+                        pei.quantidade as estoque_quantidade,
+                        COALESCE(ec.validade, NULL) as validade,
                         COALESCE(ec.lote, 'Sem lote') as lote,
-                        CONCAT(p.id, ':', ec.id) as identificador_unico
+                        CONCAT(p.id, ':', COALESCE(pei.estoque_central_id, 0), ':', pei.id) as identificador_unico,
+                        (SELECT COALESCE(SUM(pei2.quantidade), 0)
+                         FROM pacote_escola_item pei2
+                         INNER JOIN pacote_escola pe2 ON pei2.pacote_id = pe2.id
+                         WHERE pei2.produto_id = p.id AND pe2.escola_id = :escola_id) as quantidade_total_produto
                     FROM produto p
                     INNER JOIN pacote_escola_item pei ON p.id = pei.produto_id
                     INNER JOIN pacote_escola pe ON pei.pacote_id = pe.id
-                    INNER JOIN estoque_central ec ON p.id = ec.produto_id AND pei.estoque_central_id = ec.id
-                    WHERE p.ativo = 1 
+                    LEFT JOIN estoque_central ec ON pei.estoque_central_id = ec.id
+                    WHERE p.id IN ($placeholdersStr)
+                    AND p.ativo = 1
                     AND pe.escola_id = :escola_id
-                    AND ec.quantidade > 0
-                    GROUP BY p.id, ec.id, p.nome, p.unidade_medida, ec.quantidade, ec.validade, ec.lote
-                    ORDER BY p.nome ASC, ec.validade ASC";
+                    AND pei.quantidade > 0
+                    ORDER BY p.nome ASC, 
+                             CASE WHEN ec.validade IS NULL THEN 1 ELSE 0 END ASC,
+                             ec.validade ASC,
+                             pei.id ASC";
             
             $stmt = $conn->prepare($sql);
-            $stmt->bindParam(':escola_id', $escolaId, PDO::PARAM_INT);
+            foreach ($params as $key => $value) {
+                if ($key === ':escola_id') {
+                    $stmt->bindValue($key, $value, PDO::PARAM_INT);
+                } else {
+                    $stmt->bindValue($key, $value, PDO::PARAM_INT);
+                }
+            }
             $stmt->execute();
             $produtos = $stmt->fetchAll(PDO::FETCH_ASSOC);
             
@@ -153,10 +200,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['acao'])) {
                 }
             }
             
-            echo json_encode(['success' => true, 'produtos' => $produtos]);
+            error_log("Produtos encontrados para escola $escolaId: " . count($produtos));
+            if (empty($produtos)) {
+                error_log("Nenhum produto encontrado. Produtos da escola: " . count($produtosEscola));
+            }
+            
+            echo json_encode(['success' => true, 'produtos' => $produtos, 'debug' => [
+                'escola_id' => $escolaId,
+                'produtos_escola_count' => count($produtosEscola),
+                'produtos_estoque_count' => count($produtos)
+            ]]);
         } catch (Exception $e) {
             error_log("Erro ao buscar produtos do estoque: " . $e->getMessage());
-            echo json_encode(['success' => false, 'message' => 'Erro ao buscar produtos', 'produtos' => []]);
+            error_log("Stack trace: " . $e->getTraceAsString());
+            echo json_encode(['success' => false, 'message' => 'Erro ao buscar produtos: ' . $e->getMessage(), 'produtos' => []]);
         }
         exit;
     }
@@ -226,25 +283,126 @@ $produtos = [];
 
 if ($escolaSelecionadaId) {
     // Buscar produtos que têm estoque na escola selecionada
-    $sqlProdutos = "SELECT DISTINCT 
-                        p.id, 
-                        p.nome, 
-                        p.unidade_medida,
-                        COALESCE(SUM(pei.quantidade), 0) as quantidade_estoque
-                    FROM produto p
-                    INNER JOIN pacote_escola_item pei ON p.id = pei.produto_id
-                    INNER JOIN pacote_escola pe ON pei.pacote_id = pe.id
-                    WHERE p.ativo = 1 
-                    AND pe.escola_id = :escola_id
-                    GROUP BY p.id, p.nome, p.unidade_medida
-                    HAVING quantidade_estoque > 0
-                    ORDER BY p.nome ASC";
-    
+    // Primeiro identificar produtos da escola
     try {
-        $stmtProdutos = $conn->prepare($sqlProdutos);
-        $stmtProdutos->bindParam(':escola_id', $escolaSelecionadaId, PDO::PARAM_INT);
-        $stmtProdutos->execute();
-        $produtos = $stmtProdutos->fetchAll(PDO::FETCH_ASSOC);
+        $sqlProdutosEscola = "SELECT DISTINCT p.id as produto_id
+                              FROM produto p
+                              INNER JOIN pacote_escola_item pei ON p.id = pei.produto_id
+                              INNER JOIN pacote_escola pe ON pei.pacote_id = pe.id
+                              WHERE p.ativo = 1 
+                              AND pe.escola_id = :escola_id
+                              AND (SELECT COALESCE(SUM(pei2.quantidade), 0) 
+                                   FROM pacote_escola_item pei2 
+                                   INNER JOIN pacote_escola pe2 ON pei2.pacote_id = pe2.id 
+                                   WHERE pei2.produto_id = p.id AND pe2.escola_id = :escola_id) > 0";
+        
+        $stmtProdutosEscola = $conn->prepare($sqlProdutosEscola);
+        $stmtProdutosEscola->bindParam(':escola_id', $escolaSelecionadaId, PDO::PARAM_INT);
+        $stmtProdutosEscola->execute();
+        $produtosEscolaIds = $stmtProdutosEscola->fetchAll(PDO::FETCH_COLUMN);
+        
+        if (!empty($produtosEscolaIds)) {
+            // Buscar produtos do estoque_central
+            // Usar parâmetros nomeados
+            if (empty($produtosEscolaIds)) {
+                $produtos = [];
+            } else {
+                $placeholders = [];
+                $params = [];
+                foreach ($produtosEscolaIds as $index => $produtoId) {
+                    $placeholder = ':produto_id_' . $index;
+                    $placeholders[] = $placeholder;
+                    $params[$placeholder] = $produtoId;
+                }
+                $placeholdersStr = implode(',', $placeholders);
+                
+                $sqlProdutos = "SELECT 
+                                    p.id as produto_id,
+                                    ec.id as estoque_id,
+                                    p.id, 
+                                    p.nome, 
+                                    p.unidade_medida,
+                                    ec.quantidade as estoque_quantidade,
+                                    ec.validade,
+                                    COALESCE(ec.lote, 'Sem lote') as lote,
+                                    CONCAT(p.id, ':', ec.id) as identificador_unico
+                                FROM produto p
+                                INNER JOIN estoque_central ec ON p.id = ec.produto_id
+                                WHERE p.id IN ($placeholdersStr)
+                                AND p.ativo = 1
+                                AND ec.quantidade > 0
+                                ORDER BY p.nome ASC, ec.validade ASC";
+                
+                $stmtProdutos = $conn->prepare($sqlProdutos);
+                foreach ($params as $key => $value) {
+                    $stmtProdutos->bindValue($key, $value, PDO::PARAM_INT);
+                }
+                $stmtProdutos->execute();
+                $produtos = $stmtProdutos->fetchAll(PDO::FETCH_ASSOC);
+            }
+            
+            // Se não encontrou produtos no estoque_central, buscar diretamente do pacote_escola_item
+            if (empty($produtos)) {
+                error_log("Nenhum produto encontrado no estoque_central, buscando diretamente do pacote_escola_item");
+                
+                // Usar parâmetros nomeados
+                $placeholdersAlt = [];
+                $paramsAlt = [':escola_id' => $escolaSelecionadaId];
+                foreach ($produtosEscolaIds as $index => $produtoId) {
+                    $placeholder = ':produto_id_alt_' . $index;
+                    $placeholdersAlt[] = $placeholder;
+                    $paramsAlt[$placeholder] = $produtoId;
+                }
+                $placeholdersStrAlt = implode(',', $placeholdersAlt);
+                
+                $sqlProdutosAlt = "SELECT 
+                                    p.id as produto_id,
+                                    0 as estoque_id,
+                                    p.id, 
+                                    p.nome, 
+                                    p.unidade_medida,
+                                    COALESCE(SUM(pei.quantidade), 0) as estoque_quantidade,
+                                    NULL as validade,
+                                    'Sem lote' as lote,
+                                    CONCAT(p.id, ':0') as identificador_unico
+                                FROM produto p
+                                INNER JOIN pacote_escola_item pei ON p.id = pei.produto_id
+                                INNER JOIN pacote_escola pe ON pei.pacote_id = pe.id
+                                WHERE p.id IN ($placeholdersStrAlt)
+                                AND p.ativo = 1
+                                AND pe.escola_id = :escola_id
+                                GROUP BY p.id, p.nome, p.unidade_medida
+                                HAVING estoque_quantidade > 0
+                                ORDER BY p.nome ASC";
+                
+                $stmtProdutosAlt = $conn->prepare($sqlProdutosAlt);
+                foreach ($paramsAlt as $key => $value) {
+                    if ($key === ':escola_id') {
+                        $stmtProdutosAlt->bindValue($key, $value, PDO::PARAM_INT);
+                    } else {
+                        $stmtProdutosAlt->bindValue($key, $value, PDO::PARAM_INT);
+                    }
+                }
+                $stmtProdutosAlt->execute();
+                $produtos = $stmtProdutosAlt->fetchAll(PDO::FETCH_ASSOC);
+            }
+            
+            // Formatar validade
+            foreach ($produtos as &$produto) {
+                if (!empty($produto['validade']) && $produto['validade'] !== '0000-00-00' && $produto['validade'] !== '0000-00-00 00:00:00') {
+                    try {
+                        $dataValidade = new DateTime($produto['validade']);
+                        $produto['validade_formatada'] = $dataValidade->format('d/m/Y');
+                    } catch (Exception $e) {
+                        $produto['validade_formatada'] = null;
+                    }
+                } else {
+                    $produto['validade_formatada'] = null;
+                }
+            }
+        } else {
+            $produtos = [];
+        }
     } catch (Exception $e) {
         error_log("Erro ao buscar produtos do estoque: " . $e->getMessage());
         $produtos = [];
@@ -433,7 +591,34 @@ $cardapios = $cardapioModel->listar($filtrosInicial);
         </div>
     </main>
     
-    <!-- Modal Novo Cardápio -->
+    <!-- Modal Visualizar Cardápio -->
+    <div id="modal-visualizar-cardapio" class="fixed inset-0 bg-black bg-opacity-50 z-[70] hidden items-center justify-center p-4" style="display: none;">
+        <div class="bg-white rounded-2xl shadow-2xl max-w-5xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+            <!-- Header -->
+            <div class="bg-gradient-to-r from-primary-green to-green-600 text-white p-6 flex items-center justify-between">
+                <div>
+                    <h3 class="text-2xl font-bold">Detalhes do Cardápio</h3>
+                    <p class="text-green-100 text-sm mt-1" id="modal-cardapio-escola">Carregando...</p>
+                </div>
+                <button onclick="fecharModalVisualizarCardapio()" class="text-white hover:text-gray-200 transition-colors">
+                    <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+            </div>
+            
+            <!-- Content -->
+            <div class="flex-1 overflow-y-auto p-6 bg-gray-50">
+                <div id="modal-cardapio-content">
+                    <div class="text-center py-8">
+                        <div class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-primary-green"></div>
+                        <p class="text-gray-600 mt-4">Carregando detalhes do cardápio...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
     <div id="modal-novo-cardapio" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden flex items-center justify-center p-4">
         <div class="bg-white rounded-2xl shadow-2xl max-w-6xl w-full max-h-[90vh] flex flex-col">
             <!-- Header -->
@@ -479,6 +664,33 @@ $cardapios = $cardapioModel->listar($filtrosInicial);
                                     <?php endfor; ?>
                                 </select>
                             </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Seção de Semanas -->
+                    <div class="bg-white rounded-lg p-6 shadow-sm">
+                        <div class="flex justify-between items-center mb-4">
+                            <div>
+                                <h4 class="text-lg font-semibold text-gray-900">Semanas do Cardápio</h4>
+                                <p class="text-sm text-gray-600 mt-1">Configure as semanas do mês e adicione observações específicas</p>
+                            </div>
+                            <button type="button" onclick="adicionarSemana()" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium flex items-center space-x-2">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+                                </svg>
+                                <span>Adicionar Semana</span>
+                            </button>
+                        </div>
+                        
+                        <div id="semanas-container" class="space-y-4">
+                            <!-- Semanas serão adicionadas aqui -->
+                        </div>
+                        
+                        <div id="mensagem-sem-semanas" class="text-center py-6 text-gray-500">
+                            <svg class="w-12 h-12 mx-auto mb-2 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                            </svg>
+                            <p class="text-sm">Nenhuma semana configurada. Clique em "Adicionar Semana" para começar.</p>
                         </div>
                     </div>
                     
@@ -530,6 +742,270 @@ $cardapios = $cardapioModel->listar($filtrosInicial);
         let itensCardapio = [];
         let cardapioEditandoId = null;
         
+        // Gerenciamento de semanas
+        let semanaIndex = 0;
+        let semanasCardapio = [];
+        
+        // Função para calcular datas da semana baseado em um domingo selecionado
+        function calcularDatasSemanaAPartirDomingo(dataDomingo) {
+            if (!dataDomingo) return null;
+            
+            const domingo = new Date(dataDomingo);
+            
+            // Garantir que é domingo (dia 0)
+            if (domingo.getDay() !== 0) {
+                // Ajustar para o domingo anterior
+                const diasAjuste = domingo.getDay();
+                domingo.setDate(domingo.getDate() - diasAjuste);
+            }
+            
+            // Sábado é 6 dias depois
+            const sabado = new Date(domingo);
+            sabado.setDate(sabado.getDate() + 6);
+            
+            return {
+                inicio: domingo.toISOString().split('T')[0],
+                fim: sabado.toISOString().split('T')[0]
+            };
+        }
+        
+        // Função para encontrar o próximo domingo disponível
+        function encontrarProximoDomingo(mes, ano) {
+            const primeiroDia = new Date(ano, mes - 1, 1);
+            const diaSemana = primeiroDia.getDay(); // 0 = Domingo, 1 = Segunda, etc.
+            
+            // Se não for domingo, encontrar o próximo
+            let proximoDomingo = new Date(primeiroDia);
+            if (diaSemana !== 0) {
+                const diasParaDomingo = 7 - diaSemana;
+                proximoDomingo.setDate(primeiroDia.getDate() + diasParaDomingo);
+            }
+            
+            return proximoDomingo.toISOString().split('T')[0];
+        }
+        
+        function adicionarSemana() {
+            const container = document.getElementById('semanas-container');
+            const mensagemSemSemanas = document.getElementById('mensagem-sem-semanas');
+            
+            if (mensagemSemSemanas) {
+                mensagemSemSemanas.classList.add('hidden');
+            }
+            
+            const mes = parseInt(document.getElementById('cardapio-mes').value) || new Date().getMonth() + 1;
+            const ano = parseInt(document.getElementById('cardapio-ano').value) || new Date().getFullYear();
+            
+            // Verificar quantas semanas já existem
+            const semanasExistentes = semanasCardapio.map(s => s.numero_semana);
+            let proximaSemana = 1;
+            while (semanasExistentes.includes(proximaSemana)) {
+                proximaSemana++;
+            }
+            
+            if (proximaSemana > 5) {
+                alert('Máximo de 5 semanas permitidas por mês.');
+                return;
+            }
+            
+            const semanaId = `semana-${semanaIndex}`;
+            const proximoDomingo = encontrarProximoDomingo(mes, ano);
+            const datas = calcularDatasSemanaAPartirDomingo(proximoDomingo);
+            
+            semanasCardapio.push({
+                id: semanaId,
+                numero_semana: proximaSemana,
+                observacao: '',
+                data_inicio: datas.inicio,
+                data_fim: datas.fim,
+                data_domingo: proximoDomingo
+            });
+            
+            const div = document.createElement('div');
+            div.className = 'border border-gray-200 rounded-lg p-4 bg-gray-50';
+            div.id = semanaId;
+            
+            div.innerHTML = `
+                <div class="flex items-start justify-between mb-3">
+                    <div class="flex-1">
+                        <h5 class="font-semibold text-gray-900 mb-2">Semana ${proximaSemana}</h5>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
+                            <div>
+                                <label class="block text-xs font-medium text-gray-700 mb-1">Domingo da Semana *</label>
+                                <input 
+                                    type="date" 
+                                    class="data-domingo-input w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent" 
+                                    value="${proximoDomingo}"
+                                    data-semana-index="${semanaIndex}"
+                                    onchange="atualizarDataSemana(${semanaIndex}, this.value)"
+                                    required
+                                />
+                                <p class="text-xs text-gray-500 mt-1">Selecione o domingo para calcular a semana</p>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-medium text-gray-700 mb-1">Período da Semana</label>
+                                <div class="px-3 py-2 bg-gray-100 rounded-lg text-sm text-gray-700">
+                                    <span class="periodo-semana-${semanaIndex}">${new Date(datas.inicio).toLocaleDateString('pt-BR')} a ${new Date(datas.fim).toLocaleDateString('pt-BR')}</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <button type="button" onclick="removerSemana(${semanaIndex})" class="px-3 py-1 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors text-sm ml-3" title="Remover semana">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                        </svg>
+                    </button>
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-gray-700 mb-1">Observação da Semana</label>
+                    <textarea 
+                        class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none" 
+                        rows="3" 
+                        placeholder="Adicione observações específicas para esta semana (ex: substituições, adaptações, etc.)"
+                        onchange="atualizarObservacaoSemana(${semanaIndex}, this.value)"
+                    ></textarea>
+                </div>
+            `;
+            
+            container.appendChild(div);
+            semanaIndex++;
+            
+            // Atualizar selects de semana em todos os itens
+            atualizarSelectsSemana();
+        }
+        
+        function atualizarDataSemana(index, dataDomingo) {
+            const semanaId = `semana-${index}`;
+            const semana = semanasCardapio.find(s => s.id === semanaId);
+            
+            if (!semana) return;
+            
+            // Validar se é domingo
+            const data = new Date(dataDomingo);
+            if (data.getDay() !== 0) {
+                alert('Por favor, selecione um domingo. A data será ajustada automaticamente.');
+                // Ajustar para o domingo anterior
+                const diasAjuste = data.getDay();
+                data.setDate(data.getDate() - diasAjuste);
+                dataDomingo = data.toISOString().split('T')[0];
+                
+                // Atualizar o input
+                const input = document.querySelector(`.data-domingo-input[data-semana-index="${index}"]`);
+                if (input) {
+                    input.value = dataDomingo;
+                }
+            }
+            
+            const datas = calcularDatasSemanaAPartirDomingo(dataDomingo);
+            if (datas) {
+                semana.data_domingo = dataDomingo;
+                semana.data_inicio = datas.inicio;
+                semana.data_fim = datas.fim;
+                
+                // Atualizar exibição do período
+                const periodoSpan = document.querySelector(`.periodo-semana-${index}`);
+                if (periodoSpan) {
+                    periodoSpan.textContent = `${new Date(datas.inicio).toLocaleDateString('pt-BR')} a ${new Date(datas.fim).toLocaleDateString('pt-BR')}`;
+                }
+                
+                // Atualizar selects de semana nos itens
+                atualizarSelectsSemana();
+            }
+        }
+        
+        function atualizarObservacaoSemana(index, observacao) {
+            const semanaId = `semana-${index}`;
+            const semana = semanasCardapio.find(s => s.id === semanaId);
+            if (semana) {
+                semana.observacao = observacao;
+            }
+        }
+        
+        function removerSemana(index) {
+            const semanaId = `semana-${index}`;
+            const semana = semanasCardapio.find(s => s.id === semanaId);
+            
+            if (semana && confirm(`Deseja realmente remover a Semana ${semana.numero_semana}? Os itens associados a esta semana também serão removidos.`)) {
+                const div = document.getElementById(semanaId);
+                if (div) {
+                    div.remove();
+                }
+                
+                semanasCardapio = semanasCardapio.filter(s => s.id !== semanaId);
+                
+                // Remover itens associados a esta semana
+                const numeroSemana = semana.numero_semana;
+                itensCardapio = itensCardapio.filter(item => item.numero_semana !== numeroSemana);
+                
+                // Atualizar interface de itens
+                atualizarInterfaceItens();
+                
+                const container = document.getElementById('semanas-container');
+                const mensagemSemSemanas = document.getElementById('mensagem-sem-semanas');
+                if (container && mensagemSemSemanas && container.children.length === 0) {
+                    mensagemSemSemanas.classList.remove('hidden');
+                }
+            }
+        }
+        
+        function atualizarInterfaceItens() {
+            // Recriar interface de itens removendo os que não têm semana válida
+            const container = document.getElementById('itens-cardapio-container');
+            const itensValidos = itensCardapio.filter(item => {
+                if (!item.numero_semana) return true; // Itens sem semana são válidos
+                return semanasCardapio.some(s => s.numero_semana === item.numero_semana);
+            });
+            
+            // Se houver diferença, recarregar
+            if (itensValidos.length !== itensCardapio.length) {
+                itensCardapio = itensValidos;
+                // Recriar interface seria complexo, então apenas alertamos
+                console.log('Alguns itens foram removidos por não terem semana válida');
+            }
+            
+            // Atualizar selects de semana em todos os itens
+            atualizarSelectsSemana();
+        }
+        
+        function atualizarSelectsSemana() {
+            const semanasOptions = semanasCardapio.map(s => {
+                const dataInicio = new Date(s.data_inicio).toLocaleDateString('pt-BR');
+                const dataFim = new Date(s.data_fim).toLocaleDateString('pt-BR');
+                return `<option value="${s.numero_semana}">Semana ${s.numero_semana} (${dataInicio} a ${dataFim})</option>`;
+            }).join('');
+            
+            document.querySelectorAll('.semana-select').forEach(select => {
+                const valorAtual = select.value;
+                select.innerHTML = '<option value="">Sem semana específica</option>' + semanasOptions;
+                if (valorAtual) {
+                    select.value = valorAtual;
+                }
+            });
+        }
+        
+        // Atualizar semanas quando mês/ano mudar
+        document.addEventListener('DOMContentLoaded', function() {
+            const mesSelect = document.getElementById('cardapio-mes');
+            const anoSelect = document.getElementById('cardapio-ano');
+            
+            if (mesSelect) {
+                mesSelect.addEventListener('change', function() {
+                    recalcularDatasSemanas();
+                });
+            }
+            
+            if (anoSelect) {
+                anoSelect.addEventListener('change', function() {
+                    recalcularDatasSemanas();
+                });
+            }
+        });
+        
+        function recalcularDatasSemanas() {
+            // Não recalcular automaticamente - o usuário escolhe o domingo
+            // Apenas atualizar os selects se necessário
+            atualizarSelectsSemana();
+        }
+        
         // Função para atualizar produtos quando a escola for selecionada
         function atualizarProdutosEstoque(escolaId) {
             const escolaIdParam = escolaId || document.getElementById('cardapio-escola-id')?.value || '<?= $escolaId ?? '' ?>';
@@ -541,16 +1017,37 @@ $cardapios = $cardapioModel->listar($filtrosInicial);
                 return;
             }
             
+            console.log('Buscando produtos para escola:', escolaIdParam);
+            
             fetch(`cardapios_nutricionista.php?acao=buscar_produtos_estoque&escola_id=${escolaIdParam}`)
-                .then(response => response.json())
+                .then(response => {
+                    console.log('Response status:', response.status);
+                    const contentType = response.headers.get('content-type');
+                    if (!contentType || !contentType.includes('application/json')) {
+                        return response.text().then(text => {
+                            console.error('Resposta não é JSON:', text.substring(0, 500));
+                            throw new Error('Resposta do servidor não é JSON válido');
+                        });
+                    }
+                    return response.json();
+                })
                 .then(data => {
+                    console.log('Dados recebidos:', data);
                     if (data.success) {
-                        produtosDisponiveis = data.produtos;
+                        produtosDisponiveis = data.produtos || [];
                         produtos = produtosDisponiveis;
                         atualizarSelectsProduto();
                         console.log('Produtos atualizados:', produtosDisponiveis.length, 'produtos disponíveis no estoque');
+                        if (data.debug) {
+                            console.log('Debug:', data.debug);
+                        }
+                        if (produtosDisponiveis.length === 0) {
+                            console.warn('Nenhum produto encontrado no estoque da escola');
+                            alert('Nenhum produto encontrado no estoque desta escola. Verifique se há produtos cadastrados no pacote da escola.');
+                        }
                     } else {
                         console.warn('Aviso:', data.message);
+                        alert('Erro ao buscar produtos: ' + (data.message || 'Erro desconhecido'));
                         produtosDisponiveis = [];
                         produtos = [];
                         atualizarSelectsProduto();
@@ -558,6 +1055,7 @@ $cardapios = $cardapioModel->listar($filtrosInicial);
                 })
                 .catch(error => {
                     console.error('Erro ao buscar produtos:', error);
+                    alert('Erro ao buscar produtos do estoque. Verifique o console para mais detalhes.');
                     produtosDisponiveis = [];
                     produtos = [];
                     atualizarSelectsProduto();
@@ -602,8 +1100,10 @@ $cardapios = $cardapioModel->listar($filtrosInicial);
                     const identificadorUnico = p.identificador_unico || `${p.produto_id}:${p.estoque_id || 0}`;
                     const identificadorAtual = itemAtual && itemAtual.identificador_unico == identificadorUnico;
                     const jaSelecionado = outrosIdentificadoresSelecionados.includes(String(identificadorUnico));
-                    const estoque = parseFloat(p.estoque_quantidade || p.quantidade_estoque || 0);
-                    const semEstoque = estoque <= 0;
+                    const estoqueLote = parseFloat(p.estoque_quantidade || p.quantidade_estoque || 0);
+                    // Usar quantidade_total_produto se disponível, senão usar estoque do lote
+                    const estoqueTotal = parseFloat(p.quantidade_total_produto || estoqueLote || 0);
+                    const semEstoque = estoqueTotal <= 0;
                     const desabilitado = jaSelecionado || semEstoque;
                     let motivo = '';
                     if (jaSelecionado) motivo = ' - Já adicionado';
@@ -614,19 +1114,32 @@ $cardapios = $cardapioModel->listar($filtrosInicial);
                     option.disabled = desabilitado;
                     if (identificadorAtual) option.selected = true;
                     
-                    if (estoque > 0) {
-                        option.setAttribute('data-estoque', estoque);
+                    // Armazenar tanto o estoque do lote quanto o total
+                    if (estoqueLote > 0) {
+                        option.setAttribute('data-estoque', estoqueLote);
+                    }
+                    if (estoqueTotal > 0) {
+                        option.setAttribute('data-estoque-total', estoqueTotal);
                     }
                     option.setAttribute('data-produto-id', p.produto_id);
                     option.setAttribute('data-estoque-id', p.estoque_id);
                     
                     let textoOption = `${p.nome} (${p.unidade_medida})`;
-                    if (estoque > 0) {
-                        const qtdFormatada = formatarQuantidade(estoque, p.unidade_medida);
-                        textoOption += ` - Estoque: ${qtdFormatada}`;
+                    // Mostrar quantidade total do produto
+                    if (estoqueTotal > 0) {
+                        const qtdFormatada = formatarQuantidade(estoqueTotal, p.unidade_medida);
+                        textoOption += ` - Estoque Total: ${qtdFormatada}`;
+                        // Se houver lote específico, mostrar também
+                        if (p.lote && p.lote !== 'Sem lote' && estoqueLote < estoqueTotal) {
+                            const qtdLoteFormatada = formatarQuantidade(estoqueLote, p.unidade_medida);
+                            textoOption += ` (Lote: ${qtdLoteFormatada})`;
+                        }
                     }
                     if (p.validade_formatada) {
                         textoOption += ` - Validade: ${p.validade_formatada}`;
+                    }
+                    if (p.lote && p.lote !== 'Sem lote') {
+                        textoOption += ` - Lote: ${p.lote}`;
                     }
                     textoOption += motivo;
                     option.textContent = textoOption;
@@ -637,6 +1150,15 @@ $cardapios = $cardapioModel->listar($filtrosInicial);
                     atualizarMaxQuantidade(itemIndex);
                 }
             });
+        }
+        
+        function selecionarSemanaItem(itemIndex, numeroSemana) {
+            const itemId = `item-${itemIndex}`;
+            const itemAtual = itensCardapio.find(i => i.id === itemId);
+            
+            if (itemAtual) {
+                itemAtual.numero_semana = numeroSemana ? parseInt(numeroSemana) : null;
+            }
         }
         
         function selecionarProdutoCardapio(itemIndex, identificadorUnico) {
@@ -725,7 +1247,8 @@ $cardapios = $cardapioModel->listar($filtrosInicial);
                 identificador_unico: '',
                 produto_id: '',
                 estoque_id: '',
-                quantidade: ''
+                quantidade: '',
+                numero_semana: null
             });
             
             const div = document.createElement('div');
@@ -764,8 +1287,20 @@ $cardapios = $cardapioModel->listar($filtrosInicial);
                 return `<option value="${identificadorUnico}" ${dataEstoque} data-produto-id="${p.produto_id || p.id}" data-estoque-id="${p.estoque_id || 0}" ${desabilitado ? 'disabled' : ''}>${textoOption}</option>`;
             }).join('');
             
+            // Criar select de semanas
+            const semanasOptions = semanasCardapio.map(s => 
+                `<option value="${s.numero_semana}">Semana ${s.numero_semana} (${new Date(s.data_inicio).toLocaleDateString('pt-BR')} - ${new Date(s.data_fim).toLocaleDateString('pt-BR')})</option>`
+            ).join('');
+            
             div.innerHTML = `
-                <div class="flex-1 grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div class="flex-1 grid grid-cols-1 md:grid-cols-3 gap-3">
+                    <div>
+                        <label class="block text-xs font-medium text-gray-700 mb-1">Semana</label>
+                        <select class="semana-select w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-green focus:border-transparent" data-item-index="${itemIndex}" onchange="selecionarSemanaItem('${itemIndex}', this.value)">
+                            <option value="">Sem semana específica</option>
+                            ${semanasOptions}
+                        </select>
+                    </div>
                     <div>
                         <label class="block text-xs font-medium text-gray-700 mb-1">Produto *</label>
                         <select class="produto-select w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-green focus:border-transparent" data-item-index="${itemIndex}" onchange="selecionarProdutoCardapio('${itemIndex}', this.value)">
@@ -882,7 +1417,8 @@ $cardapios = $cardapioModel->listar($filtrosInicial);
                 itens.push({
                     produto_id: item.produto_id,
                     estoque_id: item.estoque_id,
-                    quantidade: quantidade
+                    quantidade: quantidade,
+                    numero_semana: item.numero_semana || null
                 });
             }
             
@@ -895,6 +1431,28 @@ $cardapios = $cardapioModel->listar($filtrosInicial);
                 alert('Adicione pelo menos um item ao cardápio.');
                 return;
             }
+            
+            // Preparar semanas para envio
+            const semanas = semanasCardapio.map(s => {
+                // Garantir que as datas estão corretas baseadas no domingo selecionado
+                let dataInicio = s.data_inicio;
+                let dataFim = s.data_fim;
+                
+                if (s.data_domingo) {
+                    const datas = calcularDatasSemanaAPartirDomingo(s.data_domingo);
+                    if (datas) {
+                        dataInicio = datas.inicio;
+                        dataFim = datas.fim;
+                    }
+                }
+                
+                return {
+                    numero_semana: s.numero_semana,
+                    observacao: s.observacao || '',
+                    data_inicio: dataInicio || null,
+                    data_fim: dataFim || null
+                };
+            });
             
             const formData = new FormData();
             if (cardapioEditandoId) {
@@ -909,6 +1467,7 @@ $cardapios = $cardapioModel->listar($filtrosInicial);
             formData.append('mes', mes);
             formData.append('ano', ano);
             formData.append('itens', JSON.stringify(itens));
+            formData.append('semanas', JSON.stringify(semanas));
             
             fetch('cardapios_nutricionista.php', {
                 method: 'POST',
@@ -992,26 +1551,34 @@ $cardapios = $cardapioModel->listar($filtrosInicial);
                 const criadoPeloUsuario = c.criado_por == usuarioIdLogado;
                 const isRascunho = statusCardapio === 'RASCUNHO';
                 const isPublicado = statusCardapio === 'PUBLICADO';
+                const isRejeitado = statusCardapio === 'REJEITADO';
+                const isAprovado = statusCardapio === 'APROVADO';
                 
                 let botoesAcoes = `<button onclick="visualizarCardapio(${c.id})" class="text-blue-600 hover:text-blue-900 mr-2">Ver</button>`;
                 
-                // Botões para rascunhos - TODOS os rascunhos podem ser editados e enviados
+                // Botões para rascunhos - TODOS os rascunhos podem ser editados, enviados e excluídos
                 if (isRascunho) {
                     botoesAcoes += `
                         <button onclick="editarCardapio(${c.id})" class="text-green-600 hover:text-green-900 mr-2">Editar</button>
                         <button onclick="enviarCardapio(${c.id})" class="text-blue-600 hover:text-blue-900 mr-2">Publicar</button>
+                        <button onclick="excluirCardapio(${c.id})" class="text-red-600 hover:text-red-900">Excluir</button>
                     `;
-                    // Apenas o criador pode excluir
-                    if (criadoPeloUsuario) {
-                        botoesAcoes += `<button onclick="excluirCardapio(${c.id})" class="text-red-600 hover:text-red-900">Excluir</button>`;
-                    }
                 }
                 
-                // Botão para cancelar envio de cardápios publicados criados pelo usuário (volta para rascunho)
-                // Permitir cancelar para qualquer cardápio publicado (não apenas os criados pelo usuário)
+                // Botões para cardápios publicados (não aprovados) - podem ser cancelados ou excluídos
                 if (isPublicado) {
-                    botoesAcoes += `<button onclick="cancelarEnvioCardapio(${c.id})" class="text-orange-600 hover:text-orange-900 mr-2">Cancelar Publicação</button>`;
+                    botoesAcoes += `
+                        <button onclick="cancelarEnvioCardapio(${c.id})" class="text-orange-600 hover:text-orange-900 mr-2">Cancelar Publicação</button>
+                        <button onclick="excluirCardapio(${c.id})" class="text-red-600 hover:text-red-900">Excluir</button>
+                    `;
                 }
+                
+                // Botões para cardápios rejeitados (não aprovados) - podem ser excluídos
+                if (isRejeitado) {
+                    botoesAcoes += `<button onclick="excluirCardapio(${c.id})" class="text-red-600 hover:text-red-900">Excluir</button>`;
+                }
+                
+                // Cardápios aprovados não podem ser excluídos
                 
                 return `
                     <tr class="hover:bg-gray-50">
@@ -1036,9 +1603,13 @@ $cardapios = $cardapioModel->listar($filtrosInicial);
             document.getElementById('cardapio-ano').value = '<?= date('Y') ?>';
             document.getElementById('itens-cardapio-container').innerHTML = '';
             document.getElementById('mensagem-sem-itens').classList.remove('hidden');
+            document.getElementById('semanas-container').innerHTML = '';
+            document.getElementById('mensagem-sem-semanas').classList.remove('hidden');
             document.getElementById('modal-titulo').textContent = 'Novo Cardápio';
             itensCardapio = [];
             itemIndex = 0;
+            semanasCardapio = [];
+            semanaIndex = 0;
             cardapioEditandoId = null;
             
             // Mostrar botão "Publicar Cardápio" quando for novo cardápio
@@ -1068,33 +1639,197 @@ $cardapios = $cardapioModel->listar($filtrosInicial);
         }
         
         function visualizarCardapio(id) {
+            // Abrir modal
+            const modal = document.getElementById('modal-visualizar-cardapio');
+            modal.style.display = 'flex';
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+            
+            // Mostrar loading
+            document.getElementById('modal-cardapio-content').innerHTML = `
+                <div class="text-center py-8">
+                    <div class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-primary-green"></div>
+                    <p class="text-gray-600 mt-4">Carregando detalhes do cardápio...</p>
+                </div>
+            `;
+            
             fetch(`cardapios_nutricionista.php?acao=buscar_cardapio&id=${id}`)
                 .then(response => response.json())
                 .then(data => {
                     if (data.success && data.cardapio) {
-                        const c = data.cardapio;
-                        const meses = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
-                        const mesNome = meses[c.mes - 1] || c.mes;
+                        const cardapio = data.cardapio;
+                        const mesNome = new Date(2000, cardapio.mes - 1).toLocaleString('pt-BR', { month: 'long' });
                         
-                        let itensHtml = '';
-                        if (c.itens && c.itens.length > 0) {
-                            itensHtml = c.itens.map(item => `
-                                <tr>
-                                    <td class="px-4 py-2">${item.produto_nome || 'N/A'}</td>
-                                    <td class="px-4 py-2">${item.quantidade || 0} ${item.unidade_medida || ''}</td>
-                                </tr>
-                            `).join('');
-                        } else {
-                            itensHtml = '<tr><td colspan="2" class="px-4 py-2 text-center text-gray-500">Nenhum item cadastrado</td></tr>';
+                        // Atualizar header
+                        document.getElementById('modal-cardapio-escola').textContent = cardapio.escola_nome || 'Escola não informada';
+                        
+                        // Status badge
+                        const statusClass = {
+                            'RASCUNHO': 'bg-yellow-100 text-yellow-800',
+                            'APROVADO': 'bg-green-100 text-green-800',
+                            'PUBLICADO': 'bg-blue-100 text-blue-800',
+                            'REJEITADO': 'bg-red-100 text-red-800'
+                        }[cardapio.status?.toUpperCase()] || 'bg-gray-100 text-gray-800';
+                        
+                        // Organizar itens por semana
+                        const itensPorSemana = {};
+                        if (cardapio.itens && cardapio.itens.length > 0) {
+                            cardapio.itens.forEach(item => {
+                                const semanaKey = item.numero_semana || 'sem_semana';
+                                if (!itensPorSemana[semanaKey]) {
+                                    itensPorSemana[semanaKey] = {
+                                        numero: item.numero_semana,
+                                        observacao: item.semana_observacao,
+                                        itens: []
+                                    };
+                                }
+                                itensPorSemana[semanaKey].itens.push(item);
+                            });
                         }
                         
-                        alert(`Cardápio: ${c.escola_nome}\nPeríodo: ${mesNome}/${c.ano}\nStatus: ${c.status}\nItens: ${c.itens ? c.itens.length : 0}`);
+                        // Buscar informações das semanas
+                        const semanasInfo = {};
+                        if (cardapio.semanas && cardapio.semanas.length > 0) {
+                            cardapio.semanas.forEach(semana => {
+                                semanasInfo[semana.numero_semana] = semana;
+                            });
+                        }
+                        
+                        // Construir HTML do conteúdo
+                        let contentHtml = `
+                            <div class="space-y-6">
+                                <!-- Informações Gerais -->
+                                <div class="bg-white rounded-lg p-6 shadow-sm border border-gray-200">
+                                    <h4 class="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                                        <svg class="w-5 h-5 mr-2 text-primary-green" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                        </svg>
+                                        Informações Gerais
+                                    </h4>
+                                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                        <div>
+                                            <p class="text-sm text-gray-500">Escola</p>
+                                            <p class="text-base font-medium text-gray-900">${cardapio.escola_nome || 'N/A'}</p>
+                                        </div>
+                                        <div>
+                                            <p class="text-sm text-gray-500">Período</p>
+                                            <p class="text-base font-medium text-gray-900">${mesNome}/${cardapio.ano}</p>
+                                        </div>
+                                        <div>
+                                            <p class="text-sm text-gray-500">Status</p>
+                                            <span class="inline-block px-3 py-1 rounded-full text-xs font-medium ${statusClass}">
+                                                ${cardapio.status || 'RASCUNHO'}
+                                            </span>
+                                        </div>
+                                    </div>
+                                    ${cardapio.observacoes ? `
+                                        <div class="mt-4 pt-4 border-t border-gray-200">
+                                            <p class="text-sm text-gray-500">Observações</p>
+                                            <p class="text-sm text-gray-700 mt-1">${cardapio.observacoes}</p>
+                                        </div>
+                                    ` : ''}
+                                </div>
+                        `;
+                        
+                        // Adicionar semanas e itens
+                        if (Object.keys(itensPorSemana).length > 0 || (cardapio.semanas && cardapio.semanas.length > 0)) {
+                            // Ordenar semanas
+                            const semanasOrdenadas = Object.keys(itensPorSemana).sort((a, b) => {
+                                if (a === 'sem_semana') return 1;
+                                if (b === 'sem_semana') return -1;
+                                return parseInt(a) - parseInt(b);
+                            });
+                            
+                            semanasOrdenadas.forEach(semanaKey => {
+                                const semanaData = itensPorSemana[semanaKey];
+                                const semanaInfo = semanasInfo[semanaData.numero] || {};
+                                
+                                const dataInicio = semanaInfo.data_inicio ? new Date(semanaInfo.data_inicio + 'T00:00:00').toLocaleDateString('pt-BR') : '';
+                                const dataFim = semanaInfo.data_fim ? new Date(semanaInfo.data_fim + 'T00:00:00').toLocaleDateString('pt-BR') : '';
+                                
+                                contentHtml += `
+                                    <div class="bg-white rounded-lg p-6 shadow-sm border border-gray-200">
+                                        <div class="flex items-center justify-between mb-4">
+                                            <h4 class="text-lg font-semibold text-gray-900 flex items-center">
+                                                <svg class="w-5 h-5 mr-2 text-primary-green" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                                                </svg>
+                                                ${semanaData.numero ? `Semana ${semanaData.numero}` : 'Itens Gerais'}
+                                                ${dataInicio && dataFim ? `<span class="text-sm font-normal text-gray-500 ml-2">(${dataInicio} a ${dataFim})</span>` : ''}
+                                            </h4>
+                                        </div>
+                                        ${semanaData.observacao || semanaInfo.observacao ? `
+                                            <div class="mb-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
+                                                <p class="text-sm text-blue-800"><strong>Observação da Semana:</strong> ${semanaData.observacao || semanaInfo.observacao}</p>
+                                            </div>
+                                        ` : ''}
+                                        ${semanaData.itens && semanaData.itens.length > 0 ? `
+                                            <div class="overflow-x-auto">
+                                                <table class="min-w-full divide-y divide-gray-200">
+                                                    <thead class="bg-gray-50">
+                                                        <tr>
+                                                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Produto</th>
+                                                            <th class="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Quantidade</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody class="bg-white divide-y divide-gray-200">
+                                                        ${semanaData.itens.map(item => `
+                                                            <tr class="hover:bg-gray-50">
+                                                                <td class="px-4 py-3 text-sm text-gray-900">${item.produto_nome || 'N/A'}</td>
+                                                                <td class="px-4 py-3 text-sm text-gray-700 text-center font-medium">${item.quantidade || 0} ${item.unidade_medida || ''}</td>
+                                                            </tr>
+                                                        `).join('')}
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                        ` : '<p class="text-sm text-gray-500 text-center py-4">Nenhum item cadastrado para esta semana</p>'}
+                                    </div>
+                                `;
+                            });
+                        } else {
+                            contentHtml += `
+                                <div class="bg-white rounded-lg p-6 shadow-sm border border-gray-200 text-center">
+                                    <p class="text-gray-500">Nenhum item cadastrado neste cardápio</p>
+                                </div>
+                            `;
+                        }
+                        
+                        contentHtml += `
+                            </div>
+                        `;
+                        
+                        document.getElementById('modal-cardapio-content').innerHTML = contentHtml;
+                    } else {
+                        document.getElementById('modal-cardapio-content').innerHTML = `
+                            <div class="text-center py-8">
+                                <svg class="w-16 h-16 text-red-500 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                </svg>
+                                <p class="text-gray-600">Erro ao carregar detalhes do cardápio</p>
+                                <p class="text-sm text-gray-500 mt-2">${data.message || 'Cardápio não encontrado'}</p>
+                            </div>
+                        `;
                     }
                 })
                 .catch(error => {
                     console.error('Erro:', error);
-                    alert('Erro ao carregar detalhes do cardápio');
+                    document.getElementById('modal-cardapio-content').innerHTML = `
+                        <div class="text-center py-8">
+                            <svg class="w-16 h-16 text-red-500 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                            </svg>
+                            <p class="text-gray-600">Erro ao buscar detalhes do cardápio</p>
+                            <p class="text-sm text-gray-500 mt-2">${error.message || 'Erro desconhecido'}</p>
+                        </div>
+                    `;
                 });
+        }
+        
+        function fecharModalVisualizarCardapio() {
+            const modal = document.getElementById('modal-visualizar-cardapio');
+            modal.style.display = 'none';
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
         }
         
         function editarCardapio(id) {
@@ -1127,6 +1862,51 @@ $cardapios = $cardapioModel->listar($filtrosInicial);
                         // Atualizar produtos da escola
                         atualizarProdutosEstoque(c.escola_id);
                         
+                        // Limpar semanas e itens atuais
+                        document.getElementById('semanas-container').innerHTML = '';
+                        document.getElementById('mensagem-sem-semanas').classList.add('hidden');
+                        semanasCardapio = [];
+                        semanaIndex = 0;
+                        
+                        // Adicionar semanas do cardápio
+                        if (c.semanas && c.semanas.length > 0) {
+                            c.semanas.forEach(semana => {
+                                adicionarSemana();
+                                const ultimaSemana = semanasCardapio[semanasCardapio.length - 1];
+                                if (ultimaSemana) {
+                                    ultimaSemana.numero_semana = semana.numero_semana;
+                                    ultimaSemana.observacao = semana.observacao || '';
+                                    ultimaSemana.data_inicio = semana.data_inicio || null;
+                                    ultimaSemana.data_fim = semana.data_fim || null;
+                                    
+                                    // Usar data_inicio como domingo se disponível
+                                    if (semana.data_inicio) {
+                                        const dataDomingo = new Date(semana.data_inicio);
+                                        ultimaSemana.data_domingo = dataDomingo.toISOString().split('T')[0];
+                                        
+                                        // Atualizar input de data
+                                        const semanaDiv = document.getElementById(ultimaSemana.id);
+                                        if (semanaDiv) {
+                                            const dataInput = semanaDiv.querySelector('.data-domingo-input');
+                                            if (dataInput) {
+                                                dataInput.value = ultimaSemana.data_domingo;
+                                            }
+                                            
+                                            const periodoSpan = semanaDiv.querySelector(`.periodo-semana-${semanaIndex - 1}`);
+                                            if (periodoSpan) {
+                                                periodoSpan.textContent = `${new Date(semana.data_inicio).toLocaleDateString('pt-BR')} a ${new Date(semana.data_fim).toLocaleDateString('pt-BR')}`;
+                                            }
+                                            
+                                            const textarea = semanaDiv.querySelector('textarea');
+                                            if (textarea) {
+                                                textarea.value = semana.observacao || '';
+                                            }
+                                        }
+                                    }
+                                }
+                            });
+                        }
+                        
                         // Limpar itens atuais
                         document.getElementById('itens-cardapio-container').innerHTML = '';
                         document.getElementById('mensagem-sem-itens').classList.add('hidden');
@@ -1139,8 +1919,15 @@ $cardapios = $cardapioModel->listar($filtrosInicial);
                                 c.itens.forEach(item => {
                                     adicionarItemCardapio();
                                     const ultimoIndex = itemIndex - 1;
+                                    const semanaSelect = document.querySelector(`.semana-select[data-item-index="${ultimoIndex}"]`);
                                     const produtoSelect = document.querySelector(`.produto-select[data-item-index="${ultimoIndex}"]`);
                                     const quantidadeInput = document.querySelector(`.quantidade-input[data-item-index="${ultimoIndex}"]`);
+                                    
+                                    // Associar semana se houver
+                                    if (semanaSelect && item.numero_semana) {
+                                        semanaSelect.value = item.numero_semana;
+                                        selecionarSemanaItem(ultimoIndex, item.numero_semana);
+                                    }
                                     
                                     // Encontrar o produto correspondente - usar o primeiro disponível se não encontrar exato
                                     const produto = produtosDisponiveis.find(p => p.produto_id == item.produto_id);
@@ -1268,6 +2055,16 @@ $cardapios = $cardapioModel->listar($filtrosInicial);
         
         // Carregar cardápios ao iniciar
         filtrarCardapios();
+        
+        // Fechar modal de visualização ao clicar fora dele
+        const modalVisualizar = document.getElementById('modal-visualizar-cardapio');
+        if (modalVisualizar) {
+            modalVisualizar.addEventListener('click', function(e) {
+                if (e.target === modalVisualizar) {
+                    fecharModalVisualizarCardapio();
+                }
+            });
+        }
         
         // Funções do modal de logout
         window.confirmLogout = function() {

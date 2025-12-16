@@ -59,7 +59,7 @@ $nomeSistema = getNomeSistemaCurto();
                     <span>Dashboard</span>
                 </a>
             </li>
-            
+
             <!-- Gestão e Operações -->
             <li class="pt-4">
                 <p class="px-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Gestão e Operações</p>
@@ -114,7 +114,7 @@ $nomeSistema = getNomeSistemaCurto();
                     <span>Pacotes para Escolas</span>
                 </a>
             </li>
-            
+
             <!-- Visualização -->
             <li class="pt-4">
                 <p class="px-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Visualização</p>
@@ -135,6 +135,7 @@ $nomeSistema = getNomeSistemaCurto();
                     <span>Estoque</span>
                 </a>
             </li>
+            <!--
             <li>
                 <a href="pedidos_merenda.php" class="menu-item flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700 <?= basename($_SERVER['PHP_SELF']) === 'pedidos_merenda.php' ? 'active' : '' ?>">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -143,7 +144,7 @@ $nomeSistema = getNomeSistemaCurto();
                     <span>Pedidos de Compra</span>
                 </a>
             </li>
-
+                -->
             <!-- Relatórios -->
             <li class="pt-4">
                 <p class="px-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Relatórios</p>
@@ -161,7 +162,7 @@ $nomeSistema = getNomeSistemaCurto();
             <!-- Removed other report items: Consumo, Desperdício, Custos, Entregas -->
         </ul>
     </nav>
-    
+
     <!-- Logout Button -->
     <div class="flex-shrink-0 p-4 border-t border-gray-200 bg-white">
         <button onclick="window.confirmLogout && window.confirmLogout()" class="w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-red-600 hover:bg-red-50 transition-colors duration-200">
@@ -172,4 +173,3 @@ $nomeSistema = getNomeSistemaCurto();
         </button>
     </div>
 </aside>
-

@@ -20,6 +20,8 @@ $frequenciaModel = new FrequenciaModel();
 // Buscar professor_id
 $professorId = null;
 $pessoaId = $_SESSION['pessoa_id'] ?? null;
+error_log("DEBUG frequencia_professor: pessoa_id da sessão = " . ($pessoaId ?? 'NULL'));
+
 if ($pessoaId) {
     $sqlProfessor = "SELECT pr.id FROM professor pr WHERE pr.pessoa_id = :pessoa_id AND pr.ativo = 1 LIMIT 1";
     $stmtProfessor = $conn->prepare($sqlProfessor);
@@ -28,6 +30,7 @@ if ($pessoaId) {
     $stmtProfessor->execute();
     $professor = $stmtProfessor->fetch(PDO::FETCH_ASSOC);
     $professorId = $professor['id'] ?? null;
+    error_log("DEBUG frequencia_professor: professor_id encontrado = " . ($professorId ?? 'NULL'));
 }
 
 // Fallback: tentar obter pessoa_id via usuario_id e CPF se necessário
@@ -68,6 +71,9 @@ if (!$professorId) {
 // Buscar turmas e disciplinas do professor
 $turmasProfessor = [];
 if ($professorId) {
+    // Log para debug
+    error_log("DEBUG frequencia_professor: Buscando turmas para professor_id = $professorId");
+    
     $sqlTurmas = "SELECT DISTINCT 
                     t.id as turma_id,
                     CONCAT(t.serie, ' ', t.letra, ' - ', t.turno) as turma_nome,
@@ -84,20 +90,24 @@ if ($professorId) {
                   INNER JOIN escola e ON t.escola_id = e.id
                   WHERE tp.professor_id = :professor_id AND tp.fim IS NULL AND t.ativo = 1";
     
-    // Filtrar por escola selecionada se houver
-    $escolaIdSelecionada = $_SESSION['escola_selecionada_id'] ?? $_SESSION['escola_id'] ?? null;
-    if ($escolaIdSelecionada) {
-        $sqlTurmas .= " AND t.escola_id = :escola_id";
-    }
-    
+    // Remover filtro de escola selecionada - professor deve ver todas as suas turmas
+    // O filtro estava impedindo que turmas aparecessem se a escola da sessão não correspondesse
     $sqlTurmas .= " ORDER BY t.serie, t.letra, d.nome";
+    
     $stmtTurmas = $conn->prepare($sqlTurmas);
     $stmtTurmas->bindParam(':professor_id', $professorId);
-    if ($escolaIdSelecionada) {
-        $stmtTurmas->bindParam(':escola_id', $escolaIdSelecionada, PDO::PARAM_INT);
-    }
     $stmtTurmas->execute();
     $turmasProfessor = $stmtTurmas->fetchAll(PDO::FETCH_ASSOC);
+    
+    // Log para debug
+    error_log("DEBUG frequencia_professor: Encontradas " . count($turmasProfessor) . " turmas para o professor");
+    if (count($turmasProfessor) > 0) {
+        foreach ($turmasProfessor as $turma) {
+            error_log("DEBUG frequencia_professor: Turma encontrada - ID: {$turma['turma_id']}, Nome: {$turma['turma_nome']}, Disciplina: {$turma['disciplina_nome']}");
+        }
+    }
+} else {
+    error_log("DEBUG frequencia_professor: professorId não encontrado!");
 }
 
 // Processar requisições AJAX
@@ -129,16 +139,44 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['acao'])) {
     
     if ($_GET['acao'] === 'buscar_alunos_turma' && !empty($_GET['turma_id'])) {
         $turmaId = $_GET['turma_id'];
+        
+        // Validar se o professor tem acesso a esta turma
+        if ($professorId) {
+            $sqlValidar = "SELECT COUNT(*) as total
+                          FROM turma_professor tp
+                          WHERE tp.turma_id = :turma_id 
+                          AND tp.professor_id = :professor_id 
+                          AND tp.fim IS NULL";
+            $stmtValidar = $conn->prepare($sqlValidar);
+            $stmtValidar->bindParam(':turma_id', $turmaId);
+            $stmtValidar->bindParam(':professor_id', $professorId);
+            $stmtValidar->execute();
+            $validacao = $stmtValidar->fetch(PDO::FETCH_ASSOC);
+            
+            if (!$validacao || $validacao['total'] == 0) {
+                error_log("Professor $professorId tentou acessar turma $turmaId sem permissão");
+                echo json_encode(['success' => false, 'message' => 'Você não tem acesso a esta turma']);
+                exit;
+            }
+        } else {
+            error_log("Erro: professorId não encontrado ao buscar alunos da turma $turmaId");
+            echo json_encode(['success' => false, 'message' => 'Professor não identificado']);
+            exit;
+        }
+        
         $sql = "SELECT a.id, p.nome, COALESCE(a.matricula, '') as matricula
                 FROM aluno_turma at
                 INNER JOIN aluno a ON at.aluno_id = a.id
                 INNER JOIN pessoa p ON a.pessoa_id = p.id
-                WHERE at.turma_id = :turma_id AND at.fim IS NULL
+                WHERE at.turma_id = :turma_id AND at.fim IS NULL AND a.ativo = 1
                 ORDER BY p.nome ASC";
         $stmt = $conn->prepare($sql);
         $stmt->bindParam(':turma_id', $turmaId);
         $stmt->execute();
         $alunos = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        
+        error_log("Busca de alunos da turma $turmaId retornou " . count($alunos) . " alunos");
+        
         echo json_encode(['success' => true, 'alunos' => $alunos]);
         exit;
     }
@@ -224,6 +262,96 @@ if (!defined('BASE_URL')) {
             }
         }
     </script>
+    <!-- Script inline para garantir que as funções estejam disponíveis antes do HTML -->
+    <script>
+        // Função para fechar o modal - DEVE estar antes do HTML
+        window.fecharModalLancarFrequencia = function() {
+            console.log('Fechando modal...');
+            const modal = document.getElementById('modal-lancar-frequencia');
+            if (modal) {
+                modal.classList.add('hidden');
+                modal.style.display = 'none';
+                console.log('Modal fechado');
+            } else {
+                console.error('Modal não encontrado para fechar');
+            }
+        };
+        
+        // Função principal para abrir o modal - DEVE estar antes do HTML
+        window.abrirModalLancarFrequencia = function(turmaId = null, disciplinaId = null, turmaNome = '', disciplinaNome = '') {
+            console.log('=== abrirModalLancarFrequencia CHAMADO ===');
+            console.log('Parâmetros:', { turmaId, disciplinaId, turmaNome, disciplinaNome });
+            
+            const modal = document.getElementById('modal-lancar-frequencia');
+            if (!modal) {
+                console.error('❌ Modal não encontrado!');
+                alert('Erro: Modal não encontrado. Recarregue a página.');
+                return;
+            }
+            
+            console.log('✅ Modal encontrado!');
+            
+            // Remover classe hidden
+            modal.classList.remove('hidden');
+            
+            // Forçar display flex com !important para sobrescrever qualquer CSS
+            modal.style.setProperty('display', 'flex', 'important');
+            modal.style.setProperty('visibility', 'visible', 'important');
+            modal.style.setProperty('opacity', '1', 'important');
+            modal.style.setProperty('z-index', '60', 'important');
+            
+            if (turmaId && disciplinaId) {
+                const turmaIdElement = document.getElementById('frequencia-turma-id');
+                const disciplinaIdElement = document.getElementById('frequencia-disciplina-id');
+                
+                if (turmaIdElement) {
+                    turmaIdElement.value = turmaId;
+                }
+                
+                if (disciplinaIdElement) {
+                    disciplinaIdElement.value = disciplinaId;
+                }
+                
+                const infoElement = document.getElementById('frequencia-info-turma');
+                if (infoElement && turmaNome && disciplinaNome) {
+                    infoElement.textContent = turmaNome + ' - ' + disciplinaNome;
+                } else if (infoElement && window.buscarInfoTurma) {
+                    window.buscarInfoTurma(turmaId, disciplinaId);
+                }
+                
+                console.log('Carregando alunos para turma:', turmaId);
+                // Aguardar um pouco para garantir que o segundo script foi carregado
+                // A função carregarAlunosParaFrequencia está no segundo script
+                setTimeout(function() {
+                    if (window.carregarAlunosParaFrequencia) {
+                        console.log('Chamando carregarAlunosParaFrequencia...');
+                        window.carregarAlunosParaFrequencia(turmaId);
+                    } else {
+                        console.warn('Função carregarAlunosParaFrequencia ainda não está disponível, aguardando mais...');
+                        // Tentar novamente após mais um delay
+                        setTimeout(function() {
+                            if (window.carregarAlunosParaFrequencia) {
+                                console.log('Chamando carregarAlunosParaFrequencia (segunda tentativa)...');
+                                window.carregarAlunosParaFrequencia(turmaId);
+                            } else {
+                                console.error('Função carregarAlunosParaFrequencia não encontrada após múltiplas tentativas. Verifique se o script foi carregado completamente.');
+                            }
+                        }, 1000);
+                    }
+                }, 200);
+            }
+        };
+        
+        // Função wrapper para ser chamada do onclick inline
+        window.abrirModalLancarFrequenciaFromButton = function(button) {
+            const turmaId = button.getAttribute('data-turma-id');
+            const disciplinaId = button.getAttribute('data-disciplina-id');
+            const turmaNome = button.getAttribute('data-turma-nome');
+            const disciplinaNome = button.getAttribute('data-disciplina-nome');
+            
+            window.abrirModalLancarFrequencia(turmaId, disciplinaId, turmaNome, disciplinaNome);
+        };
+    </script>
     <!-- Estilos minimalistas e profissionais -->
     <style>
         .sidebar-transition { transition: all 0.2s ease; }
@@ -251,20 +379,23 @@ if (!defined('BASE_URL')) {
         
         /* Botão de presença redondo minimalista */
         .presenca-toggle {
-            width: 40px;
-            height: 40px;
+            width: 48px;
+            height: 48px;
             border-radius: 50%;
-            border: 2px solid #d1d5db;
+            border: 3px solid #d1d5db;
             background: #fff;
             cursor: pointer;
-            transition: all 0.15s ease;
+            transition: all 0.2s ease;
             display: flex;
             align-items: center;
             justify-content: center;
             flex-shrink: 0;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
         }
         .presenca-toggle:hover {
             border-color: #9ca3af;
+            transform: scale(1.05);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
         }
         .presenca-toggle.presente {
             border-color: #2D5A27;
@@ -290,23 +421,28 @@ if (!defined('BASE_URL')) {
             color: #fff;
         }
         
-        /* Card do aluno minimalista */
+        /* Card do aluno moderno */
         .aluno-row {
             background: #fff;
-            border: 1px solid #e5e7eb;
-            border-radius: 8px;
-            padding: 12px 16px;
+            border: 2px solid #e5e7eb;
+            border-radius: 12px;
+            padding: 14px 18px;
             display: flex;
             align-items: center;
-            gap: 12px;
-            transition: border-color 0.15s ease;
+            gap: 16px;
+            transition: all 0.2s ease;
+            border-left: 4px solid transparent;
         }
         .aluno-row:hover {
             border-color: #d1d5db;
+            border-left-color: #2D5A27;
+            transform: translateX(2px);
+            box-shadow: 0 4px 12px -2px rgba(0, 0, 0, 0.1);
         }
         .aluno-row.ausente {
             background: #fef2f2;
             border-color: #fecaca;
+            border-left-color: #dc2626;
         }
         .aluno-row.presente {
             background: #f0fdf4;
@@ -322,23 +458,39 @@ if (!defined('BASE_URL')) {
         .justificativa-field {
             display: none;
             width: 100%;
-            margin-top: 8px;
-            padding-left: 48px;
+            margin-top: 10px;
+            padding-left: 66px;
+            animation: slideDown 0.2s ease;
+        }
+        @keyframes slideDown {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
         }
         .justificativa-field.show {
             display: block;
         }
         .justificativa-field input {
             width: 100%;
-            padding: 6px 10px;
-            font-size: 12px;
-            border: 1px solid #fde68a;
-            border-radius: 6px;
+            padding: 10px 14px;
+            font-size: 13px;
+            border: 2px solid #fde68a;
+            border-radius: 8px;
             background: #fffbeb;
+            color: #92400e;
+            font-weight: 500;
             outline: none;
+            transition: all 0.2s ease;
         }
         .justificativa-field input:focus {
             border-color: #d97706;
+            box-shadow: 0 0 0 3px rgba(217, 119, 6, 0.1);
+            background: #fff;
         }
         .justificativa-field input::placeholder {
             color: #a3a3a3;
@@ -411,6 +563,35 @@ if (!defined('BASE_URL')) {
         .modal-sucesso-content {
             transition: transform 0.2s ease-out;
         }
+        .turma-card {
+            transition: all 0.3s ease;
+            border-left: 4px solid transparent;
+        }
+        .turma-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+            border-left-color: #2D5A27;
+        }
+        .header-section {
+            background: linear-gradient(135deg, #fff 0%, #f0fdf4 100%);
+        }
+        .custom-scrollbar {
+            scrollbar-width: thin;
+            scrollbar-color: #cbd5e1 #f1f5f9;
+        }
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 8px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: #f1f5f9;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 4px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
     </style>
 </head>
 <body class="bg-gray-50">
@@ -418,16 +599,23 @@ if (!defined('BASE_URL')) {
     
     <!-- Main Content -->
     <main class="content-transition ml-0 lg:ml-64 min-h-screen">
-        <!-- Header simplificado -->
-        <header class="bg-white border-b border-gray-200 sticky top-0 z-30">
+        <!-- Header -->
+        <header class="bg-white shadow-sm border-b border-gray-200 sticky top-0 z-30">
             <div class="px-4 sm:px-6 lg:px-8">
-                <div class="flex justify-between items-center h-14">
-                    <button onclick="window.toggleSidebar()" class="lg:hidden p-2 rounded text-gray-500 hover:text-gray-700 hover:bg-gray-100">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <div class="flex justify-between items-center h-16">
+                    <button onclick="window.toggleSidebar()" class="lg:hidden p-2 rounded-lg text-gray-600 hover:text-gray-900 hover:bg-gray-100 transition-colors">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
                         </svg>
                     </button>
-                    <h1 class="text-lg font-semibold text-gray-900">Frequência</h1>
+                    <div class="flex-1 text-center lg:text-left flex items-center gap-3">
+                        <div class="hidden lg:block p-2 bg-green-100 rounded-lg">
+                            <svg class="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                            </svg>
+                        </div>
+                        <h1 class="text-xl font-bold text-gray-900">Frequência</h1>
+                    </div>
                     <div class="flex items-center space-x-4">
                         <!-- School Info (Desktop Only) -->
                         <div class="hidden lg:block">
@@ -456,44 +644,88 @@ if (!defined('BASE_URL')) {
             </div>
         </header>
         
-        <div class="p-8">
+        <div class="p-6 sm:p-8">
             <div class="max-w-7xl mx-auto">
-                <div class="mb-6">
-                    <p class="text-gray-600">Registre a presença dos alunos nas suas turmas</p>
+                <div class="mb-8">
+                    <div class="flex items-center gap-3 mb-2">
+                        <div class="p-2 bg-green-100 rounded-lg">
+                            <svg class="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                            </svg>
+                        </div>
+                        <div>
+                            <h1 class="text-2xl font-bold text-gray-900">Registrar Frequência</h1>
+                            <p class="text-sm text-gray-600 mt-1">Registre a presença dos alunos nas suas turmas</p>
+                        </div>
+                    </div>
                 </div>
                 
-                <div class="bg-white rounded-2xl p-6 shadow-lg">
-                    <div class="flex items-center justify-between mb-6">
-                        <h2 class="text-xl font-bold text-gray-900">Minhas Turmas</h2>
-                        <button onclick="abrirModalLancarFrequencia()" class="bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded-lg font-medium transition-colors duration-200 flex items-center space-x-2">
-                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
-                            </svg>
-                            <span>Registrar Frequência</span>
-                        </button>
+                <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+                    <div class="mb-6 flex items-center justify-between">
+                        <div>
+                            <h2 class="text-lg font-semibold text-gray-900">Minhas Turmas</h2>
+                            <p class="text-sm text-gray-500 mt-1"><?= count($turmasProfessor) ?> turma(s) atribuída(s)</p>
+                        </div>
                     </div>
                     
-                    <?php if (empty($turmasProfessor)): ?>
-                        <div class="text-center py-12">
-                            <svg class="w-16 h-16 text-gray-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
-                            </svg>
-                            <p class="text-gray-600">Você não possui turmas atribuídas no momento.</p>
+                    <?php 
+                    // Debug: verificar se turmasProfessor está vazio
+                    error_log("DEBUG frequencia_professor: Total de turmas para exibir = " . count($turmasProfessor));
+                    if (empty($turmasProfessor)): ?>
+                        <div class="text-center py-16">
+                            <div class="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                                <svg class="w-10 h-10 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                                </svg>
+                            </div>
+                            <p class="text-gray-600 font-medium">Você não possui turmas atribuídas no momento.</p>
+                            <?php if (!$professorId): ?>
+                                <p class="text-sm text-red-500 mt-2">Erro: Professor não identificado. Verifique se você está logado corretamente.</p>
+                            <?php else: ?>
+                                <p class="text-sm text-gray-500 mt-2">Entre em contato com o gestor da escola para receber atribuições.</p>
+                            <?php endif; ?>
                         </div>
                     <?php else: ?>
                         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                             <?php foreach ($turmasProfessor as $turma): ?>
-                                <div class="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow duration-200">
-                                    <div class="mb-3">
-                                        <h3 class="font-semibold text-gray-900"><?= htmlspecialchars($turma['turma_nome']) ?></h3>
-                                        <p class="text-sm text-gray-600"><?= htmlspecialchars($turma['disciplina_nome']) ?></p>
-                                        <p class="text-xs text-gray-500 mt-1"><?= htmlspecialchars($turma['escola_nome']) ?></p>
+                                <div class="turma-card bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
+                                    <div class="mb-4">
+                                        <div class="flex items-start justify-between mb-2">
+                                            <div class="flex-1">
+                                                <h3 class="font-semibold text-gray-900 text-base mb-1"><?= htmlspecialchars($turma['turma_nome']) ?></h3>
+                                                <div class="flex items-center gap-2 text-sm text-gray-600 mb-2">
+                                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path>
+                                                    </svg>
+                                                    <span><?= htmlspecialchars($turma['disciplina_nome']) ?></span>
+                                                </div>
+                                                <div class="flex items-center gap-2 text-xs text-gray-500">
+                                                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path>
+                                                    </svg>
+                                                    <span class="truncate"><?= htmlspecialchars($turma['escola_nome']) ?></span>
+                                                </div>
+                                            </div>
+                                        </div>
                                     </div>
-                                    <div class="flex gap-2">
-                                        <button onclick="abrirModalHistoricoFrequencia(<?= $turma['turma_id'] ?>, '<?= htmlspecialchars($turma['turma_nome'], ENT_QUOTES) ?>')" class="flex-1 text-blue-600 hover:text-blue-700 font-medium text-sm py-2 border border-blue-200 rounded-lg hover:bg-blue-50 transition-colors">
-                                            Ver Histórico
+                                    <div class="flex gap-2 pt-3 border-t border-gray-100">
+                                        <button onclick="abrirModalHistoricoFrequencia(<?= $turma['turma_id'] ?>, '<?= htmlspecialchars($turma['turma_nome'], ENT_QUOTES) ?>')" class="flex-1 flex items-center justify-center gap-2 text-blue-600 hover:text-blue-700 font-medium text-sm py-2.5 border border-blue-200 rounded-lg hover:bg-blue-50 transition-all">
+                                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
+                                            </svg>
+                                            Histórico
                                         </button>
-                                        <button onclick="abrirModalLancarFrequencia(<?= $turma['turma_id'] ?>, <?= $turma['disciplina_id'] ?>, '<?= htmlspecialchars($turma['turma_nome'], ENT_QUOTES) ?>', '<?= htmlspecialchars($turma['disciplina_nome'], ENT_QUOTES) ?>')" class="flex-1 text-green-600 hover:text-green-700 font-medium text-sm py-2 border border-green-200 rounded-lg hover:bg-green-50 transition-colors">
+                                        <button 
+                                            class="btn-registrar-frequencia flex-1 flex items-center justify-center gap-2 text-white bg-green-600 hover:bg-green-700 font-medium text-sm py-2.5 rounded-lg transition-all shadow-sm hover:shadow"
+                                            data-turma-id="<?= $turma['turma_id'] ?>"
+                                            data-disciplina-id="<?= $turma['disciplina_id'] ?>"
+                                            data-turma-nome="<?= htmlspecialchars($turma['turma_nome'], ENT_QUOTES) ?>"
+                                            data-disciplina-nome="<?= htmlspecialchars($turma['disciplina_nome'], ENT_QUOTES) ?>"
+                                            onclick="window.abrirModalLancarFrequenciaFromButton(this); return false;">
+                                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                            </svg>
                                             Registrar
                                         </button>
                                     </div>
@@ -506,23 +738,28 @@ if (!defined('BASE_URL')) {
         </div>
     </main>
     
-    <!-- Modal fullscreen minimalista e profissional -->
-    <div id="modal-lancar-frequencia" class="fixed inset-0 bg-gray-900/50 z-[60] hidden" style="display: none;">
-        <div class="h-full w-full bg-gray-50 flex flex-col modal-fullscreen">
-            <!-- Header do modal - compacto -->
-            <div class="bg-white border-b border-gray-200 px-4 sm:px-6 py-3 flex items-center justify-between flex-shrink-0">
-                <div class="flex items-center gap-3">
-                    <button onclick="fecharModalLancarFrequencia()" class="p-1.5 rounded hover:bg-gray-100 text-gray-500">
+    <!-- Modal fullscreen moderno -->
+    <div id="modal-lancar-frequencia" class="fixed inset-0 bg-gray-900/50 backdrop-blur-sm z-[60] hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-5xl h-[90vh] flex flex-col">
+            <!-- Header Moderno -->
+            <div class="header-section border-b border-gray-200 px-6 py-4 flex items-center justify-between rounded-t-2xl">
+                <div class="flex items-center gap-4">
+                    <button onclick="window.fecharModalLancarFrequencia()" class="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-all">
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
                         </svg>
                     </button>
                     <div>
-                        <h3 class="font-semibold text-gray-900">Registrar Frequência</h3>
-                        <p id="frequencia-info-turma" class="text-xs text-gray-500">Selecione uma turma</p>
+                        <h3 class="text-lg font-bold text-gray-900 flex items-center gap-2">
+                            <svg class="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                            </svg>
+                            Registrar Frequência
+                        </h3>
+                        <p id="frequencia-info-turma" class="text-sm text-gray-500 mt-0.5">Selecione uma turma</p>
                     </div>
                 </div>
-                <button onclick="salvarFrequencia()" class="bg-primary-green hover:bg-green-700 text-white text-sm font-medium py-2 px-4 rounded transition-colors flex items-center gap-2">
+                <button onclick="salvarFrequencia()" class="px-5 py-2.5 text-sm font-semibold text-white bg-green-600 hover:bg-green-700 rounded-lg transition-all shadow-sm hover:shadow-md flex items-center gap-2">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
                     </svg>
@@ -530,51 +767,96 @@ if (!defined('BASE_URL')) {
                 </button>
             </div>
             
-            <!-- Barra de controles - compacta -->
-            <div class="bg-white border-b border-gray-200 px-4 sm:px-6 py-3 flex flex-wrap items-center gap-3 flex-shrink-0">
-                <div class="flex items-center gap-2">
-                    <label class="text-xs font-medium text-gray-600">Data:</label>
-                    <input type="date" id="frequencia-data" value="<?= date('Y-m-d') ?>" class="text-sm px-3 py-1.5 border border-gray-300 rounded focus:border-primary-green focus:ring-1 focus:ring-primary-green focus:outline-none" onchange="recarregarFrequenciaComData()">
+            <!-- Barra de controles melhorada -->
+            <div class="bg-gradient-to-r from-green-50 to-emerald-50 border-b border-green-100 px-6 py-4">
+                <div class="flex items-center justify-between gap-6 flex-wrap">
+                    <div class="flex items-center gap-4">
+                        <div class="flex items-center gap-2">
+                            <label class="text-sm font-semibold text-gray-700">Data:</label>
+                            <input type="date" id="frequencia-data" value="<?= date('Y-m-d') ?>" class="text-sm px-4 py-2 border-2 border-green-200 rounded-lg bg-white focus:outline-none focus:border-green-500 focus:ring-2 focus:ring-green-200 font-medium" onchange="recarregarFrequenciaComData()">
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-4">
+                        <div class="flex items-center gap-3 text-sm">
+                            <div class="flex items-center gap-2 bg-white px-3 py-1.5 rounded-lg border border-green-200">
+                                <svg class="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path>
+                                </svg>
+                                <span class="text-gray-600"><span id="alunos-count" class="font-bold text-gray-900">0</span> alunos</span>
+                            </div>
+                            <div class="flex items-center gap-2 bg-white px-3 py-1.5 rounded-lg border border-green-200">
+                                <svg class="w-4 h-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                </svg>
+                                <span class="text-gray-600"><span id="presentes-count" class="font-bold text-green-600">0</span> P</span>
+                            </div>
+                            <div class="flex items-center gap-2 bg-white px-3 py-1.5 rounded-lg border border-red-200">
+                                <svg class="w-4 h-4 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                                </svg>
+                                <span class="text-gray-600"><span id="ausentes-count" class="font-bold text-red-600">0</span> F</span>
+                            </div>
+                            <div class="flex items-center gap-2 bg-white px-3 py-1.5 rounded-lg border border-amber-200">
+                                <svg class="w-4 h-4 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
+                                </svg>
+                                <span class="text-gray-600"><span id="justificadas-count" class="font-bold text-amber-600">0</span> FJ</span>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <button onclick="marcarTodosPresentes()" class="px-3 py-1.5 text-xs font-semibold text-green-700 bg-green-50 hover:bg-green-100 rounded-lg transition-all border border-green-200">
+                                Todos P
+                            </button>
+                            <button onclick="marcarTodosAusentes()" class="px-3 py-1.5 text-xs font-semibold text-red-700 bg-red-50 hover:bg-red-100 rounded-lg transition-all border border-red-200">
+                                Todos F
+                            </button>
+                        </div>
+                    </div>
                 </div>
-                <div class="h-4 w-px bg-gray-300 hidden sm:block"></div>
-                <div class="flex items-center gap-2 text-xs">
-                    <span id="alunos-count" class="font-medium text-gray-700 bg-gray-100 px-2 py-1 rounded">0 alunos</span>
-                    <span id="presentes-count" class="text-green-700 bg-green-50 px-2 py-1 rounded">0 P</span>
-                    <span id="ausentes-count" class="text-red-700 bg-red-50 px-2 py-1 rounded">0 F</span>
-                    <!-- Contador de faltas justificadas -->
-                    <span id="justificadas-count" class="text-amber-700 bg-amber-50 px-2 py-1 rounded">0 FJ</span>
-                </div>
-                <div class="h-4 w-px bg-gray-300 hidden sm:block"></div>
-                <div class="flex items-center gap-2">
-                    <button onclick="marcarTodosPresentes()" class="text-xs font-medium text-green-700 hover:bg-green-50 px-2 py-1 rounded transition-colors">
-                        Todos P
-                    </button>
-                    <button onclick="marcarTodosAusentes()" class="text-xs font-medium text-red-700 hover:bg-red-50 px-2 py-1 rounded transition-colors">
-                        Todos F
-                    </button>
-                </div>
-                <!-- Dica de uso para falta justificada -->
-                <div class="hidden sm:flex items-center gap-1 text-xs text-gray-400 ml-auto">
+                <div class="mt-3 flex items-center gap-2 text-xs text-gray-500">
                     <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
                     </svg>
-                    <span>Segure o botao para falta justificada</span>
+                    <span>Segure o botão para marcar falta justificada</span>
                 </div>
                 <input type="hidden" id="frequencia-turma-id">
                 <input type="hidden" id="frequencia-disciplina-id">
             </div>
             
             <!-- Lista de alunos -->
-            <div class="flex-1 overflow-y-auto custom-scrollbar p-4 sm:p-6">
+            <div class="flex-1 overflow-y-auto custom-scrollbar p-6">
                 <div id="frequencia-alunos-container" class="alunos-list max-w-4xl mx-auto">
                     <!-- Estado vazio -->
-                    <div class="col-span-full text-center py-12">
-                        <div class="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-3">
-                            <svg class="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-2a6 6 0 0112 0v2zm0 0h6v-2a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"></path>
+                    <div class="text-center py-20 text-gray-400">
+                        <div class="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                            <svg class="w-8 h-8 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 4.354a4 4 0 110 5.292M15 21H3v-2a6 6 0 0112 0v2zm0 0h6v-2a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"></path>
                             </svg>
                         </div>
-                        <p class="text-sm text-gray-500">Selecione uma turma para carregar os alunos</p>
+                        <p class="text-sm font-medium">Selecione uma turma para carregar os alunos</p>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Footer -->
+            <div class="bg-white border-t border-gray-200 px-6 py-4 rounded-b-2xl">
+                <div class="max-w-4xl mx-auto flex items-center justify-between">
+                    <div class="flex items-center gap-2 text-xs text-gray-500">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                        </svg>
+                        <span>Clique para alternar presença/ausência. Segure para falta justificada.</span>
+                    </div>
+                    <div class="flex gap-3">
+                        <button onclick="window.fecharModalLancarFrequencia()" class="px-5 py-2.5 text-sm font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-all border border-gray-200">
+                            Cancelar
+                        </button>
+                        <button onclick="salvarFrequencia()" class="px-5 py-2.5 text-sm font-semibold text-white bg-green-600 hover:bg-green-700 rounded-lg transition-all shadow-sm hover:shadow-md flex items-center gap-2">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                            </svg>
+                            Salvar Frequência
+                        </button>
                     </div>
                 </div>
             </div>
@@ -718,6 +1000,7 @@ if (!defined('BASE_URL')) {
     </div>
     
     <script>
+        // Garantir que as funções estejam no escopo global
         window.toggleSidebar = function() {
             const sidebar = document.getElementById('sidebar');
             const overlay = document.getElementById('mobileOverlay');
@@ -750,35 +1033,55 @@ if (!defined('BASE_URL')) {
         let longPressTimer = null;
         const LONG_PRESS_DURATION = 500; // 500ms para ativar falta justificada
         
-        function abrirModalLancarFrequencia(turmaId = null, disciplinaId = null, turmaNome = '', disciplinaNome = '') {
-            const modal = document.getElementById('modal-lancar-frequencia');
-            if (modal) {
-                modal.classList.remove('hidden');
-                modal.style.display = 'flex';
-                if (turmaId && disciplinaId) {
-                    document.getElementById('frequencia-turma-id').value = turmaId;
-                    document.getElementById('frequencia-disciplina-id').value = disciplinaId;
+        // Adicionar event listeners aos botões de registrar frequência
+        function attachRegistrarButtons() {
+            const buttons = document.querySelectorAll('.btn-registrar-frequencia');
+            console.log('Encontrados', buttons.length, 'botões de registrar frequência');
+            
+            buttons.forEach(function(button) {
+                // Remover event listeners anteriores para evitar duplicação
+                const newButton = button.cloneNode(true);
+                button.parentNode.replaceChild(newButton, button);
+                
+                newButton.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
                     
-                    const infoElement = document.getElementById('frequencia-info-turma');
-                    if (infoElement && turmaNome && disciplinaNome) {
-                        infoElement.textContent = turmaNome + ' - ' + disciplinaNome;
-                    } else if (infoElement) {
-                        buscarInfoTurma(turmaId, disciplinaId);
+                    const turmaId = this.getAttribute('data-turma-id');
+                    const disciplinaId = this.getAttribute('data-disciplina-id');
+                    const turmaNome = this.getAttribute('data-turma-nome');
+                    const disciplinaNome = this.getAttribute('data-disciplina-nome');
+                    
+                    console.log('Botão clicado!', { turmaId, disciplinaId, turmaNome, disciplinaNome });
+                    
+                    if (window.abrirModalLancarFrequencia) {
+                        window.abrirModalLancarFrequencia(turmaId, disciplinaId, turmaNome, disciplinaNome);
+                    } else {
+                        console.error('Função abrirModalLancarFrequencia não encontrada!');
+                        alert('Erro: Função não encontrada. Recarregue a página.');
                     }
-                    
-                    carregarAlunosParaFrequencia(turmaId);
-                }
-            }
+                });
+            });
         }
         
-        function recarregarFrequenciaComData() {
+        // Tentar anexar imediatamente e também quando o DOM estiver pronto
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', attachRegistrarButtons);
+        } else {
+            attachRegistrarButtons();
+        }
+        
+        // Fallback: tentar novamente após um pequeno delay
+        setTimeout(attachRegistrarButtons, 500);
+        
+        window.recarregarFrequenciaComData = function() {
             const turmaId = document.getElementById('frequencia-turma-id').value;
             if (turmaId) {
-                carregarAlunosParaFrequencia(turmaId);
+                window.carregarAlunosParaFrequencia(turmaId);
             }
-        }
+        };
         
-        function buscarInfoTurma(turmaId, disciplinaId) {
+        window.buscarInfoTurma = function(turmaId, disciplinaId) {
             fetch('?acao=buscar_info_turma&turma_id=' + turmaId + '&disciplina_id=' + disciplinaId)
                 .then(response => response.json())
                 .then(data => {
@@ -790,120 +1093,247 @@ if (!defined('BASE_URL')) {
                     }
                 })
                 .catch(error => console.error('Erro ao buscar info da turma:', error));
-        }
+        };
         
-        function fecharModalLancarFrequencia() {
-            const modal = document.getElementById('modal-lancar-frequencia');
-            if (modal) {
-                modal.classList.add('hidden');
-                modal.style.display = 'none';
-            }
-        }
+        // Função fecharModalLancarFrequencia já definida no início, não duplicar
         
-        function carregarAlunosParaFrequencia(turmaId) {
-            const data = document.getElementById('frequencia-data').value;
+        window.carregarAlunosParaFrequencia = function(turmaId) {
+            console.log('=== INICIANDO carregarAlunosParaFrequencia ===');
+            console.log('Turma ID:', turmaId);
             
-            // Buscar alunos e frequências em paralelo
-            Promise.all([
-                fetch('?acao=buscar_alunos_turma&turma_id=' + turmaId).then(r => r.json()),
-                fetch('?acao=buscar_frequencia_data&turma_id=' + turmaId + '&data=' + data).then(r => r.json())
-            ])
-            .then(([alunosData, frequenciasData]) => {
-                if (alunosData.success && alunosData.alunos) {
-                    const container = document.getElementById('frequencia-alunos-container');
-                    container.innerHTML = '';
+            if (!turmaId) {
+                console.error('Turma ID não fornecido!');
+                return;
+            }
+            
+            var dataElement = document.getElementById('frequencia-data');
+            if (!dataElement) {
+                console.error('Elemento frequencia-data não encontrado!');
+                return;
+            }
+            
+            var data = dataElement.value || new Date().toISOString().split('T')[0];
+            console.log('Data:', data);
+            
+            var container = document.getElementById('frequencia-alunos-container');
+            if (!container) {
+                console.error('Container não encontrado!');
+                return;
+            }
+            
+            container.innerHTML = '<div class="text-center py-8"><p>Carregando alunos...</p></div>';
+            
+            var urlAlunos = '?acao=buscar_alunos_turma&turma_id=' + encodeURIComponent(turmaId);
+            var urlFrequencias = '?acao=buscar_frequencia_data&turma_id=' + encodeURIComponent(turmaId) + '&data=' + encodeURIComponent(data);
+            
+            console.log('URL Alunos:', urlAlunos);
+            console.log('URL Frequências:', urlFrequencias);
+            
+            var xhrAlunos = new XMLHttpRequest();
+            var xhrFrequencias = new XMLHttpRequest();
+            var alunosData = null;
+            var frequenciasData = null;
+            var alunosLoaded = false;
+            var frequenciasLoaded = false;
+            
+            function processarDados() {
+                if (!alunosLoaded || !frequenciasLoaded) {
+                    return;
+                }
+                
+                console.log('Processando dados...');
+                console.log('Alunos:', alunosData);
+                console.log('Frequências:', frequenciasData);
+                
+                if (!alunosData || !alunosData.success) {
+                    var msg = alunosData && alunosData.message ? alunosData.message : 'Erro ao carregar alunos';
+                    container.innerHTML = '<div class="col-span-full text-center py-12">' +
+                        '<div class="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-3">' +
+                        '<svg class="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">' +
+                        '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>' +
+                        '</svg></div>' +
+                        '<p class="text-sm font-medium text-red-600">Erro ao carregar alunos</p>' +
+                        '<p class="text-xs text-gray-500 mt-1">' + msg + '</p>' +
+                        '</div>';
+                    return;
+                }
+                
+                if (!alunosData.alunos || alunosData.alunos.length === 0) {
+                    container.innerHTML = '<div class="col-span-full text-center py-12">' +
+                        '<div class="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-3">' +
+                        '<svg class="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">' +
+                        '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"></path>' +
+                        '</svg></div>' +
+                        '<p class="text-sm font-medium text-gray-600">Nenhum aluno encontrado</p>' +
+                        '<p class="text-xs text-gray-500 mt-1">Esta turma não possui alunos cadastrados</p>' +
+                        '</div>';
+                    return;
+                }
+                
+                console.log('Total de alunos:', alunosData.alunos.length);
+                container.innerHTML = '';
+                
+                var totalAlunos = alunosData.alunos.length;
+                var alunosCountEl = document.getElementById('alunos-count');
+                if (alunosCountEl) {
+                    alunosCountEl.textContent = totalAlunos + ' aluno' + (totalAlunos !== 1 ? 's' : '');
+                }
+                
+                var frequenciasMap = {};
+                if (frequenciasData && frequenciasData.success && frequenciasData.frequencias) {
+                    for (var i = 0; i < frequenciasData.frequencias.length; i++) {
+                        var freq = frequenciasData.frequencias[i];
+                        frequenciasMap[freq.aluno_id] = freq;
+                    }
+                }
+                
+                for (var i = 0; i < alunosData.alunos.length; i++) {
+                    var aluno = alunosData.alunos[i];
                     
-                    const totalAlunos = alunosData.alunos.length;
-                    document.getElementById('alunos-count').textContent = totalAlunos + ' alunos';
+                    var frequencia = frequenciasMap[aluno.id];
+                    var status = 'presente';
+                    var justificativa = '';
+                    var statusClass = 'presente';
                     
-                    // Criar mapa de frequências por aluno_id
-                    const frequenciasMap = {};
-                    if (frequenciasData.success && frequenciasData.frequencias) {
-                        frequenciasData.frequencias.forEach(freq => {
-                            frequenciasMap[freq.aluno_id] = freq;
-                        });
+                    if (frequencia) {
+                        if (frequencia.presenca == 1) {
+                            status = 'presente';
+                            statusClass = 'presente';
+                        } else if (frequencia.observacao) {
+                            status = 'justificada';
+                            statusClass = 'justificada';
+                            justificativa = frequencia.observacao || '';
+                        } else {
+                            status = 'ausente';
+                            statusClass = 'ausente';
+                        }
                     }
                     
-                    alunosData.alunos.forEach((aluno, index) => {
-                        const wrapper = document.createElement('div');
-                        wrapper.className = 'aluno-wrapper';
-                        
-                        // Verificar se há frequência registrada para este aluno
-                        const frequencia = frequenciasMap[aluno.id];
-                        let status = 'presente';
-                        let justificativa = '';
-                        let statusClass = 'presente';
-                        
-                        if (frequencia) {
-                            if (frequencia.presenca == 1) {
-                                status = 'presente';
-                                statusClass = 'presente';
-                            } else if (frequencia.observacao) {
-                                status = 'justificada';
-                                statusClass = 'justificada';
-                                justificativa = frequencia.observacao;
-                            } else {
-                                status = 'ausente';
-                                statusClass = 'ausente';
-                            }
+                    var nomeParts = aluno.nome ? aluno.nome.split(' ') : [];
+                    var iniciais = '';
+                    if (nomeParts.length > 0) {
+                        iniciais = nomeParts[0][0].toUpperCase();
+                        if (nomeParts.length > 1 && nomeParts[1][0]) {
+                            iniciais += nomeParts[1][0].toUpperCase();
                         }
-                        
-                        const div = document.createElement('div');
-                        div.className = `aluno-row ${statusClass}`;
-                        div.setAttribute('data-aluno-id', aluno.id);
-                        div.setAttribute('data-status', status);
-                        div.setAttribute('data-justificativa', justificativa);
-                        
-                        const iniciais = aluno.nome.split(' ').map(n => n[0]).slice(0, 2).join('').toUpperCase();
-                        
-                        // Determinar quais ícones mostrar
-                        const iconCheckClass = status === 'presente' ? '' : 'hidden';
-                        const iconXClass = status === 'ausente' ? '' : 'hidden';
-                        const iconJustifiedClass = status === 'justificada' ? '' : 'hidden';
-                        
-                        div.innerHTML = `
-                            <div class="aluno-avatar-sm">${iniciais}</div>
-                            <div class="flex-1 min-w-0">
-                                <p class="text-sm font-medium text-gray-900 truncate">${aluno.nome}</p>
-                                ${aluno.matricula ? `<p class="text-xs text-gray-400">${aluno.matricula}</p>` : ''}
-                            </div>
-                            <button type="button" class="presenca-toggle ${statusClass}" data-aluno-id="${aluno.id}">
-                                <svg class="icon-check ${iconCheckClass}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"></path>
-                                </svg>
-                                <svg class="icon-x ${iconXClass}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12"></path>
-                                </svg>
-                                <svg class="icon-justified ${iconJustifiedClass}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
-                                </svg>
-                            </button>
-                        `;
-                        
-                        const justificativaField = document.createElement('div');
-                        justificativaField.className = status === 'justificada' ? 'justificativa-field show' : 'justificativa-field';
-                        justificativaField.innerHTML = `
-                            <input type="text" placeholder="Motivo da falta (opcional)" data-aluno-id="${aluno.id}" value="${justificativa}" onchange="atualizarJustificativa(this, ${aluno.id})">
-                        `;
-                        
-                        wrapper.appendChild(div);
-                        wrapper.appendChild(justificativaField);
-                        container.appendChild(wrapper);
-                        
-                        const button = div.querySelector('.presenca-toggle');
-                        setupLongPress(button, aluno.id);
-                    });
+                    }
                     
-                    atualizarContadores();
+                    var alunoNomeEscapado = (aluno.nome || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+                    var alunoMatriculaEscapada = (aluno.matricula || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+                    
+                    var iconCheckClass = status === 'presente' ? '' : 'hidden';
+                    var iconXClass = status === 'ausente' ? '' : 'hidden';
+                    var iconJustifiedClass = status === 'justificada' ? '' : 'hidden';
+                    
+                    var matriculaHtml = alunoMatriculaEscapada ? '<p class="text-xs text-gray-400">' + alunoMatriculaEscapada + '</p>' : '';
+                    
+                    var wrapper = document.createElement('div');
+                    wrapper.className = 'aluno-wrapper';
+                    
+                    var div = document.createElement('div');
+                    div.className = 'aluno-row ' + statusClass;
+                    div.setAttribute('data-aluno-id', aluno.id);
+                    div.setAttribute('data-status', status);
+                    div.setAttribute('data-justificativa', justificativa);
+                    
+                    div.innerHTML = '<div class="flex items-center gap-4 flex-1 min-w-0">' +
+                        '<div class="flex-shrink-0 w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center font-semibold text-sm text-gray-700">' + iniciais + '</div>' +
+                        '<div class="flex-1 min-w-0">' +
+                        '<p class="text-sm font-semibold text-gray-900 truncate">' + alunoNomeEscapado + '</p>' +
+                        matriculaHtml +
+                        '</div></div>' +
+                        '<button type="button" class="presenca-toggle flex-shrink-0 ' + statusClass + '" data-aluno-id="' + aluno.id + '">' +
+                        '<svg class="icon-check ' + iconCheckClass + '" fill="none" stroke="currentColor" viewBox="0 0 24 24">' +
+                        '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"></path>' +
+                        '</svg>' +
+                        '<svg class="icon-x ' + iconXClass + '" fill="none" stroke="currentColor" viewBox="0 0 24 24">' +
+                        '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12"></path>' +
+                        '</svg>' +
+                        '<svg class="icon-justified ' + iconJustifiedClass + '" fill="none" stroke="currentColor" viewBox="0 0 24 24">' +
+                        '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>' +
+                        '</svg>' +
+                        '</button>';
+                    
+                    var justificativaField = document.createElement('div');
+                    justificativaField.className = status === 'justificada' ? 'justificativa-field show' : 'justificativa-field';
+                    
+                    var inputJustificativa = document.createElement('input');
+                    inputJustificativa.type = 'text';
+                    inputJustificativa.placeholder = 'Motivo da falta (opcional)';
+                    inputJustificativa.setAttribute('data-aluno-id', aluno.id);
+                    inputJustificativa.value = justificativa;
+                    inputJustificativa.addEventListener('change', function() {
+                        if (window.atualizarJustificativa) {
+                            window.atualizarJustificativa(this, aluno.id);
+                        }
+                    });
+                    justificativaField.appendChild(inputJustificativa);
+                    
+                    wrapper.appendChild(div);
+                    wrapper.appendChild(justificativaField);
+                    container.appendChild(wrapper);
+                    
+                    var button = div.querySelector('.presenca-toggle');
+                    if (button && window.setupLongPress) {
+                        window.setupLongPress(button, aluno.id);
+                    }
                 }
-            })
-            .catch(error => {
-                console.error('Erro ao carregar alunos:', error);
-                alert('Erro ao carregar alunos e frequências');
-            });
-        }
+                
+                if (window.atualizarContadores) {
+                    window.atualizarContadores();
+                }
+                
+                console.log('Alunos carregados com sucesso!');
+            }
+            
+            xhrAlunos.onreadystatechange = function() {
+                if (xhrAlunos.readyState === 4) {
+                    alunosLoaded = true;
+                    if (xhrAlunos.status === 200) {
+                        try {
+                            alunosData = JSON.parse(xhrAlunos.responseText);
+                            console.log('Alunos recebidos:', alunosData);
+                        } catch (e) {
+                            console.error('Erro ao parsear JSON de alunos:', e);
+                            alunosData = { success: false, message: 'Erro ao processar resposta do servidor' };
+                        }
+                    } else {
+                        console.error('Erro HTTP ao buscar alunos:', xhrAlunos.status);
+                        alunosData = { success: false, message: 'Erro HTTP: ' + xhrAlunos.status };
+                    }
+                    processarDados();
+                }
+            };
+            
+            xhrFrequencias.onreadystatechange = function() {
+                if (xhrFrequencias.readyState === 4) {
+                    frequenciasLoaded = true;
+                    if (xhrFrequencias.status === 200) {
+                        try {
+                            frequenciasData = JSON.parse(xhrFrequencias.responseText);
+                            console.log('Frequências recebidas:', frequenciasData);
+                        } catch (e) {
+                            console.error('Erro ao parsear JSON de frequências:', e);
+                            frequenciasData = { success: false, frequencias: [] };
+                        }
+                    } else {
+                        console.error('Erro HTTP ao buscar frequências:', xhrFrequencias.status);
+                        frequenciasData = { success: false, frequencias: [] };
+                    }
+                    processarDados();
+                }
+            };
+            
+            xhrAlunos.open('GET', urlAlunos, true);
+            xhrAlunos.send();
+            
+            xhrFrequencias.open('GET', urlFrequencias, true);
+            xhrFrequencias.send();
+        };
         
-        function setupLongPress(button, alunoId) {
+        console.log('Função carregarAlunosParaFrequencia definida com sucesso!');
+        
+        window.setupLongPress = function(button, alunoId) {
             let pressTimer = null;
             let isLongPress = false;
             
@@ -946,9 +1376,9 @@ if (!defined('BASE_URL')) {
             button.addEventListener('click', (e) => {
                 e.preventDefault();
             });
-        }
+        };
         
-        function marcarFaltaJustificada(button, alunoId) {
+        window.marcarFaltaJustificada = function(button, alunoId) {
             const row = button.closest('.aluno-row');
             const wrapper = row.closest('.aluno-wrapper');
             const justificativaField = wrapper.querySelector('.justificativa-field');
@@ -968,16 +1398,16 @@ if (!defined('BASE_URL')) {
             justificativaField.classList.add('show');
             justificativaField.querySelector('input').focus();
             
-            atualizarContadores();
-        }
+            window.atualizarContadores();
+        };
         
-        function atualizarJustificativa(input, alunoId) {
+        window.atualizarJustificativa = function(input, alunoId) {
             const wrapper = input.closest('.aluno-wrapper');
             const row = wrapper.querySelector('.aluno-row');
             row.setAttribute('data-justificativa', input.value);
         }
         
-        function togglePresenca(button, alunoId) {
+        window.togglePresenca = function(button, alunoId) {
             const row = button.closest('.aluno-row');
             const wrapper = row.closest('.aluno-wrapper');
             const justificativaField = wrapper.querySelector('.justificativa-field');
@@ -1006,8 +1436,8 @@ if (!defined('BASE_URL')) {
                 justificativaField.querySelector('input').value = '';
             }
             
-            atualizarContadores();
-        }
+            window.atualizarContadores();
+        };
         
         function marcarTodosPresentes() {
             document.querySelectorAll('.aluno-wrapper').forEach(wrapper => {
@@ -1028,7 +1458,7 @@ if (!defined('BASE_URL')) {
                 justificativaField.classList.remove('show');
                 justificativaField.querySelector('input').value = '';
             });
-            atualizarContadores();
+            window.atualizarContadores();
         }
         
         function marcarTodosAusentes() {
@@ -1050,10 +1480,10 @@ if (!defined('BASE_URL')) {
                 justificativaField.classList.remove('show');
                 justificativaField.querySelector('input').value = '';
             });
-            atualizarContadores();
-        }
+            window.atualizarContadores();
+        };
         
-        function atualizarContadores() {
+        window.atualizarContadores = function() {
             const rows = document.querySelectorAll('.aluno-row');
             let presentes = 0;
             let ausentes = 0;
@@ -1115,10 +1545,12 @@ if (!defined('BASE_URL')) {
             .then(data => {
                 if (data.success) {
                     mostrarModalSucesso('Frequência registrada com sucesso!');
-                    // Recarregar os alunos para mostrar o que foi salvo
-                    setTimeout(() => {
-                        carregarAlunosParaFrequencia(turmaId);
-                    }, 500);
+                    // Fechar o modal de registrar frequência após um pequeno delay
+                    setTimeout(function() {
+                        if (window.fecharModalLancarFrequencia) {
+                            window.fecharModalLancarFrequencia();
+                        }
+                    }, 1500);
                 } else {
                     alert('Erro ao registrar frequência: ' + (data.message || 'Tente novamente.'));
                 }

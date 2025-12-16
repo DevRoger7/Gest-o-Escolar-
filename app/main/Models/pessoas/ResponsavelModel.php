@@ -98,8 +98,10 @@ class ResponsavelModel {
             // 1. Criar pessoa
             $criadoPor = isset($_SESSION['usuario_id']) ? (int)$_SESSION['usuario_id'] : null;
             
-            $sqlPessoa = "INSERT INTO pessoa (cpf, nome, data_nascimento, sexo, email, telefone, tipo, criado_por)
-                         VALUES (:cpf, :nome, :data_nascimento, :sexo, :email, :telefone, 'RESPONSAVEL', :criado_por)";
+            $sqlPessoa = "INSERT INTO pessoa (cpf, nome, data_nascimento, sexo, email, telefone, 
+                         endereco, numero, complemento, bairro, cidade, estado, cep, tipo, criado_por)
+                         VALUES (:cpf, :nome, :data_nascimento, :sexo, :email, :telefone,
+                         :endereco, :numero, :complemento, :bairro, :cidade, :estado, :cep, 'RESPONSAVEL', :criado_por)";
             
             $stmtPessoa = $conn->prepare($sqlPessoa);
             $stmtPessoa->bindParam(':cpf', $cpf);
@@ -112,6 +114,20 @@ class ResponsavelModel {
             $stmtPessoa->bindParam(':email', $email);
             $telefone = !empty($dados['telefone']) ? $dados['telefone'] : null;
             $stmtPessoa->bindParam(':telefone', $telefone);
+            $endereco = isset($dados['endereco']) && !empty($dados['endereco']) ? $dados['endereco'] : null;
+            $numero = isset($dados['numero']) && !empty($dados['numero']) ? $dados['numero'] : null;
+            $complemento = isset($dados['complemento']) && !empty($dados['complemento']) ? $dados['complemento'] : null;
+            $bairro = isset($dados['bairro']) && !empty($dados['bairro']) ? $dados['bairro'] : null;
+            $cidade = isset($dados['cidade']) && !empty($dados['cidade']) ? $dados['cidade'] : null;
+            $estado = isset($dados['estado']) && !empty($dados['estado']) ? $dados['estado'] : 'CE';
+            $cep = isset($dados['cep']) && !empty($dados['cep']) ? $dados['cep'] : null;
+            $stmtPessoa->bindParam(':endereco', $endereco);
+            $stmtPessoa->bindParam(':numero', $numero);
+            $stmtPessoa->bindParam(':complemento', $complemento);
+            $stmtPessoa->bindParam(':bairro', $bairro);
+            $stmtPessoa->bindParam(':cidade', $cidade);
+            $stmtPessoa->bindParam(':estado', $estado);
+            $stmtPessoa->bindParam(':cep', $cep);
             $stmtPessoa->bindParam(':criado_por', $criadoPor);
             $stmtPessoa->execute();
             

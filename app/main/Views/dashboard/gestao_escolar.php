@@ -653,6 +653,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $regime = $_POST['regime'] ?? 'REGULAR';
             
             if ($turmaId && $professorId && $disciplinaId) {
+                // Verificar se o professor já está atribuído a esta turma e disciplina (atribuição ativa)
+                $conn = Database::getInstance()->getConnection();
+                $stmtCheck = $conn->prepare("SELECT id FROM turma_professor 
+                                             WHERE turma_id = :turma_id 
+                                             AND professor_id = :professor_id 
+                                             AND disciplina_id = :disciplina_id 
+                                             AND fim IS NULL");
+                $stmtCheck->bindParam(':turma_id', $turmaId);
+                $stmtCheck->bindParam(':professor_id', $professorId);
+                $stmtCheck->bindParam(':disciplina_id', $disciplinaId);
+                $stmtCheck->execute();
+                
+                if ($stmtCheck->fetch()) {
+                    $mensagem = 'Este professor já está atribuído a esta turma e disciplina.';
+                    $tipoMensagem = 'error';
+                } else {
                 $resultado = $turmaModel->atribuirProfessor($turmaId, $professorId, $disciplinaId, $regime);
                 
                 if ($resultado) {
@@ -661,6 +677,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 } else {
                     $mensagem = 'Erro ao atribuir professor.';
                     $tipoMensagem = 'error';
+                    }
                 }
             } else {
                 $mensagem = 'Dados incompletos para atribuir professor.';
@@ -685,6 +702,45 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 }
             } else {
                 $mensagem = 'Dados incompletos para remover professor.';
+                $tipoMensagem = 'error';
+            }
+            break;
+            
+        case 'atribuir_turmas_professor':
+            $professorId = $_POST['professor_id'] ?? null;
+            $turmaId = $_POST['turma_id'] ?? null;
+            $disciplinaId = $_POST['disciplina_id'] ?? null;
+            $regime = $_POST['regime'] ?? 'REGULAR';
+            
+            if ($professorId && $turmaId && $disciplinaId) {
+                // Verificar se o professor já está atribuído a esta turma e disciplina
+                $conn = Database::getInstance()->getConnection();
+                $stmtCheck = $conn->prepare("SELECT id FROM turma_professor 
+                                             WHERE turma_id = :turma_id 
+                                             AND professor_id = :professor_id 
+                                             AND disciplina_id = :disciplina_id 
+                                             AND fim IS NULL");
+                $stmtCheck->bindParam(':turma_id', $turmaId);
+                $stmtCheck->bindParam(':professor_id', $professorId);
+                $stmtCheck->bindParam(':disciplina_id', $disciplinaId);
+                $stmtCheck->execute();
+                
+                if ($stmtCheck->fetch()) {
+                    $mensagem = 'Este professor já está atribuído a esta turma e disciplina.';
+                    $tipoMensagem = 'error';
+                } else {
+                    $resultado = $turmaModel->atribuirProfessor($turmaId, $professorId, $disciplinaId, $regime);
+                    
+                    if ($resultado) {
+                        $mensagem = 'Turma atribuída ao professor com sucesso!';
+                        $tipoMensagem = 'success';
+                    } else {
+                        $mensagem = 'Erro ao atribuir turma ao professor.';
+                        $tipoMensagem = 'error';
+                    }
+                }
+            } else {
+                $mensagem = 'Dados incompletos para atribuir turma ao professor.';
                 $tipoMensagem = 'error';
             }
             break;
@@ -1744,6 +1800,8 @@ if (!empty($_GET['acao']) && $_GET['acao'] === 'buscar_professor' && !empty($_GE
         if ($professor) {
         // Buscar atribuições do professor
         $sqlAtribuicoes = "SELECT 
+                            tp.turma_id,
+                            tp.disciplina_id,
                             CONCAT(t.serie, ' ', t.letra) as turma,
                             d.nome as disciplina,
                             tp.regime,
@@ -2418,27 +2476,36 @@ if (!defined('BASE_URL')) {
                                         <?php endif; ?>
                                     </td>
                                     <td class="px-6 py-4 text-sm text-gray-500">
-                                        <?php if (!empty($prof['atribuicoes'])): ?>
-                                            <div class="max-w-xs">
-                                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 mr-2 mb-1">
+                                        <?php if (!empty($prof['atribuicoes']) && $prof['total_turmas'] > 0): ?>
+                                            <div class="flex items-center space-x-2">
+                                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
                                                     <?= $prof['total_turmas'] ?> turma(s)
                                                 </span>
-                                                <div class="text-xs text-gray-600 mt-1">
-                                                    <?= htmlspecialchars($prof['atribuicoes']) ?>
-                                                </div>
+                                                <button onclick="verTurmasAtribuidasProfessor(<?= $prof['professor_id'] ?>, '<?= htmlspecialchars($prof['nome_professor'], ENT_QUOTES) ?>')" 
+                                                        class="text-blue-600 hover:text-blue-800 font-medium text-xs underline" title="Ver turmas atribuídas">
+                                                    Ver
+                                                </button>
                                             </div>
                                         <?php else: ?>
                                             <span class="text-gray-400 italic">Nenhuma atribuição</span>
                                         <?php endif; ?>
                                     </td>
                                     <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                                        <div class="flex items-center space-x-2">
+                                            <button onclick="abrirModalAtribuirTurmasProfessor(<?= $prof['professor_id'] ?>, '<?= htmlspecialchars($prof['nome_professor'], ENT_QUOTES) ?>')" 
+                                                    class="text-blue-600 hover:text-blue-800 mr-2" title="Atribuir Turmas">
+                                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+                                                </svg>
+                                            </button>
                                         <button onclick="verDetalhesProfessor(<?= $prof['professor_id'] ?>)" 
-                                                class="text-primary-green hover:text-secondary-green mr-3" title="Ver detalhes">
+                                                    class="text-primary-green hover:text-secondary-green" title="Ver detalhes">
                                             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
                                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
                                             </svg>
                                         </button>
+                                        </div>
                                     </td>
                                 </tr>
                                 <?php endforeach; ?>
@@ -4050,8 +4117,8 @@ if (!defined('BASE_URL')) {
                                 </div>
                                 
                                 <div class="md:col-span-2">
-                                    <label class="block text-sm font-medium text-gray-700 mb-2">Especialização</label>
-                                    <input type="text" name="especializacao" placeholder="Ex: Especialização em Educação Especial" 
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">Titulação</label>
+                                    <input type="text" name="especializacao" placeholder="Ex: Titulação em Educação Especial" 
                                         class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-600 focus:border-blue-600 transition-colors">
                                 </div>
                                 
@@ -4799,14 +4866,8 @@ if (!defined('BASE_URL')) {
                                 
                                 <!-- Professores -->
                                 <div class="bg-white p-6 rounded-lg border border-gray-200">
-                                    <div class="flex justify-between items-center mb-4">
+                                    <div class="mb-4">
                                         <h4 class="text-lg font-semibold text-gray-800">Professores (${professores.length})</h4>
-                                        <button onclick="abrirModalAtribuirProfessor(${turma.id})" class="px-4 py-2 bg-primary-green text-white rounded-lg hover:bg-green-700 transition-colors text-sm font-medium">
-                                            <svg class="w-4 h-4 inline mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
-                                            </svg>
-                                            Atribuir Professor
-                                        </button>
                                     </div>
                                     ${professores.length > 0 ? `
                                         <div class="overflow-x-auto">
@@ -5318,6 +5379,254 @@ if (!defined('BASE_URL')) {
             document.getElementById('modal-detalhes-professor').classList.add('hidden');
         }
 
+        function verTurmasAtribuidasProfessor(professorId, professorNome) {
+            if (!professorId) {
+                alert('ID do professor não informado.');
+                return;
+            }
+            
+            // Armazenar o ID e nome do professor para uso posterior
+            window.currentProfessorId = professorId;
+            window.currentProfessorNome = professorNome || 'Professor';
+            
+            // Atualizar nome do professor no modal
+            document.getElementById('modal-turmas-professor-nome').textContent = `Professor: ${professorNome || 'Carregando...'}`;
+            
+            // Mostrar modal com loading
+            document.getElementById('modal-turmas-professor').classList.remove('hidden');
+            document.getElementById('conteudo-turmas-professor').innerHTML = `
+                <div class="text-center py-8">
+                    <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+                    <p class="text-gray-600 mt-4">Carregando turmas...</p>
+                </div>
+            `;
+            
+            // Buscar turmas atribuídas ao professor
+            fetch(`gestao_escolar.php?acao=buscar_professor&id=${professorId}`)
+                .then(async response => {
+                    const contentType = response.headers.get('content-type') || '';
+                    if (!contentType.includes('application/json')) {
+                        const text = await response.text();
+                        console.error('Resposta não é JSON:', text.substring(0, 200));
+                        throw new Error('Resposta do servidor não é válida.');
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    if (data && data.success) {
+                        const atribuicoes = data.atribuicoes || [];
+                        
+                        let html = '';
+                        if (atribuicoes.length > 0) {
+                            html = `
+                                <div class="space-y-4">
+                                    <div class="bg-gray-50 rounded-lg p-4 mb-4">
+                                        <p class="text-sm text-gray-600">Total de atribuições: <span class="font-semibold text-gray-900">${atribuicoes.length}</span></p>
+                                    </div>
+                                    <div class="overflow-x-auto">
+                                        <table class="min-w-full divide-y divide-gray-200">
+                                            <thead class="bg-gray-50">
+                                                <tr>
+                                                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Turma</th>
+                                                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Disciplina</th>
+                                                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Regime</th>
+                                                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Desde</th>
+                                                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ações</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody class="bg-white divide-y divide-gray-200">
+                                                ${atribuicoes.map(atrib => `
+                                                    <tr class="hover:bg-gray-50 transition-colors">
+                                                        <td class="px-4 py-3 whitespace-nowrap">
+                                                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                                                                ${atrib.turma || 'N/A'}
+                                                            </span>
+                                                        </td>
+                                                        <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
+                                                            ${atrib.disciplina || 'N/A'}
+                                                        </td>
+                                                        <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
+                                                            ${atrib.regime || 'REGULAR'}
+                                                        </td>
+                                                        <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
+                                                            ${atrib.inicio || 'N/A'}
+                                                        </td>
+                                                        <td class="px-4 py-3 whitespace-nowrap text-sm font-medium">
+                                                            <button onclick="removerProfessorTurma(${professorId}, ${atrib.turma_id}, ${atrib.disciplina_id}, '${atrib.turma}', '${atrib.disciplina}')" 
+                                                                    class="text-red-600 hover:text-red-900" title="Remover atribuição">
+                                                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                                                                </svg>
+                                                            </button>
+                                                        </td>
+                                                    </tr>
+                                                `).join('')}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            `;
+                        } else {
+                            html = `
+                                <div class="text-center py-12">
+                                    <svg class="w-16 h-16 text-gray-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                                    </svg>
+                                    <p class="text-gray-600 text-lg font-medium">Nenhuma turma atribuída</p>
+                                    <p class="text-gray-500 text-sm mt-2">Este professor ainda não possui turmas atribuídas.</p>
+                                </div>
+                            `;
+                        }
+                        
+                        document.getElementById('conteudo-turmas-professor').innerHTML = html;
+                    } else {
+                        const mensagem = data && data.message ? data.message : 'Erro ao carregar turmas do professor.';
+                        document.getElementById('conteudo-turmas-professor').innerHTML = `
+                            <div class="text-center py-12">
+                                <svg class="w-16 h-16 text-red-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                </svg>
+                                <p class="text-red-600 text-lg font-medium">Erro</p>
+                                <p class="text-gray-500 text-sm mt-2">${mensagem}</p>
+                            </div>
+                        `;
+                    }
+                })
+                .catch(error => {
+                    console.error('Erro ao buscar turmas do professor:', error);
+                    document.getElementById('conteudo-turmas-professor').innerHTML = `
+                        <div class="text-center py-12">
+                            <svg class="w-16 h-16 text-red-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                            </svg>
+                            <p class="text-red-600 text-lg font-medium">Erro ao carregar</p>
+                            <p class="text-gray-500 text-sm mt-2">Não foi possível carregar as turmas do professor. Tente novamente.</p>
+                        </div>
+                    `;
+                });
+        }
+
+        function fecharModalTurmasProfessor() {
+            document.getElementById('modal-turmas-professor').classList.add('hidden');
+        }
+
+        function removerProfessorTurma(professorId, turmaId, disciplinaId, turmaNome, disciplinaNome) {
+            if (!professorId || !turmaId || !disciplinaId) {
+                alert('Dados incompletos para remover a atribuição.');
+                return;
+            }
+            
+            const confirmacao = confirm(`Tem certeza que deseja remover o professor da turma "${turmaNome}" na disciplina "${disciplinaNome}"?`);
+            
+            if (!confirmacao) {
+                return;
+            }
+            
+            const formData = new FormData();
+            formData.append('acao', 'remover_professor');
+            formData.append('turma_id', turmaId);
+            formData.append('professor_id', professorId);
+            formData.append('disciplina_id', disciplinaId);
+            
+            fetch('gestao_escolar.php', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.text())
+            .then(data => {
+                if (data.includes('removido com sucesso') || data.includes('sucesso')) {
+                    alert('Professor removido da turma com sucesso!');
+                    // Recarregar as turmas do professor usando os valores armazenados
+                    if (window.currentProfessorId && window.currentProfessorNome) {
+                        verTurmasAtribuidasProfessor(window.currentProfessorId, window.currentProfessorNome);
+                    } else {
+                        // Fallback: recarregar a página
+                        location.reload();
+                    }
+                } else if (data.includes('erro') || data.includes('Erro')) {
+                    alert('Erro ao remover professor da turma. Tente novamente.');
+                } else {
+                    // Tentar recarregar mesmo assim
+                    if (window.currentProfessorId && window.currentProfessorNome) {
+                        verTurmasAtribuidasProfessor(window.currentProfessorId, window.currentProfessorNome);
+                    } else {
+                        location.reload();
+                    }
+                }
+            })
+            .catch(error => {
+                console.error('Erro:', error);
+                alert('Erro ao remover professor da turma. Tente novamente.');
+            });
+        }
+
+        function abrirModalAtribuirTurmasProfessor(professorId, professorNome) {
+            if (!professorId) {
+                alert('ID do professor não informado.');
+                return;
+            }
+            
+            document.getElementById('atribuir-turmas-professor-id').value = professorId;
+            document.getElementById('modal-professor-nome').textContent = `Professor: ${professorNome}`;
+            document.getElementById('modal-atribuir-turmas-professor').classList.remove('hidden');
+            document.getElementById('form-atribuir-turmas-professor').reset();
+            document.getElementById('atribuir-turmas-professor-id').value = professorId;
+        }
+
+        function fecharModalAtribuirTurmasProfessor() {
+            document.getElementById('modal-atribuir-turmas-professor').classList.add('hidden');
+            document.getElementById('form-atribuir-turmas-professor').reset();
+        }
+
+        function carregarDisciplinasTurma() {
+            // Esta função pode ser expandida no futuro para filtrar disciplinas por turma
+            // Por enquanto, mantém todas as disciplinas disponíveis
+        }
+
+        // Processar formulário de atribuição de turmas ao professor
+        document.getElementById('form-atribuir-turmas-professor')?.addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const formData = new FormData(this);
+            const submitButton = this.querySelector('button[type="submit"]');
+            const originalText = submitButton.textContent;
+            submitButton.disabled = true;
+            submitButton.textContent = 'Atribuindo...';
+            
+            fetch('gestao_escolar.php', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.text())
+            .then(data => {
+                submitButton.disabled = false;
+                submitButton.textContent = originalText;
+                
+                // Verificar mensagens específicas na resposta
+                if (data.includes('Turma atribuída ao professor com sucesso') || data.includes('Professor atribuído com sucesso')) {
+                    alert('Turma atribuída com sucesso!');
+                    fecharModalAtribuirTurmasProfessor();
+                    location.reload();
+                } else if (data.includes('já está atribuído') || data.includes('já está atribuida')) {
+                    alert('Este professor já está atribuído a esta turma e disciplina. Não é possível fazer a atribuição duplicada.');
+                } else if (data.includes('Dados incompletos')) {
+                    alert('Por favor, preencha todos os campos obrigatórios.');
+                } else if (data.includes('erro') || data.includes('Erro')) {
+                    alert('Erro ao atribuir turma. Verifique os dados e tente novamente.');
+                } else {
+                    // Tentar fazer reload mesmo assim (pode ter funcionado)
+                    fecharModalAtribuirTurmasProfessor();
+                    location.reload();
+                }
+            })
+            .catch(error => {
+                submitButton.disabled = false;
+                submitButton.textContent = originalText;
+                console.error('Erro:', error);
+                alert('Erro ao atribuir turma. Tente novamente.');
+            });
+        });
+
         function verDetalhesAluno(alunoId, turmaId) {
             document.getElementById('modal-detalhes-aluno').classList.remove('hidden');
             document.getElementById('conteudo-detalhes-aluno').innerHTML = `
@@ -5606,6 +5915,122 @@ if (!defined('BASE_URL')) {
                 <div class="text-center py-8">
                     <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-green mx-auto"></div>
                     <p class="text-gray-600 mt-4">Carregando...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Modal Atribuir Turmas ao Professor -->
+    <div id="modal-atribuir-turmas-professor" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-xl shadow-2xl max-w-3xl w-full max-h-[90vh] overflow-y-auto">
+            <div class="bg-blue-600 text-white p-6 rounded-t-xl">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <h3 class="text-2xl font-bold">Atribuir Turmas ao Professor</h3>
+                        <p class="text-blue-100 text-sm mt-1" id="modal-professor-nome">Selecione as turmas e disciplinas</p>
+                    </div>
+                    <button onclick="fecharModalAtribuirTurmasProfessor()" class="text-white hover:text-gray-200 transition-colors">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+            
+            <form id="form-atribuir-turmas-professor" method="POST" class="p-6">
+                <input type="hidden" name="acao" value="atribuir_turmas_professor">
+                <input type="hidden" id="atribuir-turmas-professor-id" name="professor_id">
+                
+                <div class="space-y-6">
+                    <div>
+                        <label for="turma_atribuir" class="block text-sm font-medium text-gray-700 mb-2">
+                            Turma *
+                        </label>
+                        <select id="turma_atribuir" name="turma_id" required
+                                class="block w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-blue-600"
+                                onchange="carregarDisciplinasTurma()">
+                            <option value="">Selecione uma turma</option>
+                            <?php 
+                            $escolaIdTurmas = $_SESSION['escola_selecionada_id'] ?? $_SESSION['escola_id'] ?? $escolaGestorId ?? null;
+                            if ($escolaIdTurmas):
+                                $sqlTurmasDisponiveis = "SELECT id, serie, letra, turno, ano_letivo 
+                                                         FROM turma 
+                                                         WHERE escola_id = :escola_id AND ativo = 1 
+                                                         ORDER BY ano_letivo DESC, serie ASC, letra ASC";
+                                $stmtTurmas = $conn->prepare($sqlTurmasDisponiveis);
+                                $stmtTurmas->bindParam(':escola_id', $escolaIdTurmas);
+                                $stmtTurmas->execute();
+                                $turmasDisponiveis = $stmtTurmas->fetchAll(PDO::FETCH_ASSOC);
+                                foreach ($turmasDisponiveis as $turma): ?>
+                                    <option value="<?= $turma['id'] ?>">
+                                        <?= htmlspecialchars($turma['serie'] . ' ' . $turma['letra'] . ' - ' . $turma['turno'] . ' (' . $turma['ano_letivo'] . ')') ?>
+                                    </option>
+                            <?php 
+                                endforeach;
+                            endif; ?>
+                        </select>
+                    </div>
+                    
+                    <div>
+                        <label for="disciplina_atribuir" class="block text-sm font-medium text-gray-700 mb-2">
+                            Disciplina *
+                        </label>
+                        <select id="disciplina_atribuir" name="disciplina_id" required
+                                class="block w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-blue-600">
+                            <option value="">Selecione uma disciplina</option>
+                            <?php foreach ($disciplinas as $disciplina): ?>
+                                <option value="<?= $disciplina['id'] ?>"><?= htmlspecialchars($disciplina['nome']) ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+                    
+                    <div>
+                        <label for="regime_atribuir" class="block text-sm font-medium text-gray-700 mb-2">
+                            Regime *
+                        </label>
+                        <select id="regime_atribuir" name="regime" required
+                                class="block w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-blue-600">
+                            <option value="REGULAR">Regular</option>
+                            <option value="SUBSTITUTO">Substituto</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="flex justify-end space-x-3 mt-6 pt-6 border-t border-gray-200">
+                    <button type="button" onclick="fecharModalAtribuirTurmasProfessor()" 
+                            class="px-6 py-3 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-600 transition-colors font-medium">
+                        Cancelar
+                    </button>
+                    <button type="submit" 
+                            class="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-600 transition-colors font-medium">
+                        Atribuir Turma
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <!-- Modal Turmas Atribuídas ao Professor -->
+    <div id="modal-turmas-professor" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div class="bg-blue-600 text-white p-6 rounded-t-xl">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <h3 class="text-2xl font-bold">Turmas Atribuídas</h3>
+                        <p class="text-blue-100 text-sm mt-1" id="modal-turmas-professor-nome">Carregando...</p>
+                    </div>
+                    <button onclick="fecharModalTurmasProfessor()" class="text-white hover:text-gray-200 transition-colors">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+            
+            <div id="conteudo-turmas-professor" class="p-6">
+                <div class="text-center py-8">
+                    <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+                    <p class="text-gray-600 mt-4">Carregando turmas...</p>
                 </div>
             </div>
         </div>

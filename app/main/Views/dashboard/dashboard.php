@@ -4085,8 +4085,6 @@ if (isset($_SESSION['tipo']) && strtolower($_SESSION['tipo']) === 'aluno') {
                 
                 // Buscar dados do nutricionista
                 $cardapiosPendentes = $stats->getCardapiosPendentesNutricionista($nutricionistaId);
-                $pedidosPendentes = $stats->getPedidosPendentesNutricionista($nutricionistaId);
-                $ultimosPedidos = $stats->getUltimosPedidosNutricionista($nutricionistaId, 3);
                 $atividadesRecentes = $stats->getAtividadesNutricionista($nutricionistaId, 5);
                 
                 echo '<section id="user-interface" class="content-section mt-8">';
@@ -4096,7 +4094,7 @@ if (isset($_SESSION['tipo']) && strtolower($_SESSION['tipo']) === 'aluno') {
                 echo '<h2 class="text-2xl font-bold text-gray-900 mb-4">Acesso Rápido</h2>';
                 echo '<div class="grid grid-cols-1 md:grid-cols-3 gap-6">';
                 
-                // Card de Cardápios
+                // Card de Criação de Cardápio
                 if (isset($_SESSION['adc_cardapio'])) {
                     $meses = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
                     $mesAtual = $meses[date('n') - 1];
@@ -4110,7 +4108,7 @@ if (isset($_SESSION['tipo']) && strtolower($_SESSION['tipo']) === 'aluno') {
                             </div>
                             <span class="text-xs bg-green-100 text-green-800 px-2 py-1 rounded-full">' . $mesAtual . '</span>
                         </div>
-                        <h3 class="text-xl font-bold text-gray-800 mb-2">Cardápios</h3>
+                        <h3 class="text-xl font-bold text-gray-800 mb-2">Criar Cardápio</h3>
                         <p class="text-gray-600 text-sm mb-4">Criar e gerenciar cardápios escolares</p>
                         <div class="space-y-2 mb-4">
                             <div class="flex justify-between items-center">
@@ -4119,7 +4117,7 @@ if (isset($_SESSION['tipo']) && strtolower($_SESSION['tipo']) === 'aluno') {
                             </div>
                         </div>
                         <div class="w-full bg-gradient-to-r from-green-500 to-green-600 text-white py-2 px-4 rounded-lg text-center font-medium">
-                            Gerenciar Cardápios
+                            Criar Cardápio
                         </div>
                     </a>';
                 }
@@ -4127,7 +4125,7 @@ if (isset($_SESSION['tipo']) && strtolower($_SESSION['tipo']) === 'aluno') {
                 // Card de Estoque
                 if (isset($_SESSION['lista_insulmos'])) {
                     echo '
-                    <a href="avaliacao_estoque_nutricionista.php" class="card-hover bg-white rounded-2xl p-6 shadow-lg border border-gray-100 hover-lift block">
+                    <a href="estoque_nutricionista.php" class="card-hover bg-white rounded-2xl p-6 shadow-lg border border-gray-100 hover-lift block">
                         <div class="flex items-center justify-between mb-4">
                             <div class="p-3 bg-blue-100 rounded-xl">
                                 <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -4136,47 +4134,10 @@ if (isset($_SESSION['tipo']) && strtolower($_SESSION['tipo']) === 'aluno') {
                             </div>
                             <span class="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded-full">Estoque</span>
                         </div>
-                        <h3 class="text-xl font-bold text-gray-800 mb-2">Avaliação de Estoque</h3>
-                        <p class="text-gray-600 text-sm mb-4">Consultar estoque e consumo</p>
+                        <h3 class="text-xl font-bold text-gray-800 mb-2">Estoque da Escola</h3>
+                        <p class="text-gray-600 text-sm mb-4">Consultar produtos disponíveis no estoque</p>
                         <div class="w-full bg-gradient-to-r from-blue-500 to-blue-600 text-white py-2 px-4 rounded-lg text-center font-medium">
                             Ver Estoque
-                        </div>
-                    </a>';
-                }
-                
-                // Card de Pedidos
-                if (isset($_SESSION['env_pedidos'])) {
-                    $pedidosHtml = '';
-                    if (!empty($ultimosPedidos)) {
-                        foreach (array_slice($ultimosPedidos, 0, 2) as $pedido) {
-                            $meses = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
-                            $mesNome = $meses[$pedido['mes'] - 1] ?? $pedido['mes'];
-                            $statusClass = $pedido['status'] === 'ENVIADO' ? 'bg-blue-100 text-blue-800' : 'bg-yellow-100 text-yellow-800';
-                            $pedidosHtml .= '
-                            <div class="p-2 bg-gray-50 rounded-lg">
-                                <p class="text-xs text-gray-600">' . htmlspecialchars($pedido['escola_nome'] ?? 'Escola') . '</p>
-                                <p class="text-sm font-medium">' . $mesNome . ' - ' . htmlspecialchars($pedido['status']) . '</p>
-                            </div>';
-                        }
-                    } else {
-                        $pedidosHtml = '<p class="text-sm text-gray-500 text-center py-2">Nenhum pedido recente</p>';
-                    }
-                    
-                    echo '
-                    <a href="pedidos_nutricionista.php" class="card-hover bg-white rounded-2xl p-6 shadow-lg border border-gray-100 hover-lift block">
-                        <div class="flex items-center justify-between mb-4">
-                            <div class="p-3 bg-orange-100 rounded-xl">
-                                <svg class="w-6 h-6 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"></path>
-                                </svg>
-                            </div>
-                            <span class="text-xs bg-orange-100 text-orange-800 px-2 py-1 rounded-full">' . $pedidosPendentes . ' pendentes</span>
-                        </div>
-                        <h3 class="text-xl font-bold text-gray-800 mb-2">Pedidos</h3>
-                        <p class="text-gray-600 text-sm mb-4">Solicitar produtos e ingredientes</p>
-                        <div class="space-y-2 mb-4">' . $pedidosHtml . '</div>
-                        <div class="w-full bg-gradient-to-r from-orange-500 to-orange-600 text-white py-2 px-4 rounded-lg text-center font-medium">
-                            Fazer Pedido
                         </div>
                     </a>';
                 }

@@ -93,14 +93,25 @@ class CardapioModel {
         $cardapio = $stmt->fetch(PDO::FETCH_ASSOC);
         
         if ($cardapio) {
-            // Buscar itens do cardápio
-            $sqlItens = "SELECT ci.*, p.nome as produto_nome, p.unidade_medida
+            // Buscar semanas do cardápio
+            $sqlSemanas = "SELECT * FROM cardapio_semana 
+                          WHERE cardapio_id = :cardapio_id 
+                          ORDER BY numero_semana ASC";
+            $stmtSemanas = $conn->prepare($sqlSemanas);
+            $stmtSemanas->bindParam(':cardapio_id', $id, PDO::PARAM_INT);
+            $stmtSemanas->execute();
+            $cardapio['semanas'] = $stmtSemanas->fetchAll(PDO::FETCH_ASSOC);
+            
+            // Buscar itens do cardápio (agora com informação da semana)
+            $sqlItens = "SELECT ci.*, p.nome as produto_nome, p.unidade_medida,
+                        cs.numero_semana, cs.observacao as semana_observacao
                         FROM cardapio_item ci
                         INNER JOIN produto p ON ci.produto_id = p.id
+                        LEFT JOIN cardapio_semana cs ON ci.semana_id = cs.id
                         WHERE ci.cardapio_id = :cardapio_id
-                        ORDER BY p.nome ASC";
+                        ORDER BY cs.numero_semana ASC, p.nome ASC";
             $stmtItens = $conn->prepare($sqlItens);
-            $stmtItens->bindParam(':cardapio_id', $id);
+            $stmtItens->bindParam(':cardapio_id', $id, PDO::PARAM_INT);
             $stmtItens->execute();
             $cardapio['itens'] = $stmtItens->fetchAll(PDO::FETCH_ASSOC);
         }
@@ -195,16 +206,60 @@ class CardapioModel {
             
             $cardapioId = $conn->lastInsertId();
             
-            // Adicionar itens
+            // Criar semanas do cardápio
+            $semanasMap = []; // Mapear numero_semana => semana_id
+            if (!empty($dados['semanas']) && is_array($dados['semanas'])) {
+                foreach ($dados['semanas'] as $semana) {
+                    $numeroSemana = (int)($semana['numero_semana'] ?? 0);
+                    $observacao = trim($semana['observacao'] ?? '');
+                    $dataInicio = !empty($semana['data_inicio']) ? $semana['data_inicio'] : null;
+                    $dataFim = !empty($semana['data_fim']) ? $semana['data_fim'] : null;
+                    
+                    if ($numeroSemana > 0) {
+                        $sqlSemana = "INSERT INTO cardapio_semana (cardapio_id, numero_semana, observacao, data_inicio, data_fim, criado_em)
+                                     VALUES (:cardapio_id, :numero_semana, :observacao, :data_inicio, :data_fim, NOW())";
+                        $stmtSemana = $conn->prepare($sqlSemana);
+                        $stmtSemana->bindParam(':cardapio_id', $cardapioId, PDO::PARAM_INT);
+                        $stmtSemana->bindParam(':numero_semana', $numeroSemana, PDO::PARAM_INT);
+                        $stmtSemana->bindParam(':observacao', $observacao);
+                        $stmtSemana->bindParam(':data_inicio', $dataInicio);
+                        $stmtSemana->bindParam(':data_fim', $dataFim);
+                        $stmtSemana->execute();
+                        
+                        $semanaId = $conn->lastInsertId();
+                        $semanasMap[$numeroSemana] = $semanaId;
+                    }
+                }
+            }
+            
+            // Adicionar itens (associados às semanas se fornecido)
             if (!empty($dados['itens'])) {
                 foreach ($dados['itens'] as $item) {
-                    $sqlItem = "INSERT INTO cardapio_item (cardapio_id, produto_id, quantidade)
-                               VALUES (:cardapio_id, :produto_id, :quantidade)";
+                    $semanaId = null;
+                    if (!empty($item['numero_semana'])) {
+                        $numeroSemana = (int)$item['numero_semana'];
+                        $semanaId = $semanasMap[$numeroSemana] ?? null;
+                    }
+                    
+                    $sqlItem = "INSERT INTO cardapio_item (cardapio_id, semana_id, produto_id, quantidade)
+                               VALUES (:cardapio_id, :semana_id, :produto_id, :quantidade)";
                     $stmtItem = $conn->prepare($sqlItem);
-                    $stmtItem->bindParam(':cardapio_id', $cardapioId);
-                    $stmtItem->bindParam(':produto_id', $item['produto_id']);
+                    $stmtItem->bindParam(':cardapio_id', $cardapioId, PDO::PARAM_INT);
+                    $stmtItem->bindParam(':semana_id', $semanaId, PDO::PARAM_INT);
+                    $stmtItem->bindParam(':produto_id', $item['produto_id'], PDO::PARAM_INT);
                     $stmtItem->bindParam(':quantidade', $item['quantidade']);
                     $stmtItem->execute();
+                }
+            }
+            
+            // Se o cardápio foi criado com status PUBLICADO, descontar estoque
+            if ($status === 'PUBLICADO') {
+                try {
+                    $this->descontarEstoque($cardapioId);
+                } catch (Exception $e) {
+                    $conn->rollBack();
+                    error_log("CardapioModel->criar: Erro ao descontar estoque - " . $e->getMessage());
+                    return ['success' => false, 'message' => 'Erro ao descontar estoque: ' . $e->getMessage()];
                 }
             }
             
@@ -239,11 +294,30 @@ class CardapioModel {
                 return ['success' => false, 'message' => 'Apenas cardápios publicados podem ser aprovados'];
             }
             
+            // Validar e obter usuario_id válido
+            $aprovadoPor = null;
+            if (isset($_SESSION['usuario_id']) && is_numeric($_SESSION['usuario_id'])) {
+                $usuarioIdParam = (int)$_SESSION['usuario_id'];
+                // Verificar se o usuário existe na tabela
+                $sqlVerificarUsuario = "SELECT id FROM usuario WHERE id = :usuario_id LIMIT 1";
+                $stmtVerificarUsuario = $conn->prepare($sqlVerificarUsuario);
+                $stmtVerificarUsuario->bindParam(':usuario_id', $usuarioIdParam, PDO::PARAM_INT);
+                $stmtVerificarUsuario->execute();
+                $usuarioExiste = $stmtVerificarUsuario->fetch(PDO::FETCH_ASSOC);
+                if ($usuarioExiste) {
+                    $aprovadoPor = $usuarioIdParam;
+                } else {
+                    error_log("CardapioModel->aprovar: usuario_id " . $usuarioIdParam . " não encontrado na tabela usuario");
+                }
+            } else {
+                error_log("CardapioModel->aprovar: usuario_id não está definido na sessão ou não é numérico");
+            }
+            
             $sql = "UPDATE cardapio SET status = 'APROVADO', aprovado_por = :aprovado_por,
                     data_aprovacao = NOW() WHERE id = :id";
             
             $stmt = $conn->prepare($sql);
-            $stmt->bindParam(':aprovado_por', $_SESSION['usuario_id'], PDO::PARAM_INT);
+            $stmt->bindParam(':aprovado_por', $aprovadoPor, PDO::PARAM_INT);
             $stmt->bindParam(':id', $id, PDO::PARAM_INT);
             $stmt->execute();
             
@@ -281,6 +355,16 @@ class CardapioModel {
                 return ['success' => false, 'message' => 'Apenas cardápios publicados podem ser recusados'];
             }
             
+            $conn->beginTransaction();
+            
+            // Devolver produtos ao estoque
+            try {
+                $this->devolverEstoque($id);
+            } catch (Exception $e) {
+                $conn->rollBack();
+                return ['success' => false, 'message' => 'Erro ao devolver estoque: ' . $e->getMessage()];
+            }
+            
             // Atualizar status para REJEITADO e adicionar observações
             $sql = "UPDATE cardapio SET status = 'REJEITADO', observacoes = CONCAT(COALESCE(observacoes, ''), '\n[MOTIVO DA RECUSA] ', :observacoes), atualizado_em = NOW() WHERE id = :id";
             $stmt = $conn->prepare($sql);
@@ -288,6 +372,7 @@ class CardapioModel {
             $stmt->bindParam(':id', $id, PDO::PARAM_INT);
             $stmt->execute();
             
+            $conn->commit();
             return ['success' => true];
             
         } catch (Exception $e) {
@@ -297,15 +382,52 @@ class CardapioModel {
     
     /**
      * Publica cardápio
+     * Nota: Este método é usado pelo ADM_MERENDA para publicar cardápios
+     * Se o cardápio estava em RASCUNHO, desconta estoque ao publicar
      */
     public function publicar($id) {
         $conn = $this->db->getConnection();
         
-        $sql = "UPDATE cardapio SET status = 'PUBLICADO' WHERE id = :id";
-        $stmt = $conn->prepare($sql);
-        $stmt->bindParam(':id', $id);
-        
-        return $stmt->execute();
+        try {
+            // Verificar status atual do cardápio
+            $sqlCheck = "SELECT id, status FROM cardapio WHERE id = :id";
+            $stmtCheck = $conn->prepare($sqlCheck);
+            $stmtCheck->bindParam(':id', $id, PDO::PARAM_INT);
+            $stmtCheck->execute();
+            $cardapio = $stmtCheck->fetch(PDO::FETCH_ASSOC);
+            
+            if (!$cardapio) {
+                return false;
+            }
+            
+            $conn->beginTransaction();
+            
+            // Se estava em RASCUNHO, descontar estoque ao publicar
+            if ($cardapio['status'] === 'RASCUNHO') {
+                try {
+                    $this->descontarEstoque($id);
+                } catch (Exception $e) {
+                    $conn->rollBack();
+                    error_log("CardapioModel->publicar: Erro ao descontar estoque - " . $e->getMessage());
+                    throw $e;
+                }
+            }
+            
+            $sql = "UPDATE cardapio SET status = 'PUBLICADO' WHERE id = :id";
+            $stmt = $conn->prepare($sql);
+            $stmt->bindParam(':id', $id, PDO::PARAM_INT);
+            $stmt->execute();
+            
+            $conn->commit();
+            return true;
+            
+        } catch (Exception $e) {
+            if ($conn->inTransaction()) {
+                $conn->rollBack();
+            }
+            error_log("CardapioModel->publicar: Erro - " . $e->getMessage());
+            return false;
+        }
     }
     
     /**
@@ -354,19 +476,58 @@ class CardapioModel {
             $stmt->bindParam(':id', $id, PDO::PARAM_INT);
             $stmt->execute();
             
+            // Remover semanas antigas e recriar
+            $sqlDeleteSemanas = "DELETE FROM cardapio_semana WHERE cardapio_id = :cardapio_id";
+            $stmtDeleteSemanas = $conn->prepare($sqlDeleteSemanas);
+            $stmtDeleteSemanas->bindParam(':cardapio_id', $id, PDO::PARAM_INT);
+            $stmtDeleteSemanas->execute();
+            
+            // Criar novas semanas
+            $semanasMap = [];
+            if (!empty($dados['semanas']) && is_array($dados['semanas'])) {
+                foreach ($dados['semanas'] as $semana) {
+                    $numeroSemana = (int)($semana['numero_semana'] ?? 0);
+                    $observacao = trim($semana['observacao'] ?? '');
+                    $dataInicio = !empty($semana['data_inicio']) ? $semana['data_inicio'] : null;
+                    $dataFim = !empty($semana['data_fim']) ? $semana['data_fim'] : null;
+                    
+                    if ($numeroSemana > 0) {
+                        $sqlSemana = "INSERT INTO cardapio_semana (cardapio_id, numero_semana, observacao, data_inicio, data_fim, criado_em)
+                                     VALUES (:cardapio_id, :numero_semana, :observacao, :data_inicio, :data_fim, NOW())";
+                        $stmtSemana = $conn->prepare($sqlSemana);
+                        $stmtSemana->bindParam(':cardapio_id', $id, PDO::PARAM_INT);
+                        $stmtSemana->bindParam(':numero_semana', $numeroSemana, PDO::PARAM_INT);
+                        $stmtSemana->bindParam(':observacao', $observacao);
+                        $stmtSemana->bindParam(':data_inicio', $dataInicio);
+                        $stmtSemana->bindParam(':data_fim', $dataFim);
+                        $stmtSemana->execute();
+                        
+                        $semanaId = $conn->lastInsertId();
+                        $semanasMap[$numeroSemana] = $semanaId;
+                    }
+                }
+            }
+            
             // Remover itens antigos
             $sqlDelete = "DELETE FROM cardapio_item WHERE cardapio_id = :cardapio_id";
             $stmtDelete = $conn->prepare($sqlDelete);
             $stmtDelete->bindParam(':cardapio_id', $id, PDO::PARAM_INT);
             $stmtDelete->execute();
             
-            // Adicionar novos itens
+            // Adicionar novos itens (associados às semanas se fornecido)
             if (!empty($dados['itens'])) {
                 foreach ($dados['itens'] as $item) {
-                    $sqlItem = "INSERT INTO cardapio_item (cardapio_id, produto_id, quantidade)
-                               VALUES (:cardapio_id, :produto_id, :quantidade)";
+                    $semanaId = null;
+                    if (!empty($item['numero_semana'])) {
+                        $numeroSemana = (int)$item['numero_semana'];
+                        $semanaId = $semanasMap[$numeroSemana] ?? null;
+                    }
+                    
+                    $sqlItem = "INSERT INTO cardapio_item (cardapio_id, semana_id, produto_id, quantidade)
+                               VALUES (:cardapio_id, :semana_id, :produto_id, :quantidade)";
                     $stmtItem = $conn->prepare($sqlItem);
                     $stmtItem->bindParam(':cardapio_id', $id, PDO::PARAM_INT);
+                    $stmtItem->bindParam(':semana_id', $semanaId, PDO::PARAM_INT);
                     $stmtItem->bindParam(':produto_id', $item['produto_id'], PDO::PARAM_INT);
                     $stmtItem->bindParam(':quantidade', $item['quantidade']);
                     $stmtItem->execute();
@@ -379,6 +540,214 @@ class CardapioModel {
         } catch (Exception $e) {
             $conn->rollBack();
             return ['success' => false, 'message' => $e->getMessage()];
+        }
+    }
+    
+    /**
+     * Desconta produtos do estoque da escola (pacote_escola_item) quando cardápio é publicado
+     */
+    private function descontarEstoque($cardapioId) {
+        $conn = $this->db->getConnection();
+        
+        try {
+            // Primeiro, buscar o escola_id do cardápio
+            $sqlCardapio = "SELECT escola_id FROM cardapio WHERE id = :cardapio_id";
+            $stmtCardapio = $conn->prepare($sqlCardapio);
+            $stmtCardapio->bindParam(':cardapio_id', $cardapioId, PDO::PARAM_INT);
+            $stmtCardapio->execute();
+            $cardapio = $stmtCardapio->fetch(PDO::FETCH_ASSOC);
+            
+            if (!$cardapio || !$cardapio['escola_id']) {
+                throw new Exception("Cardápio não encontrado ou sem escola associada");
+            }
+            
+            $escolaId = (int)$cardapio['escola_id'];
+            
+            // Buscar itens do cardápio
+            $sqlItens = "SELECT produto_id, quantidade FROM cardapio_item WHERE cardapio_id = :cardapio_id";
+            $stmtItens = $conn->prepare($sqlItens);
+            $stmtItens->bindParam(':cardapio_id', $cardapioId, PDO::PARAM_INT);
+            $stmtItens->execute();
+            $itens = $stmtItens->fetchAll(PDO::FETCH_ASSOC);
+            
+            foreach ($itens as $item) {
+                $produtoId = (int)$item['produto_id'];
+                $quantidadeNecessaria = floatval($item['quantidade']);
+                
+                if ($quantidadeNecessaria <= 0) continue;
+                
+                // Buscar itens do pacote_escola_item para este produto e escola
+                // Ordenar por validade (se houver estoque_central_id relacionado) - mais próximo primeiro
+                $sqlEstoque = "SELECT 
+                                pei.id, 
+                                pei.quantidade,
+                                pei.estoque_central_id,
+                                COALESCE(ec.validade, '9999-12-31') as validade
+                              FROM pacote_escola_item pei
+                              INNER JOIN pacote_escola pe ON pei.pacote_id = pe.id
+                              LEFT JOIN estoque_central ec ON pei.estoque_central_id = ec.id
+                              WHERE pei.produto_id = :produto_id 
+                              AND pe.escola_id = :escola_id
+                              AND pei.quantidade > 0
+                              ORDER BY 
+                                CASE WHEN ec.validade IS NULL THEN 1 ELSE 0 END ASC,
+                                ec.validade ASC,
+                                pei.id ASC";
+                
+                $stmtEstoque = $conn->prepare($sqlEstoque);
+                $stmtEstoque->bindParam(':produto_id', $produtoId, PDO::PARAM_INT);
+                $stmtEstoque->bindParam(':escola_id', $escolaId, PDO::PARAM_INT);
+                $stmtEstoque->execute();
+                $itensEstoque = $stmtEstoque->fetchAll(PDO::FETCH_ASSOC);
+                
+                $quantidadeRestante = $quantidadeNecessaria;
+                
+                foreach ($itensEstoque as $itemEstoque) {
+                    if ($quantidadeRestante <= 0) break;
+                    
+                    $itemEstoqueId = (int)$itemEstoque['id'];
+                    $quantidadeDisponivel = floatval($itemEstoque['quantidade']);
+                    
+                    if ($quantidadeDisponivel >= $quantidadeRestante) {
+                        // Item tem quantidade suficiente
+                        $novaQuantidade = $quantidadeDisponivel - $quantidadeRestante;
+                        $sqlUpdate = "UPDATE pacote_escola_item SET quantidade = :quantidade WHERE id = :id";
+                        $stmtUpdate = $conn->prepare($sqlUpdate);
+                        $stmtUpdate->bindParam(':quantidade', $novaQuantidade);
+                        $stmtUpdate->bindParam(':id', $itemEstoqueId, PDO::PARAM_INT);
+                        $stmtUpdate->execute();
+                        $quantidadeRestante = 0;
+                    } else {
+                        // Item não tem quantidade suficiente, usar tudo e passar para o próximo
+                        $sqlUpdate = "UPDATE pacote_escola_item SET quantidade = 0 WHERE id = :id";
+                        $stmtUpdate = $conn->prepare($sqlUpdate);
+                        $stmtUpdate->bindParam(':id', $itemEstoqueId, PDO::PARAM_INT);
+                        $stmtUpdate->execute();
+                        $quantidadeRestante -= $quantidadeDisponivel;
+                    }
+                }
+                
+                if ($quantidadeRestante > 0) {
+                    error_log("CardapioModel->descontarEstoque: Aviso - Quantidade insuficiente no estoque da escola para produto ID $produtoId. Faltam $quantidadeRestante unidades.");
+                    throw new Exception("Estoque insuficiente para o produto ID {$produtoId}. Faltam {$quantidadeRestante} unidades no estoque da escola.");
+                }
+            }
+            
+            return true;
+        } catch (Exception $e) {
+            error_log("CardapioModel->descontarEstoque: Erro - " . $e->getMessage());
+            throw $e;
+        }
+    }
+    
+    /**
+     * Devolve produtos ao estoque da escola (pacote_escola_item) quando cardápio é recusado ou apagado
+     */
+    private function devolverEstoque($cardapioId) {
+        $conn = $this->db->getConnection();
+        
+        try {
+            // Primeiro, buscar o escola_id do cardápio
+            $sqlCardapio = "SELECT escola_id FROM cardapio WHERE id = :cardapio_id";
+            $stmtCardapio = $conn->prepare($sqlCardapio);
+            $stmtCardapio->bindParam(':cardapio_id', $cardapioId, PDO::PARAM_INT);
+            $stmtCardapio->execute();
+            $cardapio = $stmtCardapio->fetch(PDO::FETCH_ASSOC);
+            
+            if (!$cardapio || !$cardapio['escola_id']) {
+                throw new Exception("Cardápio não encontrado ou sem escola associada");
+            }
+            
+            $escolaId = (int)$cardapio['escola_id'];
+            
+            // Buscar itens do cardápio
+            $sqlItens = "SELECT produto_id, quantidade FROM cardapio_item WHERE cardapio_id = :cardapio_id";
+            $stmtItens = $conn->prepare($sqlItens);
+            $stmtItens->bindParam(':cardapio_id', $cardapioId, PDO::PARAM_INT);
+            $stmtItens->execute();
+            $itens = $stmtItens->fetchAll(PDO::FETCH_ASSOC);
+            
+            foreach ($itens as $item) {
+                $produtoId = (int)$item['produto_id'];
+                $quantidadeADevolver = floatval($item['quantidade']);
+                
+                if ($quantidadeADevolver <= 0) continue;
+                
+                // Tentar encontrar um item existente em pacote_escola_item para este produto e escola
+                // Priorizar itens que já têm estoque_central_id
+                $sqlItemExistente = "SELECT pei.id, pei.quantidade, pei.estoque_central_id
+                                     FROM pacote_escola_item pei
+                                     INNER JOIN pacote_escola pe ON pei.pacote_id = pe.id
+                                     WHERE pei.produto_id = :produto_id 
+                                     AND pe.escola_id = :escola_id
+                                     ORDER BY 
+                                       CASE WHEN pei.estoque_central_id IS NULL THEN 1 ELSE 0 END ASC,
+                                       pei.id ASC
+                                     LIMIT 1";
+                
+                $stmtItemExistente = $conn->prepare($sqlItemExistente);
+                $stmtItemExistente->bindParam(':produto_id', $produtoId, PDO::PARAM_INT);
+                $stmtItemExistente->bindParam(':escola_id', $escolaId, PDO::PARAM_INT);
+                $stmtItemExistente->execute();
+                $itemExistente = $stmtItemExistente->fetch(PDO::FETCH_ASSOC);
+                
+                if ($itemExistente) {
+                    // Atualizar quantidade do item existente
+                    $itemId = (int)$itemExistente['id'];
+                    $quantidadeAtual = floatval($itemExistente['quantidade']);
+                    $novaQuantidade = $quantidadeAtual + $quantidadeADevolver;
+                    
+                    $sqlUpdate = "UPDATE pacote_escola_item SET quantidade = :quantidade WHERE id = :id";
+                    $stmtUpdate = $conn->prepare($sqlUpdate);
+                    $stmtUpdate->bindParam(':quantidade', $novaQuantidade);
+                    $stmtUpdate->bindParam(':id', $itemId, PDO::PARAM_INT);
+                    $stmtUpdate->execute();
+                } else {
+                    // Se não houver item existente, buscar um pacote da escola ou criar um novo
+                    // Primeiro, tentar encontrar um pacote existente da escola
+                    $sqlPacote = "SELECT id FROM pacote_escola WHERE escola_id = :escola_id ORDER BY id DESC LIMIT 1";
+                    $stmtPacote = $conn->prepare($sqlPacote);
+                    $stmtPacote->bindParam(':escola_id', $escolaId, PDO::PARAM_INT);
+                    $stmtPacote->execute();
+                    $pacote = $stmtPacote->fetch(PDO::FETCH_ASSOC);
+                    
+                    $pacoteId = null;
+                    if ($pacote) {
+                        $pacoteId = (int)$pacote['id'];
+                    } else {
+                        // Criar um novo pacote se não existir nenhum
+                        $sqlInsertPacote = "INSERT INTO pacote_escola (escola_id, data_envio, criado_em) 
+                                           VALUES (:escola_id, CURDATE(), NOW())";
+                        $stmtInsertPacote = $conn->prepare($sqlInsertPacote);
+                        $stmtInsertPacote->bindParam(':escola_id', $escolaId, PDO::PARAM_INT);
+                        $stmtInsertPacote->execute();
+                        $pacoteId = $conn->lastInsertId();
+                    }
+                    
+                    // Buscar unidade de medida do produto
+                    $sqlProduto = "SELECT unidade_medida FROM produto WHERE id = :produto_id";
+                    $stmtProduto = $conn->prepare($sqlProduto);
+                    $stmtProduto->bindParam(':produto_id', $produtoId, PDO::PARAM_INT);
+                    $stmtProduto->execute();
+                    $produto = $stmtProduto->fetch(PDO::FETCH_ASSOC);
+                    $unidadeMedida = $produto ? $produto['unidade_medida'] : null;
+                    
+                    // Criar novo item no pacote_escola_item
+                    $sqlInsert = "INSERT INTO pacote_escola_item (pacote_id, produto_id, quantidade, unidade_medida) 
+                                 VALUES (:pacote_id, :produto_id, :quantidade, :unidade_medida)";
+                    $stmtInsert = $conn->prepare($sqlInsert);
+                    $stmtInsert->bindParam(':pacote_id', $pacoteId, PDO::PARAM_INT);
+                    $stmtInsert->bindParam(':produto_id', $produtoId, PDO::PARAM_INT);
+                    $stmtInsert->bindParam(':quantidade', $quantidadeADevolver);
+                    $stmtInsert->bindParam(':unidade_medida', $unidadeMedida);
+                    $stmtInsert->execute();
+                }
+            }
+            
+            return true;
+        } catch (Exception $e) {
+            error_log("CardapioModel->devolverEstoque: Erro - " . $e->getMessage());
+            throw $e;
         }
     }
     
@@ -429,15 +798,29 @@ class CardapioModel {
                 return ['success' => false, 'message' => 'O cardápio precisa ter pelo menos um item para ser publicado'];
             }
             
+            $conn->beginTransaction();
+            
+            // Descontar produtos do estoque
+            try {
+                $this->descontarEstoque($id);
+            } catch (Exception $e) {
+                $conn->rollBack();
+                return ['success' => false, 'message' => 'Erro ao descontar estoque: ' . $e->getMessage()];
+            }
+            
             // Mudar status para PUBLICADO (será revisado pelo ADM_MERENDA)
             $sql = "UPDATE cardapio SET status = 'PUBLICADO', atualizado_em = NOW() WHERE id = :id";
             $stmt = $conn->prepare($sql);
             $stmt->bindParam(':id', $id, PDO::PARAM_INT);
             $stmt->execute();
             
+            $conn->commit();
             return ['success' => true];
             
         } catch (Exception $e) {
+            if ($conn->inTransaction()) {
+                $conn->rollBack();
+            }
             return ['success' => false, 'message' => $e->getMessage()];
         }
     }
@@ -471,21 +854,42 @@ class CardapioModel {
                 return ['success' => false, 'message' => 'Cardápio não encontrado'];
             }
             
-            if ($cardapio['status'] !== 'RASCUNHO') {
-                return ['success' => false, 'message' => 'Apenas cardápios em rascunho podem ser excluídos'];
+            // Permitir exclusão de cardápios que não foram aprovados:
+            // - RASCUNHO: qualquer nutricionista pode excluir (não descontou estoque)
+            // - PUBLICADO: qualquer nutricionista pode excluir, mas precisa devolver estoque se foi descontado
+            // - REJEITADO: qualquer nutricionista pode excluir (não foi aprovado)
+            // - APROVADO: não pode excluir (foi aprovado)
+            if ($cardapio['status'] === 'APROVADO') {
+                return ['success' => false, 'message' => 'Cardápios aprovados não podem ser excluídos'];
             }
             
-            if ($cardapio['criado_por'] != $usuarioId) {
-                return ['success' => false, 'message' => 'Você só pode excluir cardápios criados por você'];
-            }
+            // Para PUBLICADO, verificar se descontou estoque e devolver se necessário
+            // Mas permitir que qualquer nutricionista exclua (não apenas o criador)
             
             $conn->beginTransaction();
+            
+            // Se estava PUBLICADO, devolver estoque (pois foi descontado quando foi publicado)
+            if ($cardapio['status'] === 'PUBLICADO') {
+                try {
+                    $this->devolverEstoque($id);
+                } catch (Exception $e) {
+                    $conn->rollBack();
+                    return ['success' => false, 'message' => 'Erro ao devolver estoque: ' . $e->getMessage()];
+                }
+            }
+            // RASCUNHO e REJEITADO não descontam estoque, então não precisam devolver
             
             // Excluir itens
             $sqlDeleteItens = "DELETE FROM cardapio_item WHERE cardapio_id = :cardapio_id";
             $stmtDeleteItens = $conn->prepare($sqlDeleteItens);
             $stmtDeleteItens->bindParam(':cardapio_id', $id, PDO::PARAM_INT);
             $stmtDeleteItens->execute();
+            
+            // Excluir semanas
+            $sqlDeleteSemanas = "DELETE FROM cardapio_semana WHERE cardapio_id = :cardapio_id";
+            $stmtDeleteSemanas = $conn->prepare($sqlDeleteSemanas);
+            $stmtDeleteSemanas->bindParam(':cardapio_id', $id, PDO::PARAM_INT);
+            $stmtDeleteSemanas->execute();
             
             // Excluir cardápio
             $sqlDelete = "DELETE FROM cardapio WHERE id = :id";
@@ -503,8 +907,9 @@ class CardapioModel {
     }
     
     /**
-     * Cancela envio do cardápio (volta de APROVADO para RASCUNHO)
+     * Cancela envio do cardápio (volta de PUBLICADO para RASCUNHO)
      * Apenas se o cardápio foi criado pelo usuário logado
+     * Devolve produtos ao estoque
      */
     public function cancelarEnvio($id) {
         $conn = $this->db->getConnection();
@@ -558,12 +963,23 @@ class CardapioModel {
                 return ['success' => false, 'message' => 'Você só pode cancelar o envio de cardápios criados por você'];
             }
             
+            $conn->beginTransaction();
+            
+            // Devolver produtos ao estoque (pois estava PUBLICADO ou APROVADO)
+            try {
+                $this->devolverEstoque($id);
+            } catch (Exception $e) {
+                $conn->rollBack();
+                return ['success' => false, 'message' => 'Erro ao devolver estoque: ' . $e->getMessage()];
+            }
+            
             // Voltar para RASCUNHO
             $sql = "UPDATE cardapio SET status = 'RASCUNHO', atualizado_em = NOW() WHERE id = :id";
             $stmt = $conn->prepare($sql);
             $stmt->bindParam(':id', $id, PDO::PARAM_INT);
             $stmt->execute();
             
+            $conn->commit();
             return ['success' => true];
             
         } catch (Exception $e) {

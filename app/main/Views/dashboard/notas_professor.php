@@ -65,6 +65,7 @@ if (!$professorId) {
 
 $turmasProfessor = [];
 if ($professorId) {
+    // Remover filtro de escola selecionada - professor deve ver todas as suas turmas
     $sqlTurmas = "SELECT DISTINCT 
                     t.id as turma_id,
                     CONCAT(t.serie, ' ', t.letra, ' - ', t.turno) as turma_nome,
@@ -75,20 +76,11 @@ if ($professorId) {
                   INNER JOIN turma t ON tp.turma_id = t.id
                   INNER JOIN disciplina d ON tp.disciplina_id = d.id
                   INNER JOIN escola e ON t.escola_id = e.id
-                  WHERE tp.professor_id = :professor_id AND tp.fim IS NULL AND t.ativo = 1";
+                  WHERE tp.professor_id = :professor_id AND tp.fim IS NULL AND t.ativo = 1
+                  ORDER BY t.serie, t.letra, d.nome";
     
-    // Filtrar por escola selecionada se houver
-    $escolaIdSelecionada = $_SESSION['escola_selecionada_id'] ?? $_SESSION['escola_id'] ?? null;
-    if ($escolaIdSelecionada) {
-        $sqlTurmas .= " AND t.escola_id = :escola_id";
-    }
-    
-    $sqlTurmas .= " ORDER BY t.serie, t.letra, d.nome";
     $stmtTurmas = $conn->prepare($sqlTurmas);
     $stmtTurmas->bindParam(':professor_id', $professorId);
-    if ($escolaIdSelecionada) {
-        $stmtTurmas->bindParam(':escola_id', $escolaIdSelecionada, PDO::PARAM_INT);
-    }
     $stmtTurmas->execute();
     $turmasProfessor = $stmtTurmas->fetchAll(PDO::FETCH_ASSOC);
 }
@@ -404,20 +396,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['acao'])) {
     if ($_GET['acao'] === 'buscar_alunos_turma' && !empty($_GET['turma_id'])) {
         $turmaId = $_GET['turma_id'];
         
-        // Verificar se a turma pertence à escola selecionada
-        $escolaIdSelecionada = $_SESSION['escola_selecionada_id'] ?? $_SESSION['escola_id'] ?? null;
-        if ($escolaIdSelecionada) {
-            $sqlVerificar = "SELECT t.id, t.escola_id 
-                            FROM turma t 
-                            WHERE t.id = :turma_id AND t.escola_id = :escola_id AND t.ativo = 1";
-            $stmtVerificar = $conn->prepare($sqlVerificar);
-            $stmtVerificar->bindParam(':turma_id', $turmaId, PDO::PARAM_INT);
-            $stmtVerificar->bindParam(':escola_id', $escolaIdSelecionada, PDO::PARAM_INT);
-            $stmtVerificar->execute();
-            $turmaValida = $stmtVerificar->fetch(PDO::FETCH_ASSOC);
+        // Validar se o professor tem acesso a esta turma
+        if ($professorId) {
+            $sqlValidar = "SELECT COUNT(*) as total
+                          FROM turma_professor tp
+                          WHERE tp.turma_id = :turma_id 
+                          AND tp.professor_id = :professor_id 
+                          AND tp.fim IS NULL";
+            $stmtValidar = $conn->prepare($sqlValidar);
+            $stmtValidar->bindParam(':turma_id', $turmaId);
+            $stmtValidar->bindParam(':professor_id', $professorId);
+            $stmtValidar->execute();
+            $validacao = $stmtValidar->fetch(PDO::FETCH_ASSOC);
             
-            if (!$turmaValida) {
-                echo json_encode(['success' => false, 'message' => 'Turma não pertence à escola selecionada', 'alunos' => []]);
+            if (!$validacao || $validacao['total'] == 0) {
+                error_log("Professor $professorId tentou acessar turma $turmaId sem permissão");
+                echo json_encode(['success' => false, 'message' => 'Você não tem acesso a esta turma', 'alunos' => []]);
                 exit;
             }
         }
@@ -426,7 +420,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['acao'])) {
                 FROM aluno_turma at
                 INNER JOIN aluno a ON at.aluno_id = a.id
                 INNER JOIN pessoa p ON a.pessoa_id = p.id
-                WHERE at.turma_id = :turma_id AND at.fim IS NULL
+                WHERE at.turma_id = :turma_id AND at.fim IS NULL AND a.ativo = 1
                 ORDER BY p.nome ASC";
         $stmt = $conn->prepare($sql);
         $stmt->bindParam(':turma_id', $turmaId);
@@ -473,18 +467,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['acao'])) {
             $disciplinaId = $_GET['disciplina_id'];
             $bimestre = $_GET['bimestre'] ?? null;
             
-            // Verificar se a turma pertence à escola selecionada
-            $escolaIdSelecionada = $_SESSION['escola_selecionada_id'] ?? $_SESSION['escola_id'] ?? null;
-            if ($escolaIdSelecionada) {
-                $sqlVerificar = "SELECT t.id FROM turma t WHERE t.id = :turma_id AND t.escola_id = :escola_id AND t.ativo = 1";
-                $stmtVerificar = $conn->prepare($sqlVerificar);
-                $stmtVerificar->bindParam(':turma_id', $turmaId, PDO::PARAM_INT);
-                $stmtVerificar->bindParam(':escola_id', $escolaIdSelecionada, PDO::PARAM_INT);
-                $stmtVerificar->execute();
-                $turmaValida = $stmtVerificar->fetch(PDO::FETCH_ASSOC);
+            // Validar se o professor tem acesso a esta turma
+            if ($professorId) {
+                $sqlValidar = "SELECT COUNT(*) as total
+                              FROM turma_professor tp
+                              WHERE tp.turma_id = :turma_id 
+                              AND tp.professor_id = :professor_id 
+                              AND tp.disciplina_id = :disciplina_id
+                              AND tp.fim IS NULL";
+                $stmtValidar = $conn->prepare($sqlValidar);
+                $stmtValidar->bindParam(':turma_id', $turmaId);
+                $stmtValidar->bindParam(':professor_id', $professorId);
+                $stmtValidar->bindParam(':disciplina_id', $disciplinaId);
+                $stmtValidar->execute();
+                $validacao = $stmtValidar->fetch(PDO::FETCH_ASSOC);
                 
-                if (!$turmaValida) {
-                    echo json_encode(['success' => false, 'message' => 'Turma não pertence à escola selecionada', 'notas' => []]);
+                if (!$validacao || $validacao['total'] == 0) {
+                    error_log("Professor $professorId tentou acessar histórico de turma $turmaId sem permissão");
+                    echo json_encode(['success' => false, 'message' => 'Você não tem acesso a esta turma', 'notas' => []]);
                     exit;
                 }
             }
@@ -515,18 +515,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['acao'])) {
         $bimestre = $_GET['bimestre'];
         $alunoIds = isset($_GET['aluno_ids']) ? json_decode($_GET['aluno_ids'], true) : [];
         
-        // Verificar se a turma pertence à escola selecionada
-        $escolaIdSelecionada = $_SESSION['escola_selecionada_id'] ?? $_SESSION['escola_id'] ?? null;
-        if ($escolaIdSelecionada) {
-            $sqlVerificar = "SELECT t.id FROM turma t WHERE t.id = :turma_id AND t.escola_id = :escola_id AND t.ativo = 1";
-            $stmtVerificar = $conn->prepare($sqlVerificar);
-            $stmtVerificar->bindParam(':turma_id', $turmaId, PDO::PARAM_INT);
-            $stmtVerificar->bindParam(':escola_id', $escolaIdSelecionada, PDO::PARAM_INT);
-            $stmtVerificar->execute();
-            $turmaValida = $stmtVerificar->fetch(PDO::FETCH_ASSOC);
+        // Validar se o professor tem acesso a esta turma
+        if ($professorId) {
+            $sqlValidar = "SELECT COUNT(*) as total
+                          FROM turma_professor tp
+                          WHERE tp.turma_id = :turma_id 
+                          AND tp.professor_id = :professor_id 
+                          AND tp.disciplina_id = :disciplina_id
+                          AND tp.fim IS NULL";
+            $stmtValidar = $conn->prepare($sqlValidar);
+            $stmtValidar->bindParam(':turma_id', $turmaId);
+            $stmtValidar->bindParam(':professor_id', $professorId);
+            $stmtValidar->bindParam(':disciplina_id', $disciplinaId);
+            $stmtValidar->execute();
+            $validacao = $stmtValidar->fetch(PDO::FETCH_ASSOC);
             
-            if (!$turmaValida) {
-                echo json_encode(['success' => false, 'message' => 'Turma não pertence à escola selecionada', 'notas' => []]);
+            if (!$validacao || $validacao['total'] == 0) {
+                error_log("Professor $professorId tentou acessar notas de turma $turmaId sem permissão");
+                echo json_encode(['success' => false, 'message' => 'Você não tem acesso a esta turma', 'notas' => []]);
                 exit;
             }
         }
@@ -573,6 +579,28 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['acao'])) {
         $turmaId = $_GET['turma_id'];
         $disciplinaId = $_GET['disciplina_id'];
         $bimestre = $_GET['bimestre'];
+        
+        // Validar se o professor tem acesso a esta turma
+        if ($professorId) {
+            $sqlValidar = "SELECT COUNT(*) as total
+                          FROM turma_professor tp
+                          WHERE tp.turma_id = :turma_id 
+                          AND tp.professor_id = :professor_id 
+                          AND tp.disciplina_id = :disciplina_id
+                          AND tp.fim IS NULL";
+            $stmtValidar = $conn->prepare($sqlValidar);
+            $stmtValidar->bindParam(':turma_id', $turmaId);
+            $stmtValidar->bindParam(':professor_id', $professorId);
+            $stmtValidar->bindParam(':disciplina_id', $disciplinaId);
+            $stmtValidar->execute();
+            $validacao = $stmtValidar->fetch(PDO::FETCH_ASSOC);
+            
+            if (!$validacao || $validacao['total'] == 0) {
+                error_log("Professor $professorId tentou acessar notas de aluno $alunoId na turma $turmaId sem permissão");
+                echo json_encode(['success' => false, 'message' => 'Você não tem acesso a esta turma']);
+                exit;
+            }
+        }
         
         try {
             // Buscar todas as notas do aluno no bimestre
@@ -712,22 +740,46 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao']) && $_POST['ac
         }
         /* Estilos para o modal fullscreen de notas */
         .nota-input {
-            transition: border-color 0.15s ease, box-shadow 0.15s ease;
+            transition: all 0.2s ease;
+            font-weight: 500;
         }
         .nota-input:focus {
             outline: none;
             border-color: #ea580c;
-            box-shadow: 0 0 0 2px rgba(234, 88, 12, 0.1);
+            box-shadow: 0 0 0 3px rgba(234, 88, 12, 0.1);
+            transform: scale(1.02);
+        }
+        .nota-input:hover:not(:disabled) {
+            border-color: #fb923c;
         }
         .media-badge {
-            min-width: 48px;
+            min-width: 56px;
             text-align: center;
+            font-weight: 600;
+            padding: 6px 8px;
+            border-radius: 6px;
+            transition: all 0.2s ease;
         }
         .aluno-row {
-            transition: background-color 0.15s ease;
+            transition: all 0.2s ease;
+            border-left: 3px solid transparent;
         }
         .aluno-row:hover {
             background-color: #f9fafb;
+            border-left-color: #ea580c;
+            transform: translateX(2px);
+        }
+        .turma-card {
+            transition: all 0.3s ease;
+            border-left: 4px solid transparent;
+        }
+        .turma-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+            border-left-color: #ea580c;
+        }
+        .header-section {
+            background: linear-gradient(135deg, #fff 0%, #fef3f2 100%);
         }
         
         /* Animação para modal de sucesso */
@@ -755,6 +807,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao']) && $_POST['ac
         .modal-sucesso-content {
             transition: transform 0.2s ease-out;
         }
+        .custom-scrollbar {
+            scrollbar-width: thin;
+            scrollbar-color: #cbd5e1 #f1f5f9;
+        }
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 8px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: #f1f5f9;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 4px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
     </style>
 </head>
 <body class="bg-gray-50">
@@ -766,13 +835,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao']) && $_POST['ac
         <header class="bg-white shadow-sm border-b border-gray-200 sticky top-0 z-30">
             <div class="px-4 sm:px-6 lg:px-8">
                 <div class="flex justify-between items-center h-16">
-                    <button onclick="window.toggleSidebar()" class="lg:hidden p-2 rounded-md text-gray-600 hover:text-gray-900 hover:bg-gray-100">
+                    <button onclick="window.toggleSidebar()" class="lg:hidden p-2 rounded-lg text-gray-600 hover:text-gray-900 hover:bg-gray-100 transition-colors">
                         <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
                         </svg>
                     </button>
-                    <div class="flex-1 text-center lg:text-left">
-                        <h1 class="text-xl font-semibold text-gray-800">Lançar Notas</h1>
+                    <div class="flex-1 text-center lg:text-left flex items-center gap-3">
+                        <div class="hidden lg:block p-2 bg-orange-100 rounded-lg">
+                            <svg class="w-5 h-5 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                            </svg>
+                        </div>
+                        <h1 class="text-xl font-bold text-gray-900">Lançar Notas</h1>
                     </div>
                     <div class="flex items-center space-x-4">
                         <!-- School Info (Desktop Only) -->
@@ -802,45 +876,76 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao']) && $_POST['ac
             </div>
         </header>
         
-        <div class="p-8">
+        <div class="p-6 sm:p-8">
             <div class="max-w-7xl mx-auto">
-                <div class="mb-6">
-                    <p class="text-gray-600">Registre as notas dos alunos nas suas disciplinas</p>
+                <div class="mb-8">
+                    <div class="flex items-center gap-3 mb-2">
+                        <div class="p-2 bg-orange-100 rounded-lg">
+                            <svg class="w-6 h-6 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                            </svg>
+                        </div>
+                        <div>
+                            <h1 class="text-2xl font-bold text-gray-900">Lançar Notas</h1>
+                            <p class="text-sm text-gray-600 mt-1">Registre as notas dos alunos nas suas disciplinas</p>
+                        </div>
+                    </div>
                 </div>
                 
-                <div class="bg-white rounded-2xl p-6 shadow-lg">
-                    <div class="flex items-center justify-between mb-6">
-                        <h2 class="text-xl font-bold text-gray-900">Minhas Turmas</h2>
-                        <button onclick="abrirModalLancarNotas()" class="bg-orange-600 hover:bg-orange-700 text-white px-6 py-2 rounded-lg font-medium transition-colors duration-200 flex items-center space-x-2">
-                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
-                            </svg>
-                            <span>Lançar Notas</span>
-                        </button>
+                <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+                    <div class="mb-6 flex items-center justify-between">
+                        <div>
+                            <h2 class="text-lg font-semibold text-gray-900">Minhas Turmas</h2>
+                            <p class="text-sm text-gray-500 mt-1"><?= count($turmasProfessor) ?> turma(s) atribuída(s)</p>
+                        </div>
                     </div>
                     
                     <?php if (empty($turmasProfessor)): ?>
-                        <div class="text-center py-12">
-                            <svg class="w-16 h-16 text-gray-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
-                            </svg>
-                            <p class="text-gray-600">Você não possui turmas atribuídas no momento.</p>
+                        <div class="text-center py-16">
+                            <div class="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                                <svg class="w-10 h-10 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                                </svg>
+                            </div>
+                            <p class="text-gray-600 font-medium">Você não possui turmas atribuídas no momento.</p>
+                            <p class="text-sm text-gray-500 mt-2">Entre em contato com o gestor da escola para receber atribuições.</p>
                         </div>
                     <?php else: ?>
                         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                             <?php foreach ($turmasProfessor as $turma): ?>
-                                <div class="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow duration-200">
-                                    <div class="mb-3">
-                                        <h3 class="font-semibold text-gray-900"><?= htmlspecialchars($turma['turma_nome']) ?></h3>
-                                        <p class="text-sm text-gray-600"><?= htmlspecialchars($turma['disciplina_nome']) ?></p>
-                                        <p class="text-xs text-gray-500 mt-1"><?= htmlspecialchars($turma['escola_nome']) ?></p>
+                                <div class="turma-card bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
+                                    <div class="mb-4">
+                                        <div class="flex items-start justify-between mb-2">
+                                            <div class="flex-1">
+                                                <h3 class="font-semibold text-gray-900 text-base mb-1"><?= htmlspecialchars($turma['turma_nome']) ?></h3>
+                                                <div class="flex items-center gap-2 text-sm text-gray-600 mb-2">
+                                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path>
+                                                    </svg>
+                                                    <span><?= htmlspecialchars($turma['disciplina_nome']) ?></span>
+                                                </div>
+                                                <div class="flex items-center gap-2 text-xs text-gray-500">
+                                                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path>
+                                                    </svg>
+                                                    <span class="truncate"><?= htmlspecialchars($turma['escola_nome']) ?></span>
+                                                </div>
+                                            </div>
+                                        </div>
                                     </div>
-                                    <div class="flex gap-2">
-                                        <button onclick="verTurma(<?= $turma['turma_id'] ?>, <?= $turma['disciplina_id'] ?>, '<?= htmlspecialchars($turma['turma_nome'], ENT_QUOTES) ?>', '<?= htmlspecialchars($turma['disciplina_nome'], ENT_QUOTES) ?>')" class="flex-1 text-blue-600 hover:text-blue-700 font-medium text-sm py-2 border border-blue-200 rounded-lg hover:bg-blue-50 transition-colors">
-                                            Ver Turma
+                                    <div class="flex gap-2 pt-3 border-t border-gray-100">
+                                        <button onclick="verTurma(<?= $turma['turma_id'] ?>, <?= $turma['disciplina_id'] ?>, '<?= htmlspecialchars($turma['turma_nome'], ENT_QUOTES) ?>', '<?= htmlspecialchars($turma['disciplina_nome'], ENT_QUOTES) ?>')" class="flex-1 flex items-center justify-center gap-2 text-blue-600 hover:text-blue-700 font-medium text-sm py-2.5 border border-blue-200 rounded-lg hover:bg-blue-50 transition-all">
+                                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
+                                            </svg>
+                                            Ver
                                         </button>
-                                        <button onclick="abrirModalLancarNotas(<?= $turma['turma_id'] ?>, <?= $turma['disciplina_id'] ?>, '<?= htmlspecialchars($turma['turma_nome'], ENT_QUOTES) ?>', '<?= htmlspecialchars($turma['disciplina_nome'], ENT_QUOTES) ?>')" class="flex-1 text-orange-600 hover:text-orange-700 font-medium text-sm py-2 border border-orange-200 rounded-lg hover:bg-orange-50 transition-colors">
-                                            Lançar Notas
+                                        <button onclick="abrirModalLancarNotas(<?= $turma['turma_id'] ?>, <?= $turma['disciplina_id'] ?>, '<?= htmlspecialchars($turma['turma_nome'], ENT_QUOTES) ?>', '<?= htmlspecialchars($turma['disciplina_nome'], ENT_QUOTES) ?>')" class="flex-1 flex items-center justify-center gap-2 text-white bg-orange-600 hover:bg-orange-700 font-medium text-sm py-2.5 rounded-lg transition-all shadow-sm hover:shadow">
+                                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
+                                            </svg>
+                                            Lançar
                                         </button>
                                     </div>
                                 </div>
@@ -852,88 +957,120 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao']) && $_POST['ac
         </div>
     </main>
     
-    <!-- Modal Lançar Notas - Fullscreen Minimalista -->
-    <div id="modal-lancar-notas" class="fixed inset-0 bg-gray-50 z-[60] hidden flex flex-col">
-        <!-- Header Compacto -->
-        <div class="bg-white border-b border-gray-200 px-4 py-3 flex items-center justify-between">
-            <div class="flex items-center gap-3">
-                <button onclick="fecharModalLancarNotas()" class="p-1.5 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-                    </svg>
-                </button>
-                <div>
-                    <h3 class="text-base font-semibold text-gray-900">Lançar Notas</h3>
-                    <p id="notas-info-turma" class="text-xs text-gray-500">Selecione uma turma</p>
-                </div>
-            </div>
-            <button onclick="salvarNotas()" class="px-4 py-1.5 text-sm font-medium text-white bg-orange-600 hover:bg-orange-700 rounded-lg transition-colors">
-                Salvar
-            </button>
-        </div>
-        
-        <!-- Barra de Controles -->
-        <div class="bg-white border-b border-gray-100 px-4 py-2">
-            <div class="max-w-5xl mx-auto flex items-center justify-between gap-4">
-                <div class="flex items-center gap-3">
-                    <label class="text-xs font-medium text-gray-600">Bimestre:</label>
-                    <select id="notas-bimestre" class="text-sm px-3 py-1.5 border border-gray-200 rounded-lg bg-white focus:outline-none focus:border-orange-500" onchange="atualizarNotasAoMudarBimestre()">
-                        <option value="1">1º Bimestre</option>
-                        <option value="2">2º Bimestre</option>
-                        <option value="3">3º Bimestre</option>
-                        <option value="4">4º Bimestre</option>
-                    </select>
-                </div>
-                <div class="flex items-center gap-4 text-xs">
-                    <span class="text-gray-500">
-                        <span id="total-alunos" class="font-medium text-gray-700">0</span> alunos
-                    </span>
-                    <span class="text-gray-300">|</span>
-                    <span class="text-gray-500">
-                        <span id="notas-preenchidas" class="font-medium text-orange-600">0</span> notas
-                    </span>
-                </div>
-            </div>
-            <input type="hidden" id="notas-turma-id">
-            <input type="hidden" id="notas-disciplina-id">
-        </div>
-        
-        <!-- Content -->
-        <div class="flex-1 overflow-y-auto">
-            <div class="max-w-5xl mx-auto py-4 px-4">
-                <!-- Header da Tabela -->
-                <div class="grid grid-cols-12 gap-3 text-xs font-medium text-gray-500 uppercase tracking-wide px-3 py-2 border-b border-gray-200 mb-2">
-                    <div class="col-span-3">Aluno</div>
-                    <div class="col-span-2 text-center">Parcial</div>
-                    <div class="col-span-2 text-center">Bimestral</div>
-                    <div class="col-span-2 text-center">Participativa</div>
-                    <div class="col-span-1 text-center">Média</div>
-                    <div class="col-span-2">Observação</div>
-                </div>
-                
-                <div id="notas-alunos-container" class="space-y-1">
-                    <!-- Alunos serão carregados aqui -->
-                    <div class="text-center py-16 text-gray-400">
-                        <svg class="w-12 h-12 mx-auto mb-3 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+    <!-- Modal Lançar Notas - Fullscreen Moderno -->
+    <div id="modal-lancar-notas" class="fixed inset-0 bg-gray-900/50 backdrop-blur-sm z-[60] hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-6xl h-[90vh] flex flex-col">
+            <!-- Header Moderno -->
+            <div class="header-section border-b border-gray-200 px-6 py-4 flex items-center justify-between rounded-t-2xl">
+                <div class="flex items-center gap-4">
+                    <button onclick="fecharModalLancarNotas()" class="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-all">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
                         </svg>
-                        <p class="text-sm">Selecione uma turma para carregar os alunos</p>
+                    </button>
+                    <div>
+                        <h3 class="text-lg font-bold text-gray-900 flex items-center gap-2">
+                            <svg class="w-5 h-5 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
+                            </svg>
+                            Lançar Notas
+                        </h3>
+                        <p id="notas-info-turma" class="text-sm text-gray-500 mt-0.5">Selecione uma turma</p>
+                    </div>
+                </div>
+                <button onclick="salvarNotas()" class="px-5 py-2.5 text-sm font-semibold text-white bg-orange-600 hover:bg-orange-700 rounded-lg transition-all shadow-sm hover:shadow-md flex items-center gap-2">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                    </svg>
+                    Salvar
+                </button>
+            </div>
+            
+            <!-- Barra de Controles Melhorada -->
+            <div class="bg-gradient-to-r from-orange-50 to-amber-50 border-b border-orange-100 px-6 py-4">
+                <div class="flex items-center justify-between gap-6 flex-wrap">
+                    <div class="flex items-center gap-4">
+                        <div class="flex items-center gap-2">
+                            <label class="text-sm font-semibold text-gray-700">Bimestre:</label>
+                            <select id="notas-bimestre" class="text-sm px-4 py-2 border-2 border-orange-200 rounded-lg bg-white focus:outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-200 font-medium" onchange="atualizarNotasAoMudarBimestre()">
+                                <option value="1">1º Bimestre</option>
+                                <option value="2">2º Bimestre</option>
+                                <option value="3">3º Bimestre</option>
+                                <option value="4">4º Bimestre</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-6 text-sm">
+                        <div class="flex items-center gap-2 bg-white px-3 py-1.5 rounded-lg border border-orange-200">
+                            <svg class="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path>
+                            </svg>
+                            <span class="text-gray-600"><span id="total-alunos" class="font-bold text-gray-900">0</span> alunos</span>
+                        </div>
+                        <div class="flex items-center gap-2 bg-white px-3 py-1.5 rounded-lg border border-orange-200">
+                            <svg class="w-4 h-4 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                            </svg>
+                            <span class="text-gray-600"><span id="notas-preenchidas" class="font-bold text-orange-600">0</span> notas</span>
+                        </div>
+                    </div>
+                </div>
+                <input type="hidden" id="notas-turma-id">
+                <input type="hidden" id="notas-disciplina-id">
+            </div>
+            
+            <!-- Content com Scroll -->
+            <div class="flex-1 overflow-y-auto custom-scrollbar">
+                <div class="max-w-5xl mx-auto py-6 px-6">
+                    <!-- Header da Tabela Melhorado -->
+                    <div class="grid grid-cols-12 gap-4 text-xs font-bold text-gray-700 uppercase tracking-wider px-4 py-3 bg-gray-50 rounded-lg mb-3 border border-gray-200">
+                        <div class="col-span-3 flex items-center gap-2">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
+                            </svg>
+                            Aluno
+                        </div>
+                        <div class="col-span-2 text-center">Parcial</div>
+                        <div class="col-span-2 text-center">Bimestral</div>
+                        <div class="col-span-2 text-center">Participativa</div>
+                        <div class="col-span-1 text-center">Média</div>
+                        <div class="col-span-2">Observação</div>
+                    </div>
+                    
+                    <div id="notas-alunos-container" class="space-y-2">
+                        <!-- Alunos serão carregados aqui -->
+                        <div class="text-center py-20 text-gray-400">
+                            <div class="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                                <svg class="w-8 h-8 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                                </svg>
+                            </div>
+                            <p class="text-sm font-medium">Selecione uma turma para carregar os alunos</p>
+                        </div>
                     </div>
                 </div>
             </div>
-        </div>
-        
-        <!-- Footer Compacto -->
-        <div class="bg-white border-t border-gray-200 px-4 py-3">
-            <div class="max-w-5xl mx-auto flex items-center justify-between">
-                <p class="text-xs text-gray-400">Preencha as notas de 0 a 10</p>
-                <div class="flex gap-2">
-                    <button onclick="fecharModalLancarNotas()" class="px-4 py-1.5 text-sm font-medium text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-colors">
-                        Cancelar
-                    </button>
-                    <button onclick="salvarNotas()" class="px-4 py-1.5 text-sm font-medium text-white bg-orange-600 hover:bg-orange-700 rounded-lg transition-colors">
-                        Salvar Notas
-                    </button>
+            
+            <!-- Footer Melhorado -->
+            <div class="bg-white border-t border-gray-200 px-6 py-4 rounded-b-2xl">
+                <div class="max-w-5xl mx-auto flex items-center justify-between">
+                    <div class="flex items-center gap-2 text-xs text-gray-500">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                        </svg>
+                        <span>Preencha as notas de 0 a 10 (use vírgula para decimais)</span>
+                    </div>
+                    <div class="flex gap-3">
+                        <button onclick="fecharModalLancarNotas()" class="px-5 py-2.5 text-sm font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-all border border-gray-200">
+                            Cancelar
+                        </button>
+                        <button onclick="salvarNotas()" class="px-5 py-2.5 text-sm font-semibold text-white bg-orange-600 hover:bg-orange-700 rounded-lg transition-all shadow-sm hover:shadow-md flex items-center gap-2">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                            </svg>
+                            Salvar Notas
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -1221,171 +1358,310 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao']) && $_POST['ac
         }
         
         function carregarAlunosParaNotas(turmaId) {
-            const disciplinaId = document.getElementById('notas-disciplina-id').value;
-            const bimestre = document.getElementById('notas-bimestre').value;
+            console.log('=== INICIANDO carregarAlunosParaNotas ===');
+            console.log('Turma ID:', turmaId);
             
-            Promise.all([
-                fetch('?acao=buscar_alunos_turma&turma_id=' + turmaId).then(r => r.json()),
-                fetch('?acao=buscar_notas_existentes_bimestre&turma_id=' + turmaId + '&disciplina_id=' + disciplinaId + '&bimestre=' + bimestre).then(r => r.json())
-            ])
-                .then(([alunosData, notasData]) => {
-                    if (alunosData.success && alunosData.alunos) {
-                        const container = document.getElementById('notas-alunos-container');
-                        container.innerHTML = '';
-                        
-                        // Atualizar contador de alunos
-                        document.getElementById('total-alunos').textContent = alunosData.alunos.length;
-                        document.getElementById('notas-preenchidas').textContent = '0';
-                        
-                        // Organizar notas existentes por aluno_id
-                        const notasExistentes = {};
-                        if (notasData.success && notasData.notas) {
-                            // Se notasData.notas é um array, converter para objeto indexado por aluno_id
-                            if (Array.isArray(notasData.notas)) {
-                                notasData.notas.forEach(nota => {
-                                    const alunoId = nota.aluno_id;
-                                    notasExistentes[alunoId] = {
-                                        aluno_id: alunoId,
-                                        aluno_nome: nota.aluno_nome,
-                                        aluno_matricula: nota.aluno_matricula,
-                                        parcial: nota.parcial || null,
-                                        bimestral: nota.bimestral || null,
-                                        participativa: nota.participativa || null
-                                    };
-                                });
-                            } else {
-                                // Se já é um objeto, usar diretamente
-                                Object.keys(notasData.notas).forEach(alunoId => {
-                                    notasExistentes[alunoId] = notasData.notas[alunoId];
-                                });
-                            }
-                        }
-                        
-                        // Verificar se há notas existentes e mostrar aviso
-                        const temNotasExistentes = Object.keys(notasExistentes).length > 0;
-                        if (temNotasExistentes) {
-                            const avisoDiv = document.createElement('div');
-                            avisoDiv.className = 'mb-4 p-4 bg-amber-50 border border-amber-200 rounded-lg';
-                            avisoDiv.innerHTML = `
-                                <div class="flex items-start gap-3">
-                                    <svg class="w-5 h-5 text-amber-600 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z"></path>
-                                    </svg>
-                                    <div class="flex-1">
-                                        <p class="text-sm font-medium text-amber-800">Atenção: Já existem notas lançadas para este bimestre!</p>
-                                        <p class="text-xs text-amber-700 mt-1">As notas existentes serão exibidas abaixo. Para editar, use o botão "Editar" na visualização da turma.</p>
-                                    </div>
-                                </div>
-                            `;
-                            container.appendChild(avisoDiv);
-                        }
-                        
-                        alunosData.alunos.forEach((aluno, index) => {
-                            const notaExistente = notasExistentes[aluno.id];
-                            const temNota = notaExistente !== undefined;
-                            const notaParcial = notaExistente && notaExistente.parcial ? parseFloat(notaExistente.parcial.nota).toFixed(1).replace('.', ',') : '';
-                            const notaBimestral = notaExistente && notaExistente.bimestral ? parseFloat(notaExistente.bimestral.nota).toFixed(1).replace('.', ',') : '';
-                            const notaParticipativa = notaExistente && notaExistente.participativa ? parseFloat(notaExistente.participativa.nota).toFixed(1).replace('.', ',') : '';
-                            const comentario = (notaExistente && notaExistente.bimestral && notaExistente.bimestral.comentario) 
-                                ? notaExistente.bimestral.comentario 
-                                : (notaExistente && notaExistente.parcial && notaExistente.parcial.comentario) 
-                                    ? notaExistente.parcial.comentario 
-                                    : (notaExistente && notaExistente.participativa && notaExistente.participativa.comentario)
-                                        ? notaExistente.participativa.comentario
-                                        : '';
-                            
-                            const div = document.createElement('div');
-                            div.className = `aluno-row grid grid-cols-12 gap-3 items-center px-3 py-2.5 rounded-lg border ${temNota ? 'bg-amber-50 border-amber-200' : 'bg-white border-gray-100'}`;
-                            div.innerHTML = `
-                                <div class="col-span-3 flex items-center gap-3">
-                                    <span class="text-xs text-gray-400 w-5">${index + 1}</span>
-                                    <div class="flex-1">
-                                        <div class="text-sm font-medium text-gray-900">${aluno.nome}</div>
-                                        ${aluno.matricula ? `<div class="text-xs text-gray-400">${aluno.matricula}</div>` : ''}
-                                        ${temNota ? '<div class="text-xs text-amber-600 mt-0.5">Notas já lançadas</div>' : ''}
-                                    </div>
-                                </div>
-                                <div class="col-span-2">
-                                    <input type="text" 
-                                        class="nota-input nota-parcial w-full px-2 py-1.5 text-sm text-center border rounded-lg ${temNota ? 'border-amber-300 bg-amber-50' : 'border-gray-200'}" 
-                                        data-aluno-id="${aluno.id}" 
-                                        value="${notaParcial}"
-                                        ${temNota ? 'readonly title="Nota já lançada. Use a opção Editar para modificar."' : 'placeholder="0,0"'}
-                                        oninput="${temNota ? '' : 'aplicarMascaraNota(this); calcularMediaAluno(this); atualizarContadores();'}"
-                                        onblur="${temNota ? '' : 'aplicarMascaraNota(this); calcularMediaAluno(this);'}">
-                                </div>
-                                <div class="col-span-2">
-                                    <input type="text" 
-                                        class="nota-input nota-bimestral w-full px-2 py-1.5 text-sm text-center border rounded-lg ${temNota ? 'border-amber-300 bg-amber-50' : 'border-gray-200'}" 
-                                        data-aluno-id="${aluno.id}" 
-                                        value="${notaBimestral}"
-                                        ${temNota ? 'readonly title="Nota já lançada. Use a opção Editar para modificar."' : 'placeholder="0,0"'}
-                                        oninput="${temNota ? '' : 'aplicarMascaraNota(this); calcularMediaAluno(this); atualizarContadores();'}"
-                                        onblur="${temNota ? '' : 'aplicarMascaraNota(this); calcularMediaAluno(this);'}">
-                                </div>
-                                <div class="col-span-2">
-                                    <input type="text" 
-                                        class="nota-input nota-participativa w-full px-2 py-1.5 text-sm text-center border rounded-lg ${temNota ? 'border-amber-300 bg-amber-50' : 'border-gray-200'}" 
-                                        data-aluno-id="${aluno.id}" 
-                                        value="${notaParticipativa}"
-                                        ${temNota ? 'readonly title="Nota já lançada. Use a opção Editar para modificar."' : 'placeholder="0,0"'}
-                                        oninput="${temNota ? '' : 'aplicarMascaraNota(this); calcularMediaAluno(this); atualizarContadores();'}"
-                                        onblur="${temNota ? '' : 'aplicarMascaraNota(this); calcularMediaAluno(this);'}">
-                                </div>
-                                <div class="col-span-1">
-                                    <div class="media-badge media-aluno text-sm font-medium text-gray-400 py-1 rounded" data-aluno-id="${aluno.id}">
-                                        ${temNota && (notaParcial || notaBimestral || notaParticipativa) ? calcularMediaTexto(notaParcial, notaBimestral, notaParticipativa) : '-'}
-                                    </div>
-                                </div>
-                                <div class="col-span-2">
-                                    <input type="text" 
-                                        class="comentario-input w-full px-2 py-1.5 text-sm border rounded-lg ${temNota ? 'border-amber-300 bg-amber-50' : 'border-gray-200'}" 
-                                        data-aluno-id="${aluno.id}" 
-                                        value="${comentario}"
-                                        ${temNota ? 'readonly title="Observação já lançada. Use a opção Editar para modificar."' : 'placeholder="Opcional"'}
-                                        oninput="${temNota ? '' : 'atualizarContadores();'}">
-                                </div>
-                            `;
-                            container.appendChild(div);
-                            
-                            // Calcular e atualizar média visualmente se houver notas existentes
-                            if (temNota && (notaParcial || notaBimestral || notaParticipativa)) {
-                                setTimeout(() => {
-                                    const mediaDiv = div.querySelector('.media-aluno');
-                                    if (mediaDiv) {
-                                        const parcial = parseFloat(notaParcial.replace(',', '.')) || 0;
-                                        const bimestral = parseFloat(notaBimestral.replace(',', '.')) || 0;
-                                        const participativa = parseFloat(notaParticipativa.replace(',', '.')) || 0;
-                                        let media = 0;
-                                        const notas = [parcial, bimestral, participativa].filter(n => n > 0);
-                                        if (notas.length > 0) {
-                                            media = notas.reduce((a, b) => a + b, 0) / notas.length;
-                                        }
-                                        
-                                        if (media > 0) {
-                                            mediaDiv.textContent = media.toFixed(1);
-                                            mediaDiv.className = 'media-badge media-aluno text-sm font-medium py-1 rounded';
-                                            if (media >= 7) {
-                                                mediaDiv.classList.add('text-green-600', 'bg-green-50');
-                                            } else if (media >= 5) {
-                                                mediaDiv.classList.add('text-amber-600', 'bg-amber-50');
-                                            } else {
-                                                mediaDiv.classList.add('text-red-600', 'bg-red-50');
-                                            }
-                                        }
-                                    }
-                                }, 10);
-                            }
-                        });
-                        
-                        // Atualizar contador de notas preenchidas
-                        atualizarContadores();
+            if (!turmaId) {
+                console.error('Turma ID não fornecido!');
+                return;
+            }
+            
+            var disciplinaIdElement = document.getElementById('notas-disciplina-id');
+            var bimestreElement = document.getElementById('notas-bimestre');
+            
+            if (!disciplinaIdElement || !bimestreElement) {
+                console.error('Elementos disciplina ou bimestre não encontrados!');
+                return;
+            }
+            
+            var disciplinaId = disciplinaIdElement.value;
+            var bimestre = bimestreElement.value;
+            
+            console.log('Disciplina ID:', disciplinaId);
+            console.log('Bimestre:', bimestre);
+            
+            var container = document.getElementById('notas-alunos-container');
+            if (!container) {
+                console.error('Container notas-alunos-container não encontrado!');
+                return;
+            }
+            
+            container.innerHTML = '<div class="text-center py-8"><p>Carregando alunos...</p></div>';
+            
+            var urlAlunos = '?acao=buscar_alunos_turma&turma_id=' + encodeURIComponent(turmaId);
+            var urlNotas = '?acao=buscar_notas_existentes_bimestre&turma_id=' + encodeURIComponent(turmaId) + '&disciplina_id=' + encodeURIComponent(disciplinaId) + '&bimestre=' + encodeURIComponent(bimestre);
+            
+            console.log('URL Alunos:', urlAlunos);
+            console.log('URL Notas:', urlNotas);
+            
+            var xhrAlunos = new XMLHttpRequest();
+            var xhrNotas = new XMLHttpRequest();
+            var alunosData = null;
+            var notasData = null;
+            var alunosLoaded = false;
+            var notasLoaded = false;
+            
+            function processarDados() {
+                if (!alunosLoaded || !notasLoaded) {
+                    return;
+                }
+                
+                console.log('Processando dados...');
+                console.log('Alunos:', alunosData);
+                console.log('Notas:', notasData);
+                
+                if (!alunosData || !alunosData.success) {
+                    var msg = alunosData && alunosData.message ? alunosData.message : 'Erro ao carregar alunos';
+                    container.innerHTML = '<div class="col-span-full text-center py-12">' +
+                        '<div class="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-3">' +
+                        '<svg class="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">' +
+                        '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>' +
+                        '</svg></div>' +
+                        '<p class="text-sm font-medium text-red-600">Erro ao carregar alunos</p>' +
+                        '<p class="text-xs text-gray-500 mt-1">' + msg + '</p>' +
+                        '</div>';
+                    return;
+                }
+                
+                if (!alunosData.alunos || alunosData.alunos.length === 0) {
+                    container.innerHTML = '<div class="col-span-full text-center py-12">' +
+                        '<div class="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-3">' +
+                        '<svg class="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">' +
+                        '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"></path>' +
+                        '</svg></div>' +
+                        '<p class="text-sm font-medium text-gray-600">Nenhum aluno encontrado</p>' +
+                        '<p class="text-xs text-gray-500 mt-1">Esta turma não possui alunos cadastrados</p>' +
+                        '</div>';
+                    
+                    var totalAlunosEl = document.getElementById('total-alunos');
+                    if (totalAlunosEl) {
+                        totalAlunosEl.textContent = '0';
                     }
-                })
-                .catch(error => {
-                    console.error('Erro ao carregar alunos:', error);
-                    alert('Erro ao carregar alunos da turma');
-                });
+                    var notasPreenchidasEl = document.getElementById('notas-preenchidas');
+                    if (notasPreenchidasEl) {
+                        notasPreenchidasEl.textContent = '0';
+                    }
+                    return;
+                }
+                
+                console.log('Total de alunos:', alunosData.alunos.length);
+                container.innerHTML = '';
+                
+                var totalAlunos = alunosData.alunos.length;
+                var totalAlunosEl = document.getElementById('total-alunos');
+                if (totalAlunosEl) {
+                    totalAlunosEl.textContent = totalAlunos;
+                }
+                var notasPreenchidasEl = document.getElementById('notas-preenchidas');
+                if (notasPreenchidasEl) {
+                    notasPreenchidasEl.textContent = '0';
+                }
+                
+                var notasExistentes = {};
+                if (notasData && notasData.success && notasData.notas) {
+                    if (Array.isArray(notasData.notas)) {
+                        for (var i = 0; i < notasData.notas.length; i++) {
+                            var nota = notasData.notas[i];
+                            var alunoId = nota.aluno_id;
+                            notasExistentes[alunoId] = {
+                                aluno_id: alunoId,
+                                aluno_nome: nota.aluno_nome,
+                                aluno_matricula: nota.aluno_matricula,
+                                parcial: nota.parcial || null,
+                                bimestral: nota.bimestral || null,
+                                participativa: nota.participativa || null
+                            };
+                        }
+                    } else {
+                        var keys = Object.keys(notasData.notas);
+                        for (var j = 0; j < keys.length; j++) {
+                            var alunoIdKey = keys[j];
+                            notasExistentes[alunoIdKey] = notasData.notas[alunoIdKey];
+                        }
+                    }
+                }
+                
+                var temNotasExistentes = Object.keys(notasExistentes).length > 0;
+                if (temNotasExistentes) {
+                    var avisoDiv = document.createElement('div');
+                    avisoDiv.className = 'mb-4 p-4 bg-gradient-to-r from-amber-50 to-orange-50 border-2 border-amber-300 rounded-xl shadow-sm';
+                    avisoDiv.innerHTML = '<div class="flex items-start gap-3">' +
+                        '<div class="flex-shrink-0 w-10 h-10 bg-amber-100 rounded-full flex items-center justify-center">' +
+                        '<svg class="w-5 h-5 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">' +
+                        '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z"></path>' +
+                        '</svg></div>' +
+                        '<div class="flex-1">' +
+                        '<p class="text-sm font-bold text-amber-900">Atenção: Já existem notas lançadas para este bimestre!</p>' +
+                        '<p class="text-xs text-amber-700 mt-1.5">As notas existentes serão exibidas abaixo. Para editar, use o botão "Editar" na visualização da turma.</p>' +
+                        '</div></div>';
+                    container.appendChild(avisoDiv);
+                }
+                
+                for (var k = 0; k < alunosData.alunos.length; k++) {
+                    var aluno = alunosData.alunos[k];
+                    var notaExistente = notasExistentes[aluno.id];
+                    var temNota = notaExistente !== undefined;
+                    
+                    var notaParcial = '';
+                    var notaBimestral = '';
+                    var notaParticipativa = '';
+                    var comentario = '';
+                    
+                    if (notaExistente) {
+                        if (notaExistente.parcial) {
+                            notaParcial = parseFloat(notaExistente.parcial.nota).toFixed(1).replace('.', ',');
+                        }
+                        if (notaExistente.bimestral) {
+                            notaBimestral = parseFloat(notaExistente.bimestral.nota).toFixed(1).replace('.', ',');
+                            if (notaExistente.bimestral.comentario) {
+                                comentario = notaExistente.bimestral.comentario;
+                            }
+                        }
+                        if (notaExistente.participativa) {
+                            notaParticipativa = parseFloat(notaExistente.participativa.nota).toFixed(1).replace('.', ',');
+                            if (!comentario && notaExistente.participativa.comentario) {
+                                comentario = notaExistente.participativa.comentario;
+                            }
+                        }
+                        if (!comentario && notaExistente.parcial && notaExistente.parcial.comentario) {
+                            comentario = notaExistente.parcial.comentario;
+                        }
+                    }
+                    
+                    var alunoNomeEscapado = (aluno.nome || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+                    var alunoMatriculaEscapada = (aluno.matricula || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+                    var comentarioEscapado = (comentario || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+                    
+                    var mediaTexto = '-';
+                    if (temNota && (notaParcial || notaBimestral || notaParticipativa)) {
+                        var p = parseFloat((notaParcial || '0').replace(',', '.')) || 0;
+                        var b = parseFloat((notaBimestral || '0').replace(',', '.')) || 0;
+                        var part = parseFloat((notaParticipativa || '0').replace(',', '.')) || 0;
+                        var notas = [];
+                        if (p > 0) notas.push(p);
+                        if (b > 0) notas.push(b);
+                        if (part > 0) notas.push(part);
+                        if (notas.length > 0) {
+                            var soma = 0;
+                            for (var n = 0; n < notas.length; n++) {
+                                soma += notas[n];
+                            }
+                            var media = soma / notas.length;
+                            mediaTexto = media.toFixed(1);
+                        }
+                    }
+                    
+                    var readonlyAttr = temNota ? 'readonly title="Nota já lançada. Use a opção Editar para modificar."' : '';
+                    var placeholderAttr = temNota ? '' : 'placeholder="0,0"';
+                    var oninputAttr = temNota ? '' : 'oninput="aplicarMascaraNota(this); calcularMediaAluno(this); atualizarContadores();"';
+                    var onblurAttr = temNota ? '' : 'onblur="aplicarMascaraNota(this); calcularMediaAluno(this);"';
+                    var oninputComentarioAttr = temNota ? '' : 'oninput="atualizarContadores();"';
+                    var readonlyComentarioAttr = temNota ? 'readonly title="Observação já lançada. Use a opção Editar para modificar."' : 'placeholder="Opcional"';
+                    
+                    var borderClass = temNota ? 'border-amber-300 bg-amber-50' : 'border-gray-200';
+                    var rowBgClass = temNota ? 'bg-amber-50 border-amber-200' : 'bg-white border-gray-100';
+                    
+                    var matriculaHtml = alunoMatriculaEscapada ? '<div class="text-xs text-gray-400">' + alunoMatriculaEscapada + '</div>' : '';
+                    var temNotaHtml = temNota ? '<div class="text-xs text-amber-600 mt-0.5">Notas já lançadas</div>' : '';
+                    
+                    var div = document.createElement('div');
+                    div.className = 'aluno-row grid grid-cols-12 gap-4 items-center px-4 py-3.5 rounded-xl border-2 ' + rowBgClass;
+                    div.innerHTML = '<div class="col-span-3 flex items-center gap-3">' +
+                        '<div class="flex-shrink-0 w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center">' +
+                        '<span class="text-xs font-semibold text-gray-600">' + (k + 1) + '</span>' +
+                        '</div>' +
+                        '<div class="flex-1 min-w-0">' +
+                        '<div class="text-sm font-semibold text-gray-900 truncate">' + alunoNomeEscapado + '</div>' +
+                        matriculaHtml +
+                        temNotaHtml +
+                        '</div></div>' +
+                        '<div class="col-span-2">' +
+                        '<input type="text" class="nota-input nota-parcial w-full px-3 py-2 text-sm font-semibold text-center border-2 rounded-lg ' + borderClass + '" data-aluno-id="' + aluno.id + '" value="' + notaParcial + '" ' + readonlyAttr + ' ' + placeholderAttr + ' ' + oninputAttr + ' ' + onblurAttr + '>' +
+                        '</div>' +
+                        '<div class="col-span-2">' +
+                        '<input type="text" class="nota-input nota-bimestral w-full px-3 py-2 text-sm font-semibold text-center border-2 rounded-lg ' + borderClass + '" data-aluno-id="' + aluno.id + '" value="' + notaBimestral + '" ' + readonlyAttr + ' ' + placeholderAttr + ' ' + oninputAttr + ' ' + onblurAttr + '>' +
+                        '</div>' +
+                        '<div class="col-span-2">' +
+                        '<input type="text" class="nota-input nota-participativa w-full px-3 py-2 text-sm font-semibold text-center border-2 rounded-lg ' + borderClass + '" data-aluno-id="' + aluno.id + '" value="' + notaParticipativa + '" ' + readonlyAttr + ' ' + placeholderAttr + ' ' + oninputAttr + ' ' + onblurAttr + '>' +
+                        '</div>' +
+                        '<div class="col-span-1 flex justify-center">' +
+                        '<div class="media-badge media-aluno text-sm font-bold py-2 rounded-lg" data-aluno-id="' + aluno.id + '">' + mediaTexto + '</div>' +
+                        '</div>' +
+                        '<div class="col-span-2">' +
+                        '<input type="text" class="comentario-input w-full px-3 py-2 text-sm border-2 rounded-lg ' + borderClass + '" data-aluno-id="' + aluno.id + '" value="' + comentarioEscapado + '" ' + readonlyComentarioAttr + ' ' + oninputComentarioAttr + '>' +
+                        '</div>';
+                    
+                    container.appendChild(div);
+                    
+                    if (temNota && (notaParcial || notaBimestral || notaParticipativa)) {
+                        setTimeout(function() {
+                            var mediaDiv = div.querySelector('.media-aluno');
+                            if (mediaDiv && mediaTexto !== '-') {
+                                var mediaNum = parseFloat(mediaTexto);
+                                mediaDiv.textContent = mediaNum.toFixed(1);
+                                mediaDiv.className = 'media-badge media-aluno text-sm font-medium py-1 rounded';
+                                if (mediaNum >= 7) {
+                                    mediaDiv.classList.add('text-green-600', 'bg-green-50');
+                                } else if (mediaNum >= 5) {
+                                    mediaDiv.classList.add('text-amber-600', 'bg-amber-50');
+                                } else {
+                                    mediaDiv.classList.add('text-red-600', 'bg-red-50');
+                                }
+                            }
+                        }, 10);
+                    }
+                }
+                
+                if (typeof atualizarContadores === 'function') {
+                    atualizarContadores();
+                }
+            }
+            
+            xhrAlunos.onreadystatechange = function() {
+                if (xhrAlunos.readyState === 4) {
+                    alunosLoaded = true;
+                    if (xhrAlunos.status === 200) {
+                        try {
+                            alunosData = JSON.parse(xhrAlunos.responseText);
+                            console.log('Dados alunos recebidos:', alunosData);
+                        } catch (e) {
+                            console.error('Erro ao parsear JSON de alunos:', e);
+                            alunosData = { success: false, message: 'Erro ao processar dados dos alunos.', alunos: [] };
+                        }
+                    } else {
+                        console.error('Erro HTTP ao buscar alunos:', xhrAlunos.status);
+                        alunosData = { success: false, message: 'Erro na requisição HTTP para alunos: ' + xhrAlunos.status, alunos: [] };
+                    }
+                    processarDados();
+                }
+            };
+            
+            xhrNotas.onreadystatechange = function() {
+                if (xhrNotas.readyState === 4) {
+                    notasLoaded = true;
+                    if (xhrNotas.status === 200) {
+                        try {
+                            notasData = JSON.parse(xhrNotas.responseText);
+                            console.log('Dados notas recebidos:', notasData);
+                        } catch (e) {
+                            console.error('Erro ao parsear JSON de notas:', e);
+                            notasData = { success: false, notas: [] };
+                        }
+                    } else {
+                        console.error('Erro HTTP ao buscar notas:', xhrNotas.status);
+                        notasData = { success: false, notas: [] };
+                    }
+                    processarDados();
+                }
+            };
+            
+            xhrAlunos.open('GET', urlAlunos, true);
+            xhrAlunos.send();
+            
+            xhrNotas.open('GET', urlNotas, true);
+            xhrNotas.send();
+            
+            console.log('Função carregarAlunosParaNotas definida com sucesso!');
         }
         
         function calcularMediaTexto(parcial, bimestral, participativa) {
@@ -1726,23 +2002,59 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao']) && $_POST['ac
             const disciplinaId = document.getElementById('ver-turma-disciplina-id').value;
             const bimestre = document.getElementById('ver-turma-bimestre').value;
             
-            if (!turmaId || !disciplinaId) return;
+            console.log('=== carregarHistoricoNotas ===');
+            console.log('Turma ID:', turmaId);
+            console.log('Disciplina ID:', disciplinaId);
+            console.log('Bimestre:', bimestre);
             
-            let url = '?acao=buscar_historico_notas&turma_id=' + turmaId + '&disciplina_id=' + disciplinaId;
+            if (!turmaId || !disciplinaId) {
+                console.error('Turma ID ou Disciplina ID não encontrados!');
+                return;
+            }
+            
+            let url = '?acao=buscar_historico_notas&turma_id=' + encodeURIComponent(turmaId) + '&disciplina_id=' + encodeURIComponent(disciplinaId);
             if (bimestre) {
-                url += '&bimestre=' + bimestre;
+                url += '&bimestre=' + encodeURIComponent(bimestre);
+            }
+            
+            console.log('URL:', url);
+            
+            const container = document.getElementById('ver-turma-historico-container');
+            if (container) {
+                container.innerHTML = '<div class="text-center py-16 text-gray-400"><p class="text-sm">Carregando histórico...</p></div>';
             }
             
             fetch(url)
                 .then(response => {
+                    console.log('Response status:', response.status);
                     if (!response.ok) {
                         throw new Error('Erro na resposta do servidor: ' + response.status);
                     }
                     return response.json();
                 })
                 .then(data => {
+                    console.log('Dados recebidos:', data);
+                    const container = document.getElementById('ver-turma-historico-container');
+                    if (!container) {
+                        console.error('Container ver-turma-historico-container não encontrado!');
+                        return;
+                    }
+                    
+                    if (!data.success) {
+                        console.error('Erro na resposta:', data.message);
+                        container.innerHTML = '<div class="text-center py-16 text-red-400">' +
+                            '<div class="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-3">' +
+                            '<svg class="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">' +
+                            '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>' +
+                            '</svg></div>' +
+                            '<p class="text-sm font-medium text-red-600">Erro ao carregar histórico</p>' +
+                            '<p class="text-xs text-gray-500 mt-1">' + (data.message || 'Erro desconhecido') + '</p>' +
+                            '</div>';
+                        return;
+                    }
+                    
                     if (data.success && data.notas) {
-                        const container = document.getElementById('ver-turma-historico-container');
+                        console.log('Total de notas encontradas:', data.notas.length);
                         container.innerHTML = '';
                         
                         if (data.notas.length === 0) {
@@ -1859,7 +2171,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao']) && $_POST['ac
                     console.error('Erro ao carregar histórico:', error);
                     const container = document.getElementById('ver-turma-historico-container');
                     if (container) {
-                        container.innerHTML = '<div class="text-center py-16 text-red-400"><p class="text-sm">Erro ao carregar histórico de notas. Verifique o console para mais detalhes.</p></div>';
+                        container.innerHTML = '<div class="text-center py-16 text-red-400">' +
+                            '<div class="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-3">' +
+                            '<svg class="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">' +
+                            '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>' +
+                            '</svg></div>' +
+                            '<p class="text-sm font-medium text-red-600">Erro ao carregar histórico de notas</p>' +
+                            '<p class="text-xs text-gray-500 mt-1">' + error.message + '</p>' +
+                            '</div>';
                     }
                 });
         }

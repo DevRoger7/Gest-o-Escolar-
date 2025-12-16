@@ -114,7 +114,44 @@ class AlunoModel {
         $stmt->bindParam(':id', $id);
         $stmt->execute();
         
-        return $stmt->fetch(PDO::FETCH_ASSOC);
+        $aluno = $stmt->fetch(PDO::FETCH_ASSOC);
+        
+        // Buscar CIDs da coluna necessidades_especiais
+        if ($aluno && !empty($aluno['necessidades_especiais'])) {
+            // Parsear os CIDs da coluna necessidades_especiais
+            // Formato esperado: "F84.0 - Descrição, G90.1, H10.2 - Outra descrição"
+            $necessidadesEspeciais = $aluno['necessidades_especiais'];
+            $cidsArray = [];
+            
+            // Dividir por vírgula
+            $cidsString = explode(',', $necessidadesEspeciais);
+            
+            foreach ($cidsString as $cidItem) {
+                $cidItem = trim($cidItem);
+                if (!empty($cidItem)) {
+                    // Verificar se tem descrição (formato: "CID - Descrição")
+                    if (strpos($cidItem, ' - ') !== false) {
+                        $parts = explode(' - ', $cidItem, 2);
+                        $cidsArray[] = [
+                            'codigo' => trim($parts[0]),
+                            'descricao' => trim($parts[1])
+                        ];
+                    } else {
+                        // Apenas código CID
+                        $cidsArray[] = [
+                            'codigo' => $cidItem,
+                            'descricao' => ''
+                        ];
+                    }
+                }
+            }
+            
+            $aluno['cids'] = $cidsArray;
+        } else {
+            $aluno['cids'] = [];
+        }
+        
+        return $aluno;
     }
     
     /**
@@ -190,7 +227,7 @@ class AlunoModel {
                 $stmtPessoa->bindParam(':nome_social', $nomeSocial);
             }
             if ($temRaca) {
-                $raca = isset($dados['raca']) && !empty($dados['raca']) ? $dados['raca'] : null;
+                $raca = isset($dados['raca']) && !empty(trim($dados['raca'])) ? trim($dados['raca']) : null;
                 $stmtPessoa->bindParam(':raca', $raca);
             }
             $stmtPessoa->bindParam(':criado_por', $_SESSION['usuario_id']);
@@ -205,10 +242,31 @@ class AlunoModel {
             $escolaId = !empty($dados['escola_id']) ? $dados['escola_id'] : null;
             $dataMatricula = !empty($dados['data_matricula']) ? $dados['data_matricula'] : date('Y-m-d');
             $situacao = !empty($dados['situacao']) ? $dados['situacao'] : 'MATRICULADO';
+            $isPCD = isset($dados['is_pcd']) ? (int)$dados['is_pcd'] : 0;
             $criadoPor = $_SESSION['usuario_id'];
             
-            $sqlAluno = "INSERT INTO aluno (pessoa_id, matricula, nis, responsavel_id, escola_id, data_matricula, situacao, ativo, criado_por)
-                        VALUES (:pessoa_id, :matricula, :nis, :responsavel_id, :escola_id, :data_matricula, :situacao, 1, :criado_por)";
+            // Verificar se o campo is_pcd existe na tabela
+            $stmtCheckPCD = $conn->query("SHOW COLUMNS FROM aluno LIKE 'is_pcd'");
+            $temCampoPCD = $stmtCheckPCD->rowCount() > 0;
+            
+            // Verificar se o campo data_nascimento existe na tabela aluno
+            $stmtCheckDataNasc = $conn->query("SHOW COLUMNS FROM aluno LIKE 'data_nascimento'");
+            $temDataNascAluno = $stmtCheckDataNasc->rowCount() > 0;
+            
+            if ($temCampoPCD && $temDataNascAluno) {
+                $sqlAluno = "INSERT INTO aluno (pessoa_id, matricula, nis, responsavel_id, escola_id, data_matricula, situacao, data_nascimento, is_pcd, ativo, criado_por)
+                            VALUES (:pessoa_id, :matricula, :nis, :responsavel_id, :escola_id, :data_matricula, :situacao, :data_nascimento, :is_pcd, 1, :criado_por)";
+            } elseif ($temCampoPCD) {
+                $sqlAluno = "INSERT INTO aluno (pessoa_id, matricula, nis, responsavel_id, escola_id, data_matricula, situacao, is_pcd, ativo, criado_por)
+                            VALUES (:pessoa_id, :matricula, :nis, :responsavel_id, :escola_id, :data_matricula, :situacao, :is_pcd, 1, :criado_por)";
+            } elseif ($temDataNascAluno) {
+                $sqlAluno = "INSERT INTO aluno (pessoa_id, matricula, nis, responsavel_id, escola_id, data_matricula, situacao, data_nascimento, ativo, criado_por)
+                            VALUES (:pessoa_id, :matricula, :nis, :responsavel_id, :escola_id, :data_matricula, :situacao, :data_nascimento, 1, :criado_por)";
+            } else {
+                $sqlAluno = "INSERT INTO aluno (pessoa_id, matricula, nis, responsavel_id, escola_id, data_matricula, situacao, ativo, criado_por)
+                            VALUES (:pessoa_id, :matricula, :nis, :responsavel_id, :escola_id, :data_matricula, :situacao, 1, :criado_por)";
+            }
+            
             $stmtAluno = $conn->prepare($sqlAluno);
             $stmtAluno->bindParam(':pessoa_id', $pessoaId);
             $stmtAluno->bindParam(':matricula', $matricula);
@@ -217,10 +275,43 @@ class AlunoModel {
             $stmtAluno->bindParam(':escola_id', $escolaId);
             $stmtAluno->bindParam(':data_matricula', $dataMatricula);
             $stmtAluno->bindParam(':situacao', $situacao);
+            if ($temDataNascAluno) {
+                $dataNascimento = !empty($dados['data_nascimento']) ? $dados['data_nascimento'] : null;
+                $stmtAluno->bindParam(':data_nascimento', $dataNascimento);
+            }
+            if ($temCampoPCD) {
+                $stmtAluno->bindParam(':is_pcd', $isPCD, PDO::PARAM_INT);
+            }
             $stmtAluno->bindParam(':criado_por', $criadoPor);
             $stmtAluno->execute();
             
             $alunoId = $conn->lastInsertId();
+            
+            // 3. Salvar CIDs na coluna necessidades_especiais se o aluno for PCD
+            if ($isPCD && !empty($dados['cids']) && is_array($dados['cids'])) {
+                $cidsArray = [];
+                foreach ($dados['cids'] as $cid) {
+                    if (!empty($cid['codigo']) && trim($cid['codigo']) !== '') {
+                        $codigoCID = strtoupper(trim($cid['codigo']));
+                        $descricaoCID = !empty($cid['descricao']) ? trim($cid['descricao']) : '';
+                        
+                        if (!empty($descricaoCID)) {
+                            $cidsArray[] = $codigoCID . ' - ' . $descricaoCID;
+                        } else {
+                            $cidsArray[] = $codigoCID;
+                        }
+                    }
+                }
+                
+                if (!empty($cidsArray)) {
+                    $necessidadesEspeciais = implode(', ', $cidsArray);
+                    $sqlUpdateNecessidades = "UPDATE aluno SET necessidades_especiais = :necessidades_especiais WHERE id = :aluno_id";
+                    $stmtUpdateNecessidades = $conn->prepare($sqlUpdateNecessidades);
+                    $stmtUpdateNecessidades->bindParam(':necessidades_especiais', $necessidadesEspeciais);
+                    $stmtUpdateNecessidades->bindParam(':aluno_id', $alunoId);
+                    $stmtUpdateNecessidades->execute();
+                }
+            }
             
             $conn->commit();
             return ['success' => true, 'id' => $alunoId];
@@ -312,11 +403,25 @@ class AlunoModel {
             $escolaId = $dados['escola_id'] ?? null;
             $situacao = $dados['situacao'] ?? 'MATRICULADO';
             $ativo = $dados['ativo'] ?? 1;
+            $isPCD = isset($dados['is_pcd']) ? (int)$dados['is_pcd'] : 0;
             
-            $sqlAluno = "UPDATE aluno SET matricula = :matricula, nis = :nis, 
-                        responsavel_id = :responsavel_id, escola_id = :escola_id,
-                        data_matricula = :data_matricula, situacao = :situacao, ativo = :ativo
-                        WHERE id = :id";
+            // Verificar se o campo is_pcd existe na tabela
+            $stmtCheckPCD = $conn->query("SHOW COLUMNS FROM aluno LIKE 'is_pcd'");
+            $temCampoPCD = $stmtCheckPCD->rowCount() > 0;
+            
+            if ($temCampoPCD) {
+                $sqlAluno = "UPDATE aluno SET matricula = :matricula, nis = :nis, 
+                            responsavel_id = :responsavel_id, escola_id = :escola_id,
+                            data_matricula = :data_matricula, situacao = :situacao, 
+                            is_pcd = :is_pcd, ativo = :ativo
+                            WHERE id = :id";
+            } else {
+                $sqlAluno = "UPDATE aluno SET matricula = :matricula, nis = :nis, 
+                            responsavel_id = :responsavel_id, escola_id = :escola_id,
+                            data_matricula = :data_matricula, situacao = :situacao, ativo = :ativo
+                            WHERE id = :id";
+            }
+            
             $stmtAluno = $conn->prepare($sqlAluno);
             $stmtAluno->bindValue(':matricula', $matricula);
             $stmtAluno->bindValue(':nis', isset($nis) ? $nis : null, isset($nis) ? PDO::PARAM_STR : PDO::PARAM_NULL);
@@ -324,9 +429,51 @@ class AlunoModel {
             $stmtAluno->bindValue(':escola_id', isset($escolaId) ? $escolaId : null, isset($escolaId) ? PDO::PARAM_INT : PDO::PARAM_NULL);
             $stmtAluno->bindValue(':data_matricula', isset($dados['data_matricula']) ? $dados['data_matricula'] : null, isset($dados['data_matricula']) ? PDO::PARAM_STR : PDO::PARAM_NULL);
             $stmtAluno->bindValue(':situacao', isset($dados['situacao']) ? $dados['situacao'] : 'MATRICULADO');
+            if ($temCampoPCD) {
+                $stmtAluno->bindValue(':is_pcd', $isPCD, PDO::PARAM_INT);
+            }
             $stmtAluno->bindValue(':ativo', isset($dados['ativo']) ? (int)$dados['ativo'] : 1, PDO::PARAM_INT);
             $stmtAluno->bindValue(':id', $id, PDO::PARAM_INT);
             $stmtAluno->execute();
+            
+            // 3. Salvar CIDs na coluna necessidades_especiais se o aluno for PCD
+            if ($isPCD && !empty($dados['cids']) && is_array($dados['cids'])) {
+                $cidsArray = [];
+                foreach ($dados['cids'] as $cid) {
+                    if (!empty($cid['codigo']) && trim($cid['codigo']) !== '') {
+                        $codigoCID = strtoupper(trim($cid['codigo']));
+                        $descricaoCID = !empty($cid['descricao']) ? trim($cid['descricao']) : '';
+                        
+                        if (!empty($descricaoCID)) {
+                            $cidsArray[] = $codigoCID . ' - ' . $descricaoCID;
+                        } else {
+                            $cidsArray[] = $codigoCID;
+                        }
+                    }
+                }
+                
+                if (!empty($cidsArray)) {
+                    $necessidadesEspeciais = implode(', ', $cidsArray);
+                    $sqlUpdateNecessidades = "UPDATE aluno SET necessidades_especiais = :necessidades_especiais WHERE id = :aluno_id";
+                    $stmtUpdateNecessidades = $conn->prepare($sqlUpdateNecessidades);
+                    $stmtUpdateNecessidades->bindParam(':necessidades_especiais', $necessidadesEspeciais);
+                    $stmtUpdateNecessidades->bindParam(':aluno_id', $id);
+                    $stmtUpdateNecessidades->execute();
+                } else {
+                    // Se não há CIDs mas o aluno é PCD, limpar necessidades_especiais
+                    $necessidadesEspeciais = null;
+                    $sqlUpdateNecessidades = "UPDATE aluno SET necessidades_especiais = NULL WHERE id = :aluno_id";
+                    $stmtUpdateNecessidades = $conn->prepare($sqlUpdateNecessidades);
+                    $stmtUpdateNecessidades->bindParam(':aluno_id', $id);
+                    $stmtUpdateNecessidades->execute();
+                }
+            } elseif (!$isPCD) {
+                // Se o aluno não é mais PCD, limpar necessidades_especiais
+                $sqlUpdateNecessidades = "UPDATE aluno SET necessidades_especiais = NULL WHERE id = :aluno_id";
+                $stmtUpdateNecessidades = $conn->prepare($sqlUpdateNecessidades);
+                $stmtUpdateNecessidades->bindParam(':aluno_id', $id);
+                $stmtUpdateNecessidades->execute();
+            }
             
             $conn->commit();
             return ['success' => true];

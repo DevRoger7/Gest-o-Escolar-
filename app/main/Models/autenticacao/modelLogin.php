@@ -80,6 +80,16 @@ Class ModelLogin {
             return false;
         }
         
+        // Verificar se é aluno tentando fazer login com email - alunos só podem usar CPF
+        $tipoUsuario = $resultado['role'] ?? '';
+        if (strtoupper($tipoUsuario) === 'ALUNO' && $isEmail) {
+            // Aluno tentou fazer login com email - não permitido
+            require_once(__DIR__ . '/../log/SystemLogger.php');
+            $logger = SystemLogger::getInstance();
+            $logger->logLoginFalha($cpfOuEmail, 'Aluno tentou fazer login com email (apenas CPF permitido)');
+            return false;
+        }
+        
         // Verificar se a conta está bloqueada por tentativas
         $tentativasLogin = (int)($resultado['tentativas_login'] ?? 0);
         $bloqueadoAte = $resultado['bloqueado_ate'] ?? null;
@@ -111,11 +121,27 @@ Class ModelLogin {
             }
         }
         
-        // Verificar se o usuário existe e se a senha está correta usando password_verify
-        if (password_verify($senha, $resultado['senha_hash'])) {
+        // Verificar se é aluno - alunos usam CPF como senha também
+        $isAluno = (strtoupper($tipoUsuario) === 'ALUNO');
+        
+        // Para alunos, validar se a senha digitada é o CPF (sem formatação)
+        $senhaValida = false;
+        if ($isAluno) {
+            // Remove formatação do CPF da senha digitada
+            $senhaCpf = preg_replace('/[^0-9]/', '', $senha);
+            // Remove formatação do CPF do usuário
+            $cpfUsuario = preg_replace('/[^0-9]/', '', $resultado['cpf']);
+            // Comparar CPFs
+            $senhaValida = ($senhaCpf === $cpfUsuario && strlen($senhaCpf) === 11);
+        } else {
+            // Para outros usuários, usar validação normal de senha
+            $senhaValida = password_verify($senha, $resultado['senha_hash']);
+        }
+        
+        // Verificar se o usuário existe e se a senha está correta
+        if ($senhaValida) {
             // Senha correta, mas ANTES de criar a sessão, verificar se a escola está ativa
             
-            $tipoUsuario = $resultado['role'] ?? '';
             // Nutricionistas não têm escola fixa, trabalham para todas as escolas
             $tiposComEscola = ['GESTAO', 'PROFESSOR'];
             $usuarioId = $resultado['id'];

@@ -67,6 +67,7 @@ $nomeSistema = getNomeSistemaCurto();
                     <span>Cardápios</span>
                 </a>
             </li>
+            <!--
             <li>
                 <a href="pedidos_merenda.php" class="menu-item flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700 <?= basename($_SERVER['PHP_SELF']) === 'pedidos_merenda.php' ? 'active' : '' ?>">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -75,6 +76,7 @@ $nomeSistema = getNomeSistemaCurto();
                     <span>Pedidos de Compra</span>
                 </a>
             </li>
+                -->
             <li>
                 <a href="estoque_nutricionista.php" class="menu-item flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700 <?= basename($_SERVER['PHP_SELF']) === 'estoque_nutricionista.php' ? 'active' : '' ?>">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">

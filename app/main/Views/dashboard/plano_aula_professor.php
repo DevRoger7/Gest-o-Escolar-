@@ -96,6 +96,7 @@ if ($professorId) {
     }
     
     // Agora buscar turmas e disciplinas do professor
+    // Remover filtro de escola selecionada - professor deve ver todas as suas turmas
     $sqlTurmas = "SELECT DISTINCT 
                     t.id as turma_id,
                     CONCAT(t.serie, ' ', t.letra, ' - ', t.turno) as turma_nome,
@@ -107,20 +108,24 @@ if ($professorId) {
                   INNER JOIN turma t ON tp.turma_id = t.id
                   INNER JOIN disciplina d ON tp.disciplina_id = d.id
                   INNER JOIN escola e ON t.escola_id = e.id
-                  WHERE tp.professor_id = :professor_id AND tp.fim IS NULL AND t.ativo = 1";
+                  WHERE tp.professor_id = :professor_id AND tp.fim IS NULL AND t.ativo = 1
+                  ORDER BY e.nome, t.serie, t.letra, d.nome";
     
-    if ($escolaIdSelecionada) {
-        $sqlTurmas .= " AND t.escola_id = :escola_id";
-    }
-    
-    $sqlTurmas .= " ORDER BY e.nome, t.serie, t.letra, d.nome";
     $stmtTurmas = $conn->prepare($sqlTurmas);
     $stmtTurmas->bindParam(':professor_id', $professorId);
-    if ($escolaIdSelecionada) {
-        $stmtTurmas->bindParam(':escola_id', $escolaIdSelecionada, PDO::PARAM_INT);
-    }
     $stmtTurmas->execute();
     $turmasProfessor = $stmtTurmas->fetchAll(PDO::FETCH_ASSOC);
+    
+    // Log para debug
+    error_log("DEBUG plano_aula_professor: Buscando turmas para professor_id = $professorId");
+    error_log("DEBUG plano_aula_professor: Encontradas " . count($turmasProfessor) . " turmas para o professor");
+    if (count($turmasProfessor) > 0) {
+        foreach ($turmasProfessor as $turma) {
+            error_log("DEBUG plano_aula_professor: Turma encontrada - ID: {$turma['turma_id']}, Nome: {$turma['turma_nome']}, Escola: {$turma['escola_nome']}");
+        }
+    } else {
+        error_log("DEBUG plano_aula_professor: Nenhuma turma encontrada! Verifique se o professor está atribuído a turmas na tabela turma_professor.");
+    }
     
     // Organizar por escola
     foreach ($turmasProfessor as $turma) {
@@ -260,7 +265,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['acao'])) {
         
         try {
             // Buscar apenas as turmas únicas que o professor está atribuído na escola
-            // Usar a mesma lógica do código original (linha 110), mas também considerar turmas com fim vazio ou futuro
+            // Usar a mesma lógica do código original (linha 110) - apenas tp.fim IS NULL
             $sqlTurmas = "SELECT DISTINCT 
                             t.id as turma_id,
                             CONCAT(t.serie, ' ', t.letra, ' - ', t.turno) as turma_nome
@@ -268,7 +273,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['acao'])) {
                           INNER JOIN turma t ON tp.turma_id = t.id 
                           WHERE t.escola_id = :escola_id 
                           AND tp.professor_id = :professor_id
-                          AND (tp.fim IS NULL OR tp.fim = '' OR tp.fim = '0000-00-00' OR tp.fim >= CURDATE())
+                          AND tp.fim IS NULL
                           AND t.ativo = 1
                           ORDER BY t.serie, t.letra";
             
@@ -278,37 +283,31 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['acao'])) {
             $stmtTurmas->execute();
             $turmas = $stmtTurmas->fetchAll(PDO::FETCH_ASSOC);
             
-            // Se não encontrou turmas com a query acima, tentar sem filtro de fim (para debug)
-            if (count($turmas) === 0) {
-                error_log("Nenhuma turma encontrada com filtro de fim. Tentando sem filtro...");
-                $sqlTurmasDebug = "SELECT DISTINCT 
-                                    t.id as turma_id,
-                                    CONCAT(t.serie, ' ', t.letra, ' - ', t.turno) as turma_nome,
-                                    tp.fim as fim_atribuicao
-                                  FROM turma_professor tp
-                                  INNER JOIN turma t ON tp.turma_id = t.id 
-                                  WHERE t.escola_id = :escola_id 
-                                  AND tp.professor_id = :professor_id
-                                  AND t.ativo = 1
-                                  ORDER BY t.serie, t.letra";
-                
-                $stmtTurmasDebug = $conn->prepare($sqlTurmasDebug);
-                $stmtTurmasDebug->bindParam(':escola_id', $escolaId, PDO::PARAM_INT);
-                $stmtTurmasDebug->bindParam(':professor_id', $professorId, PDO::PARAM_INT);
-                $stmtTurmasDebug->execute();
-                $turmasDebug = $stmtTurmasDebug->fetchAll(PDO::FETCH_ASSOC);
-                error_log("Turmas encontradas sem filtro de fim: " . count($turmasDebug));
-                if (count($turmasDebug) > 0) {
-                    error_log("Primeira turma (sem filtro): " . json_encode($turmasDebug[0]));
-                }
-            }
-            
             // Log para debug
             error_log("Busca de turmas - Escola ID: $escolaId, Professor ID: $professorId, Turmas encontradas: " . count($turmas));
             if (count($turmas) > 0) {
                 error_log("Primeira turma encontrada: " . json_encode($turmas[0]));
             } else {
                 error_log("ATENÇÃO: Nenhuma turma encontrada para professor $professorId na escola $escolaId");
+                // Tentar buscar sem filtro de escola para debug
+                $sqlDebug = "SELECT DISTINCT 
+                                t.id as turma_id,
+                                CONCAT(t.serie, ' ', t.letra, ' - ', t.turno) as turma_nome,
+                                t.escola_id,
+                                tp.fim as fim_atribuicao
+                              FROM turma_professor tp
+                              INNER JOIN turma t ON tp.turma_id = t.id 
+                              WHERE tp.professor_id = :professor_id
+                              AND t.ativo = 1
+                              ORDER BY t.serie, t.letra";
+                $stmtDebug = $conn->prepare($sqlDebug);
+                $stmtDebug->bindParam(':professor_id', $professorId, PDO::PARAM_INT);
+                $stmtDebug->execute();
+                $turmasDebug = $stmtDebug->fetchAll(PDO::FETCH_ASSOC);
+                error_log("Turmas do professor (sem filtro de escola): " . count($turmasDebug));
+                if (count($turmasDebug) > 0) {
+                    error_log("Primeira turma (sem filtro): " . json_encode($turmasDebug[0]));
+                }
             }
             
             echo json_encode(['success' => true, 'turmas' => $turmas]);
@@ -1112,15 +1111,29 @@ if ($professorId) {
             
             try {
                 const response = await fetch(`?acao=buscar_turmas_escola&escola_id=${escolaId}`);
+                
+                // Verificar se a resposta é JSON válido
+                const contentType = response.headers.get('content-type');
+                if (!contentType || !contentType.includes('application/json')) {
+                    const text = await response.text();
+                    console.error('Resposta não é JSON:', text.substring(0, 200));
+                    turmaSelect.innerHTML = '<option value="">Erro ao carregar turmas (resposta inválida)</option>';
+                    turmaSelect.disabled = false;
+                    return;
+                }
+                
                 const data = await response.json();
                 
                 console.log('Resposta da busca de turmas:', data);
+                console.log('Success:', data.success);
+                console.log('Turmas recebidas:', data.turmas ? data.turmas.length : 0);
                 
                 turmaSelect.innerHTML = '<option value="">Selecione uma turma</option>';
                 turmaSelect.disabled = false;
                 
                 if (data.success && data.turmas && data.turmas.length > 0) {
                     data.turmas.forEach(turma => {
+                        console.log('Adicionando turma:', turma);
                         const option = document.createElement('option');
                         // Usar apenas o ID da turma (sem disciplina)
                         option.value = turma.turma_id;
@@ -1129,7 +1142,7 @@ if ($professorId) {
                         option.dataset.turmaNome = turma.turma_nome;
                         turmaSelect.appendChild(option);
                     });
-                    console.log('Turmas carregadas:', data.turmas.length);
+                    console.log('Turmas carregadas com sucesso:', data.turmas.length);
                 } else {
                     const option = document.createElement('option');
                     option.value = '';
@@ -1138,6 +1151,9 @@ if ($professorId) {
                     turmaSelect.appendChild(option);
                     console.warn('Nenhuma turma encontrada para a escola:', escolaId);
                     console.warn('Resposta completa:', data);
+                    if (data.message) {
+                        console.warn('Mensagem de erro:', data.message);
+                    }
                 }
                 
                 // Carregar disciplinas da escola também
@@ -1496,18 +1512,38 @@ if ($professorId) {
             const escolaSelecionada = escolaSelect.value;
             
             // Resetar apenas os campos do formulário, não o select de escola
-            document.getElementById('data-aula').value = new Date().toISOString().split('T')[0];
-            document.getElementById('titulo-plano').value = '';
-            document.getElementById('conteudo-plano').value = '';
-            document.getElementById('objetivos-plano').value = '';
-            document.getElementById('metodologia-plano').value = '';
-            document.getElementById('recursos-plano').value = '';
-            document.getElementById('avaliacao-plano').value = '';
-            document.getElementById('atividades-flexibilizadas').value = '';
-            document.getElementById('bimestre-plano').value = '';
-            document.getElementById('observacoes-plano').value = '';
-            document.getElementById('componentes-curriculares').value = '';
-            document.getElementById('habilidades').value = '';
+            const dataAula = document.getElementById('data-aula');
+            if (dataAula) dataAula.value = new Date().toISOString().split('T')[0];
+            
+            const tituloPlano = document.getElementById('titulo-plano');
+            if (tituloPlano) tituloPlano.value = '';
+            
+            const conteudoPlano = document.getElementById('conteudo-plano');
+            if (conteudoPlano) conteudoPlano.value = '';
+            
+            const objetivosPlano = document.getElementById('objetivos-plano');
+            if (objetivosPlano) objetivosPlano.value = '';
+            
+            const metodologiaPlano = document.getElementById('metodologia-plano');
+            if (metodologiaPlano) metodologiaPlano.value = '';
+            
+            const recursosPlano = document.getElementById('recursos-plano');
+            if (recursosPlano) recursosPlano.value = '';
+            
+            const avaliacaoPlano = document.getElementById('avaliacao-plano');
+            if (avaliacaoPlano) avaliacaoPlano.value = '';
+            
+            const atividadesFlexibilizadas = document.getElementById('atividades-flexibilizadas');
+            if (atividadesFlexibilizadas) atividadesFlexibilizadas.value = '';
+            
+            const bimestrePlano = document.getElementById('bimestre-plano');
+            if (bimestrePlano) bimestrePlano.value = '';
+            
+            const observacoesPlano = document.getElementById('observacoes-plano');
+            if (observacoesPlano) observacoesPlano.value = '';
+            
+            const habilidades = document.getElementById('habilidades');
+            if (habilidades) habilidades.value = '';
             
             // Garantir que o select de escola está populado corretamente
             console.log('Escolas disponíveis:', escolas);
@@ -1543,7 +1579,9 @@ if ($professorId) {
             
             // Limpar turma select
             const turmaSelect = document.getElementById('turma-select');
-            turmaSelect.innerHTML = '<option value="">Selecione uma turma</option>';
+            if (turmaSelect) {
+                turmaSelect.innerHTML = '<option value="">Selecione uma turma</option>';
+            }
             
             turmasSelecionadas = [];
             competenciasSocioemocionais = [];
