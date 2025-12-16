@@ -334,13 +334,16 @@ function cadastrarEscola($dados)
         // Converter array para string separada por vírgula (formato SET do MySQL)
         $nivelEnsino = implode(',', $niveisEnsino);
         
-        // Verificar se as colunas existem
+        // Verificar se as colunas existem (baseado na estrutura real do banco)
+        // Campos que SEMPRE existem no banco: numero, complemento, bairro, distrito, telefone_secundario, site
+        // Campos que podem não existir: localidade_escola (será criado pela migration)
         $stmtCheck = $conn->query("SHOW COLUMNS FROM escola LIKE 'nivel_ensino'");
         $colunaNivelExiste = $stmtCheck->rowCount() > 0;
         
         $stmtCheck = $conn->query("SHOW COLUMNS FROM escola LIKE 'distrito'");
         $colunaDistritoExiste = $stmtCheck->rowCount() > 0;
         
+        // Verificar se localidade_escola existe (será criado pela migration se não existir)
         $stmtCheck = $conn->query("SHOW COLUMNS FROM escola LIKE 'localidade_escola'");
         $colunaLocalidadeEscolaExiste = $stmtCheck->rowCount() > 0;
         
@@ -4808,6 +4811,7 @@ if ($_SESSION['tipo'] === 'ADM') {
                     }
                     
                     // Verificar se existe localidade_escola (campo varchar) ou usar null
+                    // O campo pode ser localidade_escola (varchar) ou não existir ainda
                     if (escola.localidade_escola) {
                         document.getElementById('edit_localidade').value = escola.localidade_escola;
                     } else {
@@ -4826,10 +4830,6 @@ if ($_SESSION['tipo'] === 'ADM') {
                             document.getElementById('edit_inep').value = '';
                         }
                         
-                        // Extrair nome curto (assumindo que está no início do nome)
-                        const nomeCurto = escola.nome ? escola.nome.split(' ').slice(0, 3).join(' ') : '';
-                        document.getElementById('edit_nome_curto').value = nomeCurto;
-                        
                         // Extrair tipo de escola
                         const tipoMatch = obs.match(/Tipo:\s*([^|]+)/);
                         if (tipoMatch) {
@@ -4839,9 +4839,15 @@ if ($_SESSION['tipo'] === 'ADM') {
                         }
                     } else {
                         // Se não tem obs, limpar campos extras
-                        document.getElementById('edit_nome_curto').value = '';
                         document.getElementById('edit_inep').value = '';
                         document.getElementById('edit_tipo_escola').value = 'NORMAL';
+                    }
+                    
+                    // Nome curto não existe no banco, então não tentar salvar/carregar
+                    // Se o campo existir no HTML, apenas limpar
+                    const editNomeCurto = document.getElementById('edit_nome_curto');
+                    if (editNomeCurto) {
+                        editNomeCurto.value = '';
                     }
                     
                     // Preencher dados do gestor usando os dados que vêm do banco
@@ -4901,7 +4907,9 @@ if ($_SESSION['tipo'] === 'ADM') {
                         telefone_fixo: document.getElementById('edit_telefone_fixo').value || '',
                         telefone_movel: document.getElementById('edit_telefone_movel').value || '',
                         email: document.getElementById('edit_email').value || '',
-                        site: document.getElementById('edit_site').value || ''
+                        site: document.getElementById('edit_site').value || '',
+                        distrito: document.getElementById('edit_distrito').value || '',
+                        localidade: document.getElementById('edit_localidade').value || ''
                     };
                     
                     // Carregar professores da escola
@@ -4958,10 +4966,11 @@ if ($_SESSION['tipo'] === 'ADM') {
         // Função para configurar monitoramento de mudanças nos campos
         function configurarMonitoramentoMudancas() {
             const campos = [
-                'edit_nome', 'edit_inep', 'edit_nome_curto', 'edit_codigo', 'edit_cnpj',
+                'edit_nome', 'edit_inep', 'edit_codigo', 'edit_cnpj',
                 'edit_tipo_escola', 'edit_qtd_salas', 'edit_nivel_ensino_infantil', 'edit_nivel_ensino_fundamental',
                 'edit_cep', 'edit_logradouro', 'edit_numero', 'edit_complemento', 'edit_bairro',
-                'edit_telefone_fixo', 'edit_telefone_movel', 'edit_email', 'edit_site'
+                'edit_telefone_fixo', 'edit_telefone_movel', 'edit_email', 'edit_site',
+                'edit_distrito', 'edit_localidade'
             ];
             
             campos.forEach(campoId => {
@@ -4986,7 +4995,6 @@ if ($_SESSION['tipo'] === 'ADM') {
             const camposAtuais = {
                 nome: document.getElementById('edit_nome').value || '',
                 inep: document.getElementById('edit_inep').value || '',
-                nome_curto: document.getElementById('edit_nome_curto').value || '',
                 codigo: document.getElementById('edit_codigo').value || '',
                 cnpj: document.getElementById('edit_cnpj').value || '',
                 tipo_escola: document.getElementById('edit_tipo_escola').value || '',
@@ -5001,7 +5009,9 @@ if ($_SESSION['tipo'] === 'ADM') {
                 telefone_fixo: document.getElementById('edit_telefone_fixo').value || '',
                 telefone_movel: document.getElementById('edit_telefone_movel').value || '',
                 email: document.getElementById('edit_email').value || '',
-                site: document.getElementById('edit_site').value || ''
+                site: document.getElementById('edit_site').value || '',
+                distrito: document.getElementById('edit_distrito').value || '',
+                localidade: document.getElementById('edit_localidade').value || ''
             };
             
             // Comparar com dados originais
@@ -5968,7 +5978,7 @@ if ($_SESSION['tipo'] === 'ADM') {
                     formData.append('id', document.getElementById('edit_escola_id').value);
                     formData.append('nome', document.getElementById('edit_nome').value);
                     formData.append('inep', document.getElementById('edit_inep').value);
-                    formData.append('nome_curto', document.getElementById('edit_nome_curto').value);
+                    // nome_curto não existe no banco, não enviar
                     formData.append('tipo_escola', document.getElementById('edit_tipo_escola').value);
                     formData.append('logradouro', document.getElementById('edit_logradouro').value);
                     formData.append('numero', document.getElementById('edit_numero').value);
@@ -6000,6 +6010,8 @@ if ($_SESSION['tipo'] === 'ADM') {
                     formData.append('obs', '');
                     formData.append('codigo', document.getElementById('edit_codigo').value);
                     formData.append('cnpj', document.getElementById('edit_cnpj').value);
+                    formData.append('distrito', document.getElementById('edit_distrito').value);
+                    formData.append('localidade', document.getElementById('edit_localidade').value);
                     
                     const gestorIdField = document.getElementById('edit_gestor_id');
                     formData.append('gestor_id', gestorIdField ? gestorIdField.value || '' : '');
