@@ -1860,7 +1860,7 @@ if ($professorId) {
                 console.log('Tipo de data.turmas:', typeof data.turmas);
                 console.log('É array?', Array.isArray(data.turmas));
             
-                turmaSelect.innerHTML = '<option value="">Selecione uma turma</option>';
+            turmaSelect.innerHTML = '<option value="">Selecione uma turma</option>';
                 turmaSelect.disabled = false;
                 
                 if (!data.success) {

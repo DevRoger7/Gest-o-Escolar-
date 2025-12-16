@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Popular Banco de Dados - Teste</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 900px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            border-bottom: 3px solid #007bff;
+            padding-bottom: 10px;
+        }
+        .warning {
+            background: #fff3cd;
+            border: 1px solid #ffc107;
+            color: #856404;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 20px 0;
+        }
+        .info {
+            background: #d1ecf1;
+            border: 1px solid #bee5eb;
+            color: #0c5460;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 20px 0;
+        }
+        .success {
+            background: #d4edda;
+            border: 1px solid #c3e6cb;
+            color: #155724;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 20px 0;
+        }
+        button {
+            background: #007bff;
+            color: white;
+            padding: 12px 30px;
+            border: none;
+            border-radius: 5px;
+            font-size: 16px;
+            cursor: pointer;
+            margin: 10px 5px;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        button.danger {
+            background: #dc3545;
+        }
+        button.danger:hover {
+            background: #c82333;
+        }
+        pre {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 5px;
+            overflow-x: auto;
+            border: 1px solid #dee2e6;
+        }
+        .credentials {
+            background: #e7f3ff;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 20px 0;
+        }
+        .credentials h3 {
+            margin-top: 0;
+            color: #004085;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🗄️ Popular Banco de Dados com Dados de Teste</h1>
+        
+        <div class="warning">
+            <strong>⚠️ ATENÇÃO:</strong> Este script irá inserir dados de teste no banco de dados. 
+            Execute apenas em ambiente de desenvolvimento/teste!
+        </div>
+        
+        <div class="info">
+            <h3>📋 O que será inserido:</h3>
+            <ul>
+                <li>3 Escolas</li>
+                <li>9 Séries (1º ao 9º ano)</li>
+                <li>12 Disciplinas</li>
+                <li>8 Turmas</li>
+                <li>21 Pessoas (alunos, professores, gestores, funcionários)</li>
+                <li>8 Usuários</li>
+                <li>Lotações, matrículas, notas, frequências e planos de aula</li>
+            </ul>
+        </div>
+        
+        <h2>🚀 Como Executar</h2>
+        
+        <h3>Opção 1: Via Script PHP (Recomendado)</h3>
+        <p>Acesse o arquivo PHP diretamente no navegador:</p>
+        <pre>http://localhost/Gest-o-Escolar-/app/main/database/executar_popular_banco.php</pre>
+        
+        <h3>Opção 2: Via phpMyAdmin</h3>
+        <ol>
+            <li>Abra o phpMyAdmin</li>
+            <li>Selecione o banco de dados <code>escola_merenda</code></li>
+            <li>Vá na aba "SQL"</li>
+            <li>Copie e cole o conteúdo do arquivo <code>popular_banco_teste.sql</code></li>
+            <li>Clique em "Executar"</li>
+        </ol>
+        
+        <h3>Opção 3: Via Linha de Comando</h3>
+        <p>Se o MySQL estiver no PATH:</p>
+        <pre>mysql -u root -p escola_merenda < app/main/database/popular_banco_teste.sql</pre>
+        
+        <p>Ou usando o caminho completo do XAMPP:</p>
+        <pre>C:\xampp\mysql\bin\mysql.exe -u root escola_merenda < app\main\database\popular_banco_teste.sql</pre>
+        
+        <div class="credentials">
+            <h3>🔐 Credenciais de Acesso (após executar)</h3>
+            <p><strong>Administrador:</strong></p>
+            <ul>
+                <li>Username: <code>admin</code></li>
+                <li>Senha: <code>123456</code></li>
+            </ul>
+            
+            <p><strong>Gestor:</strong></p>
+            <ul>
+                <li>Username: <code>roberto.alves</code></li>
+                <li>Senha: <code>123456</code></li>
+            </ul>
+            
+            <p><strong>Professor:</strong></p>
+            <ul>
+                <li>Username: <code>maria.silva</code></li>
+                <li>Senha: <code>123456</code></li>
+            </ul>
+            
+            <p><strong>Outros Professores:</strong></p>
+            <ul>
+                <li><code>joao.santos</code> / <code>123456</code></li>
+                <li><code>ana.costa</code> / <code>123456</code></li>
+                <li><code>pedro.oliveira</code> / <code>123456</code></li>
+                <li><code>carla.mendes</code> / <code>123456</code></li>
+            </ul>
+        </div>
+        
+        <div class="success">
+            <h3>✅ Após Executar</h3>
+            <p>Você poderá testar todas as funcionalidades do sistema com dados realistas, incluindo:</p>
+            <ul>
+                <li>Gestão de alunos, professores, turmas</li>
+                <li>Lançamento de notas e frequências</li>
+                <li>Criação de planos de aula</li>
+                <li>Relatórios pedagógicos</li>
+                <li>E muito mais!</li>
+            </ul>
+        </div>
+        
+        <p style="margin-top: 30px; color: #666; font-size: 14px;">
+            <strong>Arquivos disponíveis:</strong><br>
+            • <code>popular_banco_teste.sql</code> - Script SQL completo<br>
+            • <code>executar_popular_banco.php</code> - Script PHP para execução<br>
+            • <code>README_POPULAR_BANCO.md</code> - Documentação completa
+        </p>
+    </div>
+</body>
+</html>
+
