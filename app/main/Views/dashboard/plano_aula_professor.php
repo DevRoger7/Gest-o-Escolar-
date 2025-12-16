@@ -191,8 +191,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao'])) {
                 // Se não encontrar disciplinas, criar plano sem disciplina
                 if (empty($disciplinas)) {
                 $dadosPlano = [
-                        'turma_id' => $turmaId,
-                        'disciplina_id' => null,
+                    'turma_id' => $turmaId,
+                    'disciplina_id' => null,
                     'professor_id' => $professorId,
                     'titulo' => $dados['titulo'] ?? 'Plano de Aula',
                     'conteudo' => $dados['conteudo'] ?? null,
@@ -200,9 +200,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao'])) {
                     'metodologia' => $dados['metodologia'] ?? null,
                     'recursos' => $dados['recursos'] ?? null,
                     'avaliacao' => $dados['avaliacao'] ?? null,
+                    'atividades_flexibilizadas' => $dados['atividades_flexibilizadas'] ?? null,
                     'data_aula' => $dados['data_aula'],
                     'bimestre' => $dados['bimestre'] ?? null,
-                    'observacoes' => $dados['observacoes'] ?? null
+                    'observacoes' => $dados['observacoes'] ?? null,
+                    'observacoes_complementares' => $dados['observacoes_complementares'] ?? null,
+                    'secoes_temas' => $dados['secoes_temas'] ?? null,
+                    'atividade_permanente' => $dados['atividade_permanente'] ?? null,
+                    'habilidades' => $dados['habilidades'] ?? null,
+                    'competencias_socioemocionais' => $dados['competencias_socioemocionais'] ?? null,
+                    'competencias_especificas' => $dados['competencias_especificas'] ?? null,
+                    'competencias_gerais' => $dados['competencias_gerais'] ?? null,
+                    'disciplinas_componentes' => $dados['disciplinas_componentes'] ?? null
                 ];
                 
                 $resultado = $planoAulaModel->criar($dadosPlano);
@@ -222,9 +231,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao'])) {
                             'metodologia' => $dados['metodologia'] ?? null,
                             'recursos' => $dados['recursos'] ?? null,
                             'avaliacao' => $dados['avaliacao'] ?? null,
+                            'atividades_flexibilizadas' => $dados['atividades_flexibilizadas'] ?? null,
                             'data_aula' => $dados['data_aula'],
                             'bimestre' => $dados['bimestre'] ?? null,
-                            'observacoes' => $dados['observacoes'] ?? null
+                            'observacoes' => $dados['observacoes'] ?? null,
+                            'observacoes_complementares' => $dados['observacoes_complementares'] ?? null,
+                            'secoes_temas' => $dados['secoes_temas'] ?? null,
+                            'atividade_permanente' => $dados['atividade_permanente'] ?? null,
+                            'habilidades' => $dados['habilidades'] ?? null,
+                            'competencias_socioemocionais' => $dados['competencias_socioemocionais'] ?? null,
+                            'competencias_especificas' => $dados['competencias_especificas'] ?? null,
+                            'competencias_gerais' => $dados['competencias_gerais'] ?? null,
+                            'disciplinas_componentes' => $dados['disciplinas_componentes'] ?? null
                         ];
                         
                         $resultado = $planoAulaModel->criar($dadosPlano);
@@ -514,6 +532,35 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['acao'])) {
         } catch (Exception $e) {
             error_log("ERRO ao buscar habilidades: " . $e->getMessage());
             echo json_encode(['success' => false, 'message' => 'Erro ao buscar habilidades: ' . $e->getMessage()]);
+        }
+        exit;
+    }
+    
+    if ($_GET['acao'] === 'buscar_plano') {
+        $planoId = $_GET['plano_id'] ?? null;
+        
+        if (empty($planoId)) {
+            echo json_encode(['success' => false, 'message' => 'ID do plano não fornecido']);
+            exit;
+        }
+        
+        try {
+            $plano = $planoAulaModel->buscarPorId($planoId);
+            
+            if (!$plano) {
+                echo json_encode(['success' => false, 'message' => 'Plano de aula não encontrado']);
+                exit;
+            }
+            
+            // Verificar se o plano pertence ao professor logado
+            if ($plano['professor_id'] != $professorId) {
+                echo json_encode(['success' => false, 'message' => 'Você não tem permissão para visualizar este plano']);
+                exit;
+            }
+            
+            echo json_encode(['success' => true, 'plano' => $plano]);
+        } catch (Exception $e) {
+            echo json_encode(['success' => false, 'message' => 'Erro ao buscar plano: ' . $e->getMessage()]);
         }
         exit;
     }
@@ -1333,6 +1380,177 @@ if ($professorId) {
         </div>
     </div>
     
+    <!-- Modal Visualizar Plano Completo -->
+    <div id="modal-ver-plano" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden items-center justify-center p-4" style="display: none;">
+        <div class="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+            <!-- Header -->
+            <div class="bg-primary-green text-white px-6 py-4 flex-shrink-0">
+                <div class="flex justify-between items-center">
+                    <h3 id="modal-ver-plano-titulo" class="text-2xl font-bold">Plano de Aula</h3>
+                    <button onclick="fecharModalVerPlano()" class="text-white hover:text-gray-200 transition-colors">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Conteúdo Scrollável -->
+            <div class="flex-1 overflow-y-auto p-6">
+                <!-- Informações Básicas -->
+                <div class="grid grid-cols-2 md:grid-cols-3 gap-4 mb-6">
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-1">Data da Aula</label>
+                        <p id="modal-ver-plano-data" class="text-gray-900">-</p>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-1">Escola</label>
+                        <p id="modal-ver-plano-escola" class="text-gray-900">-</p>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-1">Turma</label>
+                        <p id="modal-ver-plano-turma" class="text-gray-900">-</p>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-1">Disciplina</label>
+                        <p id="modal-ver-plano-disciplina" class="text-gray-900">-</p>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-1">Professor</label>
+                        <p id="modal-ver-plano-professor" class="text-gray-900">-</p>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-1">Bimestre</label>
+                        <p id="modal-ver-plano-bimestre" class="text-gray-900">-</p>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-1">Status</label>
+                        <span id="modal-ver-plano-status" class="inline-block px-3 py-1 rounded-full text-xs font-semibold bg-gray-100 text-gray-800">-</span>
+                    </div>
+                </div>
+                
+                <div class="border-t border-gray-200 pt-6 space-y-6">
+                    <!-- Conteúdo -->
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-2">Conteúdo</label>
+                        <div id="modal-ver-plano-conteudo" class="bg-gray-50 rounded-lg p-4 text-gray-900 whitespace-pre-wrap min-h-[80px]">-</div>
+                    </div>
+                    
+                    <!-- Objetivos -->
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-2">Objetivo(s) da Aula</label>
+                        <div id="modal-ver-plano-objetivos" class="bg-gray-50 rounded-lg p-4 text-gray-900 whitespace-pre-wrap min-h-[80px]">-</div>
+                    </div>
+                    
+                    <!-- Metodologia -->
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-2">Metodologia</label>
+                        <div id="modal-ver-plano-metodologia" class="bg-gray-50 rounded-lg p-4 text-gray-900 whitespace-pre-wrap min-h-[80px]">-</div>
+                    </div>
+                    
+                    <!-- Recursos -->
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-2">Recursos</label>
+                        <div id="modal-ver-plano-recursos" class="bg-gray-50 rounded-lg p-4 text-gray-900 whitespace-pre-wrap min-h-[80px]">-</div>
+                    </div>
+                    
+                    <!-- Avaliação -->
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-2">Avaliação</label>
+                        <div id="modal-ver-plano-avaliacao" class="bg-gray-50 rounded-lg p-4 text-gray-900 whitespace-pre-wrap min-h-[80px]">-</div>
+                    </div>
+                    
+                    <!-- Atividades Flexibilizadas -->
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-2">Atividades Flexibilizadas</label>
+                        <div id="modal-ver-plano-atividades-flexibilizadas" class="bg-gray-50 rounded-lg p-4 text-gray-900 whitespace-pre-wrap min-h-[80px]">-</div>
+                    </div>
+                    
+                    <!-- Observações -->
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-2">Observações</label>
+                        <div id="modal-ver-plano-observacoes" class="bg-gray-50 rounded-lg p-4 text-gray-900 whitespace-pre-wrap min-h-[80px]">-</div>
+                    </div>
+                    
+                    <!-- Observações Complementares -->
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-2">Observações Complementares</label>
+                        <div id="modal-ver-plano-observacoes-complementares" class="bg-gray-50 rounded-lg p-4 text-gray-900 whitespace-pre-wrap min-h-[80px]">-</div>
+                    </div>
+                    
+                    <!-- Seções e Temas -->
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-2">Seções e Temas</label>
+                        <div id="modal-ver-plano-secoes-temas" class="bg-gray-50 rounded-lg p-4 text-gray-900 whitespace-pre-wrap min-h-[80px]">-</div>
+                    </div>
+                    
+                    <!-- Atividade Permanente -->
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-2">Atividade Permanente</label>
+                        <div id="modal-ver-plano-atividade-permanente" class="bg-gray-50 rounded-lg p-4 text-gray-900 whitespace-pre-wrap min-h-[80px]">-</div>
+                    </div>
+                    
+                    <!-- Habilidades -->
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-2">Habilidades</label>
+                        <div id="modal-ver-plano-habilidades" class="bg-gray-50 rounded-lg p-4 text-gray-900 whitespace-pre-wrap min-h-[80px]">-</div>
+                    </div>
+                    
+                    <!-- Competências Socioemocionais -->
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-2">Competências Socioemocionais</label>
+                        <div id="modal-ver-plano-competencias-socioemocionais" class="bg-gray-50 rounded-lg p-4 text-gray-900 whitespace-pre-wrap min-h-[80px]">-</div>
+                    </div>
+                    
+                    <!-- Competências Específicas -->
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-2">Competências Específicas</label>
+                        <div id="modal-ver-plano-competencias-especificas" class="bg-gray-50 rounded-lg p-4 text-gray-900 whitespace-pre-wrap min-h-[80px]">-</div>
+                    </div>
+                    
+                    <!-- Competências Gerais -->
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-2">Competências Gerais</label>
+                        <div id="modal-ver-plano-competencias-gerais" class="bg-gray-50 rounded-lg p-4 text-gray-900 whitespace-pre-wrap min-h-[80px]">-</div>
+                    </div>
+                    
+                    <!-- Componentes Curriculares -->
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-2">Componentes Curriculares</label>
+                        <div id="modal-ver-plano-disciplinas-componentes" class="bg-gray-50 rounded-lg p-4 text-gray-900 whitespace-pre-wrap min-h-[80px]">-</div>
+                    </div>
+                </div>
+                
+                <!-- Informações do Sistema -->
+                <div class="border-t border-gray-200 pt-6 mt-6">
+                    <h4 class="text-sm font-semibold text-gray-700 mb-3">Informações do Sistema</h4>
+                    <div class="grid grid-cols-2 gap-4 text-sm">
+                        <div>
+                            <label class="block text-gray-600 mb-1">Aprovado por:</label>
+                            <p id="modal-ver-plano-aprovado-por" class="text-gray-900">-</p>
+                        </div>
+                        <div>
+                            <label class="block text-gray-600 mb-1">Data de Aprovação:</label>
+                            <p id="modal-ver-plano-data-aprovacao" class="text-gray-900">-</p>
+                        </div>
+                        <div>
+                            <label class="block text-gray-600 mb-1">Criado em:</label>
+                            <p id="modal-ver-plano-criado-em" class="text-gray-900">-</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Footer -->
+            <div class="bg-gray-50 px-6 py-4 flex-shrink-0 border-t border-gray-200 flex justify-end">
+                <button onclick="fecharModalVerPlano()" 
+                        class="px-6 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-lg font-medium transition-colors">
+                    Fechar
+                </button>
+            </div>
+        </div>
+    </div>
+    
     <script>
         const turmasProfessor = <?= json_encode($turmasProfessor) ?>;
         const escolas = <?= json_encode(array_values($escolas)) ?>;
@@ -1864,25 +2082,69 @@ if ($professorId) {
             // Limpar o select
             selectHabilidade.innerHTML = '<option value="">Selecione uma habilidade</option>';
             
-            // Por enquanto, vamos usar dados estáticos baseados no nível de ensino
-            // Você pode criar uma tabela no banco de dados para armazenar as habilidades
+            // Verificar se a disciplina selecionada é Português
+            const disciplinaSelecionada = disciplinasComponente.find(d => d.id == disciplinaId);
+            const isPortugues = disciplinaSelecionada && (
+                disciplinaSelecionada.nome.toLowerCase().includes('português') ||
+                disciplinaSelecionada.nome.toLowerCase().includes('portugues') ||
+                disciplinaSelecionada.nome.toLowerCase().includes('língua portuguesa') ||
+                disciplinaSelecionada.nome.toLowerCase().includes('lingua portuguesa')
+            );
+            
             let habilidadesDisponiveis = [];
             
-            // Exemplo de habilidades por nível (você precisará adaptar isso com dados reais do banco)
-            if (nivelEnsino === 'EDUCACAO_INFANTIL') {
+            // Habilidades apenas para Português - Ensino Fundamental Anos Iniciais
+            if (nivelEnsino === 'ENSINO_FUNDAMENTAL_ANOS_INICIAIS' && isPortugues) {
                 habilidadesDisponiveis = [
-                    { id: 'EI-1', nome: 'HABILIDADE EXEMPLO PARA EDUCAÇÃO INFANTIL 1' },
-                    { id: 'EI-2', nome: 'HABILIDADE EXEMPLO PARA EDUCAÇÃO INFANTIL 2' }
+                    { id: 'EF01LP01', nome: 'EF01LP01 - Reconhecer que textos são lidos e escritos da esquerda para a direita e de cima para baixo da página.' },
+                    { id: 'EF01LP02', nome: 'EF01LP02 - Ler palavras formadas por sílabas canônicas (consoante + vogal).' },
+                    { id: 'EF01LP03', nome: 'EF01LP03 - Ler palavras com correspondências regulares diretas entre letras e fonemas (P, B, T, D, F, V).' },
+                    { id: 'EF01LP04', nome: 'EF01LP04 - Ler palavras formadas por sílabas CV, V, CVC, CVV, identificando fonemas e suas correspondências com letras.' },
+                    { id: 'EF01LP05', nome: 'EF01LP05 - Ler e compreender, em colaboração com os colegas e com a ajuda do professor, palavras, frases, textos curtos e diferentes gêneros textuais (parlendas, cantigas, contos, poemas, receitas, quadrinhos, anúncios etc.), de forma significativa, em situações de leitura compartilhada.' },
+                    { id: 'EF01LP06', nome: 'EF01LP06 - Relacionar texto com ilustrações e outros recursos gráficos.' },
+                    { id: 'EF01LP07', nome: 'EF01LP07 - Identificar o assunto de um texto, apoiando-se em imagens e informações do texto.' },
+                    { id: 'EF01LP08', nome: 'EF01LP08 - Localizar informações explícitas em textos.' },
+                    { id: 'EF01LP09', nome: 'EF01LP09 - Ler e compreender, com autonomia, textos, de diferentes gêneros, com diferentes propósitos, em diferentes suportes.' },
+                    { id: 'EF01LP10', nome: 'EF01LP10 - Ler e compreender, em colaboração com os colegas e com a ajuda do professor, textos narrativos de maior porte como contos (populares, de fadas, acumulativos, de assombração etc.) e crônicas.' },
+                    { id: 'EF02LP01', nome: 'EF02LP01 - Ler e escrever palavras formadas por sílabas canônicas, reconhecendo que nem sempre há correspondência biunívoca entre letra e fonema.' },
+                    { id: 'EF02LP02', nome: 'EF02LP02 - Ler e escrever corretamente palavras com sílabas CV, V, CVV, CVC, mesmo que ainda não sejam palavras de uso frequente.' },
+                    { id: 'EF02LP03', nome: 'EF02LP03 - Ler e escrever palavras com correspondências regulares contextuais entre grafemas e fonemas (R/ RR, S/SS, M antes de P e B, X em início de palavra).' },
+                    { id: 'EF02LP04', nome: 'EF02LP04 - Ler e escrever corretamente palavras com sílabas CV, V, CVV, CVC, mesmo que ainda não sejam palavras de uso frequente.' },
+                    { id: 'EF02LP05', nome: 'EF02LP05 - Ler e compreender, em colaboração com os colegas e com a ajuda do professor, textos narrativos de maior porte como contos (populares, de fadas, acumulativos, de assombração etc.) e crônicas.' },
+                    { id: 'EF02LP06', nome: 'EF02LP06 - Ler e compreender, com autonomia, textos, de diferentes gêneros, com diferentes propósitos, em diferentes suportes.' },
+                    { id: 'EF02LP07', nome: 'EF02LP07 - Identificar o assunto de um texto, apoiando-se em imagens e informações do texto.' },
+                    { id: 'EF02LP08', nome: 'EF02LP08 - Localizar informações explícitas em textos.' },
+                    { id: 'EF03LP01', nome: 'EF03LP01 - Ler e escrever palavras com correspondências regulares contextuais entre grafemas e fonemas (R/ RR, S/SS, M antes de P e B, X em início de palavra).' },
+                    { id: 'EF03LP02', nome: 'EF03LP02 - Ler e escrever palavras com correspondências regulares contextuais entre grafemas e fonemas (R/ RR, S/SS, M antes de P e B, X em início de palavra).' },
+                    { id: 'EF03LP03', nome: 'EF03LP03 - Ler e compreender, em colaboração com os colegas e com a ajuda do professor, textos narrativos de maior porte como contos (populares, de fadas, acumulativos, de assombração etc.) e crônicas.' },
+                    { id: 'EF03LP04', nome: 'EF03LP04 - Ler e compreender, com autonomia, textos, de diferentes gêneros, com diferentes propósitos, em diferentes suportes.' },
+                    { id: 'EF03LP05', nome: 'EF03LP05 - Identificar o assunto de um texto, apoiando-se em imagens e informações do texto.' },
+                    { id: 'EF03LP06', nome: 'EF03LP06 - Localizar informações explícitas em textos.' },
+                    { id: 'EF04LP01', nome: 'EF04LP01 - Ler e escrever, com autonomia, textos de diferentes gêneros, com diferentes propósitos, em diferentes suportes.' },
+                    { id: 'EF04LP02', nome: 'EF04LP02 - Ler e compreender textos de diferentes gêneros, com diferentes propósitos, em diferentes suportes.' },
+                    { id: 'EF04LP03', nome: 'EF04LP03 - Identificar o assunto de um texto, apoiando-se em imagens e informações do texto.' },
+                    { id: 'EF04LP04', nome: 'EF04LP04 - Localizar informações explícitas em textos.' },
+                    { id: 'EF04LP05', nome: 'EF04LP05 - Inferir informações implícitas nos textos, com base em suas vivências, conhecimentos prévios e pistas dadas pelo texto.' },
+                    { id: 'EF05LP01', nome: 'EF05LP01 - Ler e escrever, com autonomia, textos de diferentes gêneros, com diferentes propósitos, em diferentes suportes.' },
+                    { id: 'EF05LP02', nome: 'EF05LP02 - Ler e compreender textos de diferentes gêneros, com diferentes propósitos, em diferentes suportes.' },
+                    { id: 'EF05LP03', nome: 'EF05LP03 - Identificar o assunto de um texto, apoiando-se em imagens e informações do texto.' },
+                    { id: 'EF05LP04', nome: 'EF05LP04 - Localizar informações explícitas em textos.' },
+                    { id: 'EF05LP05', nome: 'EF05LP05 - Inferir informações implícitas nos textos, com base em suas vivências, conhecimentos prévios e pistas dadas pelo texto.' }
                 ];
-            } else if (nivelEnsino === 'ENSINO_FUNDAMENTAL_ANOS_INICIAIS') {
+            } else if (nivelEnsino === 'EDUCACAO_INFANTIL') {
                 habilidadesDisponiveis = [
-                    { id: 'EF1-1', nome: 'HABILIDADE EXEMPLO PARA ANOS INICIAIS 1' },
-                    { id: 'EF1-2', nome: 'HABILIDADE EXEMPLO PARA ANOS INICIAIS 2' }
+                    { id: 'EI-EXEMPLO-1', nome: 'HABILIDADE EXEMPLO PARA EDUCAÇÃO INFANTIL 1 (aguardando alimentação do banco)' },
+                    { id: 'EI-EXEMPLO-2', nome: 'HABILIDADE EXEMPLO PARA EDUCAÇÃO INFANTIL 2 (aguardando alimentação do banco)' }
                 ];
             } else if (nivelEnsino === 'ENSINO_FUNDAMENTAL_ANOS_FINAIS') {
                 habilidadesDisponiveis = [
-                    { id: 'EF2-1', nome: 'HABILIDADE EXEMPLO PARA ANOS FINAIS 1' },
-                    { id: 'EF2-2', nome: 'HABILIDADE EXEMPLO PARA ANOS FINAIS 2' }
+                    { id: 'EF2-EXEMPLO-1', nome: 'HABILIDADE EXEMPLO PARA ANOS FINAIS 1 (aguardando alimentação do banco)' },
+                    { id: 'EF2-EXEMPLO-2', nome: 'HABILIDADE EXEMPLO PARA ANOS FINAIS 2 (aguardando alimentação do banco)' }
+                ];
+            } else if (!isPortugues) {
+                // Se não for português, mostrar mensagem
+                habilidadesDisponiveis = [
+                    { id: 'AGUARDANDO-1', nome: 'Habilidades para esta disciplina ainda não foram cadastradas no sistema. Aguardando alimentação do banco de dados.' }
                 ];
             }
             
@@ -1897,7 +2159,7 @@ if ($professorId) {
                 });
                 selectHabilidade.disabled = false;
             } else {
-                selectHabilidade.innerHTML = '<option value="">Nenhuma habilidade disponível para este nível</option>';
+                selectHabilidade.innerHTML = '<option value="">Nenhuma habilidade disponível para este nível e disciplina</option>';
                 selectHabilidade.disabled = true;
             }
         }
@@ -2402,18 +2664,27 @@ if ($professorId) {
                 return;
             }
             
+            // Coletar todos os dados do formulário
             const dados = {
                 data_aula: document.getElementById('data-aula').value,
                 turmas: turmasSelecionadas,
                 titulo: document.getElementById('titulo-plano').value || 'Plano de Aula',
-                conteudo: document.getElementById('conteudo-plano').value,
-                objetivos: document.getElementById('objetivos-plano').value,
-                metodologia: document.getElementById('metodologia-plano').value,
-                recursos: document.getElementById('recursos-plano').value,
-                avaliacao: document.getElementById('avaliacao-plano').value,
-                atividades_flexibilizadas: document.getElementById('atividades-flexibilizadas').value,
-                bimestre: document.getElementById('bimestre-plano').value,
-                observacoes: document.getElementById('observacoes-plano').value
+                conteudo: document.getElementById('conteudo-plano').value || null,
+                objetivos: document.getElementById('objetivos-plano').value || null,
+                metodologia: document.getElementById('metodologia-plano').value || null,
+                recursos: document.getElementById('recursos-plano').value || null,
+                avaliacao: document.getElementById('avaliacao-plano').value || null,
+                atividades_flexibilizadas: document.getElementById('atividades-flexibilizadas').value || null,
+                bimestre: document.getElementById('bimestre-plano').value || null,
+                observacoes: document.getElementById('observacoes-plano').value || null,
+                observacoes_complementares: document.getElementById('observacoes-complementares').value || null,
+                secoes_temas: document.getElementById('secoes-temas').value || null,
+                atividade_permanente: JSON.stringify(atividadesPermanentes),
+                habilidades: JSON.stringify(habilidades),
+                competencias_socioemocionais: JSON.stringify(competenciasSocioemocionais),
+                competencias_especificas: JSON.stringify(competenciasEspecificas),
+                competencias_gerais: JSON.stringify(competenciasGerais),
+                disciplinas_componentes: JSON.stringify(disciplinasComponente)
             };
             
             const formData = new FormData();
@@ -2448,8 +2719,105 @@ if ($professorId) {
             }
         }
         
-        function visualizarPlano(id) {
-            alert('Funcionalidade de visualização será implementada. ID: ' + id);
+        async function visualizarPlano(id) {
+            try {
+                const response = await fetch(`?acao=buscar_plano&plano_id=${id}`);
+                const data = await response.json();
+                
+                if (!data.success) {
+                    alert('Erro ao carregar plano: ' + (data.message || 'Erro desconhecido'));
+                    return;
+                }
+                
+                const plano = data.plano;
+                
+                // Preencher modal com os dados
+                document.getElementById('modal-ver-plano-titulo').textContent = plano.titulo || 'Plano de Aula';
+                document.getElementById('modal-ver-plano-data').textContent = new Date(plano.data_aula).toLocaleDateString('pt-BR');
+                document.getElementById('modal-ver-plano-escola').textContent = plano.escola_nome || '-';
+                document.getElementById('modal-ver-plano-turma').textContent = plano.turma_nome || '-';
+                document.getElementById('modal-ver-plano-disciplina').textContent = plano.disciplina_nome || '-';
+                document.getElementById('modal-ver-plano-professor').textContent = plano.professor_nome || '-';
+                document.getElementById('modal-ver-plano-bimestre').textContent = plano.bimestre ? `${plano.bimestre}º Bimestre` : '-';
+                document.getElementById('modal-ver-plano-status').textContent = plano.status || 'RASCUNHO';
+                
+                // Status com cor
+                const statusElement = document.getElementById('modal-ver-plano-status');
+                statusElement.className = 'px-3 py-1 rounded-full text-xs font-semibold ';
+                switch(plano.status) {
+                    case 'APROVADO':
+                        statusElement.className += 'bg-green-100 text-green-800';
+                        break;
+                    case 'APLICADO':
+                        statusElement.className += 'bg-blue-100 text-blue-800';
+                        break;
+                    case 'CANCELADO':
+                        statusElement.className += 'bg-red-100 text-red-800';
+                        break;
+                    default:
+                        statusElement.className += 'bg-gray-100 text-gray-800';
+                }
+                
+                // Função auxiliar para formatar JSON arrays
+                function formatarLista(jsonString) {
+                    if (!jsonString) return 'Não informado';
+                    try {
+                        const lista = JSON.parse(jsonString);
+                        if (Array.isArray(lista) && lista.length > 0) {
+                            return lista.map(item => {
+                                if (typeof item === 'object' && item.nome) {
+                                    return item.nome;
+                                }
+                                return item;
+                            }).join(', ');
+                        }
+                        return 'Não informado';
+                    } catch (e) {
+                        // Se não for JSON válido, retornar como texto
+                        return jsonString || 'Não informado';
+                    }
+                }
+                
+                // Campos de texto
+                document.getElementById('modal-ver-plano-conteudo').textContent = plano.conteudo || 'Não informado';
+                document.getElementById('modal-ver-plano-objetivos').textContent = plano.objetivos || 'Não informado';
+                document.getElementById('modal-ver-plano-metodologia').textContent = plano.metodologia || 'Não informado';
+                document.getElementById('modal-ver-plano-recursos').textContent = plano.recursos || 'Não informado';
+                document.getElementById('modal-ver-plano-avaliacao').textContent = plano.avaliacao || 'Não informado';
+                document.getElementById('modal-ver-plano-atividades-flexibilizadas').textContent = plano.atividades_flexibilizadas || 'Não informado';
+                document.getElementById('modal-ver-plano-observacoes').textContent = plano.observacoes || 'Não informado';
+                document.getElementById('modal-ver-plano-observacoes-complementares').textContent = plano.observacoes_complementares || 'Não informado';
+                document.getElementById('modal-ver-plano-secoes-temas').textContent = plano.secoes_temas || 'Não informado';
+                document.getElementById('modal-ver-plano-atividade-permanente').textContent = formatarLista(plano.atividade_permanente);
+                document.getElementById('modal-ver-plano-habilidades').textContent = formatarLista(plano.habilidades);
+                document.getElementById('modal-ver-plano-competencias-socioemocionais').textContent = formatarLista(plano.competencias_socioemocionais);
+                document.getElementById('modal-ver-plano-competencias-especificas').textContent = formatarLista(plano.competencias_especificas);
+                document.getElementById('modal-ver-plano-competencias-gerais').textContent = formatarLista(plano.competencias_gerais);
+                document.getElementById('modal-ver-plano-disciplinas-componentes').textContent = formatarLista(plano.disciplinas_componentes);
+                
+                // Informações adicionais
+                if (plano.aprovado_por_nome) {
+                    document.getElementById('modal-ver-plano-aprovado-por').textContent = plano.aprovado_por_nome;
+                    document.getElementById('modal-ver-plano-data-aprovacao').textContent = plano.data_aprovacao ? new Date(plano.data_aprovacao).toLocaleString('pt-BR') : '-';
+                } else {
+                    document.getElementById('modal-ver-plano-aprovado-por').textContent = '-';
+                    document.getElementById('modal-ver-plano-data-aprovacao').textContent = '-';
+                }
+                
+                document.getElementById('modal-ver-plano-criado-em').textContent = plano.criado_em ? new Date(plano.criado_em).toLocaleString('pt-BR') : '-';
+                
+                // Abrir modal
+                document.getElementById('modal-ver-plano').classList.remove('hidden');
+                document.getElementById('modal-ver-plano').style.display = 'flex';
+            } catch (error) {
+                console.error('Erro ao carregar plano:', error);
+                alert('Erro ao carregar plano. Por favor, tente novamente.');
+            }
+        }
+        
+        function fecharModalVerPlano() {
+            document.getElementById('modal-ver-plano').classList.add('hidden');
+            document.getElementById('modal-ver-plano').style.display = 'none';
         }
         
         function editarPlano(id) {
@@ -2524,9 +2892,12 @@ if ($professorId) {
             tbody.innerHTML = planos.map(plano => `
                 <tr class="hover:bg-gray-50 ${planos.indexOf(plano) % 2 === 0 ? 'bg-white' : 'bg-gray-50'}">
                     <td class="px-6 py-4 whitespace-nowrap">
-                        <button onclick="abrirMenuAcoes(${plano.id})" class="text-blue-600 hover:text-blue-800">
+                        <button onclick="visualizarPlano(${plano.id})" 
+                                class="text-blue-600 hover:text-blue-800 transition-colors" 
+                                title="Visualizar plano completo">
                             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z"></path>
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
                             </svg>
                         </button>
                     </td>
