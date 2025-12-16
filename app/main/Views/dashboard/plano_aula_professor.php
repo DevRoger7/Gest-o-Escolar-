@@ -211,7 +211,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao'])) {
                     'observacoes' => $dados['observacoes'] ?? null,
                     'observacoes_complementares' => $dados['observacoes_complementares'] ?? null,
                     'secoes_temas' => $dados['secoes_temas'] ?? null,
-                    'atividade_permanente' => $dados['atividade_permanente'] ?? null,
                     'habilidades' => $dados['habilidades'] ?? null,
                     'competencias_socioemocionais' => $dados['competencias_socioemocionais'] ?? null,
                     'competencias_especificas' => $dados['competencias_especificas'] ?? null,
@@ -242,7 +241,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao'])) {
                             'observacoes' => $dados['observacoes'] ?? null,
                             'observacoes_complementares' => $dados['observacoes_complementares'] ?? null,
                             'secoes_temas' => $dados['secoes_temas'] ?? null,
-                            'atividade_permanente' => $dados['atividade_permanente'] ?? null,
                             'habilidades' => $dados['habilidades'] ?? null,
                             'competencias_socioemocionais' => $dados['competencias_socioemocionais'] ?? null,
                             'competencias_especificas' => $dados['competencias_especificas'] ?? null,
@@ -477,7 +475,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['acao'])) {
                 exit;
             }
             
-            // Determinar o nível de ensino baseado na série
+            // Determinar o nível de ensino baseado na série (opcional, para informações adicionais)
             $nivelEnsino = null;
             $serieOrdem = $turma['serie_ordem'] ?? null;
             $serieNome = $turma['serie'] ?? '';
@@ -502,24 +500,236 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['acao'])) {
                 }
             }
             
-            if (!$nivelEnsino) {
-                echo json_encode(['success' => false, 'message' => 'Não foi possível determinar o nível de ensino da turma']);
+            // Extrair número do ano/série (mais importante que o nível de ensino)
+            $numeroAno = null;
+            if ($serieOrdem !== null && $serieOrdem > 0 && $serieOrdem <= 9) {
+                // Validar que serie_ordem está no range válido (1-9)
+                $numeroAno = (int)$serieOrdem;
+            } elseif (!empty($serieNome)) {
+                // Priorizar extração do número do ordinal (1º, 2º, etc) no início da string
+                // Exemplos: "1º Ano", "1º", "1", "Primeiro Ano", etc.
+                
+                // Primeiro, tentar pegar o número do ordinal no início (mais confiável)
+                if (preg_match('/^([1-9])º/', trim($serieNome), $matches)) {
+                    $numeroAno = (int)$matches[1];
+                } 
+                // Se não encontrar, tentar nomes por extenso
+                elseif (preg_match('/^PRIMEIRO|^1º|^1\s/', strtoupper(trim($serieNome)))) {
+                    $numeroAno = 1;
+                } elseif (preg_match('/^SEGUNDO|^2º|^2\s/', strtoupper(trim($serieNome)))) {
+                    $numeroAno = 2;
+                } elseif (preg_match('/^TERCEIRO|^3º|^3\s/', strtoupper(trim($serieNome)))) {
+                    $numeroAno = 3;
+                } elseif (preg_match('/^QUARTO|^4º|^4\s/', strtoupper(trim($serieNome)))) {
+                    $numeroAno = 4;
+                } elseif (preg_match('/^QUINTO|^5º|^5\s/', strtoupper(trim($serieNome)))) {
+                    $numeroAno = 5;
+                } elseif (preg_match('/^SEXTO|^6º|^6\s/', strtoupper(trim($serieNome)))) {
+                    $numeroAno = 6;
+                } elseif (preg_match('/^SETIMO|^SÉTIMO|^7º|^7\s/', strtoupper(trim($serieNome)))) {
+                    $numeroAno = 7;
+                } elseif (preg_match('/^OITAVO|^8º|^8\s/', strtoupper(trim($serieNome)))) {
+                    $numeroAno = 8;
+                } elseif (preg_match('/^NONO|^9º|^9\s/', strtoupper(trim($serieNome)))) {
+                    $numeroAno = 9;
+                }
+                // Por último, tentar pegar o primeiro número de 1 a 9 (evitar pegar 10, 11, etc)
+                elseif (preg_match('/\b([1-9])\b/', $serieNome, $matches)) {
+                    $numeroAno = (int)$matches[1];
+                }
+            }
+            
+            // Validar que o número do ano está no range válido (1-9)
+            if ($numeroAno !== null && ($numeroAno < 1 || $numeroAno > 9)) {
+                error_log("AVISO: Número do ano inválido detectado: $numeroAno (serie_ordem: $serieOrdem, serie_nome: $serieNome)");
+                $numeroAno = null; // Resetar para forçar nova tentativa
+                
+                // Tentar extrair novamente apenas do nome da série, ignorando serie_ordem
+                if (!empty($serieNome)) {
+                    if (preg_match('/^([1-9])º/', trim($serieNome), $matches)) {
+                        $numeroAno = (int)$matches[1];
+                    }
+                }
+            }
+            
+            // Se não conseguimos extrair o número do ano, não podemos buscar habilidades
+            if (!$numeroAno) {
+                echo json_encode([
+                    'success' => false, 
+                    'message' => 'Não foi possível identificar o ano/série da turma. Verifique se a série está cadastrada corretamente.',
+                    'debug' => [
+                        'serie_ordem' => $serieOrdem,
+                        'serie_nome' => $serieNome,
+                        'nivel_ensino' => $turma['nivel_ensino'] ?? null
+                    ]
+                ]);
                 exit;
             }
             
-            // Buscar habilidades baseadas no nível de ensino e disciplina
-            // Assumindo que existe uma tabela de habilidades (se não existir, precisaremos criá-la)
-            // Por enquanto, vamos retornar uma estrutura vazia e o frontend pode usar dados estáticos
-            $habilidades = [];
+            // Buscar informações da disciplina se fornecida
+            $codigoDisciplinaBNCC = null;
+            if ($disciplinaId) {
+                $sqlDisciplina = "SELECT id, codigo, nome FROM disciplina WHERE id = :disciplina_id AND ativo = 1 LIMIT 1";
+                $stmtDisciplina = $conn->prepare($sqlDisciplina);
+                $stmtDisciplina->bindParam(':disciplina_id', $disciplinaId, PDO::PARAM_INT);
+                $stmtDisciplina->execute();
+                $disciplina = $stmtDisciplina->fetch(PDO::FETCH_ASSOC);
+                
+                if ($disciplina) {
+                    // Mapear código da disciplina para código BNCC
+                    $nomeDisciplina = strtoupper($disciplina['nome']);
+                    $codigoDisciplina = strtoupper($disciplina['codigo'] ?? '');
+                    
+                    // Mapeamento de códigos de disciplinas para códigos BNCC
+                    $mapeamentoBNCC = [
+                        'PORT' => 'LP',
+                        'PORTUGUES' => 'LP',
+                        'LÍNGUA PORTUGUESA' => 'LP',
+                        'LINGUA PORTUGUESA' => 'LP',
+                        'MAT' => 'MA',
+                        'MATEMATICA' => 'MA',
+                        'MATEMÁTICA' => 'MA',
+                        'HIST' => 'HI',
+                        'HISTORIA' => 'HI',
+                        'HISTÓRIA' => 'HI',
+                        'GEO' => 'GE',
+                        'GEOGRAFIA' => 'GE',
+                        'CIEN' => 'CN',
+                        'CIENCIAS' => 'CN',
+                        'CIÊNCIAS' => 'CN',
+                        'ART' => 'AR',
+                        'ARTES' => 'AR',
+                        'EDF' => 'EF',
+                        'EDUCACAO FISICA' => 'EF',
+                        'EDUCAÇÃO FÍSICA' => 'EF',
+                        'ING' => 'LI',
+                        'INGLES' => 'LI',
+                        'INGLÊS' => 'LI',
+                    ];
+                    
+                    // Tentar encontrar o código BNCC
+                    if (!empty($codigoDisciplina) && isset($mapeamentoBNCC[$codigoDisciplina])) {
+                        $codigoDisciplinaBNCC = $mapeamentoBNCC[$codigoDisciplina];
+                    } elseif (isset($mapeamentoBNCC[$nomeDisciplina])) {
+                        $codigoDisciplinaBNCC = $mapeamentoBNCC[$nomeDisciplina];
+                    } else {
+                        // Tentar extrair do nome (ex: "Língua Portuguesa" → "LP")
+                        foreach ($mapeamentoBNCC as $chave => $codigo) {
+                            if (stripos($nomeDisciplina, $chave) !== false || stripos($chave, $nomeDisciplina) !== false) {
+                                $codigoDisciplinaBNCC = $codigo;
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
             
-            // Se houver uma tabela de habilidades no banco, fazer a query aqui
-            // Por enquanto, retornamos o nível identificado para o frontend processar
+            // Buscar habilidades do banco de dados
+            $habilidades = [];
+            if (!$disciplinaId) {
+                // Se não houver disciplina selecionada, retornar sucesso mas sem habilidades
+                echo json_encode([
+                    'success' => true, 
+                    'nivel_ensino' => $nivelEnsino,
+                    'serie_ordem' => $serieOrdem,
+                    'serie_nome' => $serieNome,
+                    'disciplina_id' => null,
+                    'codigo_disciplina_bncc' => null,
+                    'numero_ano' => $numeroAno,
+                    'habilidades' => [],
+                    'message' => 'Selecione uma disciplina para ver as habilidades disponíveis'
+                ]);
+                exit;
+            }
+            
+            if ($codigoDisciplinaBNCC && $numeroAno) {
+                // Verificar quais colunas existem na tabela
+                $sqlVerificarColunas = "SHOW COLUMNS FROM habilidades_bncc";
+                $stmtVerificar = $conn->prepare($sqlVerificarColunas);
+                $stmtVerificar->execute();
+                $colunas = $stmtVerificar->fetchAll(PDO::FETCH_COLUMN);
+                
+                // Determinar nome da coluna de código
+                $colunaCodigo = 'codigo_bncc';
+                if (!in_array('codigo_bncc', $colunas) && in_array('codigo', $colunas)) {
+                    $colunaCodigo = 'codigo';
+                }
+                
+                // Determinar se existe coluna ativo
+                $temColunaAtivo = in_array('ativo', $colunas);
+                
+                // Buscar habilidades que:
+                // 1. Começam com "EF" (Ensino Fundamental)
+                // 2. Contêm o número do ano na posição correta (após "EF")
+                // 3. Contêm o código da disciplina (MA, LP, etc)
+                // Exemplo: EF01MA01, EF01MA02, EF12MA01 (para 1º ano), EF69MA01 (para 6º ao 9º)
+                
+                // Construir query baseada nas colunas disponíveis
+                $sqlHabilidades = "SELECT {$colunaCodigo} as codigo, descricao 
+                                  FROM habilidades_bncc 
+                                  WHERE 1=1";
+                
+                // Adicionar filtro de ativo se a coluna existir
+                if ($temColunaAtivo) {
+                    $sqlHabilidades .= " AND ativo = 1";
+                }
+                
+                // Adicionar filtro de código
+                $sqlHabilidades .= " AND {$colunaCodigo} LIKE :padrao_disciplina";
+                $sqlHabilidades .= " ORDER BY {$colunaCodigo} ASC";
+                
+                // Padrão: EF + qualquer coisa + código disciplina + qualquer coisa
+                // Exemplo para Matemática: EF%MA%
+                $padraoDisciplina = "EF%" . $codigoDisciplinaBNCC . "%";
+                
+                $stmtHabilidades = $conn->prepare($sqlHabilidades);
+                $stmtHabilidades->bindParam(':padrao_disciplina', $padraoDisciplina);
+                $stmtHabilidades->execute();
+                $habilidadesBanco = $stmtHabilidades->fetchAll(PDO::FETCH_ASSOC);
+                
+                // Filtrar para garantir que o código contém o número do ano
+                // O padrão BNCC é: EF + número(s) do(s) ano(s) + código disciplina + número
+                // Exemplos válidos para 1º ano: EF01MA01, EF12MA01, EF15MA01
+                // Exemplos válidos para 2º ano: EF02MA01, EF12MA01, EF25MA01
+                foreach ($habilidadesBanco as $hab) {
+                    $codigo = strtoupper($hab['codigo']);
+                    
+                    // Verificar se contém o código da disciplina
+                    if (strpos($codigo, $codigoDisciplinaBNCC) === false) {
+                        continue;
+                    }
+                    
+                    // Extrair a parte numérica após "EF" e antes do código da disciplina
+                    // Exemplo: "EF01MA01" → extrair "01"
+                    if (preg_match('/^EF(\d+)/', $codigo, $matches)) {
+                        $numerosAno = $matches[1];
+                        
+                        // Verificar se o número do ano está presente
+                        // Pode ser: "01" (1º ano), "12" (1º e 2º ano), "15" (1º e 5º ano), etc
+                        // Formatar o número do ano com zero à esquerda para comparação (1 → "01", 2 → "02")
+                        $numeroAnoFormatado = str_pad((string)$numeroAno, 2, '0', STR_PAD_LEFT);
+                        
+                        // Verificar se contém o número do ano (com ou sem zero à esquerda)
+                        if (strpos($numerosAno, $numeroAnoFormatado) !== false || 
+                            strpos($numerosAno, (string)$numeroAno) !== false) {
+                            $habilidades[] = [
+                                'id' => $hab['codigo'],
+                                'codigo' => $hab['codigo'],
+                                'nome' => $hab['codigo'] . ' - ' . $hab['descricao']
+                            ];
+                        }
+                    }
+                }
+            }
+            
             echo json_encode([
                 'success' => true, 
                 'nivel_ensino' => $nivelEnsino,
                 'serie_ordem' => $serieOrdem,
                 'serie_nome' => $serieNome,
                 'disciplina_id' => $disciplinaId,
+                'codigo_disciplina_bncc' => $codigoDisciplinaBNCC,
+                'numero_ano' => $numeroAno,
                 'habilidades' => $habilidades
             ]);
         } catch (Exception $e) {
@@ -1045,8 +1255,8 @@ if ($professorId) {
                                     </div>
                                 </div>
                                 
-                                <!-- Competência Específica -->
-                                <div>
+                                <!-- Competência Específica (apenas para Português) -->
+                                <div id="secao-competencia-especifica">
                                     <label class="block text-sm font-medium text-gray-700 mb-2">Competência Específica</label>
                                     <div class="flex gap-2 mb-3">
                                         <select id="select-competencia-especifica" 
@@ -1139,50 +1349,6 @@ if ($professorId) {
                                     <textarea id="secoes-temas" rows="6" 
                                               class="w-full px-4 py-2 border border-gray-300 rounded-lg resize-y"
                                               placeholder="Descreva as seções e temas..."></textarea>
-                                </div>
-                                
-                                <!-- Atividade Permanente -->
-                                <div>
-                                    <label class="block text-sm font-medium text-gray-700 mb-2">Atividade Permanente</label>
-                                    <div class="flex gap-2 mb-3">
-                                        <select id="select-atividade-permanente" 
-                                                class="w-full px-4 py-2 border border-gray-300 rounded-lg">
-                                            <option value="">Selecione uma atividade permanente</option>
-                                            <option value="1">LEITURA COMPARTILHADA</option>
-                                            <option value="2">RODA DE CONVERSA</option>
-                                            <option value="3">MOMENTO DE LEITURA SILENCIOSA</option>
-                                            <option value="4">ATIVIDADE DE ESCRITA</option>
-                                            <option value="5">ANÁLISE DE TEXTOS</option>
-                                            <option value="6">DEBATE E ARGUMENTAÇÃO</option>
-                                            <option value="7">PRODUÇÃO TEXTUAL</option>
-                                            <option value="8">ESTUDO DE VOCABULÁRIO</option>
-                                            <option value="9">ATIVIDADE DE GRAMÁTICA</option>
-                                            <option value="10">INTERPRETAÇÃO TEXTUAL</option>
-                                        </select>
-                                        <button type="button" onclick="adicionarAtividadePermanente()" 
-                                                class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center justify-center min-w-[48px]">
-                                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
-                                            </svg>
-                                        </button>
-                                    </div>
-                                    <div class="border border-gray-200 rounded-lg overflow-hidden">
-                                        <table class="w-full">
-                                            <thead class="bg-gray-100">
-                                                <tr>
-                                                    <th class="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase">NOME DA ATIVIDADE</th>
-                                                    <th class="px-4 py-3 text-right text-xs font-bold text-gray-700 uppercase">AÇÃO</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody id="tabela-atividades-permanentes" class="bg-white">
-                                                <tr>
-                                                    <td colspan="2" class="text-center py-4 text-gray-500 text-sm">
-                                                        Nenhuma atividade selecionada
-                                                    </td>
-                                                </tr>
-                                            </tbody>
-                                        </table>
-                                    </div>
                                 </div>
                                 
                                 <!-- Habilidade -->
@@ -1477,12 +1643,6 @@ if ($professorId) {
                         <div id="modal-ver-plano-secoes-temas" class="bg-gray-50 rounded-lg p-4 text-gray-900 whitespace-pre-wrap min-h-[80px]">-</div>
                     </div>
                     
-                    <!-- Atividade Permanente -->
-                    <div>
-                        <label class="block text-sm font-semibold text-gray-700 mb-2">Atividade Permanente</label>
-                        <div id="modal-ver-plano-atividade-permanente" class="bg-gray-50 rounded-lg p-4 text-gray-900 whitespace-pre-wrap min-h-[80px]">-</div>
-                    </div>
-                    
                     <!-- Habilidades -->
                     <div>
                         <label class="block text-sm font-semibold text-gray-700 mb-2">Habilidades</label>
@@ -1519,12 +1679,8 @@ if ($professorId) {
                     <h4 class="text-sm font-semibold text-gray-700 mb-3">Informações do Sistema</h4>
                     <div class="grid grid-cols-2 gap-4 text-sm">
                         <div>
-                            <label class="block text-gray-600 mb-1">Aprovado por:</label>
-                            <p id="modal-ver-plano-aprovado-por" class="text-gray-900">-</p>
-                        </div>
-                        <div>
-                            <label class="block text-gray-600 mb-1">Data de Aprovação:</label>
-                            <p id="modal-ver-plano-data-aprovacao" class="text-gray-900">-</p>
+                            <label class="block text-gray-600 mb-1">Criado por:</label>
+                            <p id="modal-ver-plano-criado-por" class="text-gray-900">-</p>
                         </div>
                         <div>
                             <label class="block text-gray-600 mb-1">Criado em:</label>
@@ -1560,8 +1716,7 @@ if ($professorId) {
         // Array para armazenar disciplinas (componentes curriculares) selecionadas
         let disciplinasComponente = [];
         
-        // Arrays para armazenar atividades permanentes e habilidades
-        let atividadesPermanentes = [];
+        // Array para armazenar habilidades
         let habilidades = [];
         
         // Mapeamento de Competências Socioemocionais para Competências Específicas
@@ -1644,6 +1799,11 @@ if ($professorId) {
                     const primeiraTurma = turmasSelecionadas[0];
                     carregarHabilidadesTurma(primeiraTurma.turma_id);
                 }
+            }
+            
+            // Se a aba de competências for aberta, atualizar visibilidade da competência específica
+            if (aba === 'competencias') {
+                atualizarVisibilidadeCompetenciaEspecifica();
             }
         }
         
@@ -1828,64 +1988,6 @@ if ($professorId) {
             atualizarTabelaDisciplinasComponente();
         }
         
-        // Funções para gerenciar Atividades Permanentes
-        function adicionarAtividadePermanente() {
-            const select = document.getElementById('select-atividade-permanente');
-            const selectedOption = select.options[select.selectedIndex];
-            
-            if (!selectedOption.value) {
-                alert('Selecione uma atividade permanente');
-                return;
-            }
-            
-            const atividade = {
-                id: selectedOption.value,
-                nome: selectedOption.text
-            };
-            
-            // Verificar se já foi adicionada
-            if (atividadesPermanentes.find(a => a.id == atividade.id)) {
-                alert('Esta atividade já foi adicionada');
-                return;
-            }
-            
-            atividadesPermanentes.push(atividade);
-            atualizarTabelaAtividadesPermanentes();
-            select.value = '';
-        }
-        
-        function removerAtividadePermanente(index) {
-            atividadesPermanentes.splice(index, 1);
-            atualizarTabelaAtividadesPermanentes();
-        }
-        
-        function atualizarTabelaAtividadesPermanentes() {
-            const tbody = document.getElementById('tabela-atividades-permanentes');
-            
-            if (atividadesPermanentes.length === 0) {
-                tbody.innerHTML = `
-                    <tr>
-                        <td colspan="2" class="text-center py-4 text-gray-500 text-sm">
-                            Nenhuma atividade selecionada
-                        </td>
-                    </tr>
-                `;
-                return;
-            }
-            
-            tbody.innerHTML = atividadesPermanentes.map((atividade, index) => `
-                <tr class="border-b border-gray-100">
-                    <td class="py-3 px-4 text-sm text-gray-900">${atividade.nome}</td>
-                    <td class="py-3 px-4 text-right">
-                        <button type="button" onclick="removerAtividadePermanente(${index})" 
-                                class="text-red-600 hover:text-red-800 text-sm font-medium">
-                            Remover
-                        </button>
-                    </td>
-                </tr>
-            `).join('');
-        }
-        
         // Funções para gerenciar Habilidades
         function adicionarHabilidade() {
             const select = document.getElementById('select-habilidade');
@@ -2034,14 +2136,17 @@ if ($professorId) {
                     console.log('Nível de ensino identificado:', data.nivel_ensino);
                     console.log('Série:', data.serie_nome);
                     console.log('Disciplina ID:', disciplinaId);
+                    console.log('Código Disciplina BNCC:', data.codigo_disciplina_bncc);
+                    console.log('Número do Ano:', data.numero_ano);
+                    console.log('Habilidades encontradas:', data.habilidades);
                     
-                    // Popular o select de habilidades baseado no nível e disciplina
-                    popularSelectHabilidades(data.nivel_ensino, disciplinaId, data.serie_ordem);
+                    // Popular o select de habilidades com as habilidades retornadas do banco
+                    popularSelectHabilidades(data.habilidades, data.codigo_disciplina_bncc, data.numero_ano);
                 } else {
                     console.error('Erro ao buscar habilidades:', data.message);
                     const selectHabilidade = document.getElementById('select-habilidade');
                     if (selectHabilidade) {
-                        selectHabilidade.innerHTML = '<option value="">Erro ao carregar habilidades</option>';
+                        selectHabilidade.innerHTML = '<option value="">Erro ao carregar habilidades: ' + (data.message || 'Erro desconhecido') + '</option>';
                         selectHabilidade.disabled = true;
                     }
                 }
@@ -2055,93 +2160,129 @@ if ($professorId) {
             }
         }
         
-        // Função para popular o select de habilidades baseado no nível de ensino e disciplina
-        function popularSelectHabilidades(nivelEnsino, disciplinaId, serieOrdem) {
+        // Função para popular o select de habilidades com dados do banco
+        function popularSelectHabilidades(habilidadesBanco, codigoDisciplinaBNCC, numeroAno) {
             const selectHabilidade = document.getElementById('select-habilidade');
             if (!selectHabilidade) return;
             
             // Limpar o select
             selectHabilidade.innerHTML = '<option value="">Selecione uma habilidade</option>';
             
-            // Verificar se a disciplina selecionada é Português
-            const disciplinaSelecionada = disciplinasComponente.find(d => d.id == disciplinaId);
-            const isPortugues = disciplinaSelecionada && (
-                disciplinaSelecionada.nome.toLowerCase().includes('português') ||
-                disciplinaSelecionada.nome.toLowerCase().includes('portugues') ||
-                disciplinaSelecionada.nome.toLowerCase().includes('língua portuguesa') ||
-                disciplinaSelecionada.nome.toLowerCase().includes('lingua portuguesa')
-            );
-            
-            let habilidadesDisponiveis = [];
-            
-            // Habilidades apenas para Português - Ensino Fundamental Anos Iniciais
-            if (nivelEnsino === 'ENSINO_FUNDAMENTAL_ANOS_INICIAIS' && isPortugues) {
-                habilidadesDisponiveis = [
-                    { id: 'EF01LP01', nome: 'EF01LP01 - Reconhecer que textos são lidos e escritos da esquerda para a direita e de cima para baixo da página.' },
-                    { id: 'EF01LP02', nome: 'EF01LP02 - Ler palavras formadas por sílabas canônicas (consoante + vogal).' },
-                    { id: 'EF01LP03', nome: 'EF01LP03 - Ler palavras com correspondências regulares diretas entre letras e fonemas (P, B, T, D, F, V).' },
-                    { id: 'EF01LP04', nome: 'EF01LP04 - Ler palavras formadas por sílabas CV, V, CVC, CVV, identificando fonemas e suas correspondências com letras.' },
-                    { id: 'EF01LP05', nome: 'EF01LP05 - Ler e compreender, em colaboração com os colegas e com a ajuda do professor, palavras, frases, textos curtos e diferentes gêneros textuais (parlendas, cantigas, contos, poemas, receitas, quadrinhos, anúncios etc.), de forma significativa, em situações de leitura compartilhada.' },
-                    { id: 'EF01LP06', nome: 'EF01LP06 - Relacionar texto com ilustrações e outros recursos gráficos.' },
-                    { id: 'EF01LP07', nome: 'EF01LP07 - Identificar o assunto de um texto, apoiando-se em imagens e informações do texto.' },
-                    { id: 'EF01LP08', nome: 'EF01LP08 - Localizar informações explícitas em textos.' },
-                    { id: 'EF01LP09', nome: 'EF01LP09 - Ler e compreender, com autonomia, textos, de diferentes gêneros, com diferentes propósitos, em diferentes suportes.' },
-                    { id: 'EF01LP10', nome: 'EF01LP10 - Ler e compreender, em colaboração com os colegas e com a ajuda do professor, textos narrativos de maior porte como contos (populares, de fadas, acumulativos, de assombração etc.) e crônicas.' },
-                    { id: 'EF02LP01', nome: 'EF02LP01 - Ler e escrever palavras formadas por sílabas canônicas, reconhecendo que nem sempre há correspondência biunívoca entre letra e fonema.' },
-                    { id: 'EF02LP02', nome: 'EF02LP02 - Ler e escrever corretamente palavras com sílabas CV, V, CVV, CVC, mesmo que ainda não sejam palavras de uso frequente.' },
-                    { id: 'EF02LP03', nome: 'EF02LP03 - Ler e escrever palavras com correspondências regulares contextuais entre grafemas e fonemas (R/ RR, S/SS, M antes de P e B, X em início de palavra).' },
-                    { id: 'EF02LP04', nome: 'EF02LP04 - Ler e escrever corretamente palavras com sílabas CV, V, CVV, CVC, mesmo que ainda não sejam palavras de uso frequente.' },
-                    { id: 'EF02LP05', nome: 'EF02LP05 - Ler e compreender, em colaboração com os colegas e com a ajuda do professor, textos narrativos de maior porte como contos (populares, de fadas, acumulativos, de assombração etc.) e crônicas.' },
-                    { id: 'EF02LP06', nome: 'EF02LP06 - Ler e compreender, com autonomia, textos, de diferentes gêneros, com diferentes propósitos, em diferentes suportes.' },
-                    { id: 'EF02LP07', nome: 'EF02LP07 - Identificar o assunto de um texto, apoiando-se em imagens e informações do texto.' },
-                    { id: 'EF02LP08', nome: 'EF02LP08 - Localizar informações explícitas em textos.' },
-                    { id: 'EF03LP01', nome: 'EF03LP01 - Ler e escrever palavras com correspondências regulares contextuais entre grafemas e fonemas (R/ RR, S/SS, M antes de P e B, X em início de palavra).' },
-                    { id: 'EF03LP02', nome: 'EF03LP02 - Ler e escrever palavras com correspondências regulares contextuais entre grafemas e fonemas (R/ RR, S/SS, M antes de P e B, X em início de palavra).' },
-                    { id: 'EF03LP03', nome: 'EF03LP03 - Ler e compreender, em colaboração com os colegas e com a ajuda do professor, textos narrativos de maior porte como contos (populares, de fadas, acumulativos, de assombração etc.) e crônicas.' },
-                    { id: 'EF03LP04', nome: 'EF03LP04 - Ler e compreender, com autonomia, textos, de diferentes gêneros, com diferentes propósitos, em diferentes suportes.' },
-                    { id: 'EF03LP05', nome: 'EF03LP05 - Identificar o assunto de um texto, apoiando-se em imagens e informações do texto.' },
-                    { id: 'EF03LP06', nome: 'EF03LP06 - Localizar informações explícitas em textos.' },
-                    { id: 'EF04LP01', nome: 'EF04LP01 - Ler e escrever, com autonomia, textos de diferentes gêneros, com diferentes propósitos, em diferentes suportes.' },
-                    { id: 'EF04LP02', nome: 'EF04LP02 - Ler e compreender textos de diferentes gêneros, com diferentes propósitos, em diferentes suportes.' },
-                    { id: 'EF04LP03', nome: 'EF04LP03 - Identificar o assunto de um texto, apoiando-se em imagens e informações do texto.' },
-                    { id: 'EF04LP04', nome: 'EF04LP04 - Localizar informações explícitas em textos.' },
-                    { id: 'EF04LP05', nome: 'EF04LP05 - Inferir informações implícitas nos textos, com base em suas vivências, conhecimentos prévios e pistas dadas pelo texto.' },
-                    { id: 'EF05LP01', nome: 'EF05LP01 - Ler e escrever, com autonomia, textos de diferentes gêneros, com diferentes propósitos, em diferentes suportes.' },
-                    { id: 'EF05LP02', nome: 'EF05LP02 - Ler e compreender textos de diferentes gêneros, com diferentes propósitos, em diferentes suportes.' },
-                    { id: 'EF05LP03', nome: 'EF05LP03 - Identificar o assunto de um texto, apoiando-se em imagens e informações do texto.' },
-                    { id: 'EF05LP04', nome: 'EF05LP04 - Localizar informações explícitas em textos.' },
-                    { id: 'EF05LP05', nome: 'EF05LP05 - Inferir informações implícitas nos textos, com base em suas vivências, conhecimentos prévios e pistas dadas pelo texto.' }
-                ];
-            } else if (nivelEnsino === 'EDUCACAO_INFANTIL') {
-                habilidadesDisponiveis = [
-                    { id: 'EI-EXEMPLO-1', nome: 'HABILIDADE EXEMPLO PARA EDUCAÇÃO INFANTIL 1 (aguardando alimentação do banco)' },
-                    { id: 'EI-EXEMPLO-2', nome: 'HABILIDADE EXEMPLO PARA EDUCAÇÃO INFANTIL 2 (aguardando alimentação do banco)' }
-                ];
-            } else if (nivelEnsino === 'ENSINO_FUNDAMENTAL_ANOS_FINAIS') {
-                habilidadesDisponiveis = [
-                    { id: 'EF2-EXEMPLO-1', nome: 'HABILIDADE EXEMPLO PARA ANOS FINAIS 1 (aguardando alimentação do banco)' },
-                    { id: 'EF2-EXEMPLO-2', nome: 'HABILIDADE EXEMPLO PARA ANOS FINAIS 2 (aguardando alimentação do banco)' }
-                ];
-            } else if (!isPortugues) {
-                // Se não for português, mostrar mensagem
-                habilidadesDisponiveis = [
-                    { id: 'AGUARDANDO-1', nome: 'Habilidades para esta disciplina ainda não foram cadastradas no sistema. Aguardando alimentação do banco de dados.' }
-                ];
-            }
-            
-            // Popular o select
-            if (habilidadesDisponiveis.length > 0) {
-                habilidadesDisponiveis.forEach(habilidade => {
+            // Se houver habilidades do banco, usar elas
+            if (habilidadesBanco && Array.isArray(habilidadesBanco) && habilidadesBanco.length > 0) {
+                habilidadesBanco.forEach(habilidade => {
                     const option = document.createElement('option');
-                    option.value = habilidade.id;
-                    option.textContent = habilidade.nome;
-                    option.title = habilidade.nome; // Para mostrar texto completo no hover
+                    option.value = habilidade.id || habilidade.codigo;
+                    option.textContent = habilidade.nome || (habilidade.codigo + ' - ' + (habilidade.descricao || ''));
+                    option.title = habilidade.nome || (habilidade.codigo + ' - ' + (habilidade.descricao || '')); // Para mostrar texto completo no hover
                     selectHabilidade.appendChild(option);
                 });
                 selectHabilidade.disabled = false;
+                console.log(`${habilidadesBanco.length} habilidades carregadas do banco de dados`);
             } else {
-                selectHabilidade.innerHTML = '<option value="">Nenhuma habilidade disponível para este nível e disciplina</option>';
+                // Se não houver habilidades no banco, mostrar mensagem apropriada
+                if (!codigoDisciplinaBNCC) {
+                    selectHabilidade.innerHTML = '<option value="">Não foi possível identificar o código da disciplina. Verifique se a disciplina está cadastrada corretamente.</option>';
+                } else if (!numeroAno) {
+                    selectHabilidade.innerHTML = '<option value="">Não foi possível identificar o ano/série da turma.</option>';
+                } else {
+                    // Validar se o número do ano está dentro do range válido (1-9)
+                    const anoValido = numeroAno >= 1 && numeroAno <= 9;
+                    if (!anoValido) {
+                        console.error('Número do ano inválido detectado:', numeroAno);
+                        selectHabilidade.innerHTML = '<option value="">Erro: Ano/série inválido detectado (' + numeroAno + '). Verifique a configuração da turma.</option>';
+                    } else {
+                        selectHabilidade.innerHTML = '<option value="">Nenhuma habilidade encontrada para ' + codigoDisciplinaBNCC + ' no ' + numeroAno + 'º ano. Verifique se as habilidades estão cadastradas no banco de dados.</option>';
+                    }
+                }
                 selectHabilidade.disabled = true;
+            }
+        }
+        
+        // Função para verificar se há Português nas disciplinas selecionadas
+        function verificarSeTemPortugues() {
+            if (!disciplinasComponente || disciplinasComponente.length === 0) {
+                return false;
+            }
+            
+            return disciplinasComponente.some(disciplina => {
+                const nome = disciplina.nome.toLowerCase();
+                return nome.includes('português') || 
+                       nome.includes('portugues') || 
+                       nome.includes('língua portuguesa') || 
+                       nome.includes('lingua portuguesa') ||
+                       nome.includes('portuguesa');
+            });
+        }
+        
+        // Função para obter nome da disciplina atual (para mensagens)
+        function obterNomeDisciplinaAtual() {
+            if (!disciplinasComponente || disciplinasComponente.length === 0) {
+                return 'esta matéria';
+            }
+            return disciplinasComponente[0].nome;
+        }
+        
+        // Função para atualizar estado da seção de Competência Específica baseado na disciplina
+        function atualizarVisibilidadeCompetenciaEspecifica() {
+            const secaoCompetenciaEspecifica = document.getElementById('secao-competencia-especifica');
+            const selectCompetenciaEspecifica = document.getElementById('select-competencia-especifica');
+            
+            if (!secaoCompetenciaEspecifica || !selectCompetenciaEspecifica) return;
+            
+            // Encontrar o botão de adicionar (próximo elemento irmão)
+            const containerSelect = selectCompetenciaEspecifica.parentElement;
+            const botaoAdicionar = containerSelect ? containerSelect.querySelector('button[onclick="adicionarCompetenciaEspecifica()"]') : null;
+            
+            const temPortugues = verificarSeTemPortugues();
+            
+            if (temPortugues) {
+                // Habilitar o select e restaurar as opções originais se necessário
+                selectCompetenciaEspecifica.disabled = false;
+                selectCompetenciaEspecifica.style.opacity = '1';
+                
+                // Verificar se o select tem apenas a mensagem de erro, se sim, restaurar opções
+                if (selectCompetenciaEspecifica.options.length === 1 && 
+                    selectCompetenciaEspecifica.options[0].text.includes('disponíveis apenas')) {
+                    // Restaurar opções originais de competências específicas
+                    selectCompetenciaEspecifica.innerHTML = `
+                        <option value="">Selecione uma competência específica</option>
+                        <option value="1" title="ANALISAR INFORMAÇÕES, ARGUMENTOS E OPINIÕES MANIFESTADAS EM INTERAÇÕES SOCIAIS E NOS MEIOS DE COMUNICAÇÃO, POSICIONANDO-SE ÉTICA E CRITICAMENTE EM RELAÇÃO A CONTEÚDOS DISCRIMINATÓRIOS QUE FEREM DIREITOS HUMANOS E AMBIENTAIS.">ANALISAR INFORMAÇÕES, ARGUMENTOS E OPINIÕES MANIFESTADAS EM INTERAÇÕES SOCIAIS E NOS MEIOS DE COMUNICAÇÃO, POSICIONANDO-SE ÉTICA E CRITICAMENTE EM RELAÇÃO A CONTEÚDOS DISCRIMINATÓRIOS QUE FEREM DIREITOS HUMANOS E AMBIENTAIS.</option>
+                        <option value="2" title="APROPRIAR-SE DA LINGUAGEM ESCRITA, RECONHECENDO-A COMO FORMA DE INTERAÇÃO NOS DIFERENTES CAMPOS DE ATUAÇÃO DA VIDA SOCIAL E UTILIZANDO-A PARA AMPLIAR SUAS POSSIBILIDADES DE PARTICIPAR DA CULTURA LETRADA, DE CONSTRUIR CONHECIMENTOS (INCLUSIVE ESCOLARES) E DE SE ENVOLVER COM MAIOR AUTONOMIA E PROTAGONISMO NA VIDA SOCIAL.">APROPRIAR-SE DA LINGUAGEM ESCRITA, RECONHECENDO-A COMO FORMA DE INTERAÇÃO NOS DIFERENTES CAMPOS DE ATUAÇÃO DA VIDA SOCIAL E UTILIZANDO-A PARA AMPLIAR SUAS POSSIBILIDADES DE PARTICIPAR DA CULTURA LETRADA, DE CONSTRUIR CONHECIMENTOS (INCLUSIVE ESCOLARES) E DE SE ENVOLVER COM MAIOR AUTONOMIA E PROTAGONISMO NA VIDA SOCIAL.</option>
+                        <option value="3" title="COMPREENDER A LÍNGUA COMO FENÔMENO CULTURAL, HISTÓRICO, SOCIAL, VARIÁVEL, HETEROGÊNEO E SENSÍVEL AOS CONTEXTOS DE USO, RECONHECENDO-A COMO MEIO DE CONSTRUÇÃO DE IDENTIDADES DE SEUS USUÁRIOS E DA COMUNIDADE A QUE PERTENCEM.">COMPREENDER A LÍNGUA COMO FENÔMENO CULTURAL, HISTÓRICO, SOCIAL, VARIÁVEL, HETEROGÊNEO E SENSÍVEL AOS CONTEXTOS DE USO, RECONHECENDO-A COMO MEIO DE CONSTRUÇÃO DE IDENTIDADES DE SEUS USUÁRIOS E DA COMUNIDADE A QUE PERTENCEM.</option>
+                        <option value="4" title="COMPREENDER O FENÔMENO DA VARIAÇÃO LINGUÍSTICA, DEMONSTRANDO ATITUDE RESPEITOSA DIANTE DE VARIEDADES LINGUÍSTICAS E REJEITANDO PRECONCEITOS LINGUÍSTICOS.">COMPREENDER O FENÔMENO DA VARIAÇÃO LINGUÍSTICA, DEMONSTRANDO ATITUDE RESPEITOSA DIANTE DE VARIEDADES LINGUÍSTICAS E REJEITANDO PRECONCEITOS LINGUÍSTICOS.</option>
+                        <option value="5" title="EMPREGAR, NAS INTERAÇÕES SOCIAIS, A VARIEDADE E O ESTILO DE LINGUAGEM ADEQUADOS À SITUAÇÃO COMUNICATIVA, AO(S) INTERLOCUTOR(ES) E AO GÊNERO DO DISCURSO/GÊNERO TEXTUAL.">EMPREGAR, NAS INTERAÇÕES SOCIAIS, A VARIEDADE E O ESTILO DE LINGUAGEM ADEQUADOS À SITUAÇÃO COMUNICATIVA, AO(S) INTERLOCUTOR(ES) E AO GÊNERO DO DISCURSO/GÊNERO TEXTUAL.</option>
+                        <option value="6" title="ENVOLVER-SE EM PRÁTICAS DE LEITURA LITERÁRIA QUE POSSIBILITEM O DESENVOLVIMENTO DO SENSO ESTÉTICO PARA FRUIÇÃO, VALORIZANDO A LITERATURA E OUTRAS MANIFESTAÇÕES ARTÍSTICO-CULTURAIS COMO FORMAS DE ACESSO ÀS DIMENSÕES LÚDICAS, DE IMAGINÁRIO E ENCANTAMENTO, RECONHECENDO O POTENCIAL TRANSFORMADOR E HUMANIZADOR DA EXPERIÊNCIA COM A LITERATURA.">ENVOLVER-SE EM PRÁTICAS DE LEITURA LITERÁRIA QUE POSSIBILITEM O DESENVOLVIMENTO DO SENSO ESTÉTICO PARA FRUIÇÃO, VALORIZANDO A LITERATURA E OUTRAS MANIFESTAÇÕES ARTÍSTICO-CULTURAIS COMO FORMAS DE ACESSO ÀS DIMENSÕES LÚDICAS, DE IMAGINÁRIO E ENCANTAMENTO, RECONHECENDO O POTENCIAL TRANSFORMADOR E HUMANIZADOR DA EXPERIÊNCIA COM A LITERATURA.</option>
+                        <option value="7" title="LER, ESCUTAR E PRODUZIR TEXTOS ORAIS, ESCRITOS E MULTISSEMIÓTICOS QUE CIRCULAM EM DIFERENTES CAMPOS DE ATUAÇÃO E MÍDIAS, COM COMPREENSÃO, AUTONOMIA, FLUÊNCIA E CRITICIDADE, DE MODO A SE EXPRESSAR E PARTILHAR INFORMAÇÕES, EXPERIÊNCIAS, IDEIAS E SENTIMENTOS, E CONTINUAR APRENDENDO.">LER, ESCUTAR E PRODUZIR TEXTOS ORAIS, ESCRITOS E MULTISSEMIÓTICOS QUE CIRCULAM EM DIFERENTES CAMPOS DE ATUAÇÃO E MÍDIAS, COM COMPREENSÃO, AUTONOMIA, FLUÊNCIA E CRITICIDADE, DE MODO A SE EXPRESSAR E PARTILHAR INFORMAÇÕES, EXPERIÊNCIAS, IDEIAS E SENTIMENTOS, E CONTINUAR APRENDENDO.</option>
+                        <option value="8" title="MOBILIZAR PRÁTICAS DA CULTURA DIGITAL, DIFERENTES LINGUAGENS, MÍDIAS E FERRAMENTAS DIGITAIS PARA EXPANDIR AS FORMAS DE PRODUZIR SENTIDOS (NOS PROCESSOS DE COMPREENSÃO E PRODUÇÃO), APRENDER E REFLETIR SOBRE O MUNDO E REALIZAR DIFERENTES PROJETOS AUTORAIS.">MOBILIZAR PRÁTICAS DA CULTURA DIGITAL, DIFERENTES LINGUAGENS, MÍDIAS E FERRAMENTAS DIGITAIS PARA EXPANDIR AS FORMAS DE PRODUZIR SENTIDOS (NOS PROCESSOS DE COMPREENSÃO E PRODUÇÃO), APRENDER E REFLETIR SOBRE O MUNDO E REALIZAR DIFERENTES PROJETOS AUTORAIS.</option>
+                        <option value="9" title="RECONHECER O TEXTO COMO LUGAR DE MANIFESTAÇÃO E NEGOCIAÇÃO DE SENTIDOS, VALORES E IDEOLOGIAS.">RECONHECER O TEXTO COMO LUGAR DE MANIFESTAÇÃO E NEGOCIAÇÃO DE SENTIDOS, VALORES E IDEOLOGIAS.</option>
+                        <option value="10" title="SELECIONAR TEXTOS E LIVROS PARA LEITURA INTEGRAL, DE ACORDO COM OBJETIVOS, INTERESSES E PROJETOS PESSOAIS (ESTUDO, FORMAÇÃO PESSOAL, ENTRETENIMENTO, PESQUISA, TRABALHO ETC.).">SELECIONAR TEXTOS E LIVROS PARA LEITURA INTEGRAL, DE ACORDO COM OBJETIVOS, INTERESSES E PROJETOS PESSOAIS (ESTUDO, FORMAÇÃO PESSOAL, ENTRETENIMENTO, PESQUISA, TRABALHO ETC.).</option>
+                    `;
+                }
+                
+                if (botaoAdicionar) {
+                    botaoAdicionar.disabled = false;
+                    botaoAdicionar.style.opacity = '1';
+                }
+            } else {
+                // Desabilitar o select e mostrar mensagem
+                selectCompetenciaEspecifica.disabled = true;
+                selectCompetenciaEspecifica.style.opacity = '0.6';
+                
+                const nomeDisciplina = obterNomeDisciplinaAtual();
+                if (disciplinasComponente.length === 0) {
+                    selectCompetenciaEspecifica.innerHTML = '<option value="">Selecione uma disciplina primeiro</option>';
+                } else {
+                    selectCompetenciaEspecifica.innerHTML = `<option value="">Competências específicas disponíveis apenas para Língua Portuguesa. Disciplina atual: ${nomeDisciplina}</option>`;
+                }
+                
+                if (botaoAdicionar) {
+                    botaoAdicionar.disabled = true;
+                    botaoAdicionar.style.opacity = '0.6';
+                }
+                // Limpar competências específicas se não houver Português
+                competenciasEspecificas = [];
+                atualizarTabelaCompetenciasEspecificas();
             }
         }
         
@@ -2163,6 +2304,8 @@ if ($professorId) {
                     selectHabilidade.innerHTML = '<option value="">Selecione uma disciplina primeiro</option>';
                     selectHabilidade.disabled = true;
                 }
+                // Ocultar seção de competência específica
+                atualizarVisibilidadeCompetenciaEspecifica();
                 return;
             }
             
@@ -2177,6 +2320,9 @@ if ($professorId) {
                     </td>
                 </tr>
             `).join('');
+            
+            // Atualizar visibilidade da seção de competência específica
+            atualizarVisibilidadeCompetenciaEspecifica();
             
             // Se houver turma selecionada, recarregar habilidades
             if (turmasSelecionadas.length > 0) {
@@ -2555,15 +2701,14 @@ if ($professorId) {
             competenciasEspecificas = [];
             competenciasGerais = [];
             disciplinasComponente = [];
-            atividadesPermanentes = [];
             habilidades = [];
             atualizarTabelaTurmas();
             atualizarTabelaCompetenciasSocioemocionais();
             atualizarTabelaCompetenciasEspecificas();
             atualizarTabelaCompetenciasGerais();
             atualizarTabelaDisciplinasComponente();
-            atualizarTabelaAtividadesPermanentes();
             atualizarTabelaHabilidades();
+            atualizarVisibilidadeCompetenciaEspecifica();
             
             // Limpar campos de texto
             document.getElementById('observacoes-complementares').value = '';
@@ -2682,7 +2827,6 @@ if ($professorId) {
                 observacoes: document.getElementById('observacoes-plano').value || null,
                 observacoes_complementares: document.getElementById('observacoes-complementares').value || null,
                 secoes_temas: document.getElementById('secoes-temas').value || null,
-                atividade_permanente: JSON.stringify(atividadesPermanentes),
                 habilidades: JSON.stringify(habilidades),
                 competencias_socioemocionais: JSON.stringify(competenciasSocioemocionais),
                 competencias_especificas: JSON.stringify(competenciasEspecificas),
@@ -2742,7 +2886,7 @@ if ($professorId) {
                 document.getElementById('modal-ver-plano-disciplina').textContent = plano.disciplina_nome || '-';
                 document.getElementById('modal-ver-plano-professor').textContent = plano.professor_nome || '-';
                 document.getElementById('modal-ver-plano-bimestre').textContent = plano.bimestre ? `${plano.bimestre}º Bimestre` : '-';
-                document.getElementById('modal-ver-plano-status').textContent = plano.status || 'RASCUNHO';
+                document.getElementById('modal-ver-plano-status').textContent = plano.status || 'APROVADO';
                 
                 // Status com cor
                 const statusElement = document.getElementById('modal-ver-plano-status');
@@ -2791,7 +2935,6 @@ if ($professorId) {
                 document.getElementById('modal-ver-plano-observacoes').textContent = plano.observacoes || 'Não informado';
                 document.getElementById('modal-ver-plano-observacoes-complementares').textContent = plano.observacoes_complementares || 'Não informado';
                 document.getElementById('modal-ver-plano-secoes-temas').textContent = plano.secoes_temas || 'Não informado';
-                document.getElementById('modal-ver-plano-atividade-permanente').textContent = formatarLista(plano.atividade_permanente);
                 document.getElementById('modal-ver-plano-habilidades').textContent = formatarLista(plano.habilidades);
                 document.getElementById('modal-ver-plano-competencias-socioemocionais').textContent = formatarLista(plano.competencias_socioemocionais);
                 document.getElementById('modal-ver-plano-competencias-especificas').textContent = formatarLista(plano.competencias_especificas);
@@ -2799,12 +2942,10 @@ if ($professorId) {
                 document.getElementById('modal-ver-plano-disciplinas-componentes').textContent = formatarLista(plano.disciplinas_componentes);
                 
                 // Informações adicionais
-                if (plano.aprovado_por_nome) {
-                    document.getElementById('modal-ver-plano-aprovado-por').textContent = plano.aprovado_por_nome;
-                    document.getElementById('modal-ver-plano-data-aprovacao').textContent = plano.data_aprovacao ? new Date(plano.data_aprovacao).toLocaleString('pt-BR') : '-';
+                if (plano.criado_por_nome) {
+                    document.getElementById('modal-ver-plano-criado-por').textContent = plano.criado_por_nome;
                 } else {
-                    document.getElementById('modal-ver-plano-aprovado-por').textContent = '-';
-                    document.getElementById('modal-ver-plano-data-aprovacao').textContent = '-';
+                    document.getElementById('modal-ver-plano-criado-por').textContent = '-';
                 }
                 
                 document.getElementById('modal-ver-plano-criado-em').textContent = plano.criado_em ? new Date(plano.criado_em).toLocaleString('pt-BR') : '-';

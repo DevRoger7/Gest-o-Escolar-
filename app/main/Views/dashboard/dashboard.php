@@ -3312,8 +3312,9 @@ if (isset($_SESSION['tipo']) && strtolower($_SESSION['tipo']) === 'aluno') {
                                 echo '<div class="text-center py-8 text-gray-500">Nenhuma atividade recente de merenda</div>';
                             } else {
                                 foreach ($consumosRecentes as $consumo) {
-                                    $dataConsumo = new DateTime($consumo['data']);
-                                    $agora = new DateTime();
+                                    $timezone = new DateTimeZone('America/Sao_Paulo');
+                                    $dataConsumo = new DateTime($consumo['data'], $timezone);
+                                    $agora = new DateTime('now', $timezone);
                                     $diff = $agora->diff($dataConsumo);
                                     $tempoRelativo = '';
                                     if ($diff->days > 0) {
@@ -3561,8 +3562,9 @@ if (isset($_SESSION['tipo']) && strtolower($_SESSION['tipo']) === 'aluno') {
                                         $bgColor = $bgColors[$color] ?? $bgColors['green'];
                                         
                                         // Calcular tempo relativo
-                                        $dataAtividade = new DateTime($atividade['data']);
-                                        $agora = new DateTime();
+                                        $timezone = new DateTimeZone('America/Sao_Paulo');
+                                        $dataAtividade = new DateTime($atividade['data'], $timezone);
+                                        $agora = new DateTime('now', $timezone);
                                         $diff = $agora->diff($dataAtividade);
                                         
                                         $tempoRelativo = '';
@@ -3650,8 +3652,9 @@ if (isset($_SESSION['tipo']) && strtolower($_SESSION['tipo']) === 'aluno') {
                                     $bgColor = $bgColors[$color] ?? $bgColors['blue'];
                                     
                                     // Calcular tempo relativo
-                                    $dataAtividade = new DateTime($atividade['data']);
-                                    $agora = new DateTime();
+                                    $timezone = new DateTimeZone('America/Sao_Paulo');
+                                    $dataAtividade = new DateTime($atividade['data'], $timezone);
+                                    $agora = new DateTime('now', $timezone);
                                     $diff = $agora->diff($dataAtividade);
                                     
                                     $tempoRelativo = '';
@@ -3711,8 +3714,9 @@ if (isset($_SESSION['tipo']) && strtolower($_SESSION['tipo']) === 'aluno') {
                                     $bgColor = $bgColors[$color] ?? $bgColors['blue'];
                                     
                                     // Calcular tempo relativo
-                                    $dataAtividade = new DateTime($atividade['data']);
-                                    $agora = new DateTime();
+                                    $timezone = new DateTimeZone('America/Sao_Paulo');
+                                    $dataAtividade = new DateTime($atividade['data'], $timezone);
+                                    $agora = new DateTime('now', $timezone);
                                     $diff = $agora->diff($dataAtividade);
                                     
                                     $tempoRelativo = '';
@@ -3767,8 +3771,9 @@ if (isset($_SESSION['tipo']) && strtolower($_SESSION['tipo']) === 'aluno') {
                                     $bgColor = $bgColors[$color] ?? $bgColors['blue'];
                                     
                                     // Calcular tempo relativo
-                                    $dataAtividade = new DateTime($atividade['data']);
-                                    $agora = new DateTime();
+                                    $timezone = new DateTimeZone('America/Sao_Paulo');
+                                    $dataAtividade = new DateTime($atividade['data'], $timezone);
+                                    $agora = new DateTime('now', $timezone);
                                     $diff = $agora->diff($dataAtividade);
                                     
                                     $tempoRelativo = '';
