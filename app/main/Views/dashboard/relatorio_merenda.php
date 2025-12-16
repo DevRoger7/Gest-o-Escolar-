@@ -36,10 +36,25 @@ if ($tipo !== 'adm_merenda') {
             }
         };
         window.confirmLogout = function() {
-            if (confirm('Tem certeza que deseja sair do sistema?')) {
-                window.logout();
+            const modal = document.getElementById('logoutModal');
+            if (modal) {
+                modal.style.display = 'flex';
+                modal.classList.remove('hidden');
+                modal.classList.add('flex');
+            } else {
+                console.error('Modal de logout não encontrado');
             }
         };
+        
+        window.closeLogoutModal = function() {
+            const modal = document.getElementById('logoutModal');
+            if (modal) {
+                modal.style.display = 'none';
+                modal.classList.add('hidden');
+                modal.classList.remove('flex');
+            }
+        };
+        
         window.logout = function() {
             try {
                 window.location.href = '../auth/logout.php';
@@ -751,5 +766,7 @@ if ($tipo !== 'adm_merenda') {
 
         <!-- ... any remaining content ... -->
     </main>
+    
+    <?php include(__DIR__ . '/components/logout_modal.php'); ?>
 </body>
 </html>

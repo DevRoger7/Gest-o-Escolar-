@@ -2860,12 +2860,12 @@ if ($_SESSION['tipo'] === 'ADM') {
                                     <label class="block text-sm font-medium text-gray-700 mb-2">Nível de Ensino *</label>
                                     <div class="space-y-2">
                                         <label class="flex items-center space-x-2 cursor-pointer">
-                                            <input type="checkbox" name="nivel_ensino[]" value="ENSINO_FUNDAMENTAL" class="w-4 h-4 text-primary-green border-gray-300 rounded focus:ring-primary-green">
-                                            <span class="text-gray-700">Ensino Fundamental</span>
+                                            <input type="checkbox" name="nivel_ensino[]" value="EDUCACAO_INFANTIL" class="w-4 h-4 text-primary-green border-gray-300 rounded focus:ring-primary-green">
+                                            <span class="text-gray-700">Educação Infantil</span>
                                         </label>
                                         <label class="flex items-center space-x-2 cursor-pointer">
-                                            <input type="checkbox" name="nivel_ensino[]" value="ENSINO_MEDIO" class="w-4 h-4 text-primary-green border-gray-300 rounded focus:ring-primary-green">
-                                            <span class="text-gray-700">Ensino Médio</span>
+                                            <input type="checkbox" name="nivel_ensino[]" value="ENSINO_FUNDAMENTAL" class="w-4 h-4 text-primary-green border-gray-300 rounded focus:ring-primary-green">
+                                            <span class="text-gray-700">Ensino Fundamental</span>
                                         </label>
                                     </div>
                                     <p class="text-xs text-gray-500 mt-1">Selecione um ou ambos os níveis de ensino oferecidos pela escola</p>
@@ -2971,10 +2971,6 @@ if ($_SESSION['tipo'] === 'ADM') {
                                     <div>
                                         <label for="gestor_telefone" class="block text-sm font-medium text-gray-700 mb-2">Telefone do Gestor</label>
                                         <input type="text" id="gestor_telefone" name="gestor_telefone" readonly class="w-full px-4 py-3 border border-gray-300 rounded-lg bg-gray-50 text-gray-600 cursor-not-allowed" placeholder="Selecione um gestor acima">
-                                    </div>
-                                    <div>
-                                        <label for="gestor_inep" class="block text-sm font-medium text-gray-700 mb-2">INEP do Gestor</label>
-                                        <input type="text" id="gestor_inep" name="gestor_inep" readonly class="w-full px-4 py-3 border border-gray-300 rounded-lg bg-gray-50 text-gray-600 cursor-not-allowed" placeholder="Selecione um gestor acima">
                                     </div>
                                     <div>
                                         <label for="gestor_cargo" class="block text-sm font-medium text-gray-700 mb-2">Cargo</label>
@@ -3577,12 +3573,12 @@ if ($_SESSION['tipo'] === 'ADM') {
                                         </label>
                                         <div class="space-y-2">
                                             <label class="flex items-center space-x-2 cursor-pointer">
-                                                <input type="checkbox" id="edit_nivel_ensino_fundamental" name="nivel_ensino[]" value="ENSINO_FUNDAMENTAL" class="w-4 h-4 text-primary-green border-gray-300 rounded focus:ring-primary-green">
-                                                <span class="text-gray-700">Ensino Fundamental</span>
+                                                <input type="checkbox" id="edit_nivel_ensino_infantil" name="nivel_ensino[]" value="EDUCACAO_INFANTIL" class="w-4 h-4 text-primary-green border-gray-300 rounded focus:ring-primary-green">
+                                                <span class="text-gray-700">Educação Infantil</span>
                                             </label>
                                             <label class="flex items-center space-x-2 cursor-pointer">
-                                                <input type="checkbox" id="edit_nivel_ensino_medio" name="nivel_ensino[]" value="ENSINO_MEDIO" class="w-4 h-4 text-primary-green border-gray-300 rounded focus:ring-primary-green">
-                                                <span class="text-gray-700">Ensino Médio</span>
+                                                <input type="checkbox" id="edit_nivel_ensino_fundamental" name="nivel_ensino[]" value="ENSINO_FUNDAMENTAL" class="w-4 h-4 text-primary-green border-gray-300 rounded focus:ring-primary-green">
+                                                <span class="text-gray-700">Ensino Fundamental</span>
                                             </label>
                                         </div>
                                         <p class="text-xs text-gray-500 mt-1">Selecione um ou ambos os níveis de ensino oferecidos pela escola</p>
@@ -4203,26 +4199,26 @@ if ($_SESSION['tipo'] === 'ADM') {
                     
                     // Preencher nível de ensino
                     // Processar múltiplos níveis de ensino (SET retorna string separada por vírgula)
+                    const editNivelEnsinoInfantil = document.getElementById('edit_nivel_ensino_infantil');
                     const editNivelEnsinoFundamental = document.getElementById('edit_nivel_ensino_fundamental');
-                    const editNivelEnsinoMedio = document.getElementById('edit_nivel_ensino_medio');
                     
                     if (escola.nivel_ensino) {
-                        // Converter string SET para array (ex: "ENSINO_FUNDAMENTAL,ENSINO_MEDIO")
+                        // Converter string SET para array (ex: "EDUCACAO_INFANTIL,ENSINO_FUNDAMENTAL")
                         const niveis = escola.nivel_ensino.split(',').map(n => n.trim());
                         
+                        if (editNivelEnsinoInfantil) {
+                            editNivelEnsinoInfantil.checked = niveis.includes('EDUCACAO_INFANTIL');
+                        }
                         if (editNivelEnsinoFundamental) {
                             editNivelEnsinoFundamental.checked = niveis.includes('ENSINO_FUNDAMENTAL');
                         }
-                        if (editNivelEnsinoMedio) {
-                            editNivelEnsinoMedio.checked = niveis.includes('ENSINO_MEDIO');
-                        }
                     } else {
                         // Padrão: apenas Ensino Fundamental
+                        if (editNivelEnsinoInfantil) {
+                            editNivelEnsinoInfantil.checked = false;
+                        }
                         if (editNivelEnsinoFundamental) {
                             editNivelEnsinoFundamental.checked = true;
-                        }
-                        if (editNivelEnsinoMedio) {
-                            editNivelEnsinoMedio.checked = false;
                         }
                     }
                     
@@ -4326,8 +4322,8 @@ if ($_SESSION['tipo'] === 'ADM') {
                         cnpj: document.getElementById('edit_cnpj').value || '',
                         tipo_escola: document.getElementById('edit_tipo_escola').value || '',
                         qtd_salas: document.getElementById('edit_qtd_salas').value || '',
+                        nivel_ensino_infantil: document.getElementById('edit_nivel_ensino_infantil').checked ? 'EDUCACAO_INFANTIL' : '',
                         nivel_ensino_fundamental: document.getElementById('edit_nivel_ensino_fundamental').checked ? 'ENSINO_FUNDAMENTAL' : '',
-                        nivel_ensino_medio: document.getElementById('edit_nivel_ensino_medio').checked ? 'ENSINO_MEDIO' : '',
                         cep: document.getElementById('edit_cep').value || '',
                         logradouro: document.getElementById('edit_logradouro').value || '',
                         numero: document.getElementById('edit_numero').value || '',
@@ -4394,7 +4390,7 @@ if ($_SESSION['tipo'] === 'ADM') {
         function configurarMonitoramentoMudancas() {
             const campos = [
                 'edit_nome', 'edit_inep', 'edit_nome_curto', 'edit_codigo', 'edit_cnpj',
-                'edit_tipo_escola', 'edit_qtd_salas', 'edit_nivel_ensino_fundamental', 'edit_nivel_ensino_medio',
+                'edit_tipo_escola', 'edit_qtd_salas', 'edit_nivel_ensino_infantil', 'edit_nivel_ensino_fundamental',
                 'edit_cep', 'edit_logradouro', 'edit_numero', 'edit_complemento', 'edit_bairro',
                 'edit_telefone_fixo', 'edit_telefone_movel', 'edit_email', 'edit_site'
             ];
@@ -4426,8 +4422,8 @@ if ($_SESSION['tipo'] === 'ADM') {
                 cnpj: document.getElementById('edit_cnpj').value || '',
                 tipo_escola: document.getElementById('edit_tipo_escola').value || '',
                 qtd_salas: document.getElementById('edit_qtd_salas').value || '',
+                nivel_ensino_infantil: document.getElementById('edit_nivel_ensino_infantil').checked ? 'EDUCACAO_INFANTIL' : '',
                 nivel_ensino_fundamental: document.getElementById('edit_nivel_ensino_fundamental').checked ? 'ENSINO_FUNDAMENTAL' : '',
-                nivel_ensino_medio: document.getElementById('edit_nivel_ensino_medio').checked ? 'ENSINO_MEDIO' : '',
                 cep: document.getElementById('edit_cep').value || '',
                 logradouro: document.getElementById('edit_logradouro').value || '',
                 numero: document.getElementById('edit_numero').value || '',
@@ -5061,7 +5057,6 @@ if ($_SESSION['tipo'] === 'ADM') {
             document.getElementById('gestor_nome').value = gestor.nome || 'Não informado';
             document.getElementById('gestor_email').value = gestor.email || 'Não informado';
             document.getElementById('gestor_telefone').value = gestor.telefone ? formatarTelefoneTexto(gestor.telefone) : 'Não informado';
-            document.getElementById('gestor_inep').value = 'Não informado';
             document.getElementById('gestor_cargo').value = gestor.cargo || 'Não informado';
             document.getElementById('gestor_tipo_acesso').value = 'Não informado';
             document.getElementById('gestor_criterio_acesso').value = 'Não informado';
@@ -5075,7 +5070,6 @@ if ($_SESSION['tipo'] === 'ADM') {
             document.getElementById('gestor_nome').value = '';
             document.getElementById('gestor_email').value = '';
             document.getElementById('gestor_telefone').value = '';
-            document.getElementById('gestor_inep').value = '';
             document.getElementById('gestor_cargo').value = '';
             document.getElementById('gestor_tipo_acesso').value = '';
             document.getElementById('gestor_criterio_acesso').value = '';
@@ -5233,18 +5227,18 @@ if ($_SESSION['tipo'] === 'ADM') {
                     formData.append('cep', document.getElementById('edit_cep').value);
                     formData.append('qtd_salas', document.getElementById('edit_qtd_salas').value);
                     // Coletar checkboxes de nível de ensino
+                    const editNivelEnsinoInfantil = document.getElementById('edit_nivel_ensino_infantil');
                     const editNivelEnsinoFundamental = document.getElementById('edit_nivel_ensino_fundamental');
-                    const editNivelEnsinoMedio = document.getElementById('edit_nivel_ensino_medio');
                     
+                    if (editNivelEnsinoInfantil && editNivelEnsinoInfantil.checked) {
+                        formData.append('nivel_ensino[]', 'EDUCACAO_INFANTIL');
+                    }
                     if (editNivelEnsinoFundamental && editNivelEnsinoFundamental.checked) {
                         formData.append('nivel_ensino[]', 'ENSINO_FUNDAMENTAL');
                     }
-                    if (editNivelEnsinoMedio && editNivelEnsinoMedio.checked) {
-                        formData.append('nivel_ensino[]', 'ENSINO_MEDIO');
-                    }
                     
                     // Validar que pelo menos um nível foi selecionado
-                    if (!editNivelEnsinoFundamental?.checked && !editNivelEnsinoMedio?.checked) {
+                    if (!editNivelEnsinoInfantil?.checked && !editNivelEnsinoFundamental?.checked) {
                         alert('Por favor, selecione pelo menos um nível de ensino.');
                         return;
                     }

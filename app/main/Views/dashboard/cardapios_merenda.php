@@ -634,6 +634,34 @@ if ($tipoUsuario === 'adm_merenda') {
         </div>
     </main>
     
+    <!-- Modal Visualizar Cardápio -->
+    <div id="modal-visualizar-cardapio" class="fixed inset-0 bg-black bg-opacity-50 z-[70] hidden items-center justify-center p-4" style="display: none;">
+        <div class="bg-white rounded-2xl shadow-2xl max-w-5xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+            <!-- Header -->
+            <div class="bg-gradient-to-r from-primary-green to-green-600 text-white p-6 flex items-center justify-between">
+                <div>
+                    <h3 class="text-2xl font-bold">Detalhes do Cardápio</h3>
+                    <p class="text-green-100 text-sm mt-1" id="modal-cardapio-escola">Carregando...</p>
+                </div>
+                <button onclick="fecharModalVisualizarCardapio()" class="text-white hover:text-gray-200 transition-colors">
+                    <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+            </div>
+            
+            <!-- Content -->
+            <div class="flex-1 overflow-y-auto p-6 bg-gray-50">
+                <div id="modal-cardapio-content">
+                    <div class="text-center py-8">
+                        <div class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-primary-green"></div>
+                        <p class="text-gray-600 mt-4">Carregando detalhes do cardápio...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
     <!-- Modal Novo Cardápio -->
     <div id="modal-novo-cardapio" class="fixed inset-0 bg-white z-[60] hidden flex flex-col">
         <!-- Header -->
@@ -1549,44 +1577,211 @@ if ($tipoUsuario === 'adm_merenda') {
         }
 
         function verDetalhesCardapio(id) {
+            // Abrir modal
+            const modal = document.getElementById('modal-visualizar-cardapio');
+            modal.style.display = 'flex';
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+            
+            // Mostrar loading
+            document.getElementById('modal-cardapio-content').innerHTML = `
+                <div class="text-center py-8">
+                    <div class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-primary-green"></div>
+                    <p class="text-gray-600 mt-4">Carregando detalhes do cardápio...</p>
+                </div>
+            `;
+            
             fetch('?acao=buscar_cardapio&id=' + id)
                 .then(response => response.json())
                 .then(data => {
                     if (data.success && data.cardapio) {
                         const cardapio = data.cardapio;
                         const mesNome = new Date(2000, cardapio.mes - 1).toLocaleString('pt-BR', { month: 'long' });
-                        let itensHtml = '';
                         
+                        // Atualizar header
+                        document.getElementById('modal-cardapio-escola').textContent = cardapio.escola_nome || 'Escola não informada';
+                        
+                        // Status badge
+                        const statusClass = {
+                            'RASCUNHO': 'bg-yellow-100 text-yellow-800',
+                            'APROVADO': 'bg-green-100 text-green-800',
+                            'PUBLICADO': 'bg-blue-100 text-blue-800',
+                            'REJEITADO': 'bg-red-100 text-red-800'
+                        }[cardapio.status?.toUpperCase()] || 'bg-gray-100 text-gray-800';
+                        
+                        // Organizar itens por semana
+                        const itensPorSemana = {};
                         if (cardapio.itens && cardapio.itens.length > 0) {
-                            itensHtml = cardapio.itens.map(item => `
-                                <tr>
-                                    <td class="px-4 py-2">${item.produto_nome}</td>
-                                    <td class="px-4 py-2 text-center">${item.quantidade} ${item.unidade_medida}</td>
-                                </tr>
-                            `).join('');
-                        } else {
-                            itensHtml = '<tr><td colspan="2" class="px-4 py-2 text-center text-gray-500">Nenhum item cadastrado</td></tr>';
+                            cardapio.itens.forEach(item => {
+                                const semanaKey = item.numero_semana || 'sem_semana';
+                                if (!itensPorSemana[semanaKey]) {
+                                    itensPorSemana[semanaKey] = {
+                                        numero: item.numero_semana,
+                                        observacao: item.semana_observacao,
+                                        itens: []
+                                    };
+                                }
+                                itensPorSemana[semanaKey].itens.push(item);
+                            });
                         }
                         
-                        alert(`
-Cardápio: ${cardapio.escola_nome}
-Período: ${mesNome}/${cardapio.ano}
-Status: ${cardapio.status || 'RASCUNHO'}
-
-Itens:
-${cardapio.itens ? cardapio.itens.map(i => `- ${i.produto_nome}: ${i.quantidade} ${i.unidade_medida}`).join('\n') : 'Nenhum item'}
-                        `);
+                        // Buscar informações das semanas
+                        const semanasInfo = {};
+                        if (cardapio.semanas && cardapio.semanas.length > 0) {
+                            cardapio.semanas.forEach(semana => {
+                                semanasInfo[semana.numero_semana] = semana;
+                            });
+                        }
+                        
+                        // Construir HTML do conteúdo
+                        let contentHtml = `
+                            <div class="space-y-6">
+                                <!-- Informações Gerais -->
+                                <div class="bg-white rounded-lg p-6 shadow-sm border border-gray-200">
+                                    <h4 class="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                                        <svg class="w-5 h-5 mr-2 text-primary-green" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                        </svg>
+                                        Informações Gerais
+                                    </h4>
+                                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                        <div>
+                                            <p class="text-sm text-gray-500">Escola</p>
+                                            <p class="text-base font-medium text-gray-900">${cardapio.escola_nome || 'N/A'}</p>
+                                        </div>
+                                        <div>
+                                            <p class="text-sm text-gray-500">Período</p>
+                                            <p class="text-base font-medium text-gray-900">${mesNome}/${cardapio.ano}</p>
+                                        </div>
+                                        <div>
+                                            <p class="text-sm text-gray-500">Status</p>
+                                            <span class="inline-block px-3 py-1 rounded-full text-xs font-medium ${statusClass}">
+                                                ${cardapio.status || 'RASCUNHO'}
+                                            </span>
+                                        </div>
+                                    </div>
+                                    ${cardapio.observacoes ? `
+                                        <div class="mt-4 pt-4 border-t border-gray-200">
+                                            <p class="text-sm text-gray-500">Observações</p>
+                                            <p class="text-sm text-gray-700 mt-1">${cardapio.observacoes}</p>
+                                        </div>
+                                    ` : ''}
+                                </div>
+                        `;
+                        
+                        // Adicionar semanas e itens
+                        if (Object.keys(itensPorSemana).length > 0 || (cardapio.semanas && cardapio.semanas.length > 0)) {
+                            // Ordenar semanas
+                            const semanasOrdenadas = Object.keys(itensPorSemana).sort((a, b) => {
+                                if (a === 'sem_semana') return 1;
+                                if (b === 'sem_semana') return -1;
+                                return parseInt(a) - parseInt(b);
+                            });
+                            
+                            semanasOrdenadas.forEach(semanaKey => {
+                                const semanaData = itensPorSemana[semanaKey];
+                                const semanaInfo = semanasInfo[semanaData.numero] || {};
+                                
+                                const dataInicio = semanaInfo.data_inicio ? new Date(semanaInfo.data_inicio + 'T00:00:00').toLocaleDateString('pt-BR') : '';
+                                const dataFim = semanaInfo.data_fim ? new Date(semanaInfo.data_fim + 'T00:00:00').toLocaleDateString('pt-BR') : '';
+                                
+                                contentHtml += `
+                                    <div class="bg-white rounded-lg p-6 shadow-sm border border-gray-200">
+                                        <div class="flex items-center justify-between mb-4">
+                                            <h4 class="text-lg font-semibold text-gray-900 flex items-center">
+                                                <svg class="w-5 h-5 mr-2 text-primary-green" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                                                </svg>
+                                                ${semanaData.numero ? `Semana ${semanaData.numero}` : 'Itens Gerais'}
+                                                ${dataInicio && dataFim ? `<span class="text-sm font-normal text-gray-500 ml-2">(${dataInicio} a ${dataFim})</span>` : ''}
+                                            </h4>
+                                        </div>
+                                        ${semanaData.observacao || semanaInfo.observacao ? `
+                                            <div class="mb-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
+                                                <p class="text-sm text-blue-800"><strong>Observação da Semana:</strong> ${semanaData.observacao || semanaInfo.observacao}</p>
+                                            </div>
+                                        ` : ''}
+                                        ${semanaData.itens && semanaData.itens.length > 0 ? `
+                                            <div class="overflow-x-auto">
+                                                <table class="min-w-full divide-y divide-gray-200">
+                                                    <thead class="bg-gray-50">
+                                                        <tr>
+                                                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Produto</th>
+                                                            <th class="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Quantidade</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody class="bg-white divide-y divide-gray-200">
+                                                        ${semanaData.itens.map(item => `
+                                                            <tr class="hover:bg-gray-50">
+                                                                <td class="px-4 py-3 text-sm text-gray-900">${item.produto_nome || 'N/A'}</td>
+                                                                <td class="px-4 py-3 text-sm text-gray-700 text-center font-medium">${item.quantidade || 0} ${item.unidade_medida || ''}</td>
+                                                            </tr>
+                                                        `).join('')}
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                        ` : '<p class="text-sm text-gray-500 text-center py-4">Nenhum item cadastrado para esta semana</p>'}
+                                    </div>
+                                `;
+                            });
+                        } else {
+                            contentHtml += `
+                                <div class="bg-white rounded-lg p-6 shadow-sm border border-gray-200 text-center">
+                                    <p class="text-gray-500">Nenhum item cadastrado neste cardápio</p>
+                                </div>
+                            `;
+                        }
+                        
+                        contentHtml += `
+                            </div>
+                        `;
+                        
+                        document.getElementById('modal-cardapio-content').innerHTML = contentHtml;
+                    } else {
+                        document.getElementById('modal-cardapio-content').innerHTML = `
+                            <div class="text-center py-8">
+                                <svg class="w-16 h-16 text-red-500 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                </svg>
+                                <p class="text-gray-600">Erro ao carregar detalhes do cardápio</p>
+                                <p class="text-sm text-gray-500 mt-2">${data.message || 'Cardápio não encontrado'}</p>
+                            </div>
+                        `;
                     }
                 })
                 .catch(error => {
                     console.error('Erro:', error);
-                    alert('Erro ao buscar detalhes do cardápio.');
+                    document.getElementById('modal-cardapio-content').innerHTML = `
+                        <div class="text-center py-8">
+                            <svg class="w-16 h-16 text-red-500 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                            </svg>
+                            <p class="text-gray-600">Erro ao buscar detalhes do cardápio</p>
+                            <p class="text-sm text-gray-500 mt-2">${error.message || 'Erro desconhecido'}</p>
+                        </div>
+                    `;
                 });
         }
         
-        // Carregar cardápios ao iniciar a página (substituir renderização inicial por AJAX)
+        function fecharModalVisualizarCardapio() {
+            const modal = document.getElementById('modal-visualizar-cardapio');
+            modal.style.display = 'none';
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+        }
+        
+        // Fechar modal ao clicar fora dele
         document.addEventListener('DOMContentLoaded', function() {
             filtrarCardapios();
+            
+            const modalVisualizar = document.getElementById('modal-visualizar-cardapio');
+            if (modalVisualizar) {
+                modalVisualizar.addEventListener('click', function(e) {
+                    if (e.target === modalVisualizar) {
+                        fecharModalVisualizarCardapio();
+                    }
+                });
+            }
         });
     </script>
 </body>

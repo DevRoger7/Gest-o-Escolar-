@@ -178,6 +178,8 @@ $consumo = $stmtConsumo->fetchAll(PDO::FETCH_ASSOC);
             </div>
         </div>
     </main>
+    
+    <?php include(__DIR__ . '/components/logout_modal.php'); ?>
 </body>
 </html>
 
