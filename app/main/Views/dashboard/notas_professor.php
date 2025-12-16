@@ -657,6 +657,113 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['acao'])) {
     }
 }
 
+// Processar lançamento de nota individual (durante edição)
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao']) && $_POST['acao'] === 'lancar_nota_individual' && $professorId) {
+    header('Content-Type: application/json');
+    
+    $turmaId = $_POST['turma_id'] ?? null;
+    $disciplinaId = $_POST['disciplina_id'] ?? null;
+    $alunoId = $_POST['aluno_id'] ?? null;
+    $notaValor = $_POST['nota'] ?? null;
+    $tipo = $_POST['tipo'] ?? null; // PARCIAL, BIMESTRAL, PARTICIPATIVA
+    $bimestre = $_POST['bimestre'] ?? null;
+    $comentario = $_POST['comentario'] ?? null;
+    $modoEdicao = isset($_POST['modo_edicao']) && $_POST['modo_edicao'] == '1';
+    
+    if (!$turmaId || !$disciplinaId || !$alunoId || $notaValor === null || !$tipo || !$bimestre) {
+        echo json_encode(['success' => false, 'message' => 'Dados incompletos']);
+        exit;
+    }
+    
+    // Validar que a nota está entre 0 e 10
+    $notaValor = floatval(str_replace(',', '.', $notaValor));
+    if ($notaValor < 0 || $notaValor > 10) {
+        echo json_encode(['success' => false, 'message' => 'Nota deve estar entre 0 e 10']);
+        exit;
+    }
+    
+    try {
+        // Mapear tipo para tipo de avaliação
+        $tipoAvaliacao = ($tipo === 'PARCIAL') ? 'ATIVIDADE' : (($tipo === 'BIMESTRAL') ? 'PROVA' : 'TRABALHO');
+        
+        // Verificar se já existe nota do mesmo tipo para este aluno neste bimestre
+        $sqlVerificar = "SELECT n.id FROM nota n
+                        INNER JOIN avaliacao a ON n.avaliacao_id = a.id
+                        WHERE n.aluno_id = :aluno_id
+                        AND n.turma_id = :turma_id
+                        AND n.disciplina_id = :disciplina_id
+                        AND n.bimestre = :bimestre
+                        AND a.tipo = :tipo_avaliacao
+                        LIMIT 1";
+        $stmtVerificar = $conn->prepare($sqlVerificar);
+        $stmtVerificar->bindParam(':aluno_id', $alunoId);
+        $stmtVerificar->bindParam(':turma_id', $turmaId);
+        $stmtVerificar->bindParam(':disciplina_id', $disciplinaId);
+        $stmtVerificar->bindParam(':bimestre', $bimestre);
+        $stmtVerificar->bindParam(':tipo_avaliacao', $tipoAvaliacao);
+        $stmtVerificar->execute();
+        $notaExistente = $stmtVerificar->fetch(PDO::FETCH_ASSOC);
+        
+        if ($notaExistente) {
+            echo json_encode(['success' => false, 'message' => 'Já existe uma nota deste tipo para este aluno neste bimestre']);
+            exit;
+        }
+        
+        // Buscar ou criar avaliação
+        $sqlAvaliacao = "SELECT id FROM avaliacao 
+                        WHERE turma_id = :turma_id 
+                        AND disciplina_id = :disciplina_id 
+                        AND tipo = :tipo 
+                        AND DATE_FORMAT(data, '%Y') = YEAR(CURDATE())
+                        AND ativo = 1
+                        LIMIT 1";
+        $stmtAvaliacao = $conn->prepare($sqlAvaliacao);
+        $stmtAvaliacao->bindParam(':turma_id', $turmaId);
+        $stmtAvaliacao->bindParam(':disciplina_id', $disciplinaId);
+        $stmtAvaliacao->bindParam(':tipo', $tipoAvaliacao);
+        $stmtAvaliacao->execute();
+        $avaliacao = $stmtAvaliacao->fetch(PDO::FETCH_ASSOC);
+        
+        if (!$avaliacao) {
+            // Criar avaliação
+            $tituloAvaliacao = ($tipo === 'PARCIAL') ? 'Atividade Parcial' : (($tipo === 'BIMESTRAL') ? 'Prova Bimestral' : 'Trabalho Participativo');
+            $sqlCriarAvaliacao = "INSERT INTO avaliacao (turma_id, disciplina_id, tipo, titulo, data, ativo, criado_por, criado_em)
+                                 VALUES (:turma_id, :disciplina_id, :tipo, :titulo, CURDATE(), 1, :criado_por, NOW())";
+            $stmtCriarAvaliacao = $conn->prepare($sqlCriarAvaliacao);
+            $stmtCriarAvaliacao->bindParam(':turma_id', $turmaId);
+            $stmtCriarAvaliacao->bindParam(':disciplina_id', $disciplinaId);
+            $stmtCriarAvaliacao->bindParam(':tipo', $tipoAvaliacao);
+            $stmtCriarAvaliacao->bindParam(':titulo', $tituloAvaliacao);
+            $stmtCriarAvaliacao->bindParam(':criado_por', $professorId);
+            $stmtCriarAvaliacao->execute();
+            $avaliacaoId = $conn->lastInsertId();
+        } else {
+            $avaliacaoId = $avaliacao['id'];
+        }
+        
+        // Inserir nota
+        $result = $notaModel->lancar([
+            'avaliacao_id' => $avaliacaoId,
+            'disciplina_id' => $disciplinaId,
+            'turma_id' => $turmaId,
+            'aluno_id' => $alunoId,
+            'nota' => $notaValor,
+            'bimestre' => $bimestre,
+            'comentario' => $comentario
+        ]);
+        
+        if ($result) {
+            echo json_encode(['success' => true, 'message' => 'Nota lançada com sucesso']);
+        } else {
+            echo json_encode(['success' => false, 'message' => 'Erro ao lançar nota']);
+        }
+    } catch (Exception $e) {
+        error_log("Erro ao lançar nota individual: " . $e->getMessage());
+        echo json_encode(['success' => false, 'message' => 'Erro: ' . $e->getMessage()]);
+    }
+    exit;
+}
+
 // Processar edição de nota
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao']) && $_POST['acao'] === 'editar_nota' && $professorId) {
     header('Content-Type: application/json');
@@ -1143,7 +1250,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao']) && $_POST['ac
     </div>
     
     <!-- Modal Editar Notas -->
-    <div id="modal-editar-nota" class="fixed inset-0 bg-black bg-opacity-50 z-[70] hidden items-center justify-center p-4">
+    <div id="modal-editar-nota" class="fixed inset-0 bg-black bg-opacity-50 z-[70] hidden flex items-center justify-center p-4">
         <div class="bg-white rounded-lg p-6 max-w-lg w-full max-h-[90vh] overflow-y-auto">
             <div class="flex items-center justify-between mb-4">
                 <h3 class="text-lg font-semibold text-gray-900">Editar Notas</h3>
@@ -1551,14 +1658,34 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao']) && $_POST['ac
                         }
                     }
                     
-                    var readonlyAttr = temNota ? 'readonly title="Nota já lançada. Use a opção Editar para modificar."' : '';
-                    var placeholderAttr = temNota ? '' : 'placeholder="0,0"';
-                    var oninputAttr = temNota ? '' : 'oninput="aplicarMascaraNota(this); calcularMediaAluno(this); atualizarContadores();"';
-                    var onblurAttr = temNota ? '' : 'onblur="aplicarMascaraNota(this); calcularMediaAluno(this);"';
+                    // Verificar individualmente cada tipo de nota
+                    var temNotaParcial = notaExistente && notaExistente.parcial !== null && notaExistente.parcial !== undefined;
+                    var temNotaBimestral = notaExistente && notaExistente.bimestral !== null && notaExistente.bimestral !== undefined;
+                    var temNotaParticipativa = notaExistente && notaExistente.participativa !== null && notaExistente.participativa !== undefined;
+                    
+                    // Atributos para cada input individualmente
+                    var readonlyAttrParcial = temNotaParcial ? 'readonly title="Nota já lançada. Use a opção Editar para modificar."' : '';
+                    var placeholderAttrParcial = temNotaParcial ? '' : 'placeholder="0,0"';
+                    var oninputAttrParcial = temNotaParcial ? '' : 'oninput="aplicarMascaraNota(this); calcularMediaAluno(this); atualizarContadores();"';
+                    var onblurAttrParcial = temNotaParcial ? '' : 'onblur="aplicarMascaraNota(this); calcularMediaAluno(this);"';
+                    var borderClassParcial = temNotaParcial ? 'border-amber-300 bg-amber-50' : 'border-gray-200';
+                    
+                    var readonlyAttrBimestral = temNotaBimestral ? 'readonly title="Nota já lançada. Use a opção Editar para modificar."' : '';
+                    var placeholderAttrBimestral = temNotaBimestral ? '' : 'placeholder="0,0"';
+                    var oninputAttrBimestral = temNotaBimestral ? '' : 'oninput="aplicarMascaraNota(this); calcularMediaAluno(this); atualizarContadores();"';
+                    var onblurAttrBimestral = temNotaBimestral ? '' : 'onblur="aplicarMascaraNota(this); calcularMediaAluno(this);"';
+                    var borderClassBimestral = temNotaBimestral ? 'border-amber-300 bg-amber-50' : 'border-gray-200';
+                    
+                    var readonlyAttrParticipativa = temNotaParticipativa ? 'readonly title="Nota já lançada. Use a opção Editar para modificar."' : '';
+                    var placeholderAttrParticipativa = temNotaParticipativa ? '' : 'placeholder="0,0"';
+                    var oninputAttrParticipativa = temNotaParticipativa ? '' : 'oninput="aplicarMascaraNota(this); calcularMediaAluno(this); atualizarContadores();"';
+                    var onblurAttrParticipativa = temNotaParticipativa ? '' : 'onblur="aplicarMascaraNota(this); calcularMediaAluno(this);"';
+                    var borderClassParticipativa = temNotaParticipativa ? 'border-amber-300 bg-amber-50' : 'border-gray-200';
+                    
+                    // Comentário só fica readonly se houver qualquer nota
                     var oninputComentarioAttr = temNota ? '' : 'oninput="atualizarContadores();"';
                     var readonlyComentarioAttr = temNota ? 'readonly title="Observação já lançada. Use a opção Editar para modificar."' : 'placeholder="Opcional"';
                     
-                    var borderClass = temNota ? 'border-amber-300 bg-amber-50' : 'border-gray-200';
                     var rowBgClass = temNota ? 'bg-amber-50 border-amber-200' : 'bg-white border-gray-100';
                     
                     var matriculaHtml = alunoMatriculaEscapada ? '<div class="text-xs text-gray-400">' + alunoMatriculaEscapada + '</div>' : '';
@@ -1576,19 +1703,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao']) && $_POST['ac
                         temNotaHtml +
                         '</div></div>' +
                         '<div class="col-span-2">' +
-                        '<input type="text" class="nota-input nota-parcial w-full px-3 py-2 text-sm font-semibold text-center border-2 rounded-lg ' + borderClass + '" data-aluno-id="' + aluno.id + '" value="' + notaParcial + '" ' + readonlyAttr + ' ' + placeholderAttr + ' ' + oninputAttr + ' ' + onblurAttr + '>' +
+                        '<input type="text" class="nota-input nota-parcial w-full px-3 py-2 text-sm font-semibold text-center border-2 rounded-lg ' + borderClassParcial + '" data-aluno-id="' + aluno.id + '" value="' + notaParcial + '" ' + readonlyAttrParcial + ' ' + placeholderAttrParcial + ' ' + oninputAttrParcial + ' ' + onblurAttrParcial + '>' +
                         '</div>' +
                         '<div class="col-span-2">' +
-                        '<input type="text" class="nota-input nota-bimestral w-full px-3 py-2 text-sm font-semibold text-center border-2 rounded-lg ' + borderClass + '" data-aluno-id="' + aluno.id + '" value="' + notaBimestral + '" ' + readonlyAttr + ' ' + placeholderAttr + ' ' + oninputAttr + ' ' + onblurAttr + '>' +
+                        '<input type="text" class="nota-input nota-bimestral w-full px-3 py-2 text-sm font-semibold text-center border-2 rounded-lg ' + borderClassBimestral + '" data-aluno-id="' + aluno.id + '" value="' + notaBimestral + '" ' + readonlyAttrBimestral + ' ' + placeholderAttrBimestral + ' ' + oninputAttrBimestral + ' ' + onblurAttrBimestral + '>' +
                         '</div>' +
                         '<div class="col-span-2">' +
-                        '<input type="text" class="nota-input nota-participativa w-full px-3 py-2 text-sm font-semibold text-center border-2 rounded-lg ' + borderClass + '" data-aluno-id="' + aluno.id + '" value="' + notaParticipativa + '" ' + readonlyAttr + ' ' + placeholderAttr + ' ' + oninputAttr + ' ' + onblurAttr + '>' +
+                        '<input type="text" class="nota-input nota-participativa w-full px-3 py-2 text-sm font-semibold text-center border-2 rounded-lg ' + borderClassParticipativa + '" data-aluno-id="' + aluno.id + '" value="' + notaParticipativa + '" ' + readonlyAttrParticipativa + ' ' + placeholderAttrParticipativa + ' ' + oninputAttrParticipativa + ' ' + onblurAttrParticipativa + '>' +
                         '</div>' +
                         '<div class="col-span-1 flex justify-center">' +
                         '<div class="media-badge media-aluno text-sm font-bold py-2 rounded-lg" data-aluno-id="' + aluno.id + '">' + mediaTexto + '</div>' +
                         '</div>' +
                         '<div class="col-span-2">' +
-                        '<input type="text" class="comentario-input w-full px-3 py-2 text-sm border-2 rounded-lg ' + borderClass + '" data-aluno-id="' + aluno.id + '" value="' + comentarioEscapado + '" ' + readonlyComentarioAttr + ' ' + oninputComentarioAttr + '>' +
+                        '<input type="text" class="comentario-input w-full px-3 py-2 text-sm border-2 rounded-lg ' + (temNota ? 'border-amber-300 bg-amber-50' : 'border-gray-200') + '" data-aluno-id="' + aluno.id + '" value="' + comentarioEscapado + '" ' + readonlyComentarioAttr + ' ' + oninputComentarioAttr + '>' +
                         '</div>';
                     
                     container.appendChild(div);
@@ -1782,40 +1909,41 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao']) && $_POST['ac
             const notas = [];
             
             const alunosProcessados = new Set();
-            document.querySelectorAll('#notas-alunos-container .nota-parcial').forEach(input => {
-                const alunoId = input.dataset.alunoId;
-                // Ignorar campos readonly (notas já existentes)
-                if (input.readOnly) {
+            let totalInputsReadonly = 0;
+            let totalInputs = 0;
+            
+            // Processar todos os alunos, mas apenas os inputs que não são readonly
+            document.querySelectorAll('#notas-alunos-container .aluno-row').forEach(row => {
+                const alunoId = row.querySelector('[data-aluno-id]')?.dataset.alunoId;
+                if (!alunoId || alunosProcessados.has(alunoId)) {
                     return;
                 }
                 
-                if (!alunosProcessados.has(alunoId)) {
-                    const notaParcialInput = document.querySelector(`.nota-parcial[data-aluno-id="${alunoId}"]`);
-                    const notaBimestralInput = document.querySelector(`.nota-bimestral[data-aluno-id="${alunoId}"]`);
-                    const notaParticipativaInput = document.querySelector(`.nota-participativa[data-aluno-id="${alunoId}"]`);
-                    const comentarioInput = document.querySelector(`.comentario-input[data-aluno-id="${alunoId}"]`);
-                    
-                    // Verificar se os inputs não são readonly
-                    if (notaParcialInput && notaParcialInput.readOnly) {
-                        alunosProcessados.add(alunoId);
-                        return;
-                    }
-                    if (notaBimestralInput && notaBimestralInput.readOnly) {
-                        alunosProcessados.add(alunoId);
-                        return;
-                    }
-                    if (notaParticipativaInput && notaParticipativaInput.readOnly) {
-                        alunosProcessados.add(alunoId);
-                        return;
-                    }
-                    
-                    // Converter vírgula para ponto para envio ao servidor
-                    const notaParcial = notaParcialInput ? parseFloat((notaParcialInput.value || '').replace(',', '.')) : null;
-                    const notaBimestral = notaBimestralInput ? parseFloat((notaBimestralInput.value || '').replace(',', '.')) : null;
-                    const notaParticipativa = notaParticipativaInput ? parseFloat((notaParticipativaInput.value || '').replace(',', '.')) : null;
-                    const comentario = comentarioInput && !comentarioInput.readOnly ? comentarioInput.value : '';
-                    
+                const notaParcialInput = row.querySelector(`.nota-parcial[data-aluno-id="${alunoId}"]`);
+                const notaBimestralInput = row.querySelector(`.nota-bimestral[data-aluno-id="${alunoId}"]`);
+                const notaParticipativaInput = row.querySelector(`.nota-participativa[data-aluno-id="${alunoId}"]`);
+                const comentarioInput = row.querySelector(`.comentario-input[data-aluno-id="${alunoId}"]`);
+                
+                // Contar inputs readonly
+                if (notaParcialInput) {
+                    totalInputs++;
+                    if (notaParcialInput.readOnly) totalInputsReadonly++;
+                }
+                if (notaBimestralInput) {
+                    totalInputs++;
+                    if (notaBimestralInput.readOnly) totalInputsReadonly++;
+                }
+                if (notaParticipativaInput) {
+                    totalInputs++;
+                    if (notaParticipativaInput.readOnly) totalInputsReadonly++;
+                }
+                
+                // Processar apenas inputs que não são readonly
+                // Nota Parcial
+                if (notaParcialInput && !notaParcialInput.readOnly) {
+                    const notaParcial = parseFloat((notaParcialInput.value || '').replace(',', '.')) || null;
                     if (notaParcial !== null && notaParcial > 0) {
+                        const comentario = comentarioInput && !comentarioInput.readOnly ? comentarioInput.value : '';
                         notas.push({
                             aluno_id: alunoId,
                             nota: notaParcial,
@@ -1824,8 +1952,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao']) && $_POST['ac
                             comentario: comentario
                         });
                     }
-                    
+                }
+                
+                // Nota Bimestral
+                if (notaBimestralInput && !notaBimestralInput.readOnly) {
+                    const notaBimestral = parseFloat((notaBimestralInput.value || '').replace(',', '.')) || null;
                     if (notaBimestral !== null && notaBimestral > 0) {
+                        const comentario = comentarioInput && !comentarioInput.readOnly ? comentarioInput.value : '';
                         notas.push({
                             aluno_id: alunoId,
                             nota: notaBimestral,
@@ -1834,8 +1967,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao']) && $_POST['ac
                             comentario: comentario
                         });
                     }
-                    
+                }
+                
+                // Nota Participativa
+                if (notaParticipativaInput && !notaParticipativaInput.readOnly) {
+                    const notaParticipativa = parseFloat((notaParticipativaInput.value || '').replace(',', '.')) || null;
                     if (notaParticipativa !== null && notaParticipativa > 0) {
+                        const comentario = comentarioInput && !comentarioInput.readOnly ? comentarioInput.value : '';
                         notas.push({
                             aluno_id: alunoId,
                             nota: notaParticipativa,
@@ -1844,10 +1982,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao']) && $_POST['ac
                             comentario: comentario
                         });
                     }
-                    
-                    alunosProcessados.add(alunoId);
                 }
+                
+                alunosProcessados.add(alunoId);
             });
+            
+            // Se todos os campos estão bloqueados, mostrar mensagem específica
+            if (totalInputs > 0 && totalInputsReadonly === totalInputs) {
+                alert('Todas as notas já foram lançadas para este bimestre. Os campos estão bloqueados. Use a opção "Editar" na visualização da turma para modificar as notas existentes.');
+                return;
+            }
             
             if (notas.length === 0) {
                 alert('Nenhuma nota nova foi preenchida. As notas existentes não podem ser modificadas aqui. Use a opção "Editar" na visualização da turma.');
@@ -2194,24 +2338,51 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao']) && $_POST['ac
         
         // Funções para editar notas
         function editarNotasAluno(alunoId, bimestre) {
-            const turmaId = document.getElementById('ver-turma-id').value;
-            const disciplinaId = document.getElementById('ver-turma-disciplina-id').value;
+            console.log('=== editarNotasAluno ===');
+            console.log('alunoId:', alunoId);
+            console.log('bimestre:', bimestre);
             
-            if (!turmaId || !disciplinaId || !alunoId) {
-                alert('Erro: dados incompletos');
+            const turmaIdEl = document.getElementById('ver-turma-id');
+            const disciplinaIdEl = document.getElementById('ver-turma-disciplina-id');
+            
+            if (!turmaIdEl || !disciplinaIdEl) {
+                console.error('Elementos ver-turma-id ou ver-turma-disciplina-id não encontrados');
+                alert('Erro: elementos não encontrados. Certifique-se de que a turma está selecionada.');
                 return;
             }
             
-            fetch(`?acao=buscar_notas_aluno_bimestre&aluno_id=${alunoId}&turma_id=${turmaId}&disciplina_id=${disciplinaId}&bimestre=${bimestre}`)
-                .then(response => response.json())
+            const turmaId = turmaIdEl.value;
+            const disciplinaId = disciplinaIdEl.value;
+            
+            console.log('turmaId:', turmaId);
+            console.log('disciplinaId:', disciplinaId);
+            
+            if (!turmaId || !disciplinaId || !alunoId) {
+                console.error('Dados incompletos:', { turmaId, disciplinaId, alunoId });
+                alert('Erro: dados incompletos. Certifique-se de que a turma está selecionada.');
+                return;
+            }
+            
+            const url = `?acao=buscar_notas_aluno_bimestre&aluno_id=${alunoId}&turma_id=${turmaId}&disciplina_id=${disciplinaId}&bimestre=${bimestre}`;
+            console.log('URL:', url);
+            
+            fetch(url)
+                .then(response => {
+                    console.log('Response status:', response.status);
+                    if (!response.ok) {
+                        throw new Error('Erro na resposta do servidor: ' + response.status);
+                    }
+                    return response.json();
+                })
                 .then(data => {
+                    console.log('Dados recebidos:', data);
                     if (data.success) {
                         document.getElementById('editar-nota-aluno-id').value = alunoId;
                         document.getElementById('editar-nota-aluno').textContent = data.aluno ? (data.aluno.nome + (data.aluno.matricula ? ' - ' + data.aluno.matricula : '')) : 'Aluno';
                         document.getElementById('editar-nota-bimestre').value = bimestre;
                         
                         // Preencher parcial
-                        if (data.parcial) {
+                        if (data.parcial && data.parcial.id) {
                             document.getElementById('editar-nota-parcial-id').value = data.parcial.id;
                             document.getElementById('editar-nota-parcial-valor').value = parseFloat(data.parcial.nota).toFixed(1).replace('.', ',');
                             document.getElementById('editar-nota-parcial-comentario').value = data.parcial.comentario || '';
@@ -2222,7 +2393,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao']) && $_POST['ac
                         }
                         
                         // Preencher bimestral
-                        if (data.bimestral) {
+                        if (data.bimestral && data.bimestral.id) {
                             document.getElementById('editar-nota-bimestral-id').value = data.bimestral.id;
                             document.getElementById('editar-nota-bimestral-valor').value = parseFloat(data.bimestral.nota).toFixed(1).replace('.', ',');
                             document.getElementById('editar-nota-bimestral-comentario').value = data.bimestral.comentario || '';
@@ -2233,7 +2404,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao']) && $_POST['ac
                         }
                         
                         // Preencher participativa
-                        if (data.participativa) {
+                        if (data.participativa && data.participativa.id) {
                             document.getElementById('editar-nota-participativa-id').value = data.participativa.id;
                             document.getElementById('editar-nota-participativa-valor').value = parseFloat(data.participativa.nota).toFixed(1).replace('.', ',');
                             document.getElementById('editar-nota-participativa-comentario').value = data.participativa.comentario || '';
@@ -2245,16 +2416,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao']) && $_POST['ac
                         
                         const modal = document.getElementById('modal-editar-nota');
                         if (modal) {
+                            console.log('Abrindo modal...');
                             modal.classList.remove('hidden');
                             modal.style.display = 'flex';
+                        } else {
+                            console.error('Modal não encontrado!');
+                            alert('Erro: modal não encontrado');
                         }
                     } else {
+                        console.error('Erro na resposta:', data.message);
                         alert('Erro ao carregar dados das notas: ' + (data.message || 'Erro desconhecido'));
                     }
                 })
                 .catch(error => {
-                    console.error('Erro:', error);
-                    alert('Erro ao carregar dados das notas');
+                    console.error('Erro na requisição:', error);
+                    alert('Erro ao carregar dados das notas: ' + error.message);
                 });
         }
         
@@ -2378,30 +2554,49 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao']) && $_POST['ac
                 }
             }
             
-            // Salvar novas notas
+            // Salvar novas notas (usar endpoint específico que permite adicionar durante edição)
             if (notasParaSalvar.length > 0) {
-                const formData = new FormData();
-                formData.append('acao', 'lancar_notas');
-                formData.append('turma_id', turmaId);
-                formData.append('disciplina_id', disciplinaId);
-                formData.append('notas', JSON.stringify(notasParaSalvar));
-                
-                fetch('', {
-                    method: 'POST',
-                    body: formData
-                })
-                .then(response => response.json())
-                .then(data => {
-                    if (!data.success) {
-                        throw new Error(data.message || 'Erro ao salvar notas');
+                // Salvar uma por vez para melhor controle
+                let indexSalvar = 0;
+                function salvarProxima() {
+                    if (indexSalvar >= notasParaSalvar.length) {
+                        // Todas as novas notas foram salvas, agora editar as existentes
+                        editarNotasRestantes(notasParaEditar);
+                        return;
                     }
-                    // Continuar para editar
-                    editarNotasRestantes(notasParaEditar);
-                })
-                .catch(error => {
-                    console.error('Erro ao salvar notas:', error);
-                    alert('Erro ao salvar notas: ' + error.message);
-                });
+                    
+                    const nota = notasParaSalvar[indexSalvar];
+                    const formData = new FormData();
+                    formData.append('acao', 'lancar_nota_individual');
+                    formData.append('turma_id', turmaId);
+                    formData.append('disciplina_id', disciplinaId);
+                    formData.append('aluno_id', nota.aluno_id);
+                    formData.append('nota', nota.nota);
+                    formData.append('tipo', nota.tipo);
+                    formData.append('bimestre', nota.bimestre);
+                    formData.append('comentario', nota.comentario || '');
+                    formData.append('modo_edicao', '1'); // Flag para indicar que é durante edição
+                    
+                    fetch('', {
+                        method: 'POST',
+                        body: formData
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            indexSalvar++;
+                            salvarProxima();
+                        } else {
+                            throw new Error(data.message || 'Erro ao salvar nota');
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Erro ao salvar nota:', error);
+                        alert('Erro ao salvar nota: ' + error.message);
+                    });
+                }
+                
+                salvarProxima();
             } else {
                 // Apenas editar
                 editarNotasRestantes(notasParaEditar);
@@ -2473,8 +2668,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao']) && $_POST['ac
                     method: 'POST',
                     body: formData
                 })
-                .then(response => response.json())
+                .then(response => {
+                    console.log('Response status:', response.status);
+                    if (!response.ok) {
+                        throw new Error('Erro na resposta do servidor: ' + response.status);
+                    }
+                    return response.json();
+                })
                 .then(data => {
+                    console.log('Dados recebidos ao editar:', data);
                     if (data.success) {
                         index++;
                         editarProxima();

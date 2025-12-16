@@ -36,7 +36,15 @@ try {
                 'observacao' => $_POST['observacao'] ?? null
             ];
             $result = $model->registrar($dados);
-            echo json_encode(['success' => $result]);
+            
+            // Se retornou array, é um erro
+            if (is_array($result) && isset($result['success']) && !$result['success']) {
+                echo json_encode($result);
+            } elseif ($result === true) {
+                echo json_encode(['success' => true]);
+            } else {
+                echo json_encode(['success' => false, 'message' => 'Erro ao registrar frequência']);
+            }
             break;
             
         case 'registrar_lote':
