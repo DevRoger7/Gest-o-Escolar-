@@ -898,7 +898,33 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $pessoaId = $conn->lastInsertId();
                 
                 // 2. Criar professor
-                $matricula = !empty($_POST['matricula']) ? $_POST['matricula'] : null;
+                // Gerar matrícula automaticamente se não fornecida
+                $matricula = !empty($_POST['matricula']) ? trim($_POST['matricula']) : null;
+                if (empty($matricula)) {
+                    $ano = date('Y');
+                    // Buscar última matrícula de professor do ano atual
+                    $sqlMatricula = "SELECT MAX(CAST(SUBSTRING(matricula, 5) AS UNSIGNED)) as ultima_matricula 
+                                    FROM professor 
+                                    WHERE matricula LIKE :ano_prefix AND matricula IS NOT NULL AND matricula != ''";
+                    $stmtMatricula = $conn->prepare($sqlMatricula);
+                    $anoPrefix = $ano . '%';
+                    $stmtMatricula->bindParam(':ano_prefix', $anoPrefix);
+                    $stmtMatricula->execute();
+                    $result = $stmtMatricula->fetch(PDO::FETCH_ASSOC);
+                    $proximoNumero = ($result['ultima_matricula'] ?? 0) + 1;
+                    $matricula = $ano . str_pad($proximoNumero, 4, '0', STR_PAD_LEFT);
+                    
+                    // Verificar se a matrícula gerada já existe (caso raro, mas possível)
+                    $sqlVerificarMatricula = "SELECT id FROM professor WHERE matricula = :matricula";
+                    $stmtVerificarMat = $conn->prepare($sqlVerificarMatricula);
+                    $stmtVerificarMat->bindParam(':matricula', $matricula);
+                    $stmtVerificarMat->execute();
+                    if ($stmtVerificarMat->fetch()) {
+                        // Se já existe, incrementar
+                        $proximoNumero++;
+                        $matricula = $ano . str_pad($proximoNumero, 4, '0', STR_PAD_LEFT);
+                    }
+                }
                 $formacao = !empty($_POST['formacao']) ? $_POST['formacao'] : null;
                 $especializacao = !empty($_POST['especializacao']) ? $_POST['especializacao'] : null;
                 $registroProfissional = !empty($_POST['registro_profissional']) ? $_POST['registro_profissional'] : null;
@@ -965,6 +991,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     'sexo' => $_POST['sexo'] ?? null,
                     'email' => !empty($_POST['email']) ? trim($_POST['email']) : null,
                     'telefone' => !empty($_POST['telefone']) ? preg_replace('/[^0-9]/', '', $_POST['telefone']) : null,
+                    'endereco' => !empty($_POST['endereco']) ? trim($_POST['endereco']) : null,
+                    'numero' => !empty($_POST['numero']) ? trim($_POST['numero']) : null,
+                    'complemento' => !empty($_POST['complemento']) ? trim($_POST['complemento']) : null,
+                    'bairro' => !empty($_POST['bairro']) ? trim($_POST['bairro']) : null,
+                    'cidade' => !empty($_POST['cidade']) ? trim($_POST['cidade']) : null,
+                    'estado' => !empty($_POST['estado']) ? trim($_POST['estado']) : 'CE',
+                    'cep' => !empty($_POST['cep']) ? preg_replace('/[^0-9]/', '', trim($_POST['cep'])) : null,
                     'senha' => $_POST['senha'] ?? ''
                 ];
                 
@@ -3244,6 +3277,90 @@ if (!defined('BASE_URL')) {
                                 </div>
                             </div>
                             
+                            <!-- Endereço -->
+                            <div>
+                                <h4 class="text-lg font-semibold text-gray-900 mb-4 pb-2 border-b border-gray-200">Endereço</h4>
+                                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                                    <div class="md:col-span-2 lg:col-span-3">
+                                        <label class="block text-sm font-medium text-gray-700 mb-2">Logradouro</label>
+                                        <input type="text" id="responsavel-endereco" 
+                                               placeholder="Rua, Avenida, etc."
+                                               class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-green focus:border-primary-green transition-colors">
+                                    </div>
+                                    
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-2">Número</label>
+                                        <input type="text" id="responsavel-numero" 
+                                               placeholder="Número"
+                                               class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-green focus:border-primary-green transition-colors">
+                                    </div>
+                                    
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-2">Complemento</label>
+                                        <input type="text" id="responsavel-complemento" 
+                                               placeholder="Apartamento, bloco, etc."
+                                               class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-green focus:border-primary-green transition-colors">
+                                    </div>
+                                    
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-2">Bairro</label>
+                                        <input type="text" id="responsavel-bairro" 
+                                               placeholder="Bairro"
+                                               class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-green focus:border-primary-green transition-colors">
+                                    </div>
+                                    
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-2">Cidade</label>
+                                        <input type="text" id="responsavel-cidade" 
+                                               placeholder="Cidade"
+                                               class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-green focus:border-primary-green transition-colors">
+                                    </div>
+                                    
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-2">Estado</label>
+                                        <select id="responsavel-estado" 
+                                                class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-green focus:border-primary-green transition-colors">
+                                            <option value="">Selecione...</option>
+                                            <option value="AC">Acre</option>
+                                            <option value="AL">Alagoas</option>
+                                            <option value="AP">Amapá</option>
+                                            <option value="AM">Amazonas</option>
+                                            <option value="BA">Bahia</option>
+                                            <option value="CE" selected>Ceará</option>
+                                            <option value="DF">Distrito Federal</option>
+                                            <option value="ES">Espírito Santo</option>
+                                            <option value="GO">Goiás</option>
+                                            <option value="MA">Maranhão</option>
+                                            <option value="MT">Mato Grosso</option>
+                                            <option value="MS">Mato Grosso do Sul</option>
+                                            <option value="MG">Minas Gerais</option>
+                                            <option value="PA">Pará</option>
+                                            <option value="PB">Paraíba</option>
+                                            <option value="PR">Paraná</option>
+                                            <option value="PE">Pernambuco</option>
+                                            <option value="PI">Piauí</option>
+                                            <option value="RJ">Rio de Janeiro</option>
+                                            <option value="RN">Rio Grande do Norte</option>
+                                            <option value="RS">Rio Grande do Sul</option>
+                                            <option value="RO">Rondônia</option>
+                                            <option value="RR">Roraima</option>
+                                            <option value="SC">Santa Catarina</option>
+                                            <option value="SP">São Paulo</option>
+                                            <option value="SE">Sergipe</option>
+                                            <option value="TO">Tocantins</option>
+                                        </select>
+                                    </div>
+                                    
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-2">CEP</label>
+                                        <input type="text" id="responsavel-cep" maxlength="9" 
+                                               placeholder="00000-000"
+                                               class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-green focus:border-primary-green transition-colors"
+                                               oninput="this.value = this.value.replace(/\D/g, '').replace(/(\d{5})(\d)/, '$1-$2')">
+                                    </div>
+                                </div>
+                            </div>
+                            
                             <!-- Acesso ao Sistema -->
                             <div>
                                 <h4 class="text-lg font-semibold text-gray-900 mb-4 pb-2 border-b border-gray-200">Acesso ao Sistema</h4>
@@ -4085,7 +4202,9 @@ if (!defined('BASE_URL')) {
                                 <div>
                                     <label class="block text-sm font-medium text-gray-700 mb-2">Matrícula</label>
                                     <input type="text" name="matricula" 
-                                        class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-600 focus:border-blue-600 transition-colors">
+                                        placeholder="Será gerada automaticamente se deixada em branco"
+                                        class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-600 focus:border-blue-600 transition-colors bg-gray-50">
+                                    <p class="text-xs text-gray-500 mt-1">A matrícula será gerada automaticamente se deixada em branco</p>
                                 </div>
                                 
                                 <div>
@@ -4375,7 +4494,9 @@ if (!defined('BASE_URL')) {
                                     <div>
                                         <label class="block text-sm font-medium text-gray-700 mb-2">Matrícula</label>
                                         <input type="text" name="matricula" 
-                                               class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-600 focus:border-green-600 transition-colors">
+                                               placeholder="Será gerada automaticamente se deixada em branco"
+                                               class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-600 focus:border-green-600 transition-colors bg-gray-50">
+                                        <p class="text-xs text-gray-500 mt-1">A matrícula será gerada automaticamente se deixada em branco</p>
                                     </div>
                                     
                                     <div>
@@ -6393,6 +6514,13 @@ if (!defined('BASE_URL')) {
                 sexo: document.getElementById('responsavel-sexo').value || null,
                 email: document.getElementById('responsavel-email').value || null,
                 telefone: document.getElementById('responsavel-telefone').value.replace(/\D/g, '') || null,
+                endereco: document.getElementById('responsavel-endereco').value || null,
+                numero: document.getElementById('responsavel-numero').value || null,
+                complemento: document.getElementById('responsavel-complemento').value || null,
+                bairro: document.getElementById('responsavel-bairro').value || null,
+                cidade: document.getElementById('responsavel-cidade').value || null,
+                estado: document.getElementById('responsavel-estado').value || null,
+                cep: document.getElementById('responsavel-cep').value.replace(/\D/g, '') || null,
                 senha: document.getElementById('responsavel-senha').value
             };
             

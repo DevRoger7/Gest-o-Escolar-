@@ -121,7 +121,34 @@ class FuncionarioModel {
             $pessoaId = $conn->lastInsertId();
             
             // 2. Criar funcionário
-            $matricula = $dados['matricula'] ?? null;
+            // Gerar matrícula automaticamente se não fornecida
+            $matricula = !empty($dados['matricula']) ? trim($dados['matricula']) : null;
+            if (empty($matricula)) {
+                $ano = date('Y');
+                // Buscar última matrícula de funcionário do ano atual
+                $sqlMatricula = "SELECT MAX(CAST(SUBSTRING(matricula, 5) AS UNSIGNED)) as ultima_matricula 
+                                FROM funcionario 
+                                WHERE matricula LIKE :ano_prefix AND matricula IS NOT NULL AND matricula != ''";
+                $stmtMatricula = $conn->prepare($sqlMatricula);
+                $anoPrefix = $ano . '%';
+                $stmtMatricula->bindParam(':ano_prefix', $anoPrefix);
+                $stmtMatricula->execute();
+                $result = $stmtMatricula->fetch(PDO::FETCH_ASSOC);
+                $proximoNumero = ($result['ultima_matricula'] ?? 0) + 1;
+                $matricula = $ano . str_pad($proximoNumero, 4, '0', STR_PAD_LEFT);
+                
+                // Verificar se a matrícula gerada já existe (caso raro, mas possível)
+                $sqlVerificarMatricula = "SELECT id FROM funcionario WHERE matricula = :matricula";
+                $stmtVerificarMat = $conn->prepare($sqlVerificarMatricula);
+                $stmtVerificarMat->bindParam(':matricula', $matricula);
+                $stmtVerificarMat->execute();
+                if ($stmtVerificarMat->fetch()) {
+                    // Se já existe, incrementar
+                    $proximoNumero++;
+                    $matricula = $ano . str_pad($proximoNumero, 4, '0', STR_PAD_LEFT);
+                }
+            }
+            
             $cargo = $dados['cargo'] ?? '';
             $setor = $dados['setor'] ?? null;
             $dataAdmissao = $dados['data_admissao'] ?? date('Y-m-d');

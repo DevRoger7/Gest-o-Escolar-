@@ -88,6 +88,34 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao'])) {
             
             $conn->beginTransaction();
             
+            // Gerar matrícula automaticamente se não fornecida
+            $matricula = !empty($_POST['matricula']) ? trim($_POST['matricula']) : null;
+            if (empty($matricula)) {
+                $ano = date('Y');
+                // Buscar última matrícula de funcionário do ano atual
+                $sqlMatricula = "SELECT MAX(CAST(SUBSTRING(matricula, 5) AS UNSIGNED)) as ultima_matricula 
+                                FROM funcionario 
+                                WHERE matricula LIKE :ano_prefix AND matricula IS NOT NULL AND matricula != ''";
+                $stmtMatricula = $conn->prepare($sqlMatricula);
+                $anoPrefix = $ano . '%';
+                $stmtMatricula->bindParam(':ano_prefix', $anoPrefix);
+                $stmtMatricula->execute();
+                $result = $stmtMatricula->fetch(PDO::FETCH_ASSOC);
+                $proximoNumero = ($result['ultima_matricula'] ?? 0) + 1;
+                $matricula = $ano . str_pad($proximoNumero, 4, '0', STR_PAD_LEFT);
+                
+                // Verificar se a matrícula gerada já existe (caso raro, mas possível)
+                $sqlVerificarMatricula = "SELECT id FROM funcionario WHERE matricula = :matricula";
+                $stmtVerificarMat = $conn->prepare($sqlVerificarMatricula);
+                $stmtVerificarMat->bindParam(':matricula', $matricula);
+                $stmtVerificarMat->execute();
+                if ($stmtVerificarMat->fetch()) {
+                    // Se já existe, incrementar
+                    $proximoNumero++;
+                    $matricula = $ano . str_pad($proximoNumero, 4, '0', STR_PAD_LEFT);
+                }
+            }
+            
             // Preparar dados para o model
             $dados = [
                 'cpf' => $cpf,
@@ -96,7 +124,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao'])) {
                 'sexo' => $_POST['sexo'] ?? null,
                 'email' => !empty($_POST['email']) ? trim($_POST['email']) : null,
                 'telefone' => !empty($telefone) ? $telefone : null,
-                'matricula' => !empty($_POST['matricula']) ? trim($_POST['matricula']) : null,
+                'matricula' => $matricula,
                 'cargo' => trim($_POST['cargo'] ?? ''),
                 'setor' => !empty($_POST['setor']) ? trim($_POST['setor']) : null,
                 'data_admissao' => $_POST['data_admissao'] ?? date('Y-m-d')
@@ -125,7 +153,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao'])) {
             $sqlFunc = "INSERT INTO funcionario (pessoa_id, matricula, cargo, setor, data_admissao, ativo, criado_por)
                        VALUES (:pessoa_id, :matricula, :cargo, :setor, :data_admissao, 1, :criado_por)";
             $stmtFunc = $conn->prepare($sqlFunc);
-            $matriculaParam = !empty($_POST['matricula']) ? trim($_POST['matricula']) : null;
+            $matriculaParam = $matricula; // Usar a matrícula gerada automaticamente ou fornecida
             $cargoParam = trim($_POST['cargo'] ?? '');
             $setorParam = !empty($_POST['setor']) ? trim($_POST['setor']) : null;
             $dataAdmissaoParam = $_POST['data_admissao'] ?? date('Y-m-d');
@@ -728,7 +756,9 @@ $funcionarios = $funcionarioModel->listar(['ativo' => 1]);
                             <div>
                                 <label class="block text-sm font-medium text-gray-700 mb-2">Matrícula</label>
                                 <input type="text" name="matricula" id="matricula"
-                                       class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent">
+                                       placeholder="Será gerada automaticamente se deixada em branco"
+                                       class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent bg-gray-50">
+                                <p class="text-xs text-gray-500 mt-1">A matrícula será gerada automaticamente se deixada em branco</p>
                             </div>
                             <div>
                                 <label class="block text-sm font-medium text-gray-700 mb-2">Cargo *</label>

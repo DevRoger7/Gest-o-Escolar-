@@ -315,7 +315,25 @@ function cadastrarEscola($dados)
         $codigo = !empty($dados['codigo']) ? $dados['codigo'] : 'ESC' . date('YmdHis');
 
         // Inserir escola
-        $cnpj = !empty($dados['cnpj']) ? $dados['cnpj'] : null;
+        $cnpj = !empty($dados['cnpj']) ? trim($dados['cnpj']) : null;
+        
+        // Validar CNPJ se fornecido - verificar se já existe (normalizando para comparar)
+        if (!empty($cnpj)) {
+            // Normalizar CNPJ (remover pontos, traços e barras)
+            $cnpjNormalizado = preg_replace('/[^0-9]/', '', $cnpj);
+            
+            // Buscar CNPJs existentes e normalizar para comparação
+            $stmtCnpj = $conn->prepare("SELECT id, cnpj FROM escola WHERE cnpj IS NOT NULL AND cnpj != ''");
+            $stmtCnpj->execute();
+            $cnpjsExistentes = $stmtCnpj->fetchAll(PDO::FETCH_ASSOC);
+            
+            foreach ($cnpjsExistentes as $cnpjExistente) {
+                $cnpjExistenteNormalizado = preg_replace('/[^0-9]/', '', $cnpjExistente['cnpj']);
+                if ($cnpjNormalizado === $cnpjExistenteNormalizado) {
+                    throw new PDOException('Este CNPJ já está cadastrado para outra escola. Por favor, verifique o CNPJ informado.');
+                }
+            }
+        }
         
         // Processar múltiplos níveis de ensino (array de checkboxes)
         $niveisEnsino = [];
@@ -1313,7 +1331,26 @@ function atualizarEscola($id, $dados)
         $conn->beginTransaction();
 
         // Atualizar dados da escola
-        $cnpj = !empty($dados['cnpj']) ? $dados['cnpj'] : null;
+        $cnpj = !empty($dados['cnpj']) ? trim($dados['cnpj']) : null;
+        
+        // Validar CNPJ se fornecido - verificar se já existe em outra escola (normalizando para comparar)
+        if (!empty($cnpj)) {
+            // Normalizar CNPJ (remover pontos, traços e barras)
+            $cnpjNormalizado = preg_replace('/[^0-9]/', '', $cnpj);
+            
+            // Buscar CNPJs existentes de outras escolas e normalizar para comparação
+            $stmtCnpj = $conn->prepare("SELECT id, cnpj FROM escola WHERE cnpj IS NOT NULL AND cnpj != '' AND id != :id");
+            $stmtCnpj->bindParam(':id', $id, PDO::PARAM_INT);
+            $stmtCnpj->execute();
+            $cnpjsExistentes = $stmtCnpj->fetchAll(PDO::FETCH_ASSOC);
+            
+            foreach ($cnpjsExistentes as $cnpjExistente) {
+                $cnpjExistenteNormalizado = preg_replace('/[^0-9]/', '', $cnpjExistente['cnpj']);
+                if ($cnpjNormalizado === $cnpjExistenteNormalizado) {
+                    throw new PDOException('Este CNPJ já está cadastrado para outra escola. Por favor, verifique o CNPJ informado.');
+                }
+            }
+        }
         
         // Processar múltiplos níveis de ensino (array de checkboxes)
         $niveisEnsino = [];

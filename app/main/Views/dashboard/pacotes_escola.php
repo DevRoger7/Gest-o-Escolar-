@@ -477,9 +477,6 @@ $pacotes = $pacoteModel->listar();
                 console.error('Erro ao fazer logout:', e);
             }
         };
-                window.location.href = '../auth/logout.php';
-            }
-        };
 
         // Variáveis globais
         let itensPacote = [];
@@ -502,43 +499,75 @@ $pacotes = $pacoteModel->listar();
             });
 
         function abrirModalNovoPacote() {
-            modoEdicao = false;
-            pacoteIdEdicao = null;
-            document.getElementById('modal-titulo').textContent = 'Novo Pacote de Alimentos';
-            document.getElementById('form-acao').value = 'criar';
-            document.getElementById('form-pacote-id').value = '';
-            document.getElementById('btn-salvar-pacote').textContent = 'Salvar Pacote';
-            document.getElementById('form-novo-pacote').reset();
-            itensPacote = [];
-            contadorItens = 0;
-            
-            // Recarregar estoques ao abrir o modal
-            fetch('?acao=buscar_estoques_todos')
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success) {
-                        estoquesProdutos = data.estoques;
+            try {
+                modoEdicao = false;
+                pacoteIdEdicao = null;
+                
+                const modal = document.getElementById('modal-novo-pacote');
+                if (!modal) {
+                    console.error('Modal não encontrado');
+                    alert('Erro: Modal não encontrado. Recarregue a página.');
+                    return;
+                }
+                
+                document.getElementById('modal-titulo').textContent = 'Novo Pacote de Alimentos';
+                document.getElementById('form-acao').value = 'criar';
+                document.getElementById('form-pacote-id').value = '';
+                document.getElementById('btn-salvar-pacote').textContent = 'Salvar Pacote';
+                document.getElementById('form-novo-pacote').reset();
+                itensPacote = [];
+                contadorItens = 0;
+                
+                // Recarregar estoques ao abrir o modal
+                fetch('?acao=buscar_estoques_todos')
+                    .then(response => {
+                        if (!response.ok) {
+                            throw new Error('Erro na resposta do servidor');
+                        }
+                        return response.json();
+                    })
+                    .then(data => {
+                        if (data.success) {
+                            estoquesProdutos = data.estoques;
+                            atualizarListaItens();
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Erro ao carregar estoques:', error);
                         atualizarListaItens();
-                    }
-                })
-                .catch(error => {
-                    console.error('Erro ao carregar estoques:', error);
-                    atualizarListaItens();
-                });
-            
-            document.getElementById('modal-novo-pacote').classList.remove('hidden');
+                    });
+                
+                modal.classList.remove('hidden');
+            } catch (error) {
+                console.error('Erro ao abrir modal:', error);
+                alert('Erro ao abrir modal. Verifique o console para mais detalhes.');
+            }
         }
         
         function editarPacote(id) {
-            modoEdicao = true;
-            pacoteIdEdicao = id;
-            document.getElementById('modal-titulo').textContent = 'Editar Pacote de Alimentos';
-            document.getElementById('form-acao').value = 'atualizar';
-            document.getElementById('form-pacote-id').value = id;
-            document.getElementById('btn-salvar-pacote').textContent = 'Atualizar Pacote';
-            
-            // Buscar dados do pacote
-            fetch(`?acao=buscar_pacote&id=${id}`)
+            try {
+                if (!id) {
+                    alert('ID do pacote não informado');
+                    return;
+                }
+                
+                modoEdicao = true;
+                pacoteIdEdicao = id;
+                
+                const modal = document.getElementById('modal-novo-pacote');
+                if (!modal) {
+                    console.error('Modal não encontrado');
+                    alert('Erro: Modal não encontrado. Recarregue a página.');
+                    return;
+                }
+                
+                document.getElementById('modal-titulo').textContent = 'Editar Pacote de Alimentos';
+                document.getElementById('form-acao').value = 'atualizar';
+                document.getElementById('form-pacote-id').value = id;
+                document.getElementById('btn-salvar-pacote').textContent = 'Atualizar Pacote';
+                
+                // Buscar dados do pacote
+                fetch(`?acao=buscar_pacote&id=${id}`)
                 .then(response => response.json())
                 .then(data => {
                     if (data.success) {
@@ -582,19 +611,30 @@ $pacotes = $pacoteModel->listar();
                                 atualizarListaItens();
                             });
                         
-                        document.getElementById('modal-novo-pacote').classList.remove('hidden');
+                        modal.classList.remove('hidden');
                     } else {
-                        alert('Erro ao carregar dados do pacote');
+                        alert('Erro ao carregar dados do pacote: ' + (data.message || 'Erro desconhecido'));
                     }
                 })
                 .catch(error => {
                     console.error('Erro:', error);
-                    alert('Erro ao carregar dados do pacote');
+                    alert('Erro ao carregar dados do pacote. Verifique o console para mais detalhes.');
                 });
+            } catch (error) {
+                console.error('Erro ao editar pacote:', error);
+                alert('Erro ao abrir modal de edição. Verifique o console para mais detalhes.');
+            }
         }
 
         function fecharModalNovoPacote() {
-            document.getElementById('modal-novo-pacote').classList.add('hidden');
+            try {
+                const modal = document.getElementById('modal-novo-pacote');
+                if (modal) {
+                    modal.classList.add('hidden');
+                }
+            } catch (error) {
+                console.error('Erro ao fechar modal:', error);
+            }
         }
 
         function adicionarItem() {
@@ -865,10 +905,35 @@ $pacotes = $pacoteModel->listar();
         }
 
         function verDetalhes(id) {
-            fetch(`?acao=buscar_pacote&id=${id}`)
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success) {
+            try {
+                if (!id) {
+                    alert('ID do pacote não informado');
+                    return;
+                }
+                
+                const modal = document.getElementById('modal-detalhes');
+                if (!modal) {
+                    console.error('Modal de detalhes não encontrado');
+                    alert('Erro: Modal não encontrado. Recarregue a página.');
+                    return;
+                }
+                
+                fetch(`?acao=buscar_pacote&id=${id}`)
+                    .then(response => {
+                        if (!response.ok) {
+                            throw new Error('Erro na resposta do servidor: ' + response.status);
+                        }
+                        const contentType = response.headers.get('content-type');
+                        if (!contentType || !contentType.includes('application/json')) {
+                            return response.text().then(text => {
+                                console.error('Resposta não é JSON:', text.substring(0, 500));
+                                throw new Error('Resposta do servidor não é JSON válido');
+                            });
+                        }
+                        return response.json();
+                    })
+                    .then(data => {
+                        if (data.success) {
                         const pacote = data.pacote;
                         const itens = data.itens;
                         
@@ -1019,22 +1084,33 @@ $pacotes = $pacoteModel->listar();
                             </div>
                         `;
                         
-                        document.getElementById('conteudo-detalhes').innerHTML = html;
-                        document.getElementById('modal-detalhes').classList.remove('hidden');
-                        document.getElementById('modal-detalhes').style.display = 'flex';
-                    } else {
-                        alert('Erro ao carregar detalhes do pacote');
-                    }
-                })
-                .catch(error => {
-                    console.error('Erro:', error);
-                    alert('Erro ao carregar detalhes');
-                });
+                            document.getElementById('conteudo-detalhes').innerHTML = html;
+                            modal.classList.remove('hidden');
+                            modal.style.display = 'flex';
+                        } else {
+                            alert('Erro ao carregar detalhes do pacote: ' + (data.message || 'Erro desconhecido'));
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Erro:', error);
+                        alert('Erro ao carregar detalhes: ' + error.message);
+                    });
+            } catch (error) {
+                console.error('Erro ao ver detalhes:', error);
+                alert('Erro ao abrir modal de detalhes. Verifique o console para mais detalhes.');
+            }
         }
 
         function fecharModalDetalhes() {
-            document.getElementById('modal-detalhes').classList.add('hidden');
-            document.getElementById('modal-detalhes').style.display = 'none';
+            try {
+                const modal = document.getElementById('modal-detalhes');
+                if (modal) {
+                    modal.classList.add('hidden');
+                    modal.style.display = 'none';
+                }
+            } catch (error) {
+                console.error('Erro ao fechar modal de detalhes:', error);
+            }
         }
     </script>
     

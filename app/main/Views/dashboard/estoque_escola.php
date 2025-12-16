@@ -132,6 +132,49 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['acao'])) {
                     ? (int)$_SESSION['escola_selecionada_id'] 
                     : (int)$escolaGestorId;
         
+        // Validar se a escola existe
+        if (!$escolaId || $escolaId <= 0) {
+            while (ob_get_level()) {
+                ob_end_clean();
+            }
+            echo json_encode([
+                'success' => false, 
+                'message' => 'Nenhuma escola selecionada',
+                'estoque' => []
+            ], JSON_UNESCAPED_UNICODE);
+            exit;
+        }
+        
+        // Verificar se a escola existe no banco
+        try {
+            $sqlCheck = "SELECT id FROM escola WHERE id = :escola_id AND ativo = 1 LIMIT 1";
+            $stmtCheck = $conn->prepare($sqlCheck);
+            $stmtCheck->bindParam(':escola_id', $escolaId, PDO::PARAM_INT);
+            $stmtCheck->execute();
+            if (!$stmtCheck->fetch()) {
+                while (ob_get_level()) {
+                    ob_end_clean();
+                }
+                echo json_encode([
+                    'success' => false, 
+                    'message' => 'Escola não encontrada ou inativa',
+                    'estoque' => []
+                ], JSON_UNESCAPED_UNICODE);
+                exit;
+            }
+        } catch (Exception $e) {
+            while (ob_get_level()) {
+                ob_end_clean();
+            }
+            error_log("Erro ao validar escola: " . $e->getMessage());
+            echo json_encode([
+                'success' => false, 
+                'message' => 'Erro ao validar escola',
+                'estoque' => []
+            ], JSON_UNESCAPED_UNICODE);
+            exit;
+        }
+        
         // Verificar se a coluna estoque_central_id existe
         try {
             $checkColumn = $conn->query("SHOW COLUMNS FROM pacote_escola_item LIKE 'estoque_central_id'");
@@ -194,45 +237,66 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['acao'])) {
         }
         
         // Não agrupar - mostrar cada item separadamente (incluindo lotes diferentes)
-        if ($columnExists) {
-            $sql .= " ORDER BY p.nome ASC,
-                             CASE WHEN ec1.validade IS NULL THEN 1 ELSE 0 END ASC,
-                             ec1.validade ASC,
-                             pei.id ASC";
-        } else {
-            $sql .= " ORDER BY p.nome ASC,
-                             CASE WHEN ec.validade IS NULL THEN 1 ELSE 0 END ASC,
-                             ec.validade ASC,
-                             pei.id ASC";
-        }
+        // A ordenação já está incluída na query principal, então não precisa adicionar novamente
         
-        $stmt = $conn->prepare($sql);
-        foreach ($params as $key => $value) {
-            $stmt->bindValue($key, $value);
-        }
-        $stmt->execute();
-        $estoque = $stmt->fetchAll(PDO::FETCH_ASSOC);
-        
-        // Limpar valores vazios e formatar dados
-        foreach ($estoque as &$item) {
-            if (isset($item['lote'])) {
-                $lote = trim($item['lote']);
-                if (empty($lote) || $lote === '' || $lote === 'Sem lote') {
-                    $item['lote'] = null;
+        try {
+            $stmt = $conn->prepare($sql);
+            foreach ($params as $key => $value) {
+                $stmt->bindValue($key, $value);
+            }
+            $stmt->execute();
+            $estoque = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            
+            // Limpar valores vazios e formatar dados
+            foreach ($estoque as &$item) {
+                if (isset($item['lote'])) {
+                    $lote = trim($item['lote']);
+                    if (empty($lote) || $lote === '' || $lote === 'Sem lote') {
+                        $item['lote'] = null;
+                    }
                 }
+                if (empty($item['fornecedor_nome'])) {
+                    $item['fornecedor_nome'] = null;
+                }
+                // Manter item_id para identificação única
+                if (!isset($item['id'])) {
+                    $item['id'] = $item['item_id'] ?? null;
+                }
+                $item['criado_em'] = $item['data_envio'];
             }
-            if (empty($item['fornecedor_nome'])) {
-                $item['fornecedor_nome'] = null;
+            
+            // Limpar qualquer output antes de enviar JSON
+            while (ob_get_level()) {
+                ob_end_clean();
             }
-            // Manter item_id para identificação única
-            if (!isset($item['id'])) {
-                $item['id'] = $item['item_id'] ?? null;
+            
+            echo json_encode(['success' => true, 'estoque' => $estoque], JSON_UNESCAPED_UNICODE);
+            exit;
+        } catch (PDOException $e) {
+            // Limpar qualquer output antes de enviar JSON de erro
+            while (ob_get_level()) {
+                ob_end_clean();
             }
-            $item['criado_em'] = $item['data_envio'];
+            error_log("Erro ao listar estoque: " . $e->getMessage());
+            echo json_encode([
+                'success' => false, 
+                'message' => 'Erro ao carregar estoque: ' . $e->getMessage(),
+                'estoque' => []
+            ], JSON_UNESCAPED_UNICODE);
+            exit;
+        } catch (Exception $e) {
+            // Limpar qualquer output antes de enviar JSON de erro
+            while (ob_get_level()) {
+                ob_end_clean();
+            }
+            error_log("Erro ao listar estoque: " . $e->getMessage());
+            echo json_encode([
+                'success' => false, 
+                'message' => 'Erro ao carregar estoque: ' . $e->getMessage(),
+                'estoque' => []
+            ], JSON_UNESCAPED_UNICODE);
+            exit;
         }
-        
-        echo json_encode(['success' => true, 'estoque' => $estoque]);
-        exit;
     }
 }
 
@@ -576,9 +640,25 @@ $produtos = $stmtProdutos->fetchAll(PDO::FETCH_ASSOC);
             }
             
             fetch(url)
-                .then(response => response.json())
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Erro na resposta do servidor: ' + response.status);
+                    }
+                    const contentType = response.headers.get('content-type');
+                    if (!contentType || !contentType.includes('application/json')) {
+                        return response.text().then(text => {
+                            console.error('Resposta não é JSON:', text.substring(0, 500));
+                            throw new Error('Resposta do servidor não é JSON válido');
+                        });
+                    }
+                    return response.json();
+                })
                 .then(data => {
-                    if (data.success && data.estoque && data.estoque.length > 0) {
+                    if (!data.success) {
+                        throw new Error(data.message || 'Erro ao carregar estoque');
+                    }
+                    
+                    if (data.estoque && data.estoque.length > 0) {
                         tbody.innerHTML = '';
                         data.estoque.forEach((item, index) => {
                             const validade = item.validade ? new Date(item.validade + 'T00:00:00') : null;
@@ -664,6 +744,7 @@ $produtos = $stmtProdutos->fetchAll(PDO::FETCH_ASSOC);
                 })
                 .catch(error => {
                     console.error('Erro ao carregar estoque:', error);
+                    const errorMessage = error.message || 'Erro desconhecido ao carregar estoque';
                     tbody.innerHTML = `
                         <tr>
                             <td colspan="6" class="text-center py-16">
@@ -672,7 +753,10 @@ $produtos = $stmtProdutos->fetchAll(PDO::FETCH_ASSOC);
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
                                     </svg>
                                     <p class="text-lg font-medium">Erro ao carregar estoque</p>
-                                    <p class="text-sm mt-1">Tente recarregar a página</p>
+                                    <p class="text-sm mt-1">${errorMessage}</p>
+                                    <button onclick="filtrarEstoque()" class="mt-4 px-4 py-2 bg-primary-green text-white rounded-lg hover:bg-green-700 transition-colors">
+                                        Tentar Novamente
+                                    </button>
                                 </div>
                             </td>
                         </tr>
