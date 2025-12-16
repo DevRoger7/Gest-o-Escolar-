@@ -67,30 +67,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao'])) {
             $stmt->execute();
             $localidades = $stmt->fetchAll(PDO::FETCH_ASSOC);
             
-            // Calcular distâncias do centro se houver ponto central
-            $stmtPonto = $conn->prepare("SELECT latitude, longitude FROM distrito_ponto_central WHERE distrito = :distrito AND ativo = 1 LIMIT 1");
-            $stmtPonto->bindParam(':distrito', $distrito);
-            $stmtPonto->execute();
-            $pontoCentral = $stmtPonto->fetch(PDO::FETCH_ASSOC);
-            
-            if ($pontoCentral) {
-                foreach ($localidades as &$loc) {
-                    if ($loc['latitude'] && $loc['longitude']) {
-                        $loc['distancia_centro_km'] = calcularDistancia(
-                            $pontoCentral['latitude'],
-                            $pontoCentral['longitude'],
-                            $loc['latitude'],
-                            $loc['longitude']
-                        );
-                    }
-                }
-                // Ordenar por distância do centro
-                usort($localidades, function($a, $b) {
-                    $distA = $a['distancia_centro_km'] ?? 999999;
-                    $distB = $b['distancia_centro_km'] ?? 999999;
-                    return $distA <=> $distB;
-                });
-            }
             
             $resposta = ['status' => true, 'dados' => $localidades];
         }
@@ -217,104 +193,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao'])) {
             $resposta = ['status' => true, 'mensagem' => 'Localidade excluída com sucesso!'];
         }
         
-        // Cadastrar/Atualizar ponto central
-        elseif ($acao === 'salvar_ponto_central') {
-            if (!$podeEditar) {
-                throw new Exception('Você não tem permissão para salvar ponto central');
-            }
-            
-            $distrito = $_POST['distrito'] ?? '';
-            $latitude = $_POST['latitude'] ?? null;
-            $longitude = $_POST['longitude'] ?? null;
-            
-            if (empty($distrito) || !$latitude || !$longitude) {
-                throw new Exception('Distrito e coordenadas são obrigatórios');
-            }
-            
-            // Verificar se já existe
-            $stmt = $conn->prepare("SELECT id FROM distrito_ponto_central WHERE distrito = :distrito AND ativo = 1");
-            $stmt->bindParam(':distrito', $distrito);
-            $stmt->execute();
-            $existente = $stmt->fetch();
-            
-            if ($existente) {
-                // Atualizar
-                $stmt = $conn->prepare("UPDATE distrito_ponto_central 
-                                       SET nome = :nome, latitude = :latitude, longitude = :longitude,
-                                           endereco = :endereco, bairro = :bairro, cidade = :cidade,
-                                           estado = :estado, cep = :cep, tipo = :tipo, escola_id = :escola_id,
-                                           descricao = :descricao
-                                       WHERE id = :id");
-                $stmt->bindParam(':id', $existente['id'], PDO::PARAM_INT);
-            } else {
-                // Verificar se o usuário existe na tabela usuario
-                $criadoPor = null;
-                if (!empty($usuarioId)) {
-                    $stmtCheck = $conn->prepare("SELECT id FROM usuario WHERE id = :id");
-                    $stmtCheck->bindParam(':id', $usuarioId, PDO::PARAM_INT);
-                    $stmtCheck->execute();
-                    if ($stmtCheck->fetch()) {
-                        $criadoPor = $usuarioId;
-                    }
-                }
-                
-                // Criar
-                $stmt = $conn->prepare("INSERT INTO distrito_ponto_central 
-                                       (distrito, nome, latitude, longitude, endereco, bairro, cidade, estado, cep, tipo, escola_id, descricao, criado_por) 
-                                       VALUES 
-                                       (:distrito, :nome, :latitude, :longitude, :endereco, :bairro, :cidade, :estado, :cep, :tipo, :escola_id, :descricao, :criado_por)");
-                $stmt->bindParam(':distrito', $distrito);
-                $stmt->bindValue(':criado_por', $criadoPor, PDO::PARAM_INT);
-            }
-            
-            $stmt->bindValue(':nome', $_POST['nome'] ?? null);
-            $stmt->bindParam(':latitude', $latitude);
-            $stmt->bindParam(':longitude', $longitude);
-            $stmt->bindValue(':endereco', $_POST['endereco'] ?? null);
-            $stmt->bindValue(':bairro', $_POST['bairro'] ?? null);
-            $stmt->bindValue(':cidade', $_POST['cidade'] ?? 'Maranguape');
-            $stmt->bindValue(':estado', $_POST['estado'] ?? 'CE');
-            $stmt->bindValue(':cep', $_POST['cep'] ?? null);
-            $stmt->bindValue(':tipo', $_POST['tipo'] ?? 'SEDE_DISTRITAL');
-            $stmt->bindValue(':escola_id', !empty($_POST['escola_id']) ? $_POST['escola_id'] : null, PDO::PARAM_INT);
-            $stmt->bindValue(':descricao', $_POST['descricao'] ?? null);
-            $stmt->execute();
-            
-            // Recalcular distâncias de todas as localidades do distrito
-            $stmt = $conn->prepare("SELECT id, latitude, longitude FROM distrito_localidade WHERE distrito = :distrito AND ativo = 1");
-            $stmt->bindParam(':distrito', $distrito);
-            $stmt->execute();
-            $localidades = $stmt->fetchAll(PDO::FETCH_ASSOC);
-            
-            foreach ($localidades as $loc) {
-                if ($loc['latitude'] && $loc['longitude']) {
-                    $distancia = calcularDistancia($latitude, $longitude, $loc['latitude'], $loc['longitude']);
-                    $stmtUpdate = $conn->prepare("UPDATE distrito_localidade SET distancia_centro_km = :distancia WHERE id = :id");
-                    $stmtUpdate->bindParam(':distancia', $distancia);
-                    $stmtUpdate->bindParam(':id', $loc['id'], PDO::PARAM_INT);
-                    $stmtUpdate->execute();
-                }
-            }
-            
-            $resposta = ['status' => true, 'mensagem' => 'Ponto central salvo com sucesso!'];
-        }
-        
-        // Buscar ponto central
-        elseif ($acao === 'buscar_ponto_central') {
-            $distrito = $_POST['distrito'] ?? '';
-            
-            if (empty($distrito)) {
-                throw new Exception('Distrito não informado');
-            }
-            
-            $stmt = $conn->prepare("SELECT * FROM distrito_ponto_central WHERE distrito = :distrito AND ativo = 1 LIMIT 1");
-            $stmt->bindParam(':distrito', $distrito);
-            $stmt->execute();
-            $ponto = $stmt->fetch(PDO::FETCH_ASSOC);
-            
-            $resposta = ['status' => true, 'dados' => $ponto ?: null];
-        }
-        
     } catch (PDOException $e) {
         error_log("Erro: " . $e->getMessage());
         $resposta = ['status' => false, 'mensagem' => 'Erro: ' . $e->getMessage()];
@@ -327,22 +205,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao'])) {
     exit;
 }
 
-// Função para calcular distância entre dois pontos (Haversine)
-function calcularDistancia($lat1, $lon1, $lat2, $lon2) {
-    $earthRadius = 6371; // Raio da Terra em km
-    
-    $dLat = deg2rad($lat2 - $lat1);
-    $dLon = deg2rad($lon2 - $lon1);
-    
-    $a = sin($dLat/2) * sin($dLat/2) +
-         cos(deg2rad($lat1)) * cos(deg2rad($lat2)) *
-         sin($dLon/2) * sin($dLon/2);
-    
-    $c = 2 * atan2(sqrt($a), sqrt(1-$a));
-    
-    return round($earthRadius * $c, 2);
-}
-
 // Lista de distritos de Maranguape
 $distritos = [
     'Amanari', 'Antônio Marques', 'Cachoeira', 'Itapebussu', 'Jubaia',
@@ -351,14 +213,6 @@ $distritos = [
     'Tanques', 'Umarizeiras', 'Vertentes do Lagedo'
 ];
 
-// Buscar escolas para o select
-$escolas = [];
-try {
-    $stmt = $conn->query("SELECT id, nome FROM escola WHERE ativo = 1 ORDER BY nome ASC");
-    $escolas = $stmt->fetchAll(PDO::FETCH_ASSOC);
-} catch (PDOException $e) {
-    error_log("Erro ao buscar escolas: " . $e->getMessage());
-}
 ?>
 
 <!DOCTYPE html>
@@ -435,23 +289,14 @@ try {
             
             <!-- Seleção de Distrito -->
             <div class="bg-white rounded-lg shadow p-4 mb-6">
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-2">Selecionar Distrito</label>
-                        <select id="select-distrito" onchange="carregarDistrito()" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
-                            <option value="">Selecione um distrito</option>
-                            <?php foreach ($distritos as $distrito): ?>
-                                <option value="<?= htmlspecialchars($distrito) ?>"><?= htmlspecialchars($distrito) ?></option>
-                            <?php endforeach; ?>
-                        </select>
-                    </div>
-                    <?php if ($podeEditar): ?>
-                    <div class="flex items-end">
-                        <button onclick="abrirModalPontoCentral()" class="w-full bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors">
-                            <i class="fas fa-map-marker-alt mr-2"></i>Definir Ponto Central
-                        </button>
-                    </div>
-                    <?php endif; ?>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Selecionar Distrito</label>
+                    <select id="select-distrito" onchange="carregarDistrito()" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                        <option value="">Selecione um distrito</option>
+                        <?php foreach ($distritos as $distrito): ?>
+                            <option value="<?= htmlspecialchars($distrito) ?>"><?= htmlspecialchars($distrito) ?></option>
+                        <?php endforeach; ?>
+                    </select>
                 </div>
             </div>
             
@@ -523,75 +368,6 @@ try {
         </div>
     </div>
     
-    <!-- Modal de Ponto Central -->
-    <div id="modal-ponto-central" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center">
-        <div class="bg-white rounded-lg p-6 max-w-md w-full mx-4 max-h-[90vh] overflow-y-auto">
-            <div class="flex justify-between items-center mb-4">
-                <h3 class="text-xl font-bold text-gray-900">Definir Ponto Central do Distrito</h3>
-                <button onclick="fecharModalPontoCentral()" class="text-gray-500 hover:text-gray-700">
-                    <i class="fas fa-times"></i>
-                </button>
-            </div>
-            <form id="form-ponto-central" onsubmit="salvarPontoCentral(event)">
-                <input type="hidden" id="ponto-central-distrito">
-                
-                <div class="mb-4">
-                    <label class="block text-sm font-medium text-gray-700 mb-2">Nome do Ponto *</label>
-                    <input type="text" id="ponto-central-nome" required class="w-full px-4 py-2 border border-gray-300 rounded-lg" placeholder="Ex: Sede Distrital, Escola de Referência">
-                </div>
-                
-                <div class="mb-4">
-                    <label class="block text-sm font-medium text-gray-700 mb-2">Tipo</label>
-                    <select id="ponto-central-tipo" class="w-full px-4 py-2 border border-gray-300 rounded-lg">
-                        <option value="SEDE_DISTRITAL">Sede Distrital</option>
-                        <option value="ESCOLA_REFERENCIA">Escola de Referência</option>
-                        <option value="OUTRO">Outro</option>
-                    </select>
-                </div>
-                
-                <div class="mb-4" id="container-escola" style="display: none;">
-                    <label class="block text-sm font-medium text-gray-700 mb-2">Escola</label>
-                    <select id="ponto-central-escola" class="w-full px-4 py-2 border border-gray-300 rounded-lg">
-                        <option value="">Selecione uma escola</option>
-                        <?php foreach ($escolas as $escola): ?>
-                            <option value="<?= $escola['id'] ?>"><?= htmlspecialchars($escola['nome']) ?></option>
-                        <?php endforeach; ?>
-                    </select>
-                </div>
-                
-                <div class="mb-4">
-                    <label class="block text-sm font-medium text-gray-700 mb-2">Endereço</label>
-                    <input type="text" id="ponto-central-endereco" class="w-full px-4 py-2 border border-gray-300 rounded-lg">
-                </div>
-                
-                <div class="mb-4">
-                    <label class="block text-sm font-medium text-gray-700 mb-2">Descrição</label>
-                    <textarea id="ponto-central-descricao" rows="3" class="w-full px-4 py-2 border border-gray-300 rounded-lg"></textarea>
-                </div>
-                
-                <div class="grid grid-cols-2 gap-4 mb-4">
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-2">Latitude *</label>
-                        <input type="number" id="ponto-central-latitude" step="any" required class="w-full px-4 py-2 border border-gray-300 rounded-lg" placeholder="Ex: -3.890277">
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-2">Longitude *</label>
-                        <input type="number" id="ponto-central-longitude" step="any" required class="w-full px-4 py-2 border border-gray-300 rounded-lg" placeholder="Ex: -38.625000">
-                    </div>
-                </div>
-                
-                <div class="flex gap-2">
-                    <button type="button" onclick="fecharModalPontoCentral()" class="flex-1 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50">
-                        Cancelar
-                    </button>
-                    <button type="submit" class="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700">
-                        Salvar
-                    </button>
-                </div>
-            </form>
-        </div>
-    </div>
-    
     <script>
         let distritoSelecionado = '';
         const podeEditar = <?= $podeEditar ? 'true' : 'false' ?>;
@@ -639,7 +415,6 @@ try {
                     <div class="flex justify-between items-start">
                         <div class="flex-1">
                             <h3 class="font-semibold text-gray-900">${loc.localidade}</h3>
-                            ${loc.distancia_centro_km ? `<p class="text-sm text-gray-600">Distância do centro: ${loc.distancia_centro_km} km</p>` : ''}
                             ${loc.total_alunos ? `<p class="text-sm text-gray-600">${loc.total_alunos} alunos</p>` : ''}
                         </div>
                         ${podeEditar ? `
@@ -789,86 +564,6 @@ try {
             .catch(error => {
                 console.error('Erro:', error);
                 alert('Erro ao excluir localidade');
-            });
-        }
-        
-        function abrirModalPontoCentral() {
-            if (!distritoSelecionado) {
-                alert('Selecione um distrito primeiro');
-                return;
-            }
-            
-            document.getElementById('ponto-central-distrito').value = distritoSelecionado;
-            
-            // Buscar ponto central existente
-            const formData = new FormData();
-            formData.append('acao', 'buscar_ponto_central');
-            formData.append('distrito', distritoSelecionado);
-            
-            fetch('gestao_localidades_distrito.php', {
-                method: 'POST',
-                body: formData
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.status && data.dados) {
-                    document.getElementById('ponto-central-nome').value = data.dados.nome || '';
-                    document.getElementById('ponto-central-tipo').value = data.dados.tipo || 'SEDE_DISTRITAL';
-                    document.getElementById('ponto-central-escola').value = data.dados.escola_id || '';
-                    document.getElementById('ponto-central-endereco').value = data.dados.endereco || '';
-                    document.getElementById('ponto-central-descricao').value = data.dados.descricao || '';
-                    document.getElementById('ponto-central-latitude').value = data.dados.latitude || '';
-                    document.getElementById('ponto-central-longitude').value = data.dados.longitude || '';
-                }
-                
-                document.getElementById('modal-ponto-central').classList.remove('hidden');
-            })
-            .catch(error => {
-                console.error('Erro:', error);
-                document.getElementById('modal-ponto-central').classList.remove('hidden');
-            });
-            
-            // Mostrar/ocultar campo de escola baseado no tipo
-            document.getElementById('ponto-central-tipo').addEventListener('change', function() {
-                document.getElementById('container-escola').style.display = this.value === 'ESCOLA_REFERENCIA' ? 'block' : 'none';
-            });
-        }
-        
-        function fecharModalPontoCentral() {
-            document.getElementById('modal-ponto-central').classList.add('hidden');
-        }
-        
-        function salvarPontoCentral(event) {
-            event.preventDefault();
-            
-            const formData = new FormData();
-            formData.append('acao', 'salvar_ponto_central');
-            formData.append('distrito', document.getElementById('ponto-central-distrito').value);
-            formData.append('nome', document.getElementById('ponto-central-nome').value);
-            formData.append('latitude', document.getElementById('ponto-central-latitude').value);
-            formData.append('longitude', document.getElementById('ponto-central-longitude').value);
-            formData.append('tipo', document.getElementById('ponto-central-tipo').value);
-            formData.append('escola_id', document.getElementById('ponto-central-escola').value);
-            formData.append('endereco', document.getElementById('ponto-central-endereco').value);
-            formData.append('descricao', document.getElementById('ponto-central-descricao').value);
-            
-            fetch('gestao_localidades_distrito.php', {
-                method: 'POST',
-                body: formData
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.status) {
-                    alert(data.mensagem);
-                    fecharModalPontoCentral();
-                    carregarDistrito();
-                } else {
-                    alert('Erro: ' + data.mensagem);
-                }
-            })
-            .catch(error => {
-                console.error('Erro:', error);
-                alert('Erro ao salvar ponto central');
             });
         }
         

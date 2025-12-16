@@ -334,21 +334,165 @@ function cadastrarEscola($dados)
         // Converter array para string separada por vírgula (formato SET do MySQL)
         $nivelEnsino = implode(',', $niveisEnsino);
         
-        // Verificar se a coluna nivel_ensino existe
+        // Verificar se as colunas existem
         $stmtCheck = $conn->query("SHOW COLUMNS FROM escola LIKE 'nivel_ensino'");
-        $colunaExiste = $stmtCheck->rowCount() > 0;
+        $colunaNivelExiste = $stmtCheck->rowCount() > 0;
         
-        if ($colunaExiste) {
-            $stmt = $conn->prepare("INSERT INTO escola (nome, endereco, telefone, email, municipio, cep, qtd_salas, nivel_ensino, obs, codigo, cnpj) 
-                                    VALUES (:nome, :endereco, :telefone, :email, :municipio, :cep, :qtd_salas, :nivel_ensino, :obs, :codigo, :cnpj)");
-        } else {
-            $stmt = $conn->prepare("INSERT INTO escola (nome, endereco, telefone, email, municipio, cep, qtd_salas, obs, codigo, cnpj) 
-                                    VALUES (:nome, :endereco, :telefone, :email, :municipio, :cep, :qtd_salas, :obs, :codigo, :cnpj)");
+        $stmtCheck = $conn->query("SHOW COLUMNS FROM escola LIKE 'distrito'");
+        $colunaDistritoExiste = $stmtCheck->rowCount() > 0;
+        
+        $stmtCheck = $conn->query("SHOW COLUMNS FROM escola LIKE 'localidade_escola'");
+        $colunaLocalidadeEscolaExiste = $stmtCheck->rowCount() > 0;
+        
+        // Função para normalizar localidade (remover acentos, exceto apóstrofos)
+        function normalizarLocalidadeCadastro($localidade) {
+            if (empty($localidade)) return '';
+            // Remover acentos, mas manter apóstrofos
+            $localidade = str_replace(
+                ['á', 'à', 'ã', 'â', 'ä', 'é', 'è', 'ê', 'ë', 'í', 'ì', 'î', 'ï', 
+                 'ó', 'ò', 'õ', 'ô', 'ö', 'ú', 'ù', 'û', 'ü', 'ç', 'ñ',
+                 'Á', 'À', 'Ã', 'Â', 'Ä', 'É', 'È', 'Ê', 'Ë', 'Í', 'Ì', 'Î', 'Ï',
+                 'Ó', 'Ò', 'Õ', 'Ô', 'Ö', 'Ú', 'Ù', 'Û', 'Ü', 'Ç', 'Ñ'],
+                ['a', 'a', 'a', 'a', 'a', 'e', 'e', 'e', 'e', 'i', 'i', 'i', 'i',
+                 'o', 'o', 'o', 'o', 'o', 'u', 'u', 'u', 'u', 'c', 'n',
+                 'A', 'A', 'A', 'A', 'A', 'E', 'E', 'E', 'E', 'I', 'I', 'I', 'I',
+                 'O', 'O', 'O', 'O', 'O', 'U', 'U', 'U', 'U', 'C', 'N'],
+                $localidade
+            );
+            // Normalizar apóstrofos para '
+            $localidade = str_replace(['´', '`'], "'", $localidade);
+            return strtolower(trim($localidade));
         }
+        
+        // Processar localidade: criar automaticamente se não existir
+        $localidadeNomeFinal = null;
+        if (!empty($dados['distrito']) && !empty($dados['localidade'])) {
+            $localidadeInput = trim($dados['localidade']);
+            // Primeira letra maiúscula
+            $localidadeInput = ucfirst($localidadeInput);
+            $localidadeNormalizada = normalizarLocalidadeCadastro($localidadeInput);
+            
+            // Buscar todas as localidades do distrito para comparar
+            $stmtBuscarTodas = $conn->prepare("SELECT id, localidade FROM distrito_localidade WHERE distrito = :distrito AND ativo = 1");
+            $stmtBuscarTodas->bindParam(':distrito', $dados['distrito']);
+            $stmtBuscarTodas->execute();
+            $todasLocalidades = $stmtBuscarTodas->fetchAll(PDO::FETCH_ASSOC);
+            
+            $localidadeExistente = null;
+            foreach ($todasLocalidades as $loc) {
+                if (normalizarLocalidadeCadastro($loc['localidade']) === $localidadeNormalizada) {
+                    $localidadeExistente = $loc;
+                    break;
+                }
+            }
+            
+            if ($localidadeExistente) {
+                // Usar a localidade existente (com a grafia correta do banco)
+                $localidadeNomeFinal = $localidadeExistente['localidade'];
+            } else {
+                // Criar localidade automaticamente com a grafia fornecida
+                $usuarioId = $_SESSION['usuario_id'] ?? null;
+                $criadoPor = null;
+                if (!empty($usuarioId)) {
+                    $stmtCheck = $conn->prepare("SELECT id FROM usuario WHERE id = :id");
+                    $stmtCheck->bindParam(':id', $usuarioId, PDO::PARAM_INT);
+                    $stmtCheck->execute();
+                    if ($stmtCheck->fetch()) {
+                        $criadoPor = $usuarioId;
+                    }
+                }
+                
+                $stmtCriarLocalidade = $conn->prepare("INSERT INTO distrito_localidade (distrito, localidade, cidade, estado, criado_por, ativo) 
+                                                       VALUES (:distrito, :localidade, 'Maranguape', 'CE', :criado_por, 1)");
+                $stmtCriarLocalidade->bindParam(':distrito', $dados['distrito']);
+                $stmtCriarLocalidade->bindParam(':localidade', $localidadeInput);
+                $stmtCriarLocalidade->bindValue(':criado_por', $criadoPor, PDO::PARAM_INT);
+                $stmtCriarLocalidade->execute();
+                $localidadeNomeFinal = $localidadeInput;
+            }
+        }
+        
+        // Verificar se as colunas de endereço separadas existem
+        $stmtCheck = $conn->query("SHOW COLUMNS FROM escola LIKE 'numero'");
+        $colunaNumeroExiste = $stmtCheck->rowCount() > 0;
+        
+        $stmtCheck = $conn->query("SHOW COLUMNS FROM escola LIKE 'complemento'");
+        $colunaComplementoExiste = $stmtCheck->rowCount() > 0;
+        
+        $stmtCheck = $conn->query("SHOW COLUMNS FROM escola LIKE 'bairro'");
+        $colunaBairroExiste = $stmtCheck->rowCount() > 0;
+        
+        $stmtCheck = $conn->query("SHOW COLUMNS FROM escola LIKE 'telefone_secundario'");
+        $colunaTelefoneSecundarioExiste = $stmtCheck->rowCount() > 0;
+        
+        $stmtCheck = $conn->query("SHOW COLUMNS FROM escola LIKE 'site'");
+        $colunaSiteExiste = $stmtCheck->rowCount() > 0;
+        
+        // Montar query dinamicamente baseado nas colunas existentes
+        $campos = ['nome', 'endereco', 'telefone', 'email', 'municipio', 'cep', 'qtd_salas'];
+        $valores = [':nome', ':endereco', ':telefone', ':email', ':municipio', ':cep', ':qtd_salas'];
+        
+        // Adicionar campos de endereço separados se existirem
+        if ($colunaNumeroExiste) {
+            $campos[] = 'numero';
+            $valores[] = ':numero';
+        }
+        if ($colunaComplementoExiste) {
+            $campos[] = 'complemento';
+            $valores[] = ':complemento';
+        }
+        if ($colunaBairroExiste) {
+            $campos[] = 'bairro';
+            $valores[] = ':bairro';
+        }
+        
+        // Adicionar telefone secundário se existir
+        if ($colunaTelefoneSecundarioExiste) {
+            $campos[] = 'telefone_secundario';
+            $valores[] = ':telefone_secundario';
+        }
+        
+        // Adicionar site se existir
+        if ($colunaSiteExiste) {
+            $campos[] = 'site';
+            $valores[] = ':site';
+        }
+        
+        if ($colunaNivelExiste) {
+            $campos[] = 'nivel_ensino';
+            $valores[] = ':nivel_ensino';
+        }
+        
+        if ($colunaDistritoExiste) {
+            $campos[] = 'distrito';
+            $valores[] = ':distrito';
+        }
+        
+        if ($colunaLocalidadeEscolaExiste) {
+            $campos[] = 'localidade_escola';
+            $valores[] = ':localidade_escola';
+        }
+        
+        // Usar a localidade final (existente ou criada)
+        if ($colunaLocalidadeEscolaExiste && $localidadeNomeFinal !== null) {
+            $dados['localidade'] = $localidadeNomeFinal;
+        }
+        
+        $campos[] = 'obs';
+        $valores[] = ':obs';
+        $campos[] = 'codigo';
+        $valores[] = ':codigo';
+        $campos[] = 'cnpj';
+        $valores[] = ':cnpj';
+        
+        $sql = "INSERT INTO escola (" . implode(', ', $campos) . ") VALUES (" . implode(', ', $valores) . ")";
+        $stmt = $conn->prepare($sql);
 
-        $telefone = $dados['telefone_fixo'] ?? $dados['telefone_movel'] ?? '';
+        $telefone = $dados['telefone_fixo'] ?? '';
+        $telefoneSecundario = $dados['telefone_movel'] ?? '';
         $municipio = $dados['municipio'] ?? 'MARANGUAPE';
         $qtdSalas = $dados['qtd_salas'] ?? 0;
+        $site = $dados['site'] ?? '';
         
         $stmt->bindParam(':nome', $dados['nome']);
         $stmt->bindParam(':endereco', $endereco);
@@ -357,12 +501,47 @@ function cadastrarEscola($dados)
         $stmt->bindParam(':municipio', $municipio);
         $stmt->bindParam(':cep', $dados['cep']);
         $stmt->bindParam(':qtd_salas', $qtdSalas, PDO::PARAM_INT);
+        
+        // Bind dos campos de endereço separados
+        if ($colunaNumeroExiste) {
+            $numero = !empty($dados['numero']) ? $dados['numero'] : null;
+            $stmt->bindParam(':numero', $numero);
+        }
+        if ($colunaComplementoExiste) {
+            $complemento = !empty($dados['complemento']) ? $dados['complemento'] : null;
+            $stmt->bindParam(':complemento', $complemento);
+        }
+        if ($colunaBairroExiste) {
+            $bairro = !empty($dados['bairro']) ? $dados['bairro'] : null;
+            $stmt->bindParam(':bairro', $bairro);
+        }
+        
+        // Bind do telefone secundário
+        if ($colunaTelefoneSecundarioExiste) {
+            $telefoneSec = !empty($telefoneSecundario) ? $telefoneSecundario : null;
+            $stmt->bindParam(':telefone_secundario', $telefoneSec);
+        }
+        
+        // Bind do site
+        if ($colunaSiteExiste) {
+            $siteValue = !empty($site) ? $site : null;
+            $stmt->bindParam(':site', $siteValue);
+        }
+        
+        if ($colunaNivelExiste) {
+            $stmt->bindParam(':nivel_ensino', $nivelEnsino);
+        }
+        if ($colunaDistritoExiste) {
+            $distrito = !empty($dados['distrito']) ? $dados['distrito'] : null;
+            $stmt->bindParam(':distrito', $distrito);
+        }
+        if ($colunaLocalidadeEscolaExiste) {
+            $localidadeEscola = $localidadeNomeFinal ?? null;
+            $stmt->bindParam(':localidade_escola', $localidadeEscola);
+        }
         $stmt->bindParam(':obs', $obs);
         $stmt->bindParam(':codigo', $codigo);
         $stmt->bindParam(':cnpj', $cnpj);
-        if ($colunaExiste) {
-            $stmt->bindParam(':nivel_ensino', $nivelEnsino);
-        }
 
         $stmt->execute();
         $escolaId = $conn->lastInsertId();
@@ -1332,42 +1511,147 @@ function atualizarEscola($id, $dados)
         // Converter array para string separada por vírgula (formato SET do MySQL)
         $nivelEnsino = implode(',', $niveisEnsino);
         
-        // Verificar se a coluna nivel_ensino existe
+        // Verificar se as colunas existem
         $stmtCheck = $conn->query("SHOW COLUMNS FROM escola LIKE 'nivel_ensino'");
-        $colunaExiste = $stmtCheck->rowCount() > 0;
+        $colunaNivelExiste = $stmtCheck->rowCount() > 0;
         
-        if ($colunaExiste) {
-            $stmt = $conn->prepare("UPDATE escola SET 
-                                    nome = :nome, 
-                                    endereco = :endereco, 
-                                    telefone = :telefone, 
-                                    email = :email, 
-                                    municipio = :municipio, 
-                                    cep = :cep, 
-                                    qtd_salas = :qtd_salas, 
-                                    nivel_ensino = :nivel_ensino,
-                                    obs = :obs, 
-                                    codigo = :codigo,
-                                    cnpj = :cnpj 
-                                    WHERE id = :id");
-        } else {
-            $stmt = $conn->prepare("UPDATE escola SET 
-                                    nome = :nome, 
-                                    endereco = :endereco, 
-                                    telefone = :telefone, 
-                                    email = :email, 
-                                    municipio = :municipio, 
-                                    cep = :cep, 
-                                    qtd_salas = :qtd_salas, 
-                                    obs = :obs, 
-                                    codigo = :codigo,
-                                    cnpj = :cnpj 
-                                    WHERE id = :id");
+        $stmtCheck = $conn->query("SHOW COLUMNS FROM escola LIKE 'distrito'");
+        $colunaDistritoExiste = $stmtCheck->rowCount() > 0;
+        
+        // Função para normalizar localidade (remover acentos, exceto apóstrofos)
+        function normalizarLocalidadeEdicao($localidade) {
+            if (empty($localidade)) return '';
+            // Remover acentos, mas manter apóstrofos
+            $localidade = str_replace(
+                ['á', 'à', 'ã', 'â', 'ä', 'é', 'è', 'ê', 'ë', 'í', 'ì', 'î', 'ï', 
+                 'ó', 'ò', 'õ', 'ô', 'ö', 'ú', 'ù', 'û', 'ü', 'ç', 'ñ',
+                 'Á', 'À', 'Ã', 'Â', 'Ä', 'É', 'È', 'Ê', 'Ë', 'Í', 'Ì', 'Î', 'Ï',
+                 'Ó', 'Ò', 'Õ', 'Ô', 'Ö', 'Ú', 'Ù', 'Û', 'Ü', 'Ç', 'Ñ'],
+                ['a', 'a', 'a', 'a', 'a', 'e', 'e', 'e', 'e', 'i', 'i', 'i', 'i',
+                 'o', 'o', 'o', 'o', 'o', 'u', 'u', 'u', 'u', 'c', 'n',
+                 'A', 'A', 'A', 'A', 'A', 'E', 'E', 'E', 'E', 'I', 'I', 'I', 'I',
+                 'O', 'O', 'O', 'O', 'O', 'U', 'U', 'U', 'U', 'C', 'N'],
+                $localidade
+            );
+            // Normalizar apóstrofos para '
+            $localidade = str_replace(['´', '`'], "'", $localidade);
+            return strtolower(trim($localidade));
         }
+        
+        // Processar localidade: criar automaticamente se não existir
+        $localidadeNomeFinal = null;
+        if (!empty($dados['distrito']) && !empty($dados['localidade'])) {
+            $localidadeInput = trim($dados['localidade']);
+            // Primeira letra maiúscula
+            $localidadeInput = ucfirst($localidadeInput);
+            $localidadeNormalizada = normalizarLocalidadeEdicao($localidadeInput);
+            
+            // Buscar todas as localidades do distrito para comparar
+            $stmtBuscarTodas = $conn->prepare("SELECT id, localidade FROM distrito_localidade WHERE distrito = :distrito AND ativo = 1");
+            $stmtBuscarTodas->bindParam(':distrito', $dados['distrito']);
+            $stmtBuscarTodas->execute();
+            $todasLocalidades = $stmtBuscarTodas->fetchAll(PDO::FETCH_ASSOC);
+            
+            $localidadeExistente = null;
+            foreach ($todasLocalidades as $loc) {
+                if (normalizarLocalidadeEdicao($loc['localidade']) === $localidadeNormalizada) {
+                    $localidadeExistente = $loc;
+                    break;
+                }
+            }
+            
+            if ($localidadeExistente) {
+                // Usar a localidade existente (com a grafia correta do banco)
+                $localidadeNomeFinal = $localidadeExistente['localidade'];
+            } else {
+                // Criar localidade automaticamente com a grafia fornecida
+                $usuarioId = $_SESSION['usuario_id'] ?? null;
+                $criadoPor = null;
+                if (!empty($usuarioId)) {
+                    $stmtCheck = $conn->prepare("SELECT id FROM usuario WHERE id = :id");
+                    $stmtCheck->bindParam(':id', $usuarioId, PDO::PARAM_INT);
+                    $stmtCheck->execute();
+                    if ($stmtCheck->fetch()) {
+                        $criadoPor = $usuarioId;
+                    }
+                }
+                
+                $stmtCriarLocalidade = $conn->prepare("INSERT INTO distrito_localidade (distrito, localidade, cidade, estado, criado_por, ativo) 
+                                                       VALUES (:distrito, :localidade, 'Maranguape', 'CE', :criado_por, 1)");
+                $stmtCriarLocalidade->bindParam(':distrito', $dados['distrito']);
+                $stmtCriarLocalidade->bindParam(':localidade', $localidadeInput);
+                $stmtCriarLocalidade->bindValue(':criado_por', $criadoPor, PDO::PARAM_INT);
+                $stmtCriarLocalidade->execute();
+                $localidadeNomeFinal = $localidadeInput;
+            }
+        }
+        
+        // Verificar se as colunas de endereço separadas existem
+        $stmtCheck = $conn->query("SHOW COLUMNS FROM escola LIKE 'numero'");
+        $colunaNumeroExiste = $stmtCheck->rowCount() > 0;
+        
+        $stmtCheck = $conn->query("SHOW COLUMNS FROM escola LIKE 'complemento'");
+        $colunaComplementoExiste = $stmtCheck->rowCount() > 0;
+        
+        $stmtCheck = $conn->query("SHOW COLUMNS FROM escola LIKE 'bairro'");
+        $colunaBairroExiste = $stmtCheck->rowCount() > 0;
+        
+        $stmtCheck = $conn->query("SHOW COLUMNS FROM escola LIKE 'telefone_secundario'");
+        $colunaTelefoneSecundarioExiste = $stmtCheck->rowCount() > 0;
+        
+        $stmtCheck = $conn->query("SHOW COLUMNS FROM escola LIKE 'site'");
+        $colunaSiteExiste = $stmtCheck->rowCount() > 0;
+        
+        // Montar query dinamicamente
+        $campos = ['nome = :nome', 'endereco = :endereco', 'telefone = :telefone', 'email = :email', 
+                   'municipio = :municipio', 'cep = :cep', 'qtd_salas = :qtd_salas', 
+                   'obs = :obs', 'codigo = :codigo', 'cnpj = :cnpj'];
+        
+        // Adicionar campos de endereço separados se existirem
+        if ($colunaNumeroExiste) {
+            $campos[] = 'numero = :numero';
+        }
+        if ($colunaComplementoExiste) {
+            $campos[] = 'complemento = :complemento';
+        }
+        if ($colunaBairroExiste) {
+            $campos[] = 'bairro = :bairro';
+        }
+        
+        // Adicionar telefone secundário se existir
+        if ($colunaTelefoneSecundarioExiste) {
+            $campos[] = 'telefone_secundario = :telefone_secundario';
+        }
+        
+        // Adicionar site se existir
+        if ($colunaSiteExiste) {
+            $campos[] = 'site = :site';
+        }
+        
+        if ($colunaNivelExiste) {
+            $campos[] = 'nivel_ensino = :nivel_ensino';
+        }
+        
+        $stmtCheck = $conn->query("SHOW COLUMNS FROM escola LIKE 'localidade_escola'");
+        $colunaLocalidadeEscolaExiste = $stmtCheck->rowCount() > 0;
+        
+        if ($colunaDistritoExiste) {
+            $campos[] = 'distrito = :distrito';
+        }
+        
+        if ($colunaLocalidadeEscolaExiste) {
+            $campos[] = 'localidade_escola = :localidade_escola';
+        }
+        
+        $sql = "UPDATE escola SET " . implode(', ', $campos) . " WHERE id = :id";
+        $stmt = $conn->prepare($sql);
 
+        // Montar endereço (logradouro apenas)
+        $endereco = $dados['endereco'] ?? '';
+        
         $stmt->bindParam(':id', $id);
         $stmt->bindParam(':nome', $dados['nome']);
-        $stmt->bindParam(':endereco', $dados['endereco']);
+        $stmt->bindParam(':endereco', $endereco);
         $stmt->bindParam(':telefone', $dados['telefone']);
         $stmt->bindParam(':email', $dados['email']);
         $stmt->bindParam(':municipio', $dados['municipio']);
@@ -1376,8 +1660,44 @@ function atualizarEscola($id, $dados)
         $stmt->bindParam(':obs', $dados['obs']);
         $stmt->bindParam(':codigo', $dados['codigo']);
         $stmt->bindParam(':cnpj', $cnpj);
-        if ($colunaExiste) {
+        
+        // Bind dos campos de endereço separados
+        if ($colunaNumeroExiste) {
+            $numero = !empty($dados['numero']) ? $dados['numero'] : null;
+            $stmt->bindParam(':numero', $numero);
+        }
+        if ($colunaComplementoExiste) {
+            $complemento = !empty($dados['complemento']) ? $dados['complemento'] : null;
+            $stmt->bindParam(':complemento', $complemento);
+        }
+        if ($colunaBairroExiste) {
+            $bairro = !empty($dados['bairro']) ? $dados['bairro'] : null;
+            $stmt->bindParam(':bairro', $bairro);
+        }
+        
+        // Bind do telefone secundário
+        if ($colunaTelefoneSecundarioExiste) {
+            $telefoneSecundario = !empty($dados['telefone_secundario']) ? $dados['telefone_secundario'] : null;
+            $stmt->bindParam(':telefone_secundario', $telefoneSecundario);
+        }
+        
+        // Bind do site
+        if ($colunaSiteExiste) {
+            $site = !empty($dados['site']) ? $dados['site'] : null;
+            $stmt->bindParam(':site', $site);
+        }
+        
+        if ($colunaNivelExiste) {
             $stmt->bindParam(':nivel_ensino', $nivelEnsino);
+        }
+        if ($colunaDistritoExiste) {
+            $distrito = !empty($dados['distrito']) ? $dados['distrito'] : null;
+            $stmt->bindParam(':distrito', $distrito);
+        }
+        
+        if ($colunaLocalidadeEscolaExiste) {
+            $localidadeEscola = $localidadeNomeFinal ?? null;
+            $stmt->bindParam(':localidade_escola', $localidadeEscola);
         }
 
         $stmt->execute();
@@ -1442,6 +1762,31 @@ $tipoMensagem = '';
 
 // Processamento AJAX para buscar professores e escola
 if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['acao'])) {
+    // Endpoint para buscar localidades do distrito
+    if ($_GET['acao'] === 'buscar_localidades_distrito' && isset($_GET['distrito'])) {
+        header('Content-Type: application/json; charset=utf-8');
+        ob_clean();
+        
+        $distrito = $_GET['distrito'] ?? '';
+        if (empty($distrito)) {
+            echo json_encode(['status' => false, 'mensagem' => 'Distrito não informado']);
+            exit;
+        }
+        
+        try {
+            $stmt = $conn->prepare("SELECT DISTINCT localidade FROM distrito_localidade WHERE distrito = :distrito AND ativo = 1 ORDER BY localidade ASC");
+            $stmt->bindParam(':distrito', $distrito);
+            $stmt->execute();
+            $localidades = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            
+            $localidadesList = array_column($localidades, 'localidade');
+            echo json_encode(['status' => true, 'localidades' => $localidadesList]);
+        } catch (PDOException $e) {
+            echo json_encode(['status' => false, 'mensagem' => 'Erro: ' . $e->getMessage()]);
+        }
+        exit;
+    }
+    
     if ($_GET['acao'] === 'buscar_professores' && isset($_GET['escola_id'])) {
         $professores = buscarProfessoresEscola($_GET['escola_id']);
         header('Content-Type: application/json');
@@ -1477,13 +1822,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 'municipio' => $_POST['municipio'] ?? 'MARANGUAPE',
                 'cep' => $_POST['cep'] ?? '',
                 'qtd_salas' => $_POST['qtd_salas'] ?? null,
+                'nivel_ensino' => $_POST['nivel_ensino'] ?? [], // Array de checkboxes
                 'obs' => '',
                 'codigo' => $_POST['codigo'] ?? '',
                 'gestor_id' => $_POST['gestor_id'] ?? null,
                 'inep' => $_POST['inep'] ?? '',
                 'tipo_escola' => $_POST['tipo_escola'] ?? 'NORMAL',
                 'cnpj' => $_POST['cnpj'] ?? '',
-                'programas' => $_POST['programas'] ?? []
+                'programas' => $_POST['programas'] ?? [],
+                'distrito' => $_POST['distrito'] ?? null,
+                'localidade' => $_POST['localidade'] ?? null
             ];
 
             $resultado = cadastrarEscola($dados);
@@ -1493,31 +1841,29 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         // Editar escola
         if ($_POST['acao'] === 'editar' && isset($_POST['id'])) {
-            // Montar endereço completo
-            $endereco = trim(($_POST['logradouro'] ?? '') . ', ' . ($_POST['numero'] ?? ''));
-            if (!empty($_POST['complemento'])) {
-                $endereco .= ', ' . $_POST['complemento'];
-            }
-            if (!empty($_POST['bairro'])) {
-                $endereco .= ', ' . $_POST['bairro'];
-            }
-            
             // Montar observações com dados do gestor (preservar dados existentes)
             $obs = $_POST['obs'] ?? '';
             
             $dados = [
                 'nome' => $_POST['nome'] ?? '',
-                'endereco' => $endereco,
-                'telefone' => $_POST['telefone_fixo'] ?? $_POST['telefone_movel'] ?? '',
+                'endereco' => $_POST['logradouro'] ?? '', // Apenas logradouro
+                'numero' => $_POST['numero'] ?? '',
+                'complemento' => $_POST['complemento'] ?? '',
+                'bairro' => $_POST['bairro'] ?? '',
+                'telefone' => $_POST['telefone_fixo'] ?? '',
+                'telefone_secundario' => $_POST['telefone_movel'] ?? '',
                 'email' => $_POST['email'] ?? '',
+                'site' => $_POST['site'] ?? '',
                 'municipio' => $_POST['municipio'] ?? 'MARANGUAPE',
                 'cep' => $_POST['cep'] ?? '',
                 'qtd_salas' => $_POST['qtd_salas'] ?? null,
-                'nivel_ensino' => $_POST['nivel_ensino'] ?? 'ENSINO_FUNDAMENTAL',
+                'nivel_ensino' => $_POST['nivel_ensino'] ?? [], // Array de checkboxes
                 'obs' => $obs,
                 'codigo' => $_POST['codigo'] ?? '',
                 'gestor_id' => $_POST['gestor_id'] ?? null,
-                'cnpj' => $_POST['cnpj'] ?? ''
+                'cnpj' => $_POST['cnpj'] ?? '',
+                'distrito' => $_POST['distrito'] ?? null,
+                'localidade' => $_POST['localidade'] ?? null
             ];
 
             $resultado = atualizarEscola($_POST['id'], $dados);
@@ -2534,6 +2880,51 @@ $escolas = listarEscolas($busca);
         .micro-interaction:active {
             transform: translateY(0);
         }
+        
+        /* Estilos para autocomplete de localidade */
+        .autocomplete-container {
+            position: relative;
+        }
+        .autocomplete-dropdown {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background: white;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            max-height: 200px;
+            overflow-y: auto;
+            z-index: 1000;
+            margin-top: 4px;
+            display: none;
+        }
+        .autocomplete-dropdown.show {
+            display: block;
+        }
+        .autocomplete-item {
+            padding: 10px 12px;
+            cursor: pointer;
+            transition: background-color 0.15s;
+            border-bottom: 1px solid #f3f4f6;
+        }
+        .autocomplete-item:last-child {
+            border-bottom: none;
+        }
+        .autocomplete-item:hover,
+        .autocomplete-item.selected {
+            background-color: #f3f4f6;
+        }
+        .autocomplete-item .distrito-nome {
+            font-size: 14px;
+            color: #374151;
+            font-weight: 500;
+        }
+        .autocomplete-item:hover .distrito-nome,
+        .autocomplete-item.selected .distrito-nome {
+            color: #1f2937;
+        }
     </style>
     <!-- User Profile Modal CSS -->
 </head>
@@ -2900,6 +3291,42 @@ if ($_SESSION['tipo'] === 'ADM') {
                                 <div>
                                     <label for="bairro" class="block text-sm font-medium text-gray-700 mb-2">Bairro</label>
                                     <input type="text" id="bairro" name="bairro" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-green focus:border-transparent transition-colors" placeholder="Ex: CENTRO">
+                                </div>
+                                <div>
+                                    <label for="distrito" class="block text-sm font-medium text-gray-700 mb-2">Distrito *</label>
+                                    <select id="distrito" name="distrito" required onchange="carregarLocalidadesCadastro()" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-green focus:border-transparent transition-colors">
+                                        <option value="">Selecione o distrito</option>
+                                        <option value="Amanari">Amanari</option>
+                                        <option value="Antônio Marques">Antônio Marques</option>
+                                        <option value="Cachoeira">Cachoeira</option>
+                                        <option value="Itapebussu">Itapebussu</option>
+                                        <option value="Jubaia">Jubaia</option>
+                                        <option value="Ladeira Grande">Ladeira Grande</option>
+                                        <option value="Lages">Lages</option>
+                                        <option value="Lagoa do Juvenal">Lagoa do Juvenal</option>
+                                        <option value="Manoel Guedes">Manoel Guedes</option>
+                                        <option value="Sede">Sede</option>
+                                        <option value="Papara">Papara</option>
+                                        <option value="Penedo">Penedo</option>
+                                        <option value="Sapupara">Sapupara</option>
+                                        <option value="São João do Amanari">São João do Amanari</option>
+                                        <option value="Tanques">Tanques</option>
+                                        <option value="Umarizeiras">Umarizeiras</option>
+                                        <option value="Vertentes do Lagedo">Vertentes do Lagedo</option>
+                                    </select>
+                                    <p class="text-xs text-gray-500 mt-1">Distrito onde a escola está localizada (obrigatório para criação de rotas)</p>
+                                </div>
+                                <div>
+                                    <label for="localidade" class="block text-sm font-medium text-gray-700 mb-2">Localidade</label>
+                                    <div class="autocomplete-container">
+                                        <input type="text" id="localidade" name="localidade" 
+                                               oninput="formatarLocalidade(this)" 
+                                               class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-green focus:border-transparent transition-colors"
+                                               placeholder="Digite o nome da localidade..." autocomplete="off">
+                                        <input type="hidden" id="localidade_id" name="localidade_id">
+                                        <div id="autocomplete-dropdown-localidade" class="autocomplete-dropdown"></div>
+                                    </div>
+                                    <p class="text-xs text-gray-500 mt-1">Localidade específica dentro do distrito. Se não existir, será criada automaticamente.</p>
                                 </div>
                             </div>
                         </div>
@@ -3638,6 +4065,49 @@ if ($_SESSION['tipo'] === 'ADM') {
                                                class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-green focus:border-transparent transition-colors"
                                                placeholder="Ex: CENTRO">
                                     </div>
+                                    
+                                    <div>
+                                        <label for="edit_distrito" class="block text-sm font-medium text-gray-700 mb-2">
+                                            Distrito
+                                        </label>
+                                        <select id="edit_distrito" name="distrito" onchange="carregarLocalidadesEdicao()"
+                                                class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-green focus:border-transparent transition-colors">
+                                            <option value="">Selecione o distrito</option>
+                                            <option value="Amanari">Amanari</option>
+                                            <option value="Antônio Marques">Antônio Marques</option>
+                                            <option value="Cachoeira">Cachoeira</option>
+                                            <option value="Itapebussu">Itapebussu</option>
+                                            <option value="Jubaia">Jubaia</option>
+                                            <option value="Ladeira Grande">Ladeira Grande</option>
+                                            <option value="Lages">Lages</option>
+                                            <option value="Lagoa do Juvenal">Lagoa do Juvenal</option>
+                                            <option value="Manoel Guedes">Manoel Guedes</option>
+                                            <option value="Sede">Sede</option>
+                                            <option value="Papara">Papara</option>
+                                            <option value="Penedo">Penedo</option>
+                                            <option value="Sapupara">Sapupara</option>
+                                            <option value="São João do Amanari">São João do Amanari</option>
+                                            <option value="Tanques">Tanques</option>
+                                            <option value="Umarizeiras">Umarizeiras</option>
+                                            <option value="Vertentes do Lagedo">Vertentes do Lagedo</option>
+                                        </select>
+                                        <p class="text-xs text-gray-500 mt-1">Distrito onde a escola está localizada</p>
+                                    </div>
+                                    
+                                    <div>
+                                        <label for="edit_localidade" class="block text-sm font-medium text-gray-700 mb-2">
+                                            Localidade
+                                        </label>
+                                        <div class="autocomplete-container">
+                                            <input type="text" id="edit_localidade" name="localidade" 
+                                                   oninput="formatarLocalidade(this)" 
+                                                   class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-green focus:border-transparent transition-colors"
+                                                   placeholder="Digite o nome da localidade..." autocomplete="off">
+                                            <input type="hidden" id="edit_localidade_id" name="localidade_id">
+                                            <div id="autocomplete-dropdown-localidade-edicao" class="autocomplete-dropdown"></div>
+                                        </div>
+                                        <p class="text-xs text-gray-500 mt-1">Localidade específica dentro do distrito. Se não existir, será criada automaticamente.</p>
+                                    </div>
                                 </div>
                             </div>
 
@@ -3877,6 +4347,74 @@ if ($_SESSION['tipo'] === 'ADM') {
     <script>
         // Funções abrirModalEdicaoEscola e abrirModalExclusaoEscola já estão definidas no início do script
         // Não é necessário redefinir aqui
+        
+        // Funções para autocomplete de localidade (Cadastro) - Definir no escopo global
+        window.localidadesDisponiveisCadastro = [];
+        window.filteredLocalidadesCadastro = [];
+        window.selectedIndexLocalidadeCadastro = -1;
+        
+        window.carregarLocalidadesCadastro = function() {
+            const distrito = document.getElementById('distrito');
+            const inputLocalidade = document.getElementById('localidade');
+            
+            if (!distrito || !inputLocalidade) return;
+            
+            if (!distrito.value) {
+                inputLocalidade.placeholder = 'Digite o nome da localidade...';
+                localidadesDisponiveisCadastro = [];
+                return;
+            }
+            
+            inputLocalidade.placeholder = 'Digite o nome da localidade...';
+            
+            fetch(`gestao_escolas.php?acao=buscar_localidades_distrito&distrito=${encodeURIComponent(distrito.value)}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status) {
+                        window.localidadesDisponiveisCadastro = data.localidades;
+                    } else {
+                        window.localidadesDisponiveisCadastro = [];
+                    }
+                })
+                .catch(error => {
+                    console.error('Erro:', error);
+                    window.localidadesDisponiveisCadastro = [];
+                });
+        };
+        
+        // Funções para autocomplete de localidade (Edição) - Definir no escopo global
+        window.localidadesDisponiveisEdicao = [];
+        window.filteredLocalidadesEdicao = [];
+        window.selectedIndexLocalidadeEdicao = -1;
+        
+        window.carregarLocalidadesEdicao = function() {
+            const distrito = document.getElementById('edit_distrito');
+            const inputLocalidade = document.getElementById('edit_localidade');
+            
+            if (!distrito || !inputLocalidade) return;
+            
+            if (!distrito.value) {
+                inputLocalidade.placeholder = 'Digite o nome da localidade...';
+                localidadesDisponiveisEdicao = [];
+                return;
+            }
+            
+            inputLocalidade.placeholder = 'Digite o nome da localidade...';
+            
+            fetch(`gestao_escolas.php?acao=buscar_localidades_distrito&distrito=${encodeURIComponent(distrito.value)}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status) {
+                        window.localidadesDisponiveisEdicao = data.localidades;
+                    } else {
+                        window.localidadesDisponiveisEdicao = [];
+                    }
+                })
+                .catch(error => {
+                    console.error('Erro:', error);
+                    window.localidadesDisponiveisEdicao = [];
+                });
+        };
         
         // Função para fechar modal de exclusão de escola (definir no escopo global)
         window.fecharModalExclusaoEscola = function() {
@@ -4144,11 +4682,15 @@ if ($_SESSION['tipo'] === 'ADM') {
                     }
                     return response.text().then(text => {
                         try {
-                            return JSON.parse(text);
+                            const data = JSON.parse(text);
+                            // Log para debug
+                            console.log('Dados da escola recebidos:', data);
+                            return data;
                         } catch (e) {
                             console.error('Erro ao fazer parse do JSON:', e);
                             console.error('Texto recebido:', text);
-                            throw new Error('Resposta inválida do servidor');
+                            alert('Erro ao processar resposta do servidor. Verifique o console para mais detalhes.');
+                            throw new Error('Resposta inválida do servidor: ' + text.substring(0, 200));
                         }
                     });
                 })
@@ -4222,19 +4764,57 @@ if ($_SESSION['tipo'] === 'ADM') {
                         }
                     }
                     
-                    // Preencher campos padrão
-                    document.getElementById('edit_nome_curto').value = '';
-                    document.getElementById('edit_site').value = '';
-                    document.getElementById('edit_telefone_fixo').value = '';
-                    document.getElementById('edit_telefone_movel').value = '';
-                    document.getElementById('edit_logradouro').value = '';
-                    document.getElementById('edit_numero').value = '';
-                    document.getElementById('edit_complemento').value = '';
-                    document.getElementById('edit_bairro').value = '';
-                    document.getElementById('edit_inep').value = '';
-                    document.getElementById('edit_tipo_escola').value = 'NORMAL';
+                    // Preencher campos de endereço
+                    // O banco tem campos separados: endereco, numero, complemento, bairro
+                    if (escola.endereco) {
+                        // Se o endereço está tudo junto (formato antigo), tentar separar
+                        if (escola.endereco.includes(', ')) {
+                            const enderecoParts = escola.endereco.split(', ');
+                            document.getElementById('edit_logradouro').value = enderecoParts[0] || '';
+                            // Se não tem campo numero separado, tentar pegar da string
+                            if (!escola.numero && enderecoParts[1]) {
+                                document.getElementById('edit_numero').value = enderecoParts[1] || '';
+                            }
+                        } else {
+                            document.getElementById('edit_logradouro').value = escola.endereco || '';
+                        }
+                    } else {
+                        document.getElementById('edit_logradouro').value = '';
+                    }
                     
-                    // Extrair dados do campo obs para preencher os novos campos
+                    // Campos separados do banco
+                    document.getElementById('edit_numero').value = escola.numero || '';
+                    document.getElementById('edit_complemento').value = escola.complemento || '';
+                    document.getElementById('edit_bairro').value = escola.bairro || '';
+                    
+                    // Preencher telefones (campos separados do banco)
+                    document.getElementById('edit_telefone_fixo').value = escola.telefone || '';
+                    document.getElementById('edit_telefone_movel').value = escola.telefone_secundario || '';
+                    
+                    // Preencher site
+                    document.getElementById('edit_site').value = escola.site || '';
+                    
+                    // Preencher distrito e localidade
+                    if (escola.distrito) {
+                        document.getElementById('edit_distrito').value = escola.distrito;
+                        // Verificar se a função existe antes de chamar
+                        if (typeof window.carregarLocalidadesEdicao === 'function') {
+                            window.carregarLocalidadesEdicao();
+                        } else if (typeof carregarLocalidadesEdicao === 'function') {
+                            carregarLocalidadesEdicao();
+                        }
+                    } else {
+                        document.getElementById('edit_distrito').value = '';
+                    }
+                    
+                    // Verificar se existe localidade_escola (campo varchar) ou usar null
+                    if (escola.localidade_escola) {
+                        document.getElementById('edit_localidade').value = escola.localidade_escola;
+                    } else {
+                        document.getElementById('edit_localidade').value = '';
+                    }
+                    
+                    // Extrair dados do campo obs para preencher campos adicionais
                     if (escola.obs) {
                         const obs = escola.obs;
                         
@@ -4242,6 +4822,8 @@ if ($_SESSION['tipo'] === 'ADM') {
                         const inepMatch = obs.match(/INEP Escola:\s*([^|]+)/);
                         if (inepMatch) {
                             document.getElementById('edit_inep').value = inepMatch[1].trim();
+                        } else {
+                            document.getElementById('edit_inep').value = '';
                         }
                         
                         // Extrair nome curto (assumindo que está no início do nome)
@@ -4252,27 +4834,14 @@ if ($_SESSION['tipo'] === 'ADM') {
                         const tipoMatch = obs.match(/Tipo:\s*([^|]+)/);
                         if (tipoMatch) {
                             document.getElementById('edit_tipo_escola').value = tipoMatch[1].trim();
+                        } else {
+                            document.getElementById('edit_tipo_escola').value = 'NORMAL';
                         }
-                        
-                        // Extrair dados do endereço (assumindo formato: logradouro, numero, complemento, bairro)
-                        if (escola.endereco) {
-                            const enderecoParts = escola.endereco.split(', ');
-                            document.getElementById('edit_logradouro').value = enderecoParts[0] || '';
-                            document.getElementById('edit_numero').value = enderecoParts[1] || '';
-                            document.getElementById('edit_complemento').value = enderecoParts[2] || '';
-                            document.getElementById('edit_bairro').value = enderecoParts[3] || '';
-                        }
-                        
-                        // Extrair telefones (assumindo que telefone é o fixo)
-                        if (escola.telefone) {
-                            if (escola.telefone.includes('9')) {
-                                document.getElementById('edit_telefone_movel').value = escola.telefone;
-                            } else {
-                                document.getElementById('edit_telefone_fixo').value = escola.telefone;
-                            }
-                        }
-                        
-                        // Dados do gestor já vêm do banco de dados, não precisamos extrair do obs
+                    } else {
+                        // Se não tem obs, limpar campos extras
+                        document.getElementById('edit_nome_curto').value = '';
+                        document.getElementById('edit_inep').value = '';
+                        document.getElementById('edit_tipo_escola').value = 'NORMAL';
                     }
                     
                     // Preencher dados do gestor usando os dados que vêm do banco
@@ -5152,6 +5721,192 @@ if ($_SESSION['tipo'] === 'ADM') {
                 }
             });
         }
+        
+        // Função para formatar localidade (primeira letra maiúscula)
+        function formatarLocalidade(input) {
+            let valor = input.value;
+            if (valor.length > 0) {
+                // Primeira letra maiúscula, resto mantém como está
+                valor = valor.charAt(0).toUpperCase() + valor.slice(1);
+                input.value = valor;
+            }
+        }
+        
+        // As funções carregarLocalidadesCadastro e carregarLocalidadesEdicao já foram definidas no início do script (linha ~4180)
+        // Usar as variáveis globais já definidas
+        // Autocomplete para localidade no cadastro
+        document.addEventListener('DOMContentLoaded', function() {
+            const inputLocalidadeCadastro = document.getElementById('localidade');
+            const dropdownLocalidadeCadastro = document.getElementById('autocomplete-dropdown-localidade');
+            
+            if (inputLocalidadeCadastro && dropdownLocalidadeCadastro) {
+                inputLocalidadeCadastro.addEventListener('input', function() {
+                    if (this.disabled) return;
+                    
+                    const query = this.value.trim().toLowerCase();
+                    window.selectedIndexLocalidadeCadastro = -1;
+                    
+                    if (query.length === 0) {
+                        dropdownLocalidadeCadastro.classList.remove('show');
+                        return;
+                    }
+                    
+                    window.filteredLocalidadesCadastro = window.localidadesDisponiveisCadastro.filter(localidade => 
+                        localidade.toLowerCase().includes(query)
+                    );
+                    
+                    if (window.filteredLocalidadesCadastro.length === 0) {
+                        dropdownLocalidadeCadastro.classList.remove('show');
+                        return;
+                    }
+                    
+                    renderDropdownLocalidadeCadastro();
+                    dropdownLocalidadeCadastro.classList.add('show');
+                });
+                
+                inputLocalidadeCadastro.addEventListener('keydown', function(e) {
+                    if (this.disabled) return;
+                    if (!dropdownLocalidadeCadastro.classList.contains('show')) return;
+                    
+                    const items = dropdownLocalidadeCadastro.querySelectorAll('.autocomplete-item');
+                    
+                    if (e.key === 'ArrowDown') {
+                        e.preventDefault();
+                        window.selectedIndexLocalidadeCadastro = Math.min(window.selectedIndexLocalidadeCadastro + 1, items.length - 1);
+                        updateSelectionLocalidadeCadastro(items);
+                    } else if (e.key === 'ArrowUp') {
+                        e.preventDefault();
+                        window.selectedIndexLocalidadeCadastro = Math.max(window.selectedIndexLocalidadeCadastro - 1, -1);
+                        updateSelectionLocalidadeCadastro(items);
+                    } else if (e.key === 'Enter') {
+                        e.preventDefault();
+                        if (window.selectedIndexLocalidadeCadastro >= 0 && window.filteredLocalidadesCadastro[window.selectedIndexLocalidadeCadastro]) {
+                            selecionarLocalidadeCadastro(window.filteredLocalidadesCadastro[window.selectedIndexLocalidadeCadastro]);
+                        }
+                    } else if (e.key === 'Escape') {
+                        dropdownLocalidadeCadastro.classList.remove('show');
+                    }
+                });
+                
+                document.addEventListener('click', function(e) {
+                    if (!inputLocalidadeCadastro.contains(e.target) && !dropdownLocalidadeCadastro.contains(e.target)) {
+                        dropdownLocalidadeCadastro.classList.remove('show');
+                    }
+                });
+                
+                function renderDropdownLocalidadeCadastro() {
+                    dropdownLocalidadeCadastro.innerHTML = window.filteredLocalidadesCadastro.map((localidade, index) => `
+                        <div class="autocomplete-item ${index === window.selectedIndexLocalidadeCadastro ? 'selected' : ''}" 
+                             data-index="${index}" 
+                             onclick="selecionarLocalidadeCadastro('${localidade.replace(/'/g, "\\'")}')">
+                            <div class="distrito-nome">${localidade}</div>
+                        </div>
+                    `).join('');
+                }
+                
+                function updateSelectionLocalidadeCadastro(items) {
+                    items.forEach((item, index) => {
+                        if (index === window.selectedIndexLocalidadeCadastro) {
+                            item.classList.add('selected');
+                            item.scrollIntoView({ block: 'nearest' });
+                        } else {
+                            item.classList.remove('selected');
+                        }
+                    });
+                }
+                
+                window.selecionarLocalidadeCadastro = function(localidade) {
+                    inputLocalidadeCadastro.value = localidade;
+                    dropdownLocalidadeCadastro.classList.remove('show');
+                };
+            }
+            
+            // Autocomplete para localidade na edição
+            const inputLocalidadeEdicao = document.getElementById('edit_localidade');
+            const dropdownLocalidadeEdicao = document.getElementById('autocomplete-dropdown-localidade-edicao');
+            
+            if (inputLocalidadeEdicao && dropdownLocalidadeEdicao) {
+                inputLocalidadeEdicao.addEventListener('input', function() {
+                    if (this.disabled) return;
+                    
+                    const query = this.value.trim().toLowerCase();
+                    window.selectedIndexLocalidadeEdicao = -1;
+                    
+                    if (query.length === 0) {
+                        dropdownLocalidadeEdicao.classList.remove('show');
+                        return;
+                    }
+                    
+                    window.filteredLocalidadesEdicao = window.localidadesDisponiveisEdicao.filter(localidade => 
+                        localidade.toLowerCase().includes(query)
+                    );
+                    
+                    if (window.filteredLocalidadesEdicao.length === 0) {
+                        dropdownLocalidadeEdicao.classList.remove('show');
+                        return;
+                    }
+                    
+                    renderDropdownLocalidadeEdicao();
+                    dropdownLocalidadeEdicao.classList.add('show');
+                });
+                
+                inputLocalidadeEdicao.addEventListener('keydown', function(e) {
+                    if (this.disabled) return;
+                    if (!dropdownLocalidadeEdicao.classList.contains('show')) return;
+                    
+                    const items = dropdownLocalidadeEdicao.querySelectorAll('.autocomplete-item');
+                    
+                    if (e.key === 'ArrowDown') {
+                        e.preventDefault();
+                        window.selectedIndexLocalidadeEdicao = Math.min(window.selectedIndexLocalidadeEdicao + 1, items.length - 1);
+                        updateSelectionLocalidadeEdicao(items);
+                    } else if (e.key === 'ArrowUp') {
+                        e.preventDefault();
+                        window.selectedIndexLocalidadeEdicao = Math.max(window.selectedIndexLocalidadeEdicao - 1, -1);
+                        updateSelectionLocalidadeEdicao(items);
+                    } else if (e.key === 'Enter') {
+                        e.preventDefault();
+                        if (window.selectedIndexLocalidadeEdicao >= 0 && window.filteredLocalidadesEdicao[window.selectedIndexLocalidadeEdicao]) {
+                            selecionarLocalidadeEdicao(window.filteredLocalidadesEdicao[window.selectedIndexLocalidadeEdicao]);
+                        }
+                    } else if (e.key === 'Escape') {
+                        dropdownLocalidadeEdicao.classList.remove('show');
+                    }
+                });
+                
+                document.addEventListener('click', function(e) {
+                    if (!inputLocalidadeEdicao.contains(e.target) && !dropdownLocalidadeEdicao.contains(e.target)) {
+                        dropdownLocalidadeEdicao.classList.remove('show');
+                    }
+                });
+                
+                function renderDropdownLocalidadeEdicao() {
+                    dropdownLocalidadeEdicao.innerHTML = window.filteredLocalidadesEdicao.map((localidade, index) => `
+                        <div class="autocomplete-item ${index === window.selectedIndexLocalidadeEdicao ? 'selected' : ''}" 
+                             data-index="${index}" 
+                             onclick="selecionarLocalidadeEdicao('${localidade.replace(/'/g, "\\'")}')">
+                            <div class="distrito-nome">${localidade}</div>
+                        </div>
+                    `).join('');
+                }
+                
+                function updateSelectionLocalidadeEdicao(items) {
+                    items.forEach((item, index) => {
+                        if (index === window.selectedIndexLocalidadeEdicao) {
+                            item.classList.add('selected');
+                            item.scrollIntoView({ block: 'nearest' });
+                        } else {
+                            item.classList.remove('selected');
+                        }
+                    });
+                }
+                
+                window.selecionarLocalidadeEdicao = function(localidade) {
+                    inputLocalidadeEdicao.value = localidade;
+                    dropdownLocalidadeEdicao.classList.remove('show');
+                };
+            }
+        });
 
         // Event listener para o formulário de cadastro
         document.addEventListener('DOMContentLoaded', function() {
