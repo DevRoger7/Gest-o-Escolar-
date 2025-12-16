@@ -2615,6 +2615,17 @@ if (isset($_SESSION['tipo']) && strtolower($_SESSION['tipo']) === 'aluno') {
         <?php include('components/sidebar_gestao.php'); ?>
     <?php } elseif (isset($_SESSION['tipo']) && strtolower($_SESSION['tipo']) === 'professor') { ?>
         <?php include('components/sidebar_professor.php'); ?>
+    <?php } elseif (isset($_SESSION['tipo']) && (strtoupper($_SESSION['tipo']) === 'ADM_TRANSPORTE' || strtoupper($_SESSION['tipo']) === 'TRANSPORTE_ALUNO')) { ?>
+        <?php 
+        // Sidebar para ADM_TRANSPORTE e TRANSPORTE_ALUNO
+        $tipoUsuario = $_SESSION['tipo'] ?? '';
+        $tipoUsuarioUpper = strtoupper(trim($tipoUsuario));
+        if ($tipoUsuarioUpper === 'ADM_TRANSPORTE') {
+            include('components/sidebar_transporte.php');
+        } elseif ($tipoUsuarioUpper === 'TRANSPORTE_ALUNO') {
+            include('components/sidebar_transporte_aluno.php');
+        }
+        ?>
     <?php } else { ?>
     <aside id="sidebar" class="fixed left-0 top-0 h-full w-64 bg-white shadow-lg sidebar-transition z-50 lg:translate-x-0 sidebar-mobile">
         <!-- Logo e Header -->
@@ -3071,7 +3082,13 @@ if (isset($_SESSION['tipo']) && strtolower($_SESSION['tipo']) === 'aluno') {
                                         <span class="text-sm font-semibold">Nenhuma escola encontrada</span>
                                     </div>
                                 <?php endif; ?>
-                            <?php } else { ?>
+                            <?php } else { 
+                                // Não exibir botão de escola para TRANSPORTE_ALUNO e ADM_TRANSPORTE (são usuários gerais, não vinculados a escola)
+                                $tipoUsuarioHeader = $_SESSION['tipo'] ?? '';
+                                $tipoUsuarioHeaderUpper = strtoupper(trim($tipoUsuarioHeader));
+                                $ehUsuarioTransporte = ($tipoUsuarioHeaderUpper === 'TRANSPORTE_ALUNO' || $tipoUsuarioHeaderUpper === 'ADM_TRANSPORTE');
+                                
+                                if (!$ehUsuarioTransporte) { ?>
                                 <!-- Para outros usuários, card verde com ícone -->
                             <div class="bg-primary-green text-white px-4 py-2 rounded-lg shadow-sm">
                                 <div class="flex items-center space-x-2">
@@ -3083,7 +3100,8 @@ if (isset($_SESSION['tipo']) && strtolower($_SESSION['tipo']) === 'aluno') {
                                     </span>
                                 </div>
                             </div>
-                            <?php } ?>
+                            <?php } 
+                            } ?>
                         </div>
 
                         <!-- User Profile Button -->
@@ -4192,217 +4210,47 @@ if (isset($_SESSION['tipo']) && strtolower($_SESSION['tipo']) === 'aluno') {
                 echo '<section id="transporte" class="content-section mt-8">';
                 echo '<div class="mb-6">';
                 echo '<h2 class="text-2xl font-bold text-gray-900 mb-2">Administração do Transporte Escolar</h2>';
-                echo '<p class="text-gray-600">Gestão completa do transporte: veículos, motoristas, rotas, usuários e relatórios</p>';
+                echo '<p class="text-gray-600">Bem-vindo ao painel de administração do transporte escolar</p>';
                 echo '</div>';
-                echo '<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">';
                 
-                // Card de Usuários
-                echo '
-                <a href="gestao_transporte_adm.php#usuarios" class="group bg-white rounded-xl border border-gray-200 p-5 hover:shadow-lg transition-all duration-300 cursor-pointer">
-                    <div class="flex items-start justify-between mb-4">
-                        <div class="flex items-center space-x-3">
-                            <div class="w-12 h-12 bg-blue-50 rounded-xl flex items-center justify-center">
-                                <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z"></path>
-                                </svg>
-                            </div>
-                            <div>
-                                <h3 class="text-lg font-bold text-gray-900">Usuários</h3>
-                                <p class="text-sm text-gray-600">Criar TRANSPORTE_ALUNO</p>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="w-full bg-gradient-to-r from-blue-500 to-blue-600 text-white py-2 px-4 rounded-lg text-center font-medium">
-                        Gerenciar Usuários
-                    </div>
-                </a>';
+                // Cards de estatísticas simples
+                echo '<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">';
                 
-                // Card de Veículos
-                echo '
-                <a href="gestao_transporte_adm.php#veiculos" class="group bg-white rounded-xl border border-gray-200 p-5 hover:shadow-lg transition-all duration-300 cursor-pointer">
-                    <div class="flex items-start justify-between mb-4">
-                        <div class="flex items-center space-x-3">
-                            <div class="w-12 h-12 bg-green-50 rounded-xl flex items-center justify-center">
-                                <svg class="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"></path>
-                                </svg>
-                            </div>
-                            <div>
-                                <h3 class="text-lg font-bold text-gray-900">Veículos</h3>
-                                <p class="text-sm text-gray-600">Cadastrar e gerenciar</p>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="w-full bg-gradient-to-r from-green-500 to-green-600 text-white py-2 px-4 rounded-lg text-center font-medium">
-                        Gerenciar Veículos
-                    </div>
-                </a>';
-                
-                // Card de Motoristas
-                echo '
-                <a href="gestao_transporte_adm.php#motoristas" class="group bg-white rounded-xl border border-gray-200 p-5 hover:shadow-lg transition-all duration-300 cursor-pointer">
-                    <div class="flex items-start justify-between mb-4">
-                        <div class="flex items-center space-x-3">
-                            <div class="w-12 h-12 bg-purple-50 rounded-xl flex items-center justify-center">
-                                <svg class="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V8a2 2 0 00-2-2h-5m-4 0V5a2 2 0 114 0v1m-4 0a2 2 0 104 0m-5 8a2 2 0 100-4 2 2 0 000 4zm0 0c1.306 0 2.417.835 2.83 2M9 14a3.001 3.001 0 00-2.83 2M15 11h3m-3 4h2"></path>
-                                </svg>
-                            </div>
-                            <div>
-                                <h3 class="text-lg font-bold text-gray-900">Motoristas</h3>
-                                <p class="text-sm text-gray-600">Cadastrar e gerenciar</p>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="w-full bg-gradient-to-r from-purple-500 to-purple-600 text-white py-2 px-4 rounded-lg text-center font-medium">
-                        Gerenciar Motoristas
-                    </div>
-                </a>';
-                
-                // Card de Localidades por Distrito
-                echo '
-                <a href="gestao_localidades_distrito.php" class="group bg-white rounded-xl border border-gray-200 p-5 hover:shadow-lg transition-all duration-300 cursor-pointer">
-                    <div class="flex items-start justify-between mb-4">
-                        <div class="flex items-center space-x-3">
-                            <div class="w-12 h-12 bg-indigo-50 rounded-xl flex items-center justify-center">
-                                <svg class="w-6 h-6 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path>
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path>
-                                </svg>
-                            </div>
-                            <div>
-                                <h3 class="text-lg font-bold text-gray-900">Localidades</h3>
-                                <p class="text-sm text-gray-600">Gerenciar por distrito</p>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="w-full bg-gradient-to-r from-indigo-500 to-indigo-600 text-white py-2 px-4 rounded-lg text-center font-medium">
-                        Gerenciar Localidades
-                    </div>
-                </a>';
-                
-                // Card de Rotas
-                echo '
-                <a href="gestao_transporte_adm.php#rotas" class="group bg-white rounded-xl border border-gray-200 p-5 hover:shadow-lg transition-all duration-300 cursor-pointer">
-                    <div class="flex items-start justify-between mb-4">
-                        <div class="flex items-center space-x-3">
-                            <div class="w-12 h-12 bg-orange-50 rounded-xl flex items-center justify-center">
-                                <svg class="w-6 h-6 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"></path>
-                                </svg>
-                            </div>
-                            <div>
-                                <h3 class="text-lg font-bold text-gray-900">Rotas</h3>
-                                <p class="text-sm text-gray-600">Visualizar e gerenciar</p>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="w-full bg-gradient-to-r from-orange-500 to-orange-600 text-white py-2 px-4 rounded-lg text-center font-medium">
-                        Gerenciar Rotas
-                    </div>
-                </a>';
+                // Card de boas-vindas
+                echo '<div class="bg-white rounded-2xl p-6 shadow-lg border border-gray-100">';
+                echo '<div class="flex items-center justify-between mb-4">';
+                echo '<div class="p-3 bg-blue-100 rounded-xl">';
+                echo '<svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">';
+                echo '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"></path>';
+                echo '</svg>';
+                echo '</div>';
+                echo '</div>';
+                echo '<h3 class="text-2xl font-bold text-gray-800 mb-1">Transporte</h3>';
+                echo '<p class="text-gray-600 text-sm">Sistema de Gestão</p>';
+                echo '</div>';
                 
                 echo '</div>';
+                
+                // Mensagem informativa
+                echo '<div class="bg-blue-50 border border-blue-200 rounded-xl p-6">';
+                echo '<div class="flex items-start space-x-3">';
+                echo '<svg class="w-6 h-6 text-blue-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">';
+                echo '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>';
+                echo '</svg>';
+                echo '<div>';
+                echo '<h3 class="text-lg font-semibold text-blue-900 mb-2">Acesse as funcionalidades pela sidebar</h3>';
+                echo '<p class="text-blue-800 text-sm">Use o menu lateral para acessar todas as funcionalidades de gestão do transporte escolar: Usuários, Veículos, Motoristas, Localidades e Rotas.</p>';
+                echo '</div>';
+                echo '</div>';
+                echo '</div>';
+                
                 echo '</section>';
             }
 
             // === INTERFACE DO TRANSPORTE ALUNO ===
             function renderTransporteAlunoInterface() {
-                echo '<section id="transporte-aluno" class="content-section mt-8">';
-                echo '<div class="mb-6">';
-                echo '<h2 class="text-2xl font-bold text-gray-900 mb-2">Criação de Rotas Escolares</h2>';
-                echo '<p class="text-gray-600">Criar e gerenciar rotas baseadas na geolocalização dos alunos</p>';
-                echo '</div>';
-                echo '<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">';
-                
-                // Card de Criar Rotas
-                echo '
-                <a href="gestao_rotas_transporte.php" class="group bg-white rounded-xl border border-gray-200 p-5 hover:shadow-lg transition-all duration-300 cursor-pointer">
-                    <div class="flex items-start justify-between mb-4">
-                        <div class="flex items-center space-x-3">
-                            <div class="w-12 h-12 bg-blue-50 rounded-xl flex items-center justify-center">
-                                <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"></path>
-                                </svg>
-                            </div>
-                            <div>
-                                <h3 class="text-lg font-bold text-gray-900">Criar Rotas</h3>
-                                <p class="text-sm text-gray-600">Criar rotas no mapa</p>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="w-full bg-gradient-to-r from-blue-500 to-blue-600 text-white py-2 px-4 rounded-lg text-center font-medium">
-                        Abrir Mapa
-                    </div>
-                </a>';
-                
-                // Card de Geolocalização
-                echo '
-                <a href="gestao_geolocalizacao_alunos.php" class="group bg-white rounded-xl border border-gray-200 p-5 hover:shadow-lg transition-all duration-300 cursor-pointer">
-                    <div class="flex items-start justify-between mb-4">
-                        <div class="flex items-center space-x-3">
-                            <div class="w-12 h-12 bg-green-50 rounded-xl flex items-center justify-center">
-                                <svg class="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path>
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path>
-                                </svg>
-                            </div>
-                            <div>
-                                <h3 class="text-lg font-bold text-gray-900">Geolocalização</h3>
-                                <p class="text-sm text-gray-600">Gerenciar localizações</p>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="w-full bg-gradient-to-r from-green-500 to-green-600 text-white py-2 px-4 rounded-lg text-center font-medium">
-                        Gerenciar Localizações
-                    </div>
-                </a>';
-                
-                // Card de Gestão de Localidades
-                echo '
-                <a href="gestao_localidades_distrito.php" class="group bg-white rounded-xl border border-gray-200 p-5 hover:shadow-lg transition-all duration-300 cursor-pointer">
-                    <div class="flex items-start justify-between mb-4">
-                        <div class="flex items-center space-x-3">
-                            <div class="w-12 h-12 bg-orange-50 rounded-xl flex items-center justify-center">
-                                <svg class="w-6 h-6 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"></path>
-                                </svg>
-                            </div>
-                            <div>
-                                <h3 class="text-lg font-bold text-gray-900">Localidades por Distrito</h3>
-                                <p class="text-sm text-gray-600">Gerenciar localidades</p>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="w-full bg-gradient-to-r from-orange-500 to-orange-600 text-white py-2 px-4 rounded-lg text-center font-medium">
-                        Gerenciar Localidades
-                    </div>
-                </a>';
-                
-                // Card de Visualizar Rotas
-                echo '
-                <a href="visualizar_rotas.php" class="group bg-white rounded-xl border border-gray-200 p-5 hover:shadow-lg transition-all duration-300 cursor-pointer">
-                    <div class="flex items-start justify-between mb-4">
-                        <div class="flex items-center space-x-3">
-                            <div class="w-12 h-12 bg-purple-50 rounded-xl flex items-center justify-center">
-                                <svg class="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
-                                </svg>
-                            </div>
-                            <div>
-                                <h3 class="text-lg font-bold text-gray-900">Visualizar Rotas</h3>
-                                <p class="text-sm text-gray-600">Ver rotas criadas</p>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="w-full bg-gradient-to-r from-purple-500 to-purple-600 text-white py-2 px-4 rounded-lg text-center font-medium">
-                        Ver Rotas
-                    </div>
-                </a>';
-                
-                echo '</div>';
-                echo '</section>';
+                // Os itens de navegação foram movidos para a sidebar
+                // Interface vazia - usar apenas a sidebar para navegação
             }
 
             // === INTERFACE DO ADMINISTRADOR DE MERENDA ===

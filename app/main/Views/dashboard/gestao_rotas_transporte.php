@@ -10,7 +10,8 @@ $session->tempo_session();
 
 // Apenas ADM_TRANSPORTE e TRANSPORTE_ALUNO podem acessar
 $tipoUsuario = $_SESSION['tipo'] ?? '';
-if (!eAdm() && strtoupper($tipoUsuario) !== 'ADM_TRANSPORTE' && strtoupper($tipoUsuario) !== 'TRANSPORTE_ALUNO') {
+$tipoUsuarioUpper = strtoupper(trim($tipoUsuario));
+if (!eAdm() && $tipoUsuarioUpper !== 'ADM_TRANSPORTE' && $tipoUsuarioUpper !== 'TRANSPORTE_ALUNO') {
     header('Location: ../auth/login.php?erro=sem_permissao');
     exit;
 }
@@ -113,6 +114,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao'])) {
         elseif ($acao === 'criar_rota') {
             $conn->beginTransaction();
             
+            // Verificar se o usuário existe na tabela usuario
+            $criadoPor = null;
+            if (!empty($usuarioId)) {
+                $stmtCheck = $conn->prepare("SELECT id FROM usuario WHERE id = :id");
+                $stmtCheck->bindParam(':id', $usuarioId, PDO::PARAM_INT);
+                $stmtCheck->execute();
+                if ($stmtCheck->fetch()) {
+                    $criadoPor = $usuarioId;
+                }
+            }
+            
             // Criar rota
             // Nota: Mantemos 'localidades' para compatibilidade, mas agora usamos 'distrito' como campo principal
             $stmt = $conn->prepare("INSERT INTO rota (nome, codigo, escola_id, turno, distrito, localidades, total_alunos, criado_por) 
@@ -124,7 +136,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao'])) {
             $stmt->bindValue(':distrito', $_POST['distrito'] ?? null); // Campo principal da nova lógica
             $stmt->bindValue(':localidades', json_encode($_POST['localidades'] ?? [])); // Mantido para compatibilidade
             $stmt->bindValue(':total_alunos', $_POST['total_alunos'] ?? 0, PDO::PARAM_INT);
-            $stmt->bindParam(':criado_por', $usuarioId, PDO::PARAM_INT);
+            $stmt->bindValue(':criado_por', $criadoPor, PDO::PARAM_INT);
             $stmt->execute();
             $rotaId = $conn->lastInsertId();
             
@@ -159,7 +171,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao'])) {
                     $stmtAluno->bindParam(':rota_id', $rotaId, PDO::PARAM_INT);
                     $stmtAluno->bindValue(':ponto_embarque_id', !empty($aluno['ponto_embarque_id']) ? $aluno['ponto_embarque_id'] : null, PDO::PARAM_INT);
                     $stmtAluno->bindValue(':geolocalizacao_id', !empty($aluno['geoloc_id']) ? $aluno['geoloc_id'] : null, PDO::PARAM_INT);
-                    $stmtAluno->bindParam(':criado_por', $usuarioId, PDO::PARAM_INT);
+                    $stmtAluno->bindValue(':criado_por', $criadoPor, PDO::PARAM_INT);
                     $stmtAluno->execute();
                 }
             }
@@ -208,44 +220,26 @@ try {
     <link rel="icon" href="https://upload.wikimedia.org/wikipedia/commons/thumb/1/19/Bras%C3%A3o_de_Maranguape.png/250px-Bras%C3%A3o_de_Maranguape.png" type="image/png">
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <!-- Leaflet CSS -->
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <!-- Leaflet JS -->
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <style>
-        #map {
-            height: 600px;
-            width: 100%;
-            border-radius: 8px;
+        .sidebar-transition {
+            transition: transform 0.3s ease-in-out;
         }
-        .leaflet-popup-content {
-            margin: 8px 12px;
+        .content-transition {
+            transition: margin-left 0.3s ease-in-out;
         }
-        .rota-marker {
-            background-color: #3B82F6;
-            border: 2px solid white;
+        .menu-item {
+            transition: all 0.2s ease;
         }
-        .aluno-marker {
-            background-color: #10B981;
-            border: 2px solid white;
+        .menu-item:hover {
+            background: linear-gradient(90deg, rgba(45, 90, 39, 0.08) 0%, rgba(45, 90, 39, 0.04) 100%);
+            transform: translateX(4px);
         }
-        .aluno-marker.selecionado {
-            background-color: #059669;
-            border: 3px solid #10B981;
-            box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.3);
+        .menu-item.active {
+            background: linear-gradient(90deg, rgba(45, 90, 39, 0.12) 0%, rgba(45, 90, 39, 0.06) 100%);
+            border-right: 3px solid #2D5A27;
         }
-        .ponto-marker {
-            background-color: #3B82F6;
-            border: 2px solid white;
-        }
-        .ponto-marker.selecionado {
-            background-color: #2563EB;
-            border: 3px solid #3B82F6;
-            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.3);
-        }
-        /* Ocultar atribuição do Leaflet */
-        .leaflet-control-attribution {
-            display: none !important;
+        .menu-item.active svg {
+            color: #2D5A27;
         }
         /* Autocomplete customizado */
         .autocomplete-container {
@@ -291,28 +285,49 @@ try {
         .autocomplete-item.selected .distrito-nome {
             color: #1f2937;
         }
+        @media (max-width: 1023px) {
+            .sidebar-mobile {
+                transform: translateX(-100%);
+                transition: transform 0.3s ease-in-out;
+                z-index: 999 !important;
+                position: fixed !important;
+                left: 0 !important;
+                top: 0 !important;
+                height: 100vh !important;
+                width: 16rem !important;
+            }
+            .sidebar-mobile.open {
+                transform: translateX(0) !important;
+                z-index: 999 !important;
+            }
+        }
     </style>
 </head>
 <body class="bg-gray-50">
-    <div class="min-h-screen">
-        <!-- Header -->
-        <div class="bg-white shadow-sm border-b border-gray-200">
-            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-                <div class="flex items-center justify-between">
-                    <div>
-                        <h1 class="text-2xl font-bold text-gray-900">Criar Rotas no Mapa</h1>
-                        <p class="text-sm text-gray-600 mt-1">Maranguape - Ceará | Visualize e crie rotas baseadas na geolocalização dos alunos</p>
-                    </div>
-                    <a href="dashboard.php" class="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors">
-                        <i class="fas fa-arrow-left mr-2"></i>Voltar
-                    </a>
-                </div>
+    <?php 
+    // Incluir sidebar correta baseada no tipo de usuário
+    $tipoUsuario = $_SESSION['tipo'] ?? '';
+    $tipoUsuarioUpper = strtoupper(trim($tipoUsuario));
+    
+    if ($tipoUsuarioUpper === 'ADM_TRANSPORTE') {
+        include 'components/sidebar_transporte.php';
+    } elseif ($tipoUsuarioUpper === 'TRANSPORTE_ALUNO') {
+        include 'components/sidebar_transporte_aluno.php';
+    } elseif (eAdm()) {
+        include 'components/sidebar_adm.php';
+    } else {
+        include 'components/sidebar_adm.php'; // Fallback
+    }
+    ?>
+    <main class="content-transition ml-0 lg:ml-64 min-h-screen">
+        <div class="p-6">
+            <div class="mb-6">
+                <h1 class="text-3xl font-bold text-gray-900 mb-2">Criar Rotas no Mapa</h1>
+                <p class="text-gray-600">Maranguape - Ceará | Visualize e crie rotas baseadas na geolocalização dos alunos</p>
             </div>
-        </div>
 
-        <!-- Filtros -->
-        <div class="bg-white border-b border-gray-200">
-            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+            <!-- Filtros -->
+            <div class="bg-white rounded-lg shadow p-4 mb-6">
                 <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-1">Escola</label>
@@ -349,45 +364,13 @@ try {
                     </div>
                 </div>
             </div>
-        </div>
 
-        <!-- Conteúdo Principal -->
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                <!-- Mapa -->
-                <div class="lg:col-span-2">
-                    <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
-                        <div class="flex items-center justify-between mb-4">
-                            <h2 class="text-lg font-bold text-gray-900">Mapa de Maranguape</h2>
-                            <div class="flex items-center space-x-2 text-sm text-gray-600">
-                                <div class="flex items-center">
-                                    <div class="w-3 h-3 bg-green-500 rounded-full mr-2"></div>
-                                    <span>Alunos</span>
-                                </div>
-                                <div class="flex items-center ml-4">
-                                    <div class="w-3 h-3 bg-blue-500 rounded-full mr-2"></div>
-                                    <span>Pontos de Rota</span>
-                                </div>
-                            </div>
-                        </div>
-                        <div id="map"></div>
-                        <div class="mt-2 p-3 bg-blue-50 rounded-lg border border-blue-200">
-                            <p class="text-sm text-gray-700 mb-2">
-                                <strong>Como selecionar pontos:</strong>
-                            </p>
-                            <ul class="text-xs text-gray-600 space-y-1">
-                                <li>• <strong>Clique nos marcadores verdes</strong> (alunos) para selecioná-los</li>
-                                <li>• <strong>Clique no mapa</strong> para criar novos pontos de rota</li>
-                                <li>• Pontos selecionados aparecem destacados</li>
-                            </ul>
-                        </div>
-                    </div>
-                </div>
-
+            <!-- Conteúdo Principal -->
+            <div class="grid grid-cols-1 gap-6">
                 <!-- Painel Lateral -->
                 <div class="space-y-6">
                     <!-- Criar Nova Rota -->
-                    <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+                    <div class="bg-white rounded-lg shadow p-4">
                         <h3 class="text-lg font-bold text-gray-900 mb-4">Criar Nova Rota</h3>
                         <form id="formCriarRota" onsubmit="criarRota(event)" class="space-y-4">
                             <div>
@@ -444,7 +427,7 @@ try {
                     </div>
 
                     <!-- Lista de Alunos Selecionados -->
-                    <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+                    <div class="bg-white rounded-lg shadow p-4">
                         <h3 class="text-lg font-bold text-gray-900 mb-4">Alunos na Rota</h3>
                         <div id="lista-alunos-rota" class="space-y-2 max-h-64 overflow-y-auto">
                             <p class="text-sm text-gray-500 text-center py-4">Nenhum aluno selecionado</p>
@@ -453,148 +436,12 @@ try {
                 </div>
             </div>
         </div>
-    </div>
+    </main>
 
     <script>
-        // Inicializar mapa centrado em Maranguape, CE
-        const maranguapeLat = -3.890277;
-        const maranguapeLng = -38.625000;
-        
-        let map = L.map('map', {
-            center: [maranguapeLat, maranguapeLng],
-            zoom: 12,
-            minZoom: 3,
-            maxZoom: 18
-        });
-        
-        // Adicionar tile layer (OpenStreetMap)
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            attribution: '',
-            maxZoom: 18
-        }).addTo(map);
-        
-        let alunosMarkers = [];
-        let pontosRotaMarkers = [];
-        let pontosNovosMarkers = []; // Pontos criados pelo usuário
         let alunosSelecionados = [];
         let pontosSelecionados = [];
         let localidadesSelecionadas = new Set();
-        let modoCriarPonto = false; // Modo de criação de pontos
-        
-        // Clique no mapa para criar novo ponto
-        map.on('click', function(e) {
-            if (modoCriarPonto) {
-                criarPontoNoMapa(e.latlng.lat, e.latlng.lng);
-            }
-        });
-        
-        // Função para criar ponto no mapa
-        function criarPontoNoMapa(lat, lng) {
-            const pontoId = 'ponto_' + Date.now();
-            const marker = L.marker([lat, lng], {
-                icon: L.divIcon({
-                    className: 'ponto-marker',
-                    html: '<div style="background-color: #3B82F6; width: 16px; height: 16px; border-radius: 50%; border: 2px solid white; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; font-size: 10px;">+</div>',
-                    iconSize: [16, 16]
-                })
-            }).addTo(map);
-            
-            marker.bindPopup(`
-                <div style="min-width: 200px;">
-                    <strong>Novo Ponto</strong><br>
-                    Lat: ${lat.toFixed(6)}<br>
-                    Lng: ${lng.toFixed(6)}<br>
-                    <button onclick="removerPontoNovo('${pontoId}')" class="mt-2 px-3 py-1 bg-red-600 text-white rounded text-sm hover:bg-red-700 w-full">
-                        Remover
-                    </button>
-                </div>
-            `);
-            
-            marker.on('click', function() {
-                selecionarPontoMarker(marker, { id: pontoId, lat, lng, nome: 'Novo Ponto' });
-            });
-            
-            const pontoData = {
-                id: pontoId,
-                lat: lat,
-                lng: lng,
-                nome: 'Novo Ponto',
-                marker: marker
-            };
-            
-            marker.pontoData = pontoData;
-            marker.isSelecionado = false;
-            pontosNovosMarkers.push(marker);
-            
-            // Selecionar automaticamente
-            selecionarPontoMarker(marker, pontoData);
-        }
-        
-        // Função para selecionar distrito
-        window.selecionarDistritoMarker = function(marker, distrito) {
-            const index = alunosSelecionados.findIndex(d => d.localidade === distrito.localidade);
-            
-            if (index >= 0) {
-                // Desselecionar
-                alunosSelecionados.splice(index, 1);
-                marker.isSelecionado = false;
-                marker.setIcon(L.divIcon({
-                    className: 'aluno-marker',
-                    html: `<div style="background-color: #10B981; width: 32px; height: 32px; border-radius: 50%; border: 3px solid white; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; font-size: 14px; box-shadow: 0 2px 6px rgba(0,0,0,0.3);">${distrito.total_alunos}</div>`,
-                    iconSize: [32, 32]
-                }));
-            } else {
-                // Selecionar
-                alunosSelecionados.push(distrito);
-                marker.isSelecionado = true;
-                marker.setIcon(L.divIcon({
-                    className: 'aluno-marker selecionado',
-                    html: `<div style="background-color: #059669; width: 36px; height: 36px; border-radius: 50%; border: 4px solid #10B981; box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.3); display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; font-size: 16px;">${distrito.total_alunos}</div>`,
-                    iconSize: [36, 36]
-                }));
-            }
-            
-            atualizarListaAlunos();
-            atualizarContadores();
-        };
-        
-        // Função para selecionar ponto
-        function selecionarPontoMarker(marker, ponto) {
-            const index = pontosSelecionados.findIndex(p => p.id === ponto.id);
-            
-            if (index >= 0) {
-                // Desselecionar
-                pontosSelecionados.splice(index, 1);
-                marker.isSelecionado = false;
-                marker.setIcon(L.divIcon({
-                    className: 'ponto-marker',
-                    html: '<div style="background-color: #3B82F6; width: 16px; height: 16px; border-radius: 50%; border: 2px solid white; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; font-size: 10px;">+</div>',
-                    iconSize: [16, 16]
-                }));
-            } else {
-                // Selecionar
-                pontosSelecionados.push(ponto);
-                marker.isSelecionado = true;
-                marker.setIcon(L.divIcon({
-                    className: 'ponto-marker selecionado',
-                    html: '<div style="background-color: #2563EB; width: 18px; height: 18px; border-radius: 50%; border: 3px solid #3B82F6; box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.3); display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; font-size: 10px;">✓</div>',
-                    iconSize: [18, 18]
-                }));
-            }
-            
-            atualizarContadores();
-        }
-        
-        // Função para remover ponto novo
-        window.removerPontoNovo = function(pontoId) {
-            const marker = pontosNovosMarkers.find(m => m.pontoData.id === pontoId);
-            if (marker) {
-                map.removeLayer(marker);
-                pontosNovosMarkers = pontosNovosMarkers.filter(m => m !== marker);
-                pontosSelecionados = pontosSelecionados.filter(p => p.id !== pontoId);
-                atualizarContadores();
-            }
-        };
         
         // Atualizar lista de alunos (agora distritos)
         function atualizarListaAlunos() {
@@ -621,10 +468,9 @@ try {
         
         // Remover distrito selecionado
         window.removerDistritoSelecionado = function(localidade) {
-            const marker = alunosMarkers.find(m => m.distritoData && m.distritoData.localidade === localidade);
-            if (marker) {
-                selecionarDistritoMarker(marker, marker.distritoData);
-            }
+            alunosSelecionados = alunosSelecionados.filter(d => d.localidade !== localidade);
+            atualizarListaAlunos();
+            atualizarContadores();
         };
         
         // Atualizar contadores
@@ -636,136 +482,15 @@ try {
             if (totalAlunos) totalAlunos.textContent = alunosSelecionados.length;
         }
         
-        // Ativar modo de criar pontos
-        window.ativarModoCriarPonto = function() {
-            modoCriarPonto = !modoCriarPonto;
-            const btn = event.target;
-            if (modoCriarPonto) {
-                map.getContainer().style.cursor = 'crosshair';
-                btn.classList.add('bg-blue-700');
-                btn.innerHTML = '<i class="fas fa-times mr-2"></i>Desativar Criação';
-            } else {
-                map.getContainer().style.cursor = '';
-                btn.classList.remove('bg-blue-700');
-                btn.innerHTML = '<i class="fas fa-map-marker-alt mr-2"></i>Criar Pontos no Mapa';
-            }
-        };
-        
-        // Carregar alunos e pontos
+        // Carregar dados
         function carregarDados() {
-            const escolaId = document.getElementById('filtro-escola').value;
-            const turno = document.getElementById('filtro-turno').value;
-            
-            // Limpar markers anteriores
-            alunosMarkers.forEach(marker => map.removeLayer(marker));
-            alunosMarkers = [];
-            
-            // Buscar alunos
-            const formData = new FormData();
-            formData.append('acao', 'buscar_alunos_geolocalizacao');
-            if (escolaId) formData.append('escola_id', escolaId);
-            if (turno) formData.append('turno', turno);
-            
-            fetch('gestao_rotas_transporte.php', {
-                method: 'POST',
-                body: formData
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.status && data.dados) {
-                    data.dados.forEach(distrito => {
-                        if (distrito.latitude && distrito.longitude && distrito.total_alunos > 0) {
-                            const marker = L.marker([parseFloat(distrito.latitude), parseFloat(distrito.longitude)], {
-                                icon: L.divIcon({
-                                    className: 'aluno-marker',
-                                    html: `<div style="background-color: #10B981; width: 32px; height: 32px; border-radius: 50%; border: 3px solid white; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; font-size: 14px; box-shadow: 0 2px 6px rgba(0,0,0,0.3);">${distrito.total_alunos}</div>`,
-                                    iconSize: [32, 32]
-                                })
-                            }).addTo(map);
-                            
-                            marker.bindPopup(`
-                                <div style="min-width: 250px;">
-                                    <strong>${distrito.localidade || 'Distrito não informado'}</strong><br>
-                                    <strong style="color: #10B981; font-size: 18px;">Total de Alunos: ${distrito.total_alunos}</strong><br>
-                                    ${distrito.escola_nome ? `Escola: ${distrito.escola_nome}<br>` : ''}
-                                    ${distrito.turno ? `Turno: ${distrito.turno}<br>` : ''}
-                                    <button onclick="selecionarDistritoMarker(window.markerDistrito_${distrito.localidade.replace(/[^a-zA-Z0-9]/g, '_')}, ${JSON.stringify(distrito).replace(/"/g, '&quot;')})" class="mt-2 px-3 py-1 bg-primary-green text-white rounded text-sm hover:bg-green-700 w-full">
-                                        Selecionar Distrito
-                                    </button>
-                                </div>
-                            `);
-                            
-                            // Clique no marker para selecionar
-                            marker.on('click', function() {
-                                selecionarDistritoMarker(marker, distrito);
-                            });
-                            
-                            marker.distritoData = distrito;
-                            marker.isSelecionado = false;
-                            const distritoId = distrito.localidade.replace(/[^a-zA-Z0-9]/g, '_');
-                            window[`markerDistrito_${distritoId}`] = marker;
-                            alunosMarkers.push(marker);
-                            
-                            // Adicionar ao conjunto de localidades
-                            if (distrito.localidade) {
-                                localidadesSelecionadas.add(distrito.localidade);
-                            }
-                        }
-                    });
-                }
-            })
-            .catch(error => {
-                console.error('Erro ao carregar alunos:', error);
-            });
-            
-            // Carregar pontos de rota
+            // Função mantida para compatibilidade, mas sem mapa
+            atualizarContadores();
             carregarPontosRota();
         }
         
         // Carregar pontos de rota
         function carregarPontosRota() {
-            const rotaId = document.getElementById('filtro-rota').value;
-            
-            // Limpar markers anteriores
-            pontosRotaMarkers.forEach(marker => map.removeLayer(marker));
-            pontosRotaMarkers = [];
-            
-            const formData = new FormData();
-            formData.append('acao', 'buscar_pontos_rota');
-            if (rotaId) formData.append('rota_id', rotaId);
-            
-            fetch('gestao_rotas_transporte.php', {
-                method: 'POST',
-                body: formData
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.status && data.dados) {
-                    data.dados.forEach((ponto, index) => {
-                        if (ponto.latitude && ponto.longitude) {
-                            const marker = L.marker([parseFloat(ponto.latitude), parseFloat(ponto.longitude)], {
-                                icon: L.divIcon({
-                                    className: 'rota-marker',
-                                    html: `<div style="background-color: #3B82F6; width: 16px; height: 16px; border-radius: 50%; border: 2px solid white; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; font-size: 10px;">${index + 1}</div>`,
-                                    iconSize: [16, 16]
-                                })
-                            }).addTo(map);
-                            
-                            marker.bindPopup(`
-                                <strong>${ponto.nome || 'Ponto ' + (index + 1)}</strong><br>
-                                Rota: ${ponto.rota_nome}<br>
-                                Localidade: ${ponto.localidade || 'Não informada'}<br>
-                                Alunos: ${ponto.total_alunos_embarque || 0}
-                            `);
-                            
-                            pontosRotaMarkers.push(marker);
-                        }
-                    });
-                }
-            })
-            .catch(error => {
-                console.error('Erro ao carregar pontos:', error);
-            });
         }
         
         // Aplicar filtros
@@ -776,11 +501,6 @@ try {
         // Criar rota
         function criarRota(e) {
             e.preventDefault();
-            
-            if (pontosSelecionados.length === 0) {
-                alert('Selecione pelo menos um ponto no mapa');
-                return;
-            }
             
             const formData = new FormData(e.target);
             formData.append('acao', 'criar_rota');
@@ -1056,6 +776,34 @@ try {
         document.addEventListener('DOMContentLoaded', function() {
             carregarDados();
         });
+
+        // Função de toggle sidebar (mobile)
+        window.toggleSidebar = function() {
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.getElementById('mobileOverlay');
+            
+            if (sidebar && overlay) {
+                sidebar.classList.toggle('open');
+                overlay.classList.toggle('hidden');
+            }
+        };
+
+        // Fechar sidebar ao clicar no overlay
+        document.addEventListener('DOMContentLoaded', function() {
+            const overlay = document.getElementById('mobileOverlay');
+            if (overlay) {
+                overlay.addEventListener('click', function() {
+                    window.toggleSidebar();
+                });
+            }
+        });
+
+        // Função de logout
+        window.confirmLogout = function() {
+            if (confirm('Tem certeza que deseja sair?')) {
+                window.location.href = '../auth/logout.php';
+            }
+        };
     </script>
 </body>
 </html>

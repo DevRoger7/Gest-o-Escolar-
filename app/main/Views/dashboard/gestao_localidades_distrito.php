@@ -8,9 +8,13 @@ $session = new sessions();
 $session->autenticar_session();
 $session->tempo_session();
 
-// Apenas ADM_TRANSPORTE e ADM podem acessar
+// ADM_TRANSPORTE pode cadastrar/editar, TRANSPORTE_ALUNO pode visualizar
 $tipoUsuario = $_SESSION['tipo'] ?? '';
-if (!eAdm() && strtoupper($tipoUsuario) !== 'ADM_TRANSPORTE') {
+$tipoUsuarioUpper = strtoupper(trim($tipoUsuario));
+$podeEditar = eAdm() || $tipoUsuarioUpper === 'ADM_TRANSPORTE';
+$podeVisualizar = $podeEditar || $tipoUsuarioUpper === 'TRANSPORTE_ALUNO';
+
+if (!$podeVisualizar) {
     header('Location: ../auth/login.php?erro=sem_permissao');
     exit;
 }
@@ -36,11 +40,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao'])) {
                 throw new Exception('Distrito não informado');
             }
             
-            $sql = "SELECT dl.*, 
-                           (SELECT COUNT(*) FROM aluno a WHERE a.distrito_transporte = dl.distrito AND a.precisa_transporte = 1 AND a.ativo = 1) as total_alunos
-                    FROM distrito_localidade dl
-                    WHERE dl.distrito = :distrito AND dl.ativo = 1
-                    ORDER BY dl.localidade ASC";
+            // Verificar se a coluna distrito_transporte existe
+            $stmtCheck = $conn->query("SELECT COUNT(*) as col_exists 
+                                      FROM INFORMATION_SCHEMA.COLUMNS 
+                                      WHERE TABLE_SCHEMA = DATABASE() 
+                                      AND TABLE_NAME = 'aluno' 
+                                      AND COLUMN_NAME = 'distrito_transporte'");
+            $colExists = $stmtCheck->fetch(PDO::FETCH_ASSOC)['col_exists'] > 0;
+            
+            if ($colExists) {
+                $sql = "SELECT dl.*, 
+                               (SELECT COUNT(*) FROM aluno a WHERE a.distrito_transporte = dl.distrito AND a.precisa_transporte = 1 AND a.ativo = 1) as total_alunos
+                        FROM distrito_localidade dl
+                        WHERE dl.distrito = :distrito AND dl.ativo = 1
+                        ORDER BY dl.localidade ASC";
+            } else {
+                // Se a coluna não existe, retornar 0 para total_alunos
+                $sql = "SELECT dl.*, 0 as total_alunos
+                        FROM distrito_localidade dl
+                        WHERE dl.distrito = :distrito AND dl.ativo = 1
+                        ORDER BY dl.localidade ASC";
+            }
             
             $stmt = $conn->prepare($sql);
             $stmt->bindParam(':distrito', $distrito);
@@ -75,12 +95,34 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao'])) {
             $resposta = ['status' => true, 'dados' => $localidades];
         }
         
+        // Buscar localidade por ID
+        elseif ($acao === 'buscar_localidade') {
+            $id = $_POST['id'] ?? null;
+            
+            if (!$id) {
+                throw new Exception('ID da localidade não informado');
+            }
+            
+            $stmt = $conn->prepare("SELECT * FROM distrito_localidade WHERE id = :id AND ativo = 1");
+            $stmt->bindParam(':id', $id, PDO::PARAM_INT);
+            $stmt->execute();
+            $localidade = $stmt->fetch(PDO::FETCH_ASSOC);
+            
+            if (!$localidade) {
+                throw new Exception('Localidade não encontrada');
+            }
+            
+            $resposta = ['status' => true, 'dados' => $localidade];
+        }
+        
         // Cadastrar localidade
         elseif ($acao === 'cadastrar_localidade') {
+            if (!$podeEditar) {
+                throw new Exception('Você não tem permissão para cadastrar localidades');
+            }
+            
             $distrito = $_POST['distrito'] ?? '';
             $localidade = $_POST['localidade'] ?? '';
-            $latitude = $_POST['latitude'] ?? null;
-            $longitude = $_POST['longitude'] ?? null;
             
             if (empty($distrito) || empty($localidade)) {
                 throw new Exception('Distrito e localidade são obrigatórios');
@@ -96,40 +138,30 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao'])) {
                 throw new Exception('Localidade já cadastrada neste distrito');
             }
             
-            // Calcular distância do centro se houver
-            $distanciaCentro = null;
-            if ($latitude && $longitude) {
-                $stmtPonto = $conn->prepare("SELECT latitude, longitude FROM distrito_ponto_central WHERE distrito = :distrito AND ativo = 1 LIMIT 1");
-                $stmtPonto->bindParam(':distrito', $distrito);
-                $stmtPonto->execute();
-                $pontoCentral = $stmtPonto->fetch(PDO::FETCH_ASSOC);
-                
-                if ($pontoCentral) {
-                    $distanciaCentro = calcularDistancia(
-                        $pontoCentral['latitude'],
-                        $pontoCentral['longitude'],
-                        $latitude,
-                        $longitude
-                    );
+            // Verificar se o usuário existe na tabela usuario
+            $criadoPor = null;
+            if (!empty($usuarioId)) {
+                $stmtCheck = $conn->prepare("SELECT id FROM usuario WHERE id = :id");
+                $stmtCheck->bindParam(':id', $usuarioId, PDO::PARAM_INT);
+                $stmtCheck->execute();
+                if ($stmtCheck->fetch()) {
+                    $criadoPor = $usuarioId;
                 }
             }
             
             $stmt = $conn->prepare("INSERT INTO distrito_localidade 
-                                   (distrito, localidade, latitude, longitude, endereco, bairro, cidade, estado, cep, descricao, distancia_centro_km, criado_por) 
+                                   (distrito, localidade, latitude, longitude, endereco, bairro, cidade, estado, cep, descricao, distancia_centro_km, criado_por, ativo) 
                                    VALUES 
-                                   (:distrito, :localidade, :latitude, :longitude, :endereco, :bairro, :cidade, :estado, :cep, :descricao, :distancia_centro_km, :criado_por)");
+                                   (:distrito, :localidade, NULL, NULL, :endereco, :bairro, :cidade, :estado, :cep, :descricao, NULL, :criado_por, 1)");
             $stmt->bindParam(':distrito', $distrito);
             $stmt->bindParam(':localidade', $localidade);
-            $stmt->bindValue(':latitude', $latitude);
-            $stmt->bindValue(':longitude', $longitude);
             $stmt->bindValue(':endereco', $_POST['endereco'] ?? null);
             $stmt->bindValue(':bairro', $_POST['bairro'] ?? null);
             $stmt->bindValue(':cidade', $_POST['cidade'] ?? 'Maranguape');
             $stmt->bindValue(':estado', $_POST['estado'] ?? 'CE');
             $stmt->bindValue(':cep', $_POST['cep'] ?? null);
             $stmt->bindValue(':descricao', $_POST['descricao'] ?? null);
-            $stmt->bindValue(':distancia_centro_km', $distanciaCentro);
-            $stmt->bindParam(':criado_por', $usuarioId, PDO::PARAM_INT);
+            $stmt->bindValue(':criado_por', $criadoPor, PDO::PARAM_INT);
             $stmt->execute();
             
             $resposta = ['status' => true, 'mensagem' => 'Localidade cadastrada com sucesso!'];
@@ -137,59 +169,30 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao'])) {
         
         // Editar localidade
         elseif ($acao === 'editar_localidade') {
+            if (!$podeEditar) {
+                throw new Exception('Você não tem permissão para editar localidades');
+            }
+            
             $id = $_POST['id'] ?? null;
             $localidade = $_POST['localidade'] ?? '';
-            $latitude = $_POST['latitude'] ?? null;
-            $longitude = $_POST['longitude'] ?? null;
             
             if (!$id) {
                 throw new Exception('ID da localidade não informado');
             }
             
-            // Buscar distrito da localidade
-            $stmt = $conn->prepare("SELECT distrito FROM distrito_localidade WHERE id = :id");
-            $stmt->bindParam(':id', $id, PDO::PARAM_INT);
-            $stmt->execute();
-            $localidadeAtual = $stmt->fetch(PDO::FETCH_ASSOC);
-            
-            if (!$localidadeAtual) {
-                throw new Exception('Localidade não encontrada');
-            }
-            
-            // Calcular distância do centro se houver
-            $distanciaCentro = null;
-            if ($latitude && $longitude) {
-                $stmtPonto = $conn->prepare("SELECT latitude, longitude FROM distrito_ponto_central WHERE distrito = :distrito AND ativo = 1 LIMIT 1");
-                $stmtPonto->bindParam(':distrito', $localidadeAtual['distrito']);
-                $stmtPonto->execute();
-                $pontoCentral = $stmtPonto->fetch(PDO::FETCH_ASSOC);
-                
-                if ($pontoCentral) {
-                    $distanciaCentro = calcularDistancia(
-                        $pontoCentral['latitude'],
-                        $pontoCentral['longitude'],
-                        $latitude,
-                        $longitude
-                    );
-                }
-            }
-            
             $stmt = $conn->prepare("UPDATE distrito_localidade 
-                                   SET localidade = :localidade, latitude = :latitude, longitude = :longitude,
+                                   SET localidade = :localidade,
                                        endereco = :endereco, bairro = :bairro, cidade = :cidade, estado = :estado,
-                                       cep = :cep, descricao = :descricao, distancia_centro_km = :distancia_centro_km
+                                       cep = :cep, descricao = :descricao
                                    WHERE id = :id");
             $stmt->bindParam(':id', $id, PDO::PARAM_INT);
             $stmt->bindParam(':localidade', $localidade);
-            $stmt->bindValue(':latitude', $latitude);
-            $stmt->bindValue(':longitude', $longitude);
             $stmt->bindValue(':endereco', $_POST['endereco'] ?? null);
             $stmt->bindValue(':bairro', $_POST['bairro'] ?? null);
             $stmt->bindValue(':cidade', $_POST['cidade'] ?? 'Maranguape');
             $stmt->bindValue(':estado', $_POST['estado'] ?? 'CE');
             $stmt->bindValue(':cep', $_POST['cep'] ?? null);
             $stmt->bindValue(':descricao', $_POST['descricao'] ?? null);
-            $stmt->bindValue(':distancia_centro_km', $distanciaCentro);
             $stmt->execute();
             
             $resposta = ['status' => true, 'mensagem' => 'Localidade atualizada com sucesso!'];
@@ -197,6 +200,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao'])) {
         
         // Excluir localidade
         elseif ($acao === 'excluir_localidade') {
+            if (!$podeEditar) {
+                throw new Exception('Você não tem permissão para excluir localidades');
+            }
+            
             $id = $_POST['id'] ?? null;
             
             if (!$id) {
@@ -212,6 +219,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao'])) {
         
         // Cadastrar/Atualizar ponto central
         elseif ($acao === 'salvar_ponto_central') {
+            if (!$podeEditar) {
+                throw new Exception('Você não tem permissão para salvar ponto central');
+            }
+            
             $distrito = $_POST['distrito'] ?? '';
             $latitude = $_POST['latitude'] ?? null;
             $longitude = $_POST['longitude'] ?? null;
@@ -236,13 +247,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao'])) {
                                        WHERE id = :id");
                 $stmt->bindParam(':id', $existente['id'], PDO::PARAM_INT);
             } else {
+                // Verificar se o usuário existe na tabela usuario
+                $criadoPor = null;
+                if (!empty($usuarioId)) {
+                    $stmtCheck = $conn->prepare("SELECT id FROM usuario WHERE id = :id");
+                    $stmtCheck->bindParam(':id', $usuarioId, PDO::PARAM_INT);
+                    $stmtCheck->execute();
+                    if ($stmtCheck->fetch()) {
+                        $criadoPor = $usuarioId;
+                    }
+                }
+                
                 // Criar
                 $stmt = $conn->prepare("INSERT INTO distrito_ponto_central 
                                        (distrito, nome, latitude, longitude, endereco, bairro, cidade, estado, cep, tipo, escola_id, descricao, criado_por) 
                                        VALUES 
                                        (:distrito, :nome, :latitude, :longitude, :endereco, :bairro, :cidade, :estado, :cep, :tipo, :escola_id, :descricao, :criado_por)");
                 $stmt->bindParam(':distrito', $distrito);
-                $stmt->bindParam(':criado_por', $usuarioId, PDO::PARAM_INT);
+                $stmt->bindValue(':criado_por', $criadoPor, PDO::PARAM_INT);
             }
             
             $stmt->bindValue(':nome', $_POST['nome'] ?? null);
@@ -347,27 +369,62 @@ try {
     <title>Gestão de Localidades por Distrito</title>
     <link rel="icon" href="https://upload.wikimedia.org/wikipedia/commons/thumb/1/19/Bras%C3%A3o_de_Maranguape.png/250px-Bras%C3%A3o_de_Maranguape.png" type="image/png">
     <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
-        .leaflet-control-attribution {
-            display: none !important;
+        .sidebar-transition {
+            transition: transform 0.3s ease-in-out;
         }
-        #map {
-            height: 500px;
-            width: 100%;
-            border-radius: 8px;
+        .content-transition {
+            transition: margin-left 0.3s ease-in-out;
         }
-        #map-ponto-central {
-            height: 400px;
-            width: 100%;
-            border-radius: 8px;
+        .menu-item {
+            transition: all 0.2s ease;
+        }
+        .menu-item:hover {
+            background: linear-gradient(90deg, rgba(45, 90, 39, 0.08) 0%, rgba(45, 90, 39, 0.04) 100%);
+            transform: translateX(4px);
+        }
+        .menu-item.active {
+            background: linear-gradient(90deg, rgba(45, 90, 39, 0.12) 0%, rgba(45, 90, 39, 0.06) 100%);
+            border-right: 3px solid #2D5A27;
+        }
+        .menu-item.active svg {
+            color: #2D5A27;
+        }
+        @media (max-width: 1023px) {
+            .sidebar-mobile {
+                transform: translateX(-100%);
+                transition: transform 0.3s ease-in-out;
+                z-index: 999 !important;
+                position: fixed !important;
+                left: 0 !important;
+                top: 0 !important;
+                height: 100vh !important;
+                width: 16rem !important;
+            }
+            .sidebar-mobile.open {
+                transform: translateX(0) !important;
+                z-index: 999 !important;
+            }
         }
     </style>
 </head>
 <body class="bg-gray-50">
-    <?php include 'components/sidebar_adm.php'; ?>
+    <?php 
+    // Incluir sidebar correta baseada no tipo de usuário
+    $tipoUsuario = $_SESSION['tipo'] ?? '';
+    $tipoUsuarioUpper = strtoupper(trim($tipoUsuario));
+    
+    if ($tipoUsuarioUpper === 'ADM_TRANSPORTE') {
+        include 'components/sidebar_transporte.php';
+    } elseif ($tipoUsuarioUpper === 'TRANSPORTE_ALUNO') {
+        include 'components/sidebar_transporte_aluno.php';
+    } elseif (eAdm()) {
+        include 'components/sidebar_adm.php';
+    } else {
+        include 'components/sidebar_adm.php'; // Fallback
+    }
+    ?>
     
     <main class="content-transition ml-0 lg:ml-64 min-h-screen">
         <div class="p-6">
@@ -388,36 +445,28 @@ try {
                             <?php endforeach; ?>
                         </select>
                     </div>
+                    <?php if ($podeEditar): ?>
                     <div class="flex items-end">
                         <button onclick="abrirModalPontoCentral()" class="w-full bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors">
                             <i class="fas fa-map-marker-alt mr-2"></i>Definir Ponto Central
                         </button>
                     </div>
+                    <?php endif; ?>
                 </div>
             </div>
             
-            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <!-- Lista de Localidades -->
-                <div class="bg-white rounded-lg shadow">
+            <!-- Lista de Localidades -->
+            <div class="bg-white rounded-lg shadow">
                     <div class="p-4 border-b border-gray-200 flex justify-between items-center">
                         <h2 class="text-xl font-bold text-gray-900">Localidades</h2>
+                        <?php if ($podeEditar): ?>
                         <button onclick="abrirModalLocalidade()" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
                             <i class="fas fa-plus mr-2"></i>Nova Localidade
                         </button>
+                        <?php endif; ?>
                     </div>
-                    <div id="lista-localidades" class="p-4 max-h-[600px] overflow-y-auto">
-                        <p class="text-gray-500 text-center py-8">Selecione um distrito para visualizar as localidades</p>
-                    </div>
-                </div>
-                
-                <!-- Mapa -->
-                <div class="bg-white rounded-lg shadow">
-                    <div class="p-4 border-b border-gray-200">
-                        <h2 class="text-xl font-bold text-gray-900">Mapa</h2>
-                    </div>
-                    <div class="p-4">
-                        <div id="map"></div>
-                    </div>
+                <div id="lista-localidades" class="p-4 max-h-[600px] overflow-y-auto">
+                    <p class="text-gray-500 text-center py-8">Selecione um distrito para visualizar as localidades</p>
                 </div>
             </div>
         </div>
@@ -435,8 +484,6 @@ try {
             <form id="form-localidade" onsubmit="salvarLocalidade(event)">
                 <input type="hidden" id="localidade-id">
                 <input type="hidden" id="localidade-distrito">
-                <input type="hidden" id="localidade-latitude">
-                <input type="hidden" id="localidade-longitude">
                 
                 <div class="mb-4">
                     <label class="block text-sm font-medium text-gray-700 mb-2">Nome da Localidade *</label>
@@ -464,13 +511,6 @@ try {
                     <textarea id="localidade-descricao" rows="3" class="w-full px-4 py-2 border border-gray-300 rounded-lg"></textarea>
                 </div>
                 
-                <div class="mb-4 p-3 bg-blue-50 rounded-lg">
-                    <p class="text-sm text-blue-800">
-                        <i class="fas fa-info-circle mr-2"></i>
-                        Clique no mapa para definir a localização da localidade
-                    </p>
-                </div>
-                
                 <div class="flex gap-2">
                     <button type="button" onclick="fecharModalLocalidade()" class="flex-1 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50">
                         Cancelar
@@ -494,8 +534,6 @@ try {
             </div>
             <form id="form-ponto-central" onsubmit="salvarPontoCentral(event)">
                 <input type="hidden" id="ponto-central-distrito">
-                <input type="hidden" id="ponto-central-latitude">
-                <input type="hidden" id="ponto-central-longitude">
                 
                 <div class="mb-4">
                     <label class="block text-sm font-medium text-gray-700 mb-2">Nome do Ponto *</label>
@@ -531,9 +569,15 @@ try {
                     <textarea id="ponto-central-descricao" rows="3" class="w-full px-4 py-2 border border-gray-300 rounded-lg"></textarea>
                 </div>
                 
-                <div class="mb-4">
-                    <div id="map-ponto-central"></div>
-                    <p class="text-sm text-gray-600 mt-2">Clique no mapa para definir o ponto central</p>
+                <div class="grid grid-cols-2 gap-4 mb-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Latitude *</label>
+                        <input type="number" id="ponto-central-latitude" step="any" required class="w-full px-4 py-2 border border-gray-300 rounded-lg" placeholder="Ex: -3.890277">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Longitude *</label>
+                        <input type="number" id="ponto-central-longitude" step="any" required class="w-full px-4 py-2 border border-gray-300 rounded-lg" placeholder="Ex: -38.625000">
+                    </div>
                 </div>
                 
                 <div class="flex gap-2">
@@ -549,71 +593,8 @@ try {
     </div>
     
     <script>
-        let map;
-        let mapPontoCentral;
-        let markers = [];
-        let markerPontoCentral = null;
         let distritoSelecionado = '';
-        
-        // Inicializar mapa principal
-        function initMap() {
-            map = L.map('map').setView([-3.890277, -38.625000], 12);
-            
-            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                attribution: '',
-                maxZoom: 19
-            }).addTo(map);
-            
-            map.on('click', function(e) {
-                if (document.getElementById('modal-localidade').classList.contains('hidden')) return;
-                
-                document.getElementById('localidade-latitude').value = e.latlng.lat;
-                document.getElementById('localidade-longitude').value = e.latlng.lng;
-                
-                // Adicionar marcador temporário
-                if (markers.length > 0) {
-                    map.removeLayer(markers[markers.length - 1]);
-                    markers.pop();
-                }
-                
-                const marker = L.marker([e.latlng.lat, e.latlng.lng], {
-                    icon: L.icon({
-                        iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-red.png',
-                        iconSize: [25, 41],
-                        iconAnchor: [12, 41]
-                    })
-                }).addTo(map);
-                
-                markers.push(marker);
-            });
-        }
-        
-        // Inicializar mapa do ponto central
-        function initMapPontoCentral() {
-            mapPontoCentral = L.map('map-ponto-central').setView([-3.890277, -38.625000], 12);
-            
-            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                attribution: '',
-                maxZoom: 19
-            }).addTo(mapPontoCentral);
-            
-            mapPontoCentral.on('click', function(e) {
-                document.getElementById('ponto-central-latitude').value = e.latlng.lat;
-                document.getElementById('ponto-central-longitude').value = e.latlng.lng;
-                
-                if (markerPontoCentral) {
-                    mapPontoCentral.removeLayer(markerPontoCentral);
-                }
-                
-                markerPontoCentral = L.marker([e.latlng.lat, e.latlng.lng], {
-                    icon: L.icon({
-                        iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-green.png',
-                        iconSize: [25, 41],
-                        iconAnchor: [12, 41]
-                    })
-                }).addTo(mapPontoCentral);
-            });
-        }
+        const podeEditar = <?= $podeEditar ? 'true' : 'false' ?>;
         
         function carregarDistrito() {
             distritoSelecionado = document.getElementById('select-distrito').value;
@@ -635,7 +616,6 @@ try {
             .then(data => {
                 if (data.status) {
                     renderizarLocalidades(data.dados);
-                    atualizarMapa(data.dados);
                 } else {
                     alert('Erro: ' + data.mensagem);
                 }
@@ -662,6 +642,7 @@ try {
                             ${loc.distancia_centro_km ? `<p class="text-sm text-gray-600">Distância do centro: ${loc.distancia_centro_km} km</p>` : ''}
                             ${loc.total_alunos ? `<p class="text-sm text-gray-600">${loc.total_alunos} alunos</p>` : ''}
                         </div>
+                        ${podeEditar ? `
                         <div class="flex gap-2">
                             <button onclick="editarLocalidade(${loc.id})" class="px-3 py-1 bg-blue-600 text-white text-sm rounded hover:bg-blue-700">
                                 <i class="fas fa-edit"></i>
@@ -670,39 +651,10 @@ try {
                                 <i class="fas fa-trash"></i>
                             </button>
                         </div>
+                        ` : ''}
                     </div>
                 </div>
             `).join('');
-        }
-        
-        function atualizarMapa(localidades) {
-            markers.forEach(marker => map.removeLayer(marker));
-            markers = [];
-            
-            localidades.forEach(loc => {
-                if (loc.latitude && loc.longitude) {
-                    const marker = L.marker([parseFloat(loc.latitude), parseFloat(loc.longitude)], {
-                        icon: L.icon({
-                            iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-blue.png',
-                            iconSize: [25, 41],
-                            iconAnchor: [12, 41]
-                        })
-                    }).addTo(map);
-                    
-                    marker.bindPopup(`
-                        <strong>${loc.localidade}</strong><br>
-                        ${loc.distancia_centro_km ? `Distância do centro: ${loc.distancia_centro_km} km<br>` : ''}
-                        ${loc.endereco || ''}
-                    `);
-                    
-                    markers.push(marker);
-                }
-            });
-            
-            if (markers.length > 0) {
-                const group = new L.featureGroup(markers);
-                map.fitBounds(group.getBounds().pad(0.1));
-            }
         }
         
         function abrirModalLocalidade() {
@@ -711,7 +663,17 @@ try {
                 return;
             }
             
+            // Limpar o formulário e resetar para modo de cadastro
+            document.getElementById('form-localidade').reset();
+            document.getElementById('localidade-id').value = '';
             document.getElementById('localidade-distrito').value = distritoSelecionado;
+            
+            // Atualizar o título do modal
+            const modalTitle = document.querySelector('#modal-localidade h3');
+            if (modalTitle) {
+                modalTitle.textContent = 'Cadastrar Localidade';
+            }
+            
             document.getElementById('modal-localidade').classList.remove('hidden');
         }
         
@@ -719,6 +681,13 @@ try {
             document.getElementById('modal-localidade').classList.add('hidden');
             document.getElementById('form-localidade').reset();
             document.getElementById('localidade-id').value = '';
+            document.getElementById('localidade-distrito').value = '';
+            
+            // Resetar o título do modal
+            const modalTitle = document.querySelector('#modal-localidade h3');
+            if (modalTitle) {
+                modalTitle.textContent = 'Cadastrar Localidade';
+            }
         }
         
         function salvarLocalidade(event) {
@@ -731,8 +700,6 @@ try {
             }
             formData.append('distrito', document.getElementById('localidade-distrito').value);
             formData.append('localidade', document.getElementById('localidade-nome').value);
-            formData.append('latitude', document.getElementById('localidade-latitude').value);
-            formData.append('longitude', document.getElementById('localidade-longitude').value);
             formData.append('endereco', document.getElementById('localidade-endereco').value);
             formData.append('bairro', document.getElementById('localidade-bairro').value);
             formData.append('cep', document.getElementById('localidade-cep').value);
@@ -759,9 +726,44 @@ try {
         }
         
         function editarLocalidade(id) {
-            // Buscar dados da localidade e preencher o formulário
-            // Implementar busca e preenchimento
-            alert('Funcionalidade de edição em desenvolvimento');
+            const formData = new FormData();
+            formData.append('acao', 'buscar_localidade');
+            formData.append('id', id);
+            
+            fetch('gestao_localidades_distrito.php', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status && data.dados) {
+                    const loc = data.dados;
+                    
+                    // Preencher o formulário com os dados da localidade
+                    document.getElementById('localidade-id').value = loc.id;
+                    document.getElementById('localidade-distrito').value = loc.distrito;
+                    document.getElementById('localidade-nome').value = loc.localidade || '';
+                    document.getElementById('localidade-endereco').value = loc.endereco || '';
+                    document.getElementById('localidade-bairro').value = loc.bairro || '';
+                    document.getElementById('localidade-cep').value = loc.cep || '';
+                    document.getElementById('localidade-descricao').value = loc.descricao || '';
+                    
+                    // Atualizar o título do modal
+                    const modalTitle = document.querySelector('#modal-localidade h3');
+                    if (modalTitle) {
+                        modalTitle.textContent = 'Editar Localidade';
+                    }
+                    
+                    // Abrir o modal
+                    document.getElementById('modal-localidade').classList.remove('hidden');
+                } else {
+                    alert('Erro ao carregar dados da localidade: ' + (data.mensagem || 'Erro desconhecido'));
+                }
+            })
+            .catch(error => {
+                console.error('Erro:', error);
+                alert('Erro ao carregar dados da localidade');
+            });
         }
         
         function excluirLocalidade(id) {
@@ -817,33 +819,13 @@ try {
                     document.getElementById('ponto-central-descricao').value = data.dados.descricao || '';
                     document.getElementById('ponto-central-latitude').value = data.dados.latitude || '';
                     document.getElementById('ponto-central-longitude').value = data.dados.longitude || '';
-                    
-                    if (data.dados.latitude && data.dados.longitude) {
-                        mapPontoCentral.setView([parseFloat(data.dados.latitude), parseFloat(data.dados.longitude)], 14);
-                        if (markerPontoCentral) {
-                            mapPontoCentral.removeLayer(markerPontoCentral);
-                        }
-                        markerPontoCentral = L.marker([parseFloat(data.dados.latitude), parseFloat(data.dados.longitude)], {
-                            icon: L.icon({
-                                iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-green.png',
-                                iconSize: [25, 41],
-                                iconAnchor: [12, 41]
-                            })
-                        }).addTo(mapPontoCentral);
-                    }
                 }
                 
                 document.getElementById('modal-ponto-central').classList.remove('hidden');
-                if (!mapPontoCentral) {
-                    setTimeout(initMapPontoCentral, 100);
-                }
             })
             .catch(error => {
                 console.error('Erro:', error);
                 document.getElementById('modal-ponto-central').classList.remove('hidden');
-                if (!mapPontoCentral) {
-                    setTimeout(initMapPontoCentral, 100);
-                }
             });
             
             // Mostrar/ocultar campo de escola baseado no tipo
@@ -858,11 +840,6 @@ try {
         
         function salvarPontoCentral(event) {
             event.preventDefault();
-            
-            if (!document.getElementById('ponto-central-latitude').value || !document.getElementById('ponto-central-longitude').value) {
-                alert('Clique no mapa para definir o ponto central');
-                return;
-            }
             
             const formData = new FormData();
             formData.append('acao', 'salvar_ponto_central');
@@ -895,10 +872,34 @@ try {
             });
         }
         
-        // Inicializar ao carregar
+
+        // Função de toggle sidebar (mobile)
+        window.toggleSidebar = function() {
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.getElementById('mobileOverlay');
+            
+            if (sidebar && overlay) {
+                sidebar.classList.toggle('open');
+                overlay.classList.toggle('hidden');
+            }
+        };
+
+        // Fechar sidebar ao clicar no overlay
         document.addEventListener('DOMContentLoaded', function() {
-            initMap();
+            const overlay = document.getElementById('mobileOverlay');
+            if (overlay) {
+                overlay.addEventListener('click', function() {
+                    window.toggleSidebar();
+                });
+            }
         });
+
+        // Função de logout
+        window.confirmLogout = function() {
+            if (confirm('Tem certeza que deseja sair?')) {
+                window.location.href = '../auth/logout.php';
+            }
+        };
     </script>
 </body>
 </html>

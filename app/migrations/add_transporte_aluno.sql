@@ -27,8 +27,8 @@ SET @col_exists_distrito = (
 
 -- Adicionar coluna precisa_transporte se não existir
 SET @sql_precisa = IF(@col_exists_precisa = 0,
-    'ALTER TABLE `aluno` ADD COLUMN `precisa_transporte` tinyint(1) DEFAULT 0 COMMENT ''1 = aluno precisa de transporte escolar, 0 = não precisa'' AFTER `ativo`',
-    'SELECT ''Coluna precisa_transporte já existe'' AS mensagem'
+    'ALTER TABLE `aluno` ADD COLUMN `precisa_transporte` tinyint(1) DEFAULT 0 COMMENT \'1 = aluno precisa de transporte escolar, 0 = não precisa\' AFTER `ativo`',
+    'SELECT \'Coluna precisa_transporte já existe\' AS mensagem'
 );
 PREPARE stmt FROM @sql_precisa;
 EXECUTE stmt;
@@ -36,8 +36,8 @@ DEALLOCATE PREPARE stmt;
 
 -- Adicionar coluna distrito_transporte se não existir
 SET @sql_distrito = IF(@col_exists_distrito = 0,
-    'ALTER TABLE `aluno` ADD COLUMN `distrito_transporte` varchar(100) DEFAULT NULL COMMENT ''Distrito/localidade de Maranguape onde o aluno precisa de transporte (ex: Amanari, Itapebussu, Lagoa)'' AFTER `precisa_transporte`',
-    'SELECT ''Coluna distrito_transporte já existe'' AS mensagem'
+    'ALTER TABLE `aluno` ADD COLUMN `distrito_transporte` varchar(100) DEFAULT NULL COMMENT \'Distrito/localidade de Maranguape onde o aluno precisa de transporte (ex: Amanari, Itapebussu, Lagoa)\' AFTER `precisa_transporte`',
+    'SELECT \'Coluna distrito_transporte já existe\' AS mensagem'
 );
 PREPARE stmt FROM @sql_distrito;
 EXECUTE stmt;
@@ -54,7 +54,7 @@ SET @idx_exists = (
 
 SET @sql_idx = IF(@idx_exists = 0,
     'ALTER TABLE `aluno` ADD INDEX `idx_aluno_transporte` (`precisa_transporte`, `distrito_transporte`, `ativo`)',
-    'SELECT ''Índice idx_aluno_transporte já existe'' AS mensagem'
+    'SELECT \'Índice idx_aluno_transporte já existe\' AS mensagem'
 );
 PREPARE stmt FROM @sql_idx;
 EXECUTE stmt;

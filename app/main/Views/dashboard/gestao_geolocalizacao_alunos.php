@@ -10,7 +10,8 @@ $session->tempo_session();
 
 // Apenas ADM_TRANSPORTE, TRANSPORTE_ALUNO e ADM podem acessar
 $tipoUsuario = $_SESSION['tipo'] ?? '';
-if (!eAdm() && strtoupper($tipoUsuario) !== 'ADM_TRANSPORTE' && strtoupper($tipoUsuario) !== 'TRANSPORTE_ALUNO') {
+$tipoUsuarioUpper = strtoupper(trim($tipoUsuario));
+if (!eAdm() && $tipoUsuarioUpper !== 'ADM_TRANSPORTE' && $tipoUsuarioUpper !== 'TRANSPORTE_ALUNO') {
     header('Location: ../auth/login.php?erro=sem_permissao');
     exit;
 }
@@ -33,8 +34,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao'])) {
             $busca = $_POST['busca'] ?? '';
             $escolaId = $_POST['escola_id'] ?? null;
             
+            // Verificar se as colunas precisa_transporte e distrito_transporte existem
+            $stmtCheck = $conn->query("SELECT COUNT(*) as col_exists 
+                                      FROM INFORMATION_SCHEMA.COLUMNS 
+                                      WHERE TABLE_SCHEMA = DATABASE() 
+                                      AND TABLE_NAME = 'aluno' 
+                                      AND COLUMN_NAME = 'precisa_transporte'");
+            $colPrecisaTransporte = $stmtCheck->fetch(PDO::FETCH_ASSOC)['col_exists'] > 0;
+            
+            $stmtCheck = $conn->query("SELECT COUNT(*) as col_exists 
+                                      FROM INFORMATION_SCHEMA.COLUMNS 
+                                      WHERE TABLE_SCHEMA = DATABASE() 
+                                      AND TABLE_NAME = 'aluno' 
+                                      AND COLUMN_NAME = 'distrito_transporte'");
+            $colDistritoTransporte = $stmtCheck->fetch(PDO::FETCH_ASSOC)['col_exists'] > 0;
+            
+            // Construir SELECT com colunas condicionais
+            $selectPrecisaTransporte = $colPrecisaTransporte ? 'a.precisa_transporte' : 'NULL as precisa_transporte';
+            $selectDistritoTransporte = $colDistritoTransporte ? 'a.distrito_transporte' : 'NULL as distrito_transporte';
+            
             $sql = "SELECT a.id, a.matricula, p.nome, p.cpf, 
-                           a.precisa_transporte, a.distrito_transporte,
+                           {$selectPrecisaTransporte}, {$selectDistritoTransporte},
                            ga.id as geoloc_id, ga.latitude, ga.longitude, ga.localidade,
                            ga.endereco, ga.bairro, ga.cidade, ga.principal,
                            e.nome as escola_nome
@@ -126,6 +146,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao'])) {
                     $stmt->execute();
                 }
                 
+                // Validar usuarioId antes de inserir
+                $validUsuarioId = null;
+                if ($usuarioId !== null) {
+                    $stmtCheckUser = $conn->prepare("SELECT id FROM usuario WHERE id = :id");
+                    $stmtCheckUser->bindParam(':id', $usuarioId, PDO::PARAM_INT);
+                    $stmtCheckUser->execute();
+                    if ($stmtCheckUser->fetch()) {
+                        $validUsuarioId = $usuarioId;
+                    }
+                }
+                
                 $stmt = $conn->prepare("INSERT INTO geolocalizacao_aluno 
                                        (aluno_id, tipo, nome, localidade, latitude, longitude, 
                                         endereco, bairro, cidade, estado, cep, principal, criado_por) 
@@ -144,7 +175,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao'])) {
                 $stmt->bindValue(':estado', $estado);
                 $stmt->bindValue(':cep', $cep);
                 $stmt->bindParam(':principal', $principal, PDO::PARAM_INT);
-                $stmt->bindParam(':criado_por', $usuarioId, PDO::PARAM_INT);
+                $stmt->bindValue(':criado_por', $validUsuarioId, PDO::PARAM_INT);
                 $stmt->execute();
                 $resposta = ['status' => true, 'mensagem' => 'Geolocalização cadastrada com sucesso!'];
             }
@@ -211,22 +242,62 @@ try {
     <title>Gestão de Geolocalização de Alunos</title>
     <link rel="icon" href="https://upload.wikimedia.org/wikipedia/commons/thumb/1/19/Bras%C3%A3o_de_Maranguape.png/250px-Bras%C3%A3o_de_Maranguape.png" type="image/png">
     <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
-        .leaflet-control-attribution {
-            display: none !important;
+        .sidebar-transition {
+            transition: transform 0.3s ease-in-out;
         }
-        #map {
-            height: 500px;
-            width: 100%;
-            border-radius: 8px;
+        .content-transition {
+            transition: margin-left 0.3s ease-in-out;
+        }
+        .menu-item {
+            transition: all 0.2s ease;
+        }
+        .menu-item:hover {
+            background: linear-gradient(90deg, rgba(45, 90, 39, 0.08) 0%, rgba(45, 90, 39, 0.04) 100%);
+            transform: translateX(4px);
+        }
+        .menu-item.active {
+            background: linear-gradient(90deg, rgba(45, 90, 39, 0.12) 0%, rgba(45, 90, 39, 0.06) 100%);
+            border-right: 3px solid #2D5A27;
+        }
+        .menu-item.active svg {
+            color: #2D5A27;
+        }
+        @media (max-width: 1023px) {
+            .sidebar-mobile {
+                transform: translateX(-100%);
+                transition: transform 0.3s ease-in-out;
+                z-index: 999 !important;
+                position: fixed !important;
+                left: 0 !important;
+                top: 0 !important;
+                height: 100vh !important;
+                width: 16rem !important;
+            }
+            .sidebar-mobile.open {
+                transform: translateX(0) !important;
+                z-index: 999 !important;
+            }
         }
     </style>
 </head>
 <body class="bg-gray-50">
-    <?php include 'components/sidebar_adm.php'; ?>
+    <?php 
+    // Incluir sidebar correta baseada no tipo de usuário
+    $tipoUsuario = $_SESSION['tipo'] ?? '';
+    $tipoUsuarioUpper = strtoupper(trim($tipoUsuario));
+    
+    if ($tipoUsuarioUpper === 'ADM_TRANSPORTE') {
+        include 'components/sidebar_transporte.php';
+    } elseif ($tipoUsuarioUpper === 'TRANSPORTE_ALUNO') {
+        include 'components/sidebar_transporte_aluno.php';
+    } elseif (eAdm()) {
+        include 'components/sidebar_adm.php';
+    } else {
+        include 'components/sidebar_adm.php'; // Fallback
+    }
+    ?>
     
     <main class="content-transition ml-0 lg:ml-64 min-h-screen">
         <div class="p-6">
@@ -260,25 +331,13 @@ try {
                 </div>
             </div>
             
-            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <!-- Lista de Alunos -->
-                <div class="bg-white rounded-lg shadow">
-                    <div class="p-4 border-b border-gray-200">
-                        <h2 class="text-xl font-bold text-gray-900">Alunos</h2>
-                    </div>
-                    <div id="lista-alunos" class="p-4 max-h-[600px] overflow-y-auto">
-                        <p class="text-gray-500 text-center py-8">Use os filtros para buscar alunos</p>
-                    </div>
+            <!-- Lista de Alunos -->
+            <div class="bg-white rounded-lg shadow">
+                <div class="p-4 border-b border-gray-200">
+                    <h2 class="text-xl font-bold text-gray-900">Alunos</h2>
                 </div>
-                
-                <!-- Mapa -->
-                <div class="bg-white rounded-lg shadow">
-                    <div class="p-4 border-b border-gray-200">
-                        <h2 class="text-xl font-bold text-gray-900">Mapa</h2>
-                    </div>
-                    <div class="p-4">
-                        <div id="map"></div>
-                    </div>
+                <div id="lista-alunos" class="p-4 max-h-[600px] overflow-y-auto">
+                    <p class="text-gray-500 text-center py-8">Use os filtros para buscar alunos</p>
                 </div>
             </div>
         </div>
@@ -295,8 +354,8 @@ try {
             </div>
             <form id="form-geolocalizacao" onsubmit="salvarGeolocalizacao(event)">
                 <input type="hidden" id="geoloc-aluno-id">
-                <input type="hidden" id="geoloc-latitude">
-                <input type="hidden" id="geoloc-longitude">
+                <input type="hidden" id="geoloc-latitude" value="0">
+                <input type="hidden" id="geoloc-longitude" value="0">
                 
                 <div class="mb-4">
                     <label class="block text-sm font-medium text-gray-700 mb-2">Localidade</label>
@@ -339,36 +398,7 @@ try {
     </div>
     
     <script>
-        let map;
-        let markers = [];
         let alunoSelecionado = null;
-        
-        // Inicializar mapa
-        function initMap() {
-            map = L.map('map').setView([-3.890277, -38.625000], 12);
-            
-            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                attribution: '',
-                maxZoom: 19
-            }).addTo(map);
-            
-            // Clique no mapa para adicionar localização
-            map.on('click', function(e) {
-                if (alunoSelecionado) {
-                    document.getElementById('geoloc-latitude').value = e.latlng.lat;
-                    document.getElementById('geoloc-longitude').value = e.latlng.lng;
-                    
-                    // Adicionar marcador temporário
-                    L.marker([e.latlng.lat, e.latlng.lng], {
-                        icon: L.icon({
-                            iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-red.png',
-                            iconSize: [25, 41],
-                            iconAnchor: [12, 41]
-                        })
-                    }).addTo(map).bindPopup('Nova localização').openPopup();
-                }
-            });
-        }
         
         function filtrarAlunos() {
             const busca = document.getElementById('filtro-busca').value;
@@ -387,7 +417,6 @@ try {
             .then(data => {
                 if (data.status) {
                     renderizarAlunos(data.dados);
-                    atualizarMapa(data.dados);
                 } else {
                     alert('Erro: ' + data.mensagem);
                 }
@@ -425,39 +454,6 @@ try {
                     </div>
                 </div>
             `).join('');
-        }
-        
-        function atualizarMapa(alunos) {
-            // Limpar marcadores anteriores
-            markers.forEach(marker => map.removeLayer(marker));
-            markers = [];
-            
-            // Adicionar marcadores
-            alunos.forEach(aluno => {
-                if (aluno.latitude && aluno.longitude) {
-                    const marker = L.marker([aluno.latitude, aluno.longitude], {
-                        icon: L.icon({
-                            iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-blue.png',
-                            iconSize: [25, 41],
-                            iconAnchor: [12, 41]
-                        })
-                    }).addTo(map);
-                    
-                    marker.bindPopup(`
-                        <strong>${aluno.nome}</strong><br>
-                        ${aluno.localidade || 'Sem localidade'}<br>
-                        ${aluno.endereco || ''}
-                    `);
-                    
-                    markers.push(marker);
-                }
-            });
-            
-            // Ajustar zoom para mostrar todos os marcadores
-            if (markers.length > 0) {
-                const group = new L.featureGroup(markers);
-                map.fitBounds(group.getBounds().pad(0.1));
-            }
         }
         
         function selecionarAluno(alunoId, geolocId) {
@@ -515,6 +511,34 @@ try {
         document.addEventListener('DOMContentLoaded', function() {
             initMap();
         });
+
+        // Função de toggle sidebar (mobile)
+        window.toggleSidebar = function() {
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.getElementById('mobileOverlay');
+            
+            if (sidebar && overlay) {
+                sidebar.classList.toggle('open');
+                overlay.classList.toggle('hidden');
+            }
+        };
+
+        // Fechar sidebar ao clicar no overlay
+        document.addEventListener('DOMContentLoaded', function() {
+            const overlay = document.getElementById('mobileOverlay');
+            if (overlay) {
+                overlay.addEventListener('click', function() {
+                    window.toggleSidebar();
+                });
+            }
+        });
+
+        // Função de logout
+        window.confirmLogout = function() {
+            if (confirm('Tem certeza que deseja sair?')) {
+                window.location.href = '../auth/logout.php';
+            }
+        };
     </script>
 </body>
 </html>
