@@ -106,6 +106,36 @@ if (isset($_GET['action']) && $_GET['action'] === 'pdf') {
         exit;
     }
 
+    // Validar se o professor tem acesso a esta turma
+    if ($professorId) {
+        $sqlValidar = "SELECT COUNT(*) as total
+                      FROM turma_professor tp
+                      WHERE tp.turma_id = :turma_id 
+                      AND tp.professor_id = :professor_id 
+                      AND (tp.fim IS NULL OR tp.fim = '' OR tp.fim = '0000-00-00')";
+        if ($disciplinaId > 0) {
+            $sqlValidar .= " AND tp.disciplina_id = :disciplina_id";
+        }
+        $stmtValidar = $conn->prepare($sqlValidar);
+        $stmtValidar->bindParam(':turma_id', $turmaId, PDO::PARAM_INT);
+        $stmtValidar->bindParam(':professor_id', $professorId, PDO::PARAM_INT);
+        if ($disciplinaId > 0) {
+            $stmtValidar->bindParam(':disciplina_id', $disciplinaId, PDO::PARAM_INT);
+        }
+        $stmtValidar->execute();
+        $validacao = $stmtValidar->fetch(PDO::FETCH_ASSOC);
+        
+        if (!$validacao || $validacao['total'] == 0) {
+            http_response_code(403);
+            echo 'Você não tem permissão para acessar esta turma.';
+            exit;
+        }
+    } else {
+        http_response_code(401);
+        echo 'Professor não identificado.';
+        exit;
+    }
+
     // Discover turma and disciplina names from $turmasProfessor
     $turmaNome = '';
     $disciplinaNome = '';
@@ -118,6 +148,29 @@ if (isset($_GET['action']) && $_GET['action'] === 'pdf') {
             break;
         }
     }
+    
+    // Se não encontrou nos dados do professor, buscar diretamente do banco
+    if (empty($turmaNome)) {
+        $sqlTurma = "SELECT 
+                        CONCAT(t.serie, ' ', t.letra, ' - ', t.turno) as turma_nome,
+                        d.nome as disciplina_nome,
+                        e.nome as escola_nome
+                     FROM turma t
+                     LEFT JOIN disciplina d ON d.id = :disciplina_id
+                     INNER JOIN escola e ON t.escola_id = e.id
+                     WHERE t.id = :turma_id AND t.ativo = 1
+                     LIMIT 1";
+        $stmtTurma = $conn->prepare($sqlTurma);
+        $stmtTurma->bindParam(':turma_id', $turmaId, PDO::PARAM_INT);
+        $stmtTurma->bindParam(':disciplina_id', $disciplinaId, PDO::PARAM_INT);
+        $stmtTurma->execute();
+        $turmaData = $stmtTurma->fetch(PDO::FETCH_ASSOC);
+        if ($turmaData) {
+            $turmaNome = $turmaData['turma_nome'] ?? '';
+            $disciplinaNome = $turmaData['disciplina_nome'] ?? '';
+            $escolaNome = $turmaData['escola_nome'] ?? '';
+        }
+    }
 
     // Placeholder dataset (kept as-is)
     $dadosRelatorio = []; // Example: [['aluno' => 'Fulano', 'nota' => 7.5, 'situacao' => 'Aprovado'], ...];
@@ -126,19 +179,29 @@ if (isset($_GET['action']) && $_GET['action'] === 'pdf') {
     try {
         // Helper checks to adapt to your real schema
         $tableExists = function(PDO $c, string $t): bool {
-            $q = "SELECT COUNT(*) FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = :t";
-            $st = $c->prepare($q);
-            $st->bindValue(':t', $t);
-            $st->execute();
-            return (int)$st->fetchColumn() > 0;
+            try {
+                $q = "SELECT COUNT(*) FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = :t";
+                $st = $c->prepare($q);
+                $st->bindValue(':t', $t);
+                $st->execute();
+                return (int)$st->fetchColumn() > 0;
+            } catch (Throwable $e) {
+                error_log("Erro ao verificar tabela $t: " . $e->getMessage());
+                return false;
+            }
         };
         $columnExists = function(PDO $c, string $t, string $col): bool {
-            $q = "SELECT COUNT(*) FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = :t AND COLUMN_NAME = :c";
-            $st = $c->prepare($q);
-            $st->bindValue(':t', $t);
-            $st->bindValue(':c', $col);
-            $st->execute();
-            return (int)$st->fetchColumn() > 0;
+            try {
+                $q = "SELECT COUNT(*) FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = :t AND COLUMN_NAME = :c";
+                $st = $c->prepare($q);
+                $st->bindValue(':t', $t);
+                $st->bindValue(':c', $col);
+                $st->execute();
+                return (int)$st->fetchColumn() > 0;
+            } catch (Throwable $e) {
+                error_log("Erro ao verificar coluna $t.$col: " . $e->getMessage());
+                return false;
+            }
         };
     
         $queries = [];
@@ -149,14 +212,14 @@ if (isset($_GET['action']) && $_GET['action'] === 'pdf') {
                 "SELECT 
                      p.nome AS aluno_nome, 
                      a.id   AS aluno_id,
-                     COALESCE(at.status, '') AS situacao
+                     COALESCE(at.status, 'MATRICULADO') AS situacao
                  FROM aluno_turma at
                  INNER JOIN aluno a   ON at.aluno_id = a.id
                  INNER JOIN pessoa p  ON a.pessoa_id = p.id
                  WHERE 
                      at.turma_id = :turma_id
-                     AND (at.fim IS NULL OR at.fim = '')
-                     AND (at.status IS NULL OR at.status IN ('MATRICULADO'))
+                     AND (at.fim IS NULL OR at.fim = '' OR at.fim = '0000-00-00')
+                     AND a.ativo = 1
                  ORDER BY p.nome";
         }
     
@@ -240,33 +303,38 @@ if (isset($_GET['action']) && $_GET['action'] === 'pdf') {
                         $notaValNumeric = null; // <<< ADDED: Keep numeric for circunstância
                         if ($disciplinaId > 0 && !empty($row['aluno_id'])) {
                             try {
-                                $stmtNota = $conn->prepare("
-                                    SELECT n.nota
+                                // Tentar consulta com campos opcionais primeiro
+                                $sqlNota = "SELECT n.nota
                                     FROM nota n
                                     WHERE 
                                         n.turma_id = :turma_id
                                         AND n.disciplina_id = :disciplina_id
                                         AND n.aluno_id = :aluno_id
                                     ORDER BY 
-                                        COALESCE(n.validado, 0) DESC,
                                         COALESCE(n.bimestre, 0) DESC,
-                                        COALESCE(n.lancado_em, '0000-00-00 00:00:00') DESC
-                                    LIMIT 1
-                                ");
+                                        COALESCE(n.criado_em, n.lancado_em, '0000-00-00 00:00:00') DESC
+                                    LIMIT 1";
+                                
+                                $stmtNota = $conn->prepare($sqlNota);
                                 $stmtNota->bindValue(':turma_id', $turmaId, PDO::PARAM_INT);
                                 $stmtNota->bindValue(':disciplina_id', $disciplinaId, PDO::PARAM_INT);
                                 $stmtNota->bindValue(':aluno_id', (int)$row['aluno_id'], PDO::PARAM_INT);
                                 $stmtNota->execute();
                                 $notaVal = $stmtNota->fetchColumn();
-                                if ($notaVal !== false && $notaVal !== null) {
-                                    $notaValNumeric = is_numeric($notaVal) ? (float)$notaVal : null; // <<< ADDED
+                                
+                                if ($notaVal !== false && $notaVal !== null && $notaVal !== '') {
+                                    $notaValNumeric = is_numeric($notaVal) ? (float)$notaVal : null;
                                     // Format as string (e.g., 7.5 -> "7,5")
                                     $notaStr = is_numeric($notaVal)
                                         ? number_format((float)$notaVal, 1, ',', '.')
                                         : (string)$notaVal;
                                 }
+                            } catch (PDOException $e2) {
+                                // Log erro específico do PDO
+                                error_log("Erro PDO ao buscar nota para aluno {$row['aluno_id']} na turma $turmaId: " . $e2->getMessage());
                             } catch (Throwable $e2) {
-                                // keep "-"
+                                // Log erro genérico e mantém "-"
+                                error_log("Erro ao buscar nota para aluno {$row['aluno_id']} na turma $turmaId: " . $e2->getMessage());
                             }
                         }
 
@@ -289,7 +357,9 @@ if (isset($_GET['action']) && $_GET['action'] === 'pdf') {
                     break;
                 }
             } catch (Throwable $e) {
-                // Continua tentando próxima consulta
+                // Log do erro e continua tentando próxima consulta
+                error_log("Erro ao executar consulta SQL para turma $turmaId: " . $e->getMessage());
+                error_log("SQL: " . $sql);
             }
         }
 
@@ -306,7 +376,9 @@ if (isset($_GET['action']) && $_GET['action'] === 'pdf') {
             exit;
         }
     } catch (Throwable $e) {
-        // Caso qualquer erro inesperado ocorra, mantém $dadosRelatorio como array vazio
+        // Caso qualquer erro inesperado ocorra, log e mantém $dadosRelatorio como array vazio
+        error_log("Erro ao buscar dados do relatório para turma $turmaId: " . $e->getMessage());
+        error_log("Stack trace: " . $e->getTraceAsString());
     }
     // === END ADDED ===
 
@@ -432,6 +504,82 @@ if (isset($_GET['action']) && $_GET['action'] === 'pdf') {
         public $disciplinaNome = '';
         public $escolaNome = '';
 
+        // Sobrescrever _loadfont para evitar carregar arquivos de fonte inexistentes
+        protected function _loadfont($font) {
+            // Se fontpath estiver vazio ou o arquivo não existir, 
+            // retornar estrutura para fontes core
+            if (empty($this->fontpath) || !file_exists($this->fontpath . $font)) {
+                // Extrair nome da família da fonte do nome do arquivo
+                $name = str_replace('.php', '', $font);
+                // Extrair estilo (b, i, bi) e família
+                $style = '';
+                if (preg_match('/([a-z]+)([bi]+)$/i', $name, $matches)) {
+                    $family = $matches[1];
+                    $style = strtoupper($matches[2]);
+                } else {
+                    $family = $name;
+                }
+                
+                // Mapear nomes de fontes para os nomes corretos do FPDF
+                $fontMap = [
+                    'helvetica' => 'Helvetica',
+                    'courier' => 'Courier',
+                    'times' => 'Times-Roman',
+                    'symbol' => 'Symbol',
+                    'zapfdingbats' => 'ZapfDingbats'
+                ];
+                
+                $baseName = isset($fontMap[strtolower($family)]) ? $fontMap[strtolower($family)] : 'Helvetica';
+                
+                // Adicionar estilo ao nome se houver
+                if ($style) {
+                    if ($style == 'B' && $baseName == 'Times-Roman') {
+                        $baseName = 'Times-Bold';
+                    } elseif ($style == 'I' && $baseName == 'Times-Roman') {
+                        $baseName = 'Times-Italic';
+                    } elseif ($style == 'BI' && $baseName == 'Times-Roman') {
+                        $baseName = 'Times-BoldItalic';
+                    } elseif ($style == 'B') {
+                        $baseName .= '-Bold';
+                    } elseif ($style == 'I') {
+                        $baseName .= '-Oblique';
+                    } elseif ($style == 'BI') {
+                        $baseName .= '-BoldOblique';
+                    }
+                }
+                
+                return [
+                    'name' => $baseName,
+                    'type' => 'Core',  // Com C maiúsculo, como o FPDF espera
+                    'up' => -100,
+                    'ut' => 50,
+                    'cw' => array(),
+                    'enc' => 'cp1252',
+                    'file' => '',
+                    'desc' => array(),
+                    'originalsize' => 0
+                ];
+            }
+            
+            // Se o arquivo existir, usar o método padrão
+            try {
+                return parent::_loadfont($font);
+            } catch (Exception $e) {
+                // Se houver erro, retornar estrutura para fonte core padrão
+                return [
+                    'name' => 'Helvetica',
+                    'type' => 'Core',
+                    'up' => -100,
+                    'ut' => 50,
+                    'cw' => array(),
+                    'enc' => 'cp1252',
+                    'file' => '',
+                    'desc' => array(),
+                    'originalsize' => 0
+                ];
+            }
+        }
+
         function tableX() {
             $effective = $this->GetPageWidth() - $this->lMargin - $this->rMargin;
             $tableWidth = array_sum($this->colWidths);
@@ -441,9 +589,11 @@ if (isset($_GET['action']) && $_GET['action'] === 'pdf') {
         }
 
         function Header() {
-            $this->SetFont('Arial', 'B', 12);
+            // Usar fontes padrão do FPDF (Courier, Helvetica, Times)
+            // 'B' = Bold, '' = Regular, 'I' = Italic
+            $this->SetFont('Helvetica', 'B', 12);
             $this->Cell(0, 8, utf8_decode('SIGEA - Relatório da Turma'), 0, 1, 'C');
-            $this->SetFont('Arial', '', 9);
+            $this->SetFont('Helvetica', '', 9);
             $linha1 = 'Turma: ' . ($this->turmaNome ?: '-');
             $linha2 = 'Disciplina: ' . ($this->disciplinaNome ?: 'Todas');
             $linha3 = 'Escola: ' . ($this->escolaNome ?: 'Escola Municipal');
@@ -456,7 +606,7 @@ if (isset($_GET['action']) && $_GET['action'] === 'pdf') {
             $this->Ln(6);
 
             // Table header
-            $this->SetFont('Arial', 'B', 9);
+            $this->SetFont('Helvetica', 'B', 9);
             $this->SetFillColor(230, 230, 230);
             $this->SetDrawColor(180, 180, 180);
 
@@ -470,57 +620,83 @@ if (isset($_GET['action']) && $_GET['action'] === 'pdf') {
 
         function Footer() {
             $this->SetY(-15);
-            $this->SetFont('Arial', 'I', 8);
+            $this->SetFont('Helvetica', 'I', 8);
             $this->Cell(0, 10, utf8_decode('Página ' . $this->PageNo() . '/{nb}'), 0, 0, 'C');
         }
     }
 
-    header('Content-Type: application/pdf');
-    header('Cache-Control: private, max-age=0, must-revalidate');
-    header('Pragma: public');
+    try {
+        header('Content-Type: application/pdf');
+        header('Cache-Control: private, max-age=0, must-revalidate');
+        header('Pragma: public');
 
-    $pdf = new TurmaPDF('P', 'mm', 'A4');
-    $pdf->SetMargins(15, 18, 15);
-    $pdf->SetAutoPageBreak(true, 18);
-    $pdf->turmaNome = (string)($turmaNome ?? '');
-    $pdf->disciplinaNome = (string)($disciplinaNome ?? '');
-    $pdf->escolaNome = (string)($escolaNome ?? ($_SESSION["escola_atual"] ?? 'Escola Municipal'));
-
-    $pdf->AliasNbPages();
-    $pdf->AddPage();
-    $pdf->SetFont('Arial', '', 9);
-
-    if (empty($dadosRelatorio)) {
-        $pdf->Ln(10);
-        $pdf->SetFont('Arial', 'I', 10);
-        $pdf->Cell(0, 8, utf8_decode('Sem dados'), 0, 1, 'C');
-    } else {
-        $fill = false;
-        foreach ($dadosRelatorio as $item) {
-            $aluno = (string)($item['aluno'] ?? 'Aluno');
-            $nota = isset($item['nota']) ? (string)$item['nota'] : '-';
-            $situacao = (string)($item['situacao'] ?? 'Sem dados');
-            // <<< ADDED: pick circunstancia from dataset (computed earlier)
-            $circunstancia = (string)($item['circunstancia'] ?? '-');
-
-            $pdf->SetDrawColor(220, 220, 220);
-            $pdf->SetFillColor($fill ? 245 : 255, $fill ? 245 : 255, $fill ? 245 : 255);
-
-            $pdf->tableX();
-            $pdf->Cell($pdf->colWidths[0], 8, utf8_decode($aluno),         1, 0, 'L', true);
-            $pdf->Cell($pdf->colWidths[1], 8, utf8_decode($nota),          1, 0, 'C', true);
-            $pdf->Cell($pdf->colWidths[2], 8, utf8_decode($situacao),      1, 0, 'C', true);
-            // <<< ADDED: Circunstância cell rendering
-            $pdf->Cell($pdf->colWidths[3], 8, utf8_decode($circunstancia), 1, 1, 'C', true);
-
-            $fill = !$fill;
+        // Definir constante FPDF_FONTPATH como vazio antes de criar o PDF
+        // Isso força o FPDF a usar apenas as fontes padrão (CoreFonts) sem tentar carregar arquivos externos
+        if (!defined('FPDF_FONTPATH')) {
+            define('FPDF_FONTPATH', '');
         }
-    }
+        
+        $pdf = new TurmaPDF('P', 'mm', 'A4');
+        $pdf->SetMargins(15, 18, 15);
+        $pdf->SetAutoPageBreak(true, 18);
+        $pdf->turmaNome = (string)($turmaNome ?? '');
+        $pdf->disciplinaNome = (string)($disciplinaNome ?? '');
+        $pdf->escolaNome = (string)($escolaNome ?? ($_SESSION["escola_atual"] ?? 'Escola Municipal'));
 
-    $filename = 'Relatorio_Turma_' . $turmaId . '.pdf';
-    $dest = ($modo === 'baixar') ? 'D' : 'I';
-    $pdf->Output($dest, $filename);
-    exit;
+        $pdf->AliasNbPages();
+        $pdf->AddPage();
+        // Usar fonte padrão Helvetica ao invés de Arial
+        $pdf->SetFont('Helvetica', '', 9);
+
+        if (empty($dadosRelatorio)) {
+            $pdf->Ln(10);
+            $pdf->SetFont('Arial', 'I', 10);
+            $pdf->Cell(0, 8, utf8_decode('Sem dados disponíveis para esta turma.'), 0, 1, 'C');
+        } else {
+            $fill = false;
+            foreach ($dadosRelatorio as $item) {
+                $aluno = (string)($item['aluno'] ?? 'Aluno');
+                $nota = isset($item['nota']) ? (string)$item['nota'] : '-';
+                $situacao = (string)($item['situacao'] ?? 'Sem dados');
+                // <<< ADDED: pick circunstancia from dataset (computed earlier)
+                $circunstancia = (string)($item['circunstancia'] ?? '-');
+
+                $pdf->SetDrawColor(220, 220, 220);
+                $pdf->SetFillColor($fill ? 245 : 255, $fill ? 245 : 255, $fill ? 245 : 255);
+
+                $pdf->tableX();
+                $pdf->Cell($pdf->colWidths[0], 8, utf8_decode($aluno),         1, 0, 'L', true);
+                $pdf->Cell($pdf->colWidths[1], 8, utf8_decode($nota),          1, 0, 'C', true);
+                $pdf->Cell($pdf->colWidths[2], 8, utf8_decode($situacao),      1, 0, 'C', true);
+                // <<< ADDED: Circunstância cell rendering
+                $pdf->Cell($pdf->colWidths[3], 8, utf8_decode($circunstancia), 1, 1, 'C', true);
+
+                $fill = !$fill;
+            }
+        }
+
+        $filename = 'Relatorio_Turma_' . $turmaId . '.pdf';
+        $dest = ($modo === 'baixar') ? 'D' : 'I';
+        $pdf->Output($dest, $filename);
+        exit;
+    } catch (Throwable $e) {
+        // Erro ao gerar PDF
+        error_log("Erro ao gerar PDF do relatório para turma $turmaId: " . $e->getMessage());
+        error_log("Stack trace: " . $e->getTraceAsString());
+        
+        header('Content-Type: text/html; charset=UTF-8');
+        http_response_code(500);
+        echo '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Erro ao gerar relatório</title></head><body>';
+        echo '<h1>Erro ao gerar relatório</h1>';
+        echo '<p>Ocorreu um erro ao gerar o relatório em PDF.</p>';
+        if (isset($_GET['debug']) && $_GET['debug'] === '1') {
+            echo '<p><strong>Erro:</strong> ' . htmlspecialchars($e->getMessage()) . '</p>';
+            echo '<pre>' . htmlspecialchars($e->getTraceAsString()) . '</pre>';
+        }
+        echo '<p><a href="relatorios_professor.php">Voltar para relatórios</a></p>';
+        echo '</body></html>';
+        exit;
+    }
     // --- END: Use FPDF ---
 }
 // === END: PDF handler ===

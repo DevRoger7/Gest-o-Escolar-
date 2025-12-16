@@ -199,10 +199,22 @@ if ($professorId) {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Minhas Turmas - SIGAE</title>
+    <title>Minhas Turmas - SIGEA</title>
     <link rel="icon" href="https://upload.wikimedia.org/wikipedia/commons/thumb/1/19/Bras%C3%A3o_de_Maranguape.png/250px-Bras%C3%A3o_de_Maranguape.png" type="image/png">
     <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="global-theme.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        'primary-green': '#2D5A27',
+                    }
+                }
+            }
+        }
+    </script>
     <style>
         .sidebar-transition {
             transition: transform 0.3s ease-in-out;
@@ -223,6 +235,9 @@ if ($professorId) {
         }
         .menu-item.active svg {
             color: #2D5A27;
+        }
+        .mobile-menu-overlay {
+            transition: opacity 0.3s ease-in-out;
         }
         @media (max-width: 1023px) {
             .sidebar-mobile {
@@ -252,76 +267,96 @@ if ($professorId) {
 <body class="bg-gray-50">
     <?php include 'components/sidebar_professor.php'; ?>
     
+    <!-- Main Content -->
     <main class="content-transition ml-0 lg:ml-64 min-h-screen">
-        <div class="p-4 md:p-6">
-            <div class="mb-6">
-                <div class="flex items-center justify-between mb-2">
-                    <div>
-                        <h1 class="text-2xl md:text-3xl font-bold text-gray-900 mb-2">Minhas Turmas</h1>
-                        <p class="text-gray-600">Visualize todas as turmas e disciplinas que você leciona</p>
+        <!-- Header -->
+        <header class="bg-white shadow-sm border-b border-gray-200 sticky top-0 z-30">
+            <div class="px-4 sm:px-6 lg:px-8">
+                <div class="flex justify-between items-center h-16">
+                    <button onclick="window.toggleSidebar()" class="lg:hidden p-2 rounded-md text-gray-600 hover:text-gray-900 hover:bg-gray-100">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
+                        </svg>
+                    </button>
+                    <div class="flex-1 text-center lg:text-left">
+                        <h1 class="text-xl font-semibold text-gray-800">Minhas Turmas</h1>
                     </div>
-                    <?php if ($escolaSelecionadaNome): ?>
-                        <div class="bg-blue-50 border border-blue-200 rounded-lg px-4 py-2">
-                            <p class="text-sm text-blue-800">
-                                <i class="fas fa-school mr-1"></i>
-                                <strong>Escola atual:</strong> <?= htmlspecialchars($escolaSelecionadaNome) ?>
-                            </p>
-                            <p class="text-xs text-blue-600 mt-1">
-                                Para mudar, use a opção no Dashboard
-                            </p>
+                    <div class="flex items-center space-x-4">
+                        <!-- School Info (Desktop Only) -->
+                        <div class="hidden lg:block">
+                            <?php if ($escolaSelecionadaNome): ?>
+                                <div class="bg-primary-green text-white px-4 py-2 rounded-lg shadow-sm">
+                                    <div class="flex items-center space-x-2">
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path>
+                                        </svg>
+                                        <span class="text-sm font-semibold">
+                                            <?= htmlspecialchars($escolaSelecionadaNome) ?>
+                                        </span>
+                                    </div>
+                                </div>
+                            <?php endif; ?>
                         </div>
-                    <?php endif; ?>
+                    </div>
                 </div>
             </div>
-            
-            <!-- Filtros -->
-            <div class="bg-white rounded-lg shadow p-4 mb-6">
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-2">Buscar</label>
-                        <input type="text" id="filtro-busca" placeholder="Turma, disciplina ou escola..." 
-                               class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                               onkeyup="filtrarTurmas()">
+        </header>
+        
+        <div class="p-8">
+            <div class="max-w-7xl mx-auto">
+                <div class="mb-6">
+                    <p class="text-gray-600">Visualize todas as turmas e disciplinas que você leciona</p>
+                </div>
+                
+                <!-- Filtros -->
+                <div class="bg-white rounded-2xl shadow-lg p-6 mb-6">
+                    <h2 class="text-lg font-bold text-gray-900 mb-4">Filtros</h2>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Buscar</label>
+                            <input type="text" id="filtro-busca" placeholder="Turma, disciplina ou escola..." 
+                                   class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-green focus:border-transparent"
+                                   onkeyup="filtrarTurmas()">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Escola</label>
+                            <?php if ($escolaSelecionadaNome): ?>
+                                <input type="text" 
+                                       value="<?= htmlspecialchars($escolaSelecionadaNome) ?>" 
+                                       class="w-full px-4 py-2 border border-gray-300 rounded-lg bg-gray-50 cursor-not-allowed" 
+                                       readonly
+                                       title="Para mudar a escola, use a opção no Dashboard">
+                            <?php else: ?>
+                                <input type="text" 
+                                       value="Nenhuma escola selecionada" 
+                                       class="w-full px-4 py-2 border border-gray-300 rounded-lg bg-gray-50 cursor-not-allowed" 
+                                       readonly>
+                            <?php endif; ?>
+                            <input type="hidden" id="filtro-escola" value="<?= $escolaSelecionadaId ?? '' ?>">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Turno</label>
+                            <select id="filtro-turno" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-green focus:border-transparent"
+                                    onchange="filtrarTurmas()">
+                                <option value="">Todos os turnos</option>
+                                <option value="Manhã">Manhã</option>
+                                <option value="Tarde">Tarde</option>
+                                <option value="Noite">Noite</option>
+                                <option value="Integral">Integral</option>
+                            </select>
+                        </div>
                     </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-2">Escola</label>
+                </div>
+                
+                <!-- Lista de Turmas -->
+                <div class="bg-white rounded-2xl shadow-lg">
+                    <div class="p-6 border-b border-gray-200">
+                        <h2 class="text-xl font-bold text-gray-900">Turmas e Disciplinas</h2>
                         <?php if ($escolaSelecionadaNome): ?>
-                            <input type="text" 
-                                   value="<?= htmlspecialchars($escolaSelecionadaNome) ?>" 
-                                   class="w-full px-4 py-2 border border-gray-300 rounded-lg bg-gray-50 cursor-not-allowed" 
-                                   readonly
-                                   title="Para mudar a escola, use a opção no Dashboard">
-                        <?php else: ?>
-                            <input type="text" 
-                                   value="Nenhuma escola selecionada" 
-                                   class="w-full px-4 py-2 border border-gray-300 rounded-lg bg-gray-50 cursor-not-allowed" 
-                                   readonly>
+                            <p class="text-sm text-gray-600 mt-1">Mostrando turmas da escola: <strong><?= htmlspecialchars($escolaSelecionadaNome) ?></strong></p>
                         <?php endif; ?>
-                        <input type="hidden" id="filtro-escola" value="<?= $escolaSelecionadaId ?? '' ?>">
                     </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-2">Turno</label>
-                        <select id="filtro-turno" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                                onchange="filtrarTurmas()">
-                            <option value="">Todos os turnos</option>
-                            <option value="Manhã">Manhã</option>
-                            <option value="Tarde">Tarde</option>
-                            <option value="Noite">Noite</option>
-                            <option value="Integral">Integral</option>
-                        </select>
-                    </div>
-                </div>
-            </div>
-            
-            <!-- Lista de Turmas -->
-            <div class="bg-white rounded-lg shadow">
-                <div class="p-4 border-b border-gray-200">
-                    <h2 class="text-xl font-bold text-gray-900">Turmas e Disciplinas</h2>
-                    <?php if ($escolaSelecionadaNome): ?>
-                        <p class="text-sm text-gray-600 mt-1">Mostrando turmas da escola: <strong><?= htmlspecialchars($escolaSelecionadaNome) ?></strong></p>
-                    <?php endif; ?>
-                </div>
-                <div id="lista-turmas" class="p-4">
+                    <div id="lista-turmas" class="p-6">
                     <?php if (empty($todasTurmasProfessor)): ?>
                         <div class="text-center py-12">
                             <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -340,37 +375,37 @@ if ($professorId) {
                             <p class="mt-2 text-sm text-blue-600">Total de turmas em outras escolas: <?= count($todasTurmasProfessor) ?></p>
                         </div>
                     <?php else: ?>
-                        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                             <?php foreach ($turmasProfessor as $turma): ?>
-                                <div class="card-turma bg-white border border-gray-200 rounded-lg p-5 shadow-sm">
-                                    <div class="flex items-start justify-between mb-3">
+                                <div class="card-turma bg-white border border-gray-200 rounded-xl p-6 shadow-md hover:shadow-lg">
+                                    <div class="flex items-start justify-between mb-4">
                                         <div class="flex-1">
-                                            <h3 class="text-lg font-semibold text-gray-900 mb-1">
+                                            <h3 class="text-lg font-semibold text-gray-900 mb-2">
                                                 <?= htmlspecialchars($turma['turma_nome']) ?>
                                             </h3>
-                                            <p class="text-sm text-gray-600 mb-2">
-                                                <i class="fas fa-book text-blue-500 mr-1"></i>
+                                            <p class="text-sm text-gray-600 mb-2 flex items-center">
+                                                <i class="fas fa-book text-blue-500 mr-2"></i>
                                                 <?= htmlspecialchars($turma['disciplina_nome']) ?>
                                             </p>
-                                            <p class="text-sm text-gray-500">
-                                                <i class="fas fa-school text-green-500 mr-1"></i>
+                                            <p class="text-sm text-gray-500 flex items-center">
+                                                <i class="fas fa-school text-primary-green mr-2"></i>
                                                 <?= htmlspecialchars($turma['escola_nome']) ?>
                                             </p>
                                         </div>
                                     </div>
                                     
                                     <div class="mt-4 pt-4 border-t border-gray-200">
-                                        <div class="flex items-center justify-between text-sm">
-                                            <span class="text-gray-600">
-                                                <i class="fas fa-users text-purple-500 mr-1"></i>
+                                        <div class="flex items-center justify-between text-sm mb-2">
+                                            <span class="text-gray-600 flex items-center">
+                                                <i class="fas fa-users text-purple-500 mr-2"></i>
                                                 Alunos:
                                             </span>
                                             <span class="font-semibold text-gray-900"><?= $turma['total_alunos'] ?? 0 ?></span>
                                         </div>
                                         <?php if ($turma['data_inicio']): ?>
-                                            <div class="flex items-center justify-between text-sm mt-2">
-                                                <span class="text-gray-600">
-                                                    <i class="fas fa-calendar text-orange-500 mr-1"></i>
+                                            <div class="flex items-center justify-between text-sm">
+                                                <span class="text-gray-600 flex items-center">
+                                                    <i class="fas fa-calendar text-orange-500 mr-2"></i>
                                                     Desde:
                                                 </span>
                                                 <span class="text-gray-900">
@@ -380,13 +415,13 @@ if ($professorId) {
                                         <?php endif; ?>
                                     </div>
                                     
-                                    <div class="mt-4 flex gap-2">
+                                    <div class="mt-6 flex gap-2">
                                         <a href="frequencia_professor.php?turma_id=<?= $turma['turma_id'] ?>&disciplina_id=<?= $turma['disciplina_id'] ?>" 
-                                           class="flex-1 text-center px-3 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 transition-colors">
+                                           class="flex-1 text-center px-4 py-2.5 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors duration-200">
                                             <i class="fas fa-check-circle mr-1"></i> Frequência
                                         </a>
                                         <a href="notas_professor.php?turma_id=<?= $turma['turma_id'] ?>&disciplina_id=<?= $turma['disciplina_id'] ?>" 
-                                           class="flex-1 text-center px-3 py-2 bg-green-600 text-white text-sm rounded-lg hover:bg-green-700 transition-colors">
+                                           class="flex-1 text-center px-4 py-2.5 bg-primary-green text-white text-sm font-medium rounded-lg hover:bg-green-700 transition-colors duration-200">
                                             <i class="fas fa-star mr-1"></i> Notas
                                         </a>
                                     </div>
@@ -460,37 +495,37 @@ if ($professorId) {
             }
             
             container.innerHTML = `
-                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     ${turmas.map(turma => `
-                        <div class="card-turma bg-white border border-gray-200 rounded-lg p-5 shadow-sm">
-                            <div class="flex items-start justify-between mb-3">
+                        <div class="card-turma bg-white border border-gray-200 rounded-xl p-6 shadow-md hover:shadow-lg">
+                            <div class="flex items-start justify-between mb-4">
                                 <div class="flex-1">
-                                    <h3 class="text-lg font-semibold text-gray-900 mb-1">
+                                    <h3 class="text-lg font-semibold text-gray-900 mb-2">
                                         ${turma.turma_nome}
                                     </h3>
-                                    <p class="text-sm text-gray-600 mb-2">
-                                        <i class="fas fa-book text-blue-500 mr-1"></i>
+                                    <p class="text-sm text-gray-600 mb-2 flex items-center">
+                                        <i class="fas fa-book text-blue-500 mr-2"></i>
                                         ${turma.disciplina_nome}
                                     </p>
-                                    <p class="text-sm text-gray-500">
-                                        <i class="fas fa-school text-green-500 mr-1"></i>
+                                    <p class="text-sm text-gray-500 flex items-center">
+                                        <i class="fas fa-school mr-2" style="color: #2D5A27;"></i>
                                         ${turma.escola_nome}
                                     </p>
                                 </div>
                             </div>
                             
                             <div class="mt-4 pt-4 border-t border-gray-200">
-                                <div class="flex items-center justify-between text-sm">
-                                    <span class="text-gray-600">
-                                        <i class="fas fa-users text-purple-500 mr-1"></i>
+                                <div class="flex items-center justify-between text-sm mb-2">
+                                    <span class="text-gray-600 flex items-center">
+                                        <i class="fas fa-users text-purple-500 mr-2"></i>
                                         Alunos:
                                     </span>
                                     <span class="font-semibold text-gray-900">${turma.total_alunos || 0}</span>
                                 </div>
                                 ${turma.data_inicio ? `
-                                    <div class="flex items-center justify-between text-sm mt-2">
-                                        <span class="text-gray-600">
-                                            <i class="fas fa-calendar text-orange-500 mr-1"></i>
+                                    <div class="flex items-center justify-between text-sm">
+                                        <span class="text-gray-600 flex items-center">
+                                            <i class="fas fa-calendar text-orange-500 mr-2"></i>
                                             Desde:
                                         </span>
                                         <span class="text-gray-900">
@@ -500,13 +535,13 @@ if ($professorId) {
                                 ` : ''}
                             </div>
                             
-                            <div class="mt-4 flex gap-2">
+                            <div class="mt-6 flex gap-2">
                                 <a href="frequencia_professor.php?turma_id=${turma.turma_id}&disciplina_id=${turma.disciplina_id}" 
-                                   class="flex-1 text-center px-3 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 transition-colors">
+                                   class="flex-1 text-center px-4 py-2.5 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors duration-200">
                                     <i class="fas fa-check-circle mr-1"></i> Frequência
                                 </a>
                                 <a href="notas_professor.php?turma_id=${turma.turma_id}&disciplina_id=${turma.disciplina_id}" 
-                                   class="flex-1 text-center px-3 py-2 bg-green-600 text-white text-sm rounded-lg hover:bg-green-700 transition-colors">
+                                   class="flex-1 text-center px-4 py-2.5 text-white text-sm font-medium rounded-lg hover:bg-green-700 transition-colors duration-200" style="background-color: #2D5A27;">
                                     <i class="fas fa-star mr-1"></i> Notas
                                 </a>
                             </div>

@@ -117,25 +117,71 @@ if ($professorId) {
 
 // Processar requisições AJAX
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao'])) {
-    header('Content-Type: application/json');
+    header('Content-Type: application/json; charset=utf-8');
+    ob_clean();
     
-    if ($_POST['acao'] === 'criar_comunicado' && $escolaId) {
-        $dados = [
-            'turma_id' => !empty($_POST['turma_id']) ? $_POST['turma_id'] : null,
-            'aluno_id' => !empty($_POST['aluno_id']) ? $_POST['aluno_id'] : null,
-            'escola_id' => $escolaId,
-            'titulo' => $_POST['titulo'] ?? '',
-            'mensagem' => $_POST['mensagem'] ?? '',
-            'tipo' => $_POST['tipo'] ?? 'GERAL',
-            'prioridade' => $_POST['prioridade'] ?? 'NORMAL',
-            'canal' => $_POST['canal'] ?? 'SISTEMA'
-        ];
-        
-        if (!empty($dados['titulo']) && !empty($dados['mensagem'])) {
+    if ($_POST['acao'] === 'criar_comunicado') {
+        try {
+            // Verificar se o professor tem escola associada
+            if (!$escolaId) {
+                echo json_encode([
+                    'success' => false, 
+                    'message' => 'Você não está lotado em nenhuma escola. Entre em contato com a coordenação.'
+                ], JSON_UNESCAPED_UNICODE);
+                exit;
+            }
+            
+            // Validar dados obrigatórios
+            $titulo = trim($_POST['titulo'] ?? '');
+            $mensagem = trim($_POST['mensagem'] ?? '');
+            
+            if (empty($titulo) || empty($mensagem)) {
+                echo json_encode([
+                    'success' => false, 
+                    'message' => 'Título e mensagem são obrigatórios'
+                ], JSON_UNESCAPED_UNICODE);
+                exit;
+            }
+            
+            $dados = [
+                'turma_id' => !empty($_POST['turma_id']) ? (int)$_POST['turma_id'] : null,
+                'aluno_id' => !empty($_POST['aluno_id']) ? (int)$_POST['aluno_id'] : null,
+                'escola_id' => $escolaId,
+                'titulo' => $titulo,
+                'mensagem' => $mensagem,
+                'tipo' => $_POST['tipo'] ?? 'GERAL',
+                'prioridade' => $_POST['prioridade'] ?? 'NORMAL',
+                'canal' => $_POST['canal'] ?? 'SISTEMA'
+            ];
+            
             $resultado = $comunicadoModel->criar($dados);
-            echo json_encode($resultado);
-        } else {
-            echo json_encode(['success' => false, 'message' => 'Título e mensagem são obrigatórios']);
+            
+            if ($resultado && isset($resultado['success']) && $resultado['success']) {
+                echo json_encode([
+                    'success' => true, 
+                    'message' => 'Comunicado enviado com sucesso!',
+                    'id' => $resultado['id'] ?? null
+                ], JSON_UNESCAPED_UNICODE);
+            } else {
+                $mensagemErro = $resultado['message'] ?? 'Erro desconhecido ao criar comunicado';
+                error_log("Erro ao criar comunicado: " . $mensagemErro);
+                echo json_encode([
+                    'success' => false, 
+                    'message' => $mensagemErro
+                ], JSON_UNESCAPED_UNICODE);
+            }
+        } catch (PDOException $e) {
+            error_log("Erro PDO ao criar comunicado: " . $e->getMessage());
+            echo json_encode([
+                'success' => false, 
+                'message' => 'Erro ao salvar comunicado no banco de dados. Tente novamente.'
+            ], JSON_UNESCAPED_UNICODE);
+        } catch (Exception $e) {
+            error_log("Erro ao criar comunicado: " . $e->getMessage());
+            echo json_encode([
+                'success' => false, 
+                'message' => 'Erro inesperado ao criar comunicado. Tente novamente.'
+            ], JSON_UNESCAPED_UNICODE);
         }
         exit;
     }
@@ -143,17 +189,90 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao'])) {
 
 // Buscar comunicados enviados pelo professor
 $comunicadosEnviados = [];
-if ($_SESSION['usuario_id']) {
+
+// Buscar usuario_id válido (através de pessoa_id se necessário)
+$usuarioIdParaFiltro = null;
+
+// Tentar 1: usar usuario_id diretamente da sessão
+if (isset($_SESSION['usuario_id']) && !empty($_SESSION['usuario_id'])) {
+    $usuarioIdParam = (int)$_SESSION['usuario_id'];
+    $sqlVerificarUsuario = "SELECT id FROM usuario WHERE id = :usuario_id AND ativo = 1 LIMIT 1";
+    $stmtVerificarUsuario = $conn->prepare($sqlVerificarUsuario);
+    $stmtVerificarUsuario->bindParam(':usuario_id', $usuarioIdParam, PDO::PARAM_INT);
+    $stmtVerificarUsuario->execute();
+    $usuarioExiste = $stmtVerificarUsuario->fetch(PDO::FETCH_ASSOC);
+    if ($usuarioExiste) {
+        $usuarioIdParaFiltro = $usuarioIdParam;
+    }
+}
+
+// Tentar 2: buscar usuario_id através de pessoa_id
+if (!$usuarioIdParaFiltro && isset($_SESSION['pessoa_id']) && !empty($_SESSION['pessoa_id'])) {
+    $pessoaIdParam = (int)$_SESSION['pessoa_id'];
+    $sqlBuscarUsuario = "SELECT u.id FROM usuario u 
+                        WHERE u.pessoa_id = :pessoa_id AND u.ativo = 1 
+                        LIMIT 1";
+    $stmtBuscarUsuario = $conn->prepare($sqlBuscarUsuario);
+    $stmtBuscarUsuario->bindParam(':pessoa_id', $pessoaIdParam, PDO::PARAM_INT);
+    $stmtBuscarUsuario->execute();
+    $usuarioData = $stmtBuscarUsuario->fetch(PDO::FETCH_ASSOC);
+    if ($usuarioData && isset($usuarioData['id'])) {
+        $usuarioIdParaFiltro = (int)$usuarioData['id'];
+    }
+}
+
+// Tentar 3: buscar através de CPF se disponível
+if (!$usuarioIdParaFiltro && isset($_SESSION['cpf']) && !empty($_SESSION['cpf'])) {
+    $cpfLimpo = preg_replace('/[^0-9]/', '', $_SESSION['cpf']);
+    $sqlBuscarUsuarioCpf = "SELECT u.id FROM usuario u 
+                           INNER JOIN pessoa p ON u.pessoa_id = p.id 
+                           WHERE p.cpf = :cpf AND u.ativo = 1 
+                           LIMIT 1";
+    $stmtBuscarUsuarioCpf = $conn->prepare($sqlBuscarUsuarioCpf);
+    $stmtBuscarUsuarioCpf->bindParam(':cpf', $cpfLimpo);
+    $stmtBuscarUsuarioCpf->execute();
+    $usuarioDataCpf = $stmtBuscarUsuarioCpf->fetch(PDO::FETCH_ASSOC);
+    if ($usuarioDataCpf && isset($usuarioDataCpf['id'])) {
+        $usuarioIdParaFiltro = (int)$usuarioDataCpf['id'];
+    }
+}
+
+if ($usuarioIdParaFiltro) {
+    $filtros = [
+        'escola_id' => $escolaId,
+        'ativo' => 1,
+        'enviado_por' => $usuarioIdParaFiltro
+    ];
+    $comunicadosEnviados = $comunicadoModel->listar($filtros);
+} else {
+    // Se não encontrou usuario_id, tentar buscar sem filtro de enviado_por
+    // e filtrar depois (fallback)
     $filtros = [
         'escola_id' => $escolaId,
         'ativo' => 1
     ];
     $todosComunicados = $comunicadoModel->listar($filtros);
-    // Filtrar apenas os enviados pelo professor logado
-    $comunicadosEnviados = array_filter($todosComunicados, function($c) {
-        return $c['enviado_por'] == $_SESSION['usuario_id'];
-    });
-    $comunicadosEnviados = array_values($comunicadosEnviados); // Reindexar array
+    // Tentar filtrar por pessoa_id se disponível
+    if (isset($_SESSION['pessoa_id']) && !empty($_SESSION['pessoa_id'])) {
+        $pessoaIdParam = (int)$_SESSION['pessoa_id'];
+        // Buscar todos os usuario_ids relacionados a esta pessoa
+        $sqlUsuariosPessoa = "SELECT id FROM usuario WHERE pessoa_id = :pessoa_id AND ativo = 1";
+        $stmtUsuariosPessoa = $conn->prepare($sqlUsuariosPessoa);
+        $stmtUsuariosPessoa->bindParam(':pessoa_id', $pessoaIdParam, PDO::PARAM_INT);
+        $stmtUsuariosPessoa->execute();
+        $usuarioIds = $stmtUsuariosPessoa->fetchAll(PDO::FETCH_COLUMN);
+        
+        if (!empty($usuarioIds)) {
+            $comunicadosEnviados = array_filter($todosComunicados, function($c) use ($usuarioIds) {
+                return isset($c['enviado_por']) && in_array((int)$c['enviado_por'], $usuarioIds);
+            });
+            $comunicadosEnviados = array_values($comunicadosEnviados);
+        } else {
+            $comunicadosEnviados = [];
+        }
+    } else {
+        $comunicadosEnviados = [];
+    }
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['acao'])) {

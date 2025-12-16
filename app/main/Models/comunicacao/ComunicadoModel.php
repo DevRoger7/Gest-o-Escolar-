@@ -63,6 +63,11 @@ class ComunicadoModel {
             $params[':ativo'] = $filtros['ativo'];
         }
         
+        if (!empty($filtros['enviado_por'])) {
+            $sql .= " AND c.enviado_por = :enviado_por";
+            $params[':enviado_por'] = $filtros['enviado_por'];
+        }
+        
         $sql .= " ORDER BY c.criado_em DESC";
         
         $stmt = $conn->prepare($sql);
@@ -78,39 +83,114 @@ class ComunicadoModel {
      * Cria novo comunicado
      */
     public function criar($dados) {
-        $conn = $this->db->getConnection();
-        
-        $sql = "INSERT INTO comunicado (turma_id, aluno_id, escola_id, enviado_por, titulo, mensagem,
-                tipo, prioridade, canal, criado_em)
-                VALUES (:turma_id, :aluno_id, :escola_id, :enviado_por, :titulo, :mensagem,
-                :tipo, :prioridade, :canal, NOW())";
-        
-        $stmt = $conn->prepare($sql);
-        $turmaId = $dados['turma_id'] ?? null;
-        $alunoId = $dados['aluno_id'] ?? null;
-        $escolaId = $dados['escola_id'] ?? null;
-        $enviadoPor = (isset($_SESSION['usuario_id']) && is_numeric($_SESSION['usuario_id'])) ? (int)$_SESSION['usuario_id'] : null;
-        $titulo = $dados['titulo'];
-        $mensagem = $dados['mensagem'];
-        $tipo = $dados['tipo'] ?? 'GERAL';
-        $prioridade = $dados['prioridade'] ?? 'NORMAL';
-        $canal = $dados['canal'] ?? 'SISTEMA';
+        try {
+            $conn = $this->db->getConnection();
+            
+            $sql = "INSERT INTO comunicado (turma_id, aluno_id, escola_id, enviado_por, titulo, mensagem,
+                    tipo, prioridade, canal, criado_em)
+                    VALUES (:turma_id, :aluno_id, :escola_id, :enviado_por, :titulo, :mensagem,
+                    :tipo, :prioridade, :canal, NOW())";
+            
+            $stmt = $conn->prepare($sql);
+            $turmaId = !empty($dados['turma_id']) ? (int)$dados['turma_id'] : null;
+            $alunoId = !empty($dados['aluno_id']) ? (int)$dados['aluno_id'] : null;
+            $escolaId = !empty($dados['escola_id']) ? (int)$dados['escola_id'] : null;
+            
+            // Validar e obter usuario_id válido
+            // Primeiro tenta usar usuario_id da sessão, depois tenta buscar através de pessoa_id
+            $enviadoPor = null;
+            
+            // Tentar 1: usar usuario_id diretamente da sessão
+            if (isset($_SESSION['usuario_id']) && !empty($_SESSION['usuario_id'])) {
+                $usuarioIdParam = (int)$_SESSION['usuario_id'];
+                $sqlVerificarUsuario = "SELECT id FROM usuario WHERE id = :usuario_id AND ativo = 1 LIMIT 1";
+                $stmtVerificarUsuario = $conn->prepare($sqlVerificarUsuario);
+                $stmtVerificarUsuario->bindParam(':usuario_id', $usuarioIdParam, PDO::PARAM_INT);
+                $stmtVerificarUsuario->execute();
+                $usuarioExiste = $stmtVerificarUsuario->fetch(PDO::FETCH_ASSOC);
+                if ($usuarioExiste) {
+                    $enviadoPor = $usuarioIdParam;
+                }
+            }
+            
+            // Tentar 2: buscar usuario_id através de pessoa_id
+            if (!$enviadoPor && isset($_SESSION['pessoa_id']) && !empty($_SESSION['pessoa_id'])) {
+                $pessoaIdParam = (int)$_SESSION['pessoa_id'];
+                $sqlBuscarUsuario = "SELECT u.id FROM usuario u 
+                                    WHERE u.pessoa_id = :pessoa_id AND u.ativo = 1 
+                                    LIMIT 1";
+                $stmtBuscarUsuario = $conn->prepare($sqlBuscarUsuario);
+                $stmtBuscarUsuario->bindParam(':pessoa_id', $pessoaIdParam, PDO::PARAM_INT);
+                $stmtBuscarUsuario->execute();
+                $usuarioData = $stmtBuscarUsuario->fetch(PDO::FETCH_ASSOC);
+                if ($usuarioData && isset($usuarioData['id'])) {
+                    $enviadoPor = (int)$usuarioData['id'];
+                }
+            }
+            
+            // Tentar 3: buscar através de CPF se disponível
+            if (!$enviadoPor && isset($_SESSION['cpf']) && !empty($_SESSION['cpf'])) {
+                $cpfLimpo = preg_replace('/[^0-9]/', '', $_SESSION['cpf']);
+                $sqlBuscarUsuarioCpf = "SELECT u.id FROM usuario u 
+                                       INNER JOIN pessoa p ON u.pessoa_id = p.id 
+                                       WHERE p.cpf = :cpf AND u.ativo = 1 
+                                       LIMIT 1";
+                $stmtBuscarUsuarioCpf = $conn->prepare($sqlBuscarUsuarioCpf);
+                $stmtBuscarUsuarioCpf->bindParam(':cpf', $cpfLimpo);
+                $stmtBuscarUsuarioCpf->execute();
+                $usuarioDataCpf = $stmtBuscarUsuarioCpf->fetch(PDO::FETCH_ASSOC);
+                if ($usuarioDataCpf && isset($usuarioDataCpf['id'])) {
+                    $enviadoPor = (int)$usuarioDataCpf['id'];
+                }
+            }
+            
+            // Se não encontrou usuário válido, retornar erro
+            if (!$enviadoPor) {
+                error_log("Não foi possível identificar usuario_id para criar comunicado. Sessão: usuario_id=" . ($_SESSION['usuario_id'] ?? 'null') . ", pessoa_id=" . ($_SESSION['pessoa_id'] ?? 'null'));
+                return ['success' => false, 'message' => 'Usuário não identificado. Faça login novamente.'];
+            }
+            $titulo = trim($dados['titulo'] ?? '');
+            $mensagem = trim($dados['mensagem'] ?? '');
+            $tipo = $dados['tipo'] ?? 'GERAL';
+            $prioridade = $dados['prioridade'] ?? 'NORMAL';
+            $canal = $dados['canal'] ?? 'SISTEMA';
 
-        $stmt->bindParam(':turma_id', $turmaId);
-        $stmt->bindParam(':aluno_id', $alunoId);
-        $stmt->bindParam(':escola_id', $escolaId);
-        $stmt->bindParam(':enviado_por', $enviadoPor);
-        $stmt->bindParam(':titulo', $titulo);
-        $stmt->bindParam(':mensagem', $mensagem);
-        $stmt->bindParam(':tipo', $tipo);
-        $stmt->bindParam(':prioridade', $prioridade);
-        $stmt->bindParam(':canal', $canal);
-        
-        if ($stmt->execute()) {
-            return ['success' => true, 'id' => $conn->lastInsertId()];
+            // Validar dados obrigatórios
+            if (empty($titulo) || empty($mensagem)) {
+                return ['success' => false, 'message' => 'Título e mensagem são obrigatórios'];
+            }
+            
+            if (!$escolaId) {
+                return ['success' => false, 'message' => 'Escola não identificada'];
+            }
+
+            // Usar bindValue para permitir null nos campos opcionais
+            $stmt->bindValue(':turma_id', $turmaId, $turmaId !== null ? PDO::PARAM_INT : PDO::PARAM_NULL);
+            $stmt->bindValue(':aluno_id', $alunoId, $alunoId !== null ? PDO::PARAM_INT : PDO::PARAM_NULL);
+            $stmt->bindValue(':escola_id', $escolaId, PDO::PARAM_INT);
+            $stmt->bindValue(':enviado_por', $enviadoPor, PDO::PARAM_INT);
+            $stmt->bindValue(':titulo', $titulo);
+            $stmt->bindValue(':mensagem', $mensagem);
+            $stmt->bindValue(':tipo', $tipo);
+            $stmt->bindValue(':prioridade', $prioridade);
+            $stmt->bindValue(':canal', $canal);
+            
+            if ($stmt->execute()) {
+                return ['success' => true, 'id' => $conn->lastInsertId()];
+            }
+            
+            $errorInfo = $stmt->errorInfo();
+            $errorMessage = $errorInfo[2] ?? 'Erro desconhecido ao criar comunicado';
+            error_log("Erro ao executar INSERT em comunicado: " . $errorMessage);
+            
+            return ['success' => false, 'message' => 'Erro ao salvar comunicado: ' . $errorMessage];
+        } catch (PDOException $e) {
+            error_log("Erro PDO ao criar comunicado: " . $e->getMessage());
+            return ['success' => false, 'message' => 'Erro no banco de dados: ' . $e->getMessage()];
+        } catch (Exception $e) {
+            error_log("Erro ao criar comunicado: " . $e->getMessage());
+            return ['success' => false, 'message' => 'Erro inesperado: ' . $e->getMessage()];
         }
-        
-        return ['success' => false, 'message' => 'Erro ao criar comunicado'];
     }
     
     /**
