@@ -790,7 +790,7 @@ if ($tipo !== 'adm_merenda') {
             const { jsPDF } = window.jspdf;
             const doc = new jsPDF('p', 'mm', 'a4');
             const pageWidth = doc.internal.pageSize.getWidth();
-            const margin = 8; // Reduced margin from 10 to 8
+            const margin = 10;
             let cursorY = 10;
             
             // Add title
@@ -904,7 +904,7 @@ if ($tipo !== 'adm_merenda') {
             const { jsPDF } = window.jspdf;
             const doc = new jsPDF('p', 'mm', 'a4');
             const pageWidth = doc.internal.pageSize.getWidth();
-            const margin = 8; // Reduced margin from 10 to 8
+            const margin = 10;
             let cursorY = 10;
             
             // Add title
@@ -1051,7 +1051,7 @@ if ($tipo !== 'adm_merenda') {
             const { jsPDF } = window.jspdf;
             const doc = new jsPDF('p', 'mm', 'a4');
             const pageWidth = doc.internal.pageSize.getWidth();
-            const margin = 8; // Reduced margin from 10 to 8
+            const margin = 10;
             let cursorY = 10;
             
             // Add title
@@ -1094,7 +1094,7 @@ if ($tipo !== 'adm_merenda') {
             
             // Table headers (excluding Observações to save space)
             const headers = ['Unidade Escolar', 'Data', 'Turno', 'Produto', 'Quantidade', 'Unidade', 'Peso (kg)', 'Motivo'];
-            const colWidths = [40, 18, 18, 35, 18, 15, 18, 40]; // Adjusted widths to better fit content
+            const colWidths = [45, 20, 20, 40, 20, 15, 20, 30];
             
             // Draw table header
             let x = margin;

@@ -85,8 +85,19 @@ $totalGeral = array_sum(array_column($totaisMes, 'total_custos'));
     <link rel="icon" href="https://upload.wikimedia.org/wikipedia/commons/thumb/1/19/Bras%C3%A3o_de_Maranguape.png/250px-Bras%C3%A3o_de_Maranguape.png" type="image/png">
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="global-theme.css">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" integrity="sha512-vI0JAWOEx+kt1/3uzMdGII4XESyqSeX5TR1+t0NenE2no0RvrRZtGJPD7W82dManIeZDV4SSQdlqzTeWY5Hecw==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js" integrity="sha512-ffrj+EiZV8K4D4ew3Efr2E1VlzDq+W8sELpAo0P5NdQ4KJIp4jOSAmhpN6wX+ZspGDZCBoBPuiGNsq4CPGK/cg==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    <!-- jsPDF and AutoTable with proper version and initialization -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
+    <script>
+        // Initialize jsPDF in the global scope
+        document.addEventListener('DOMContentLoaded', function() {
+            window.jsPDF = window.jspdf.jsPDF;
+            // Make sure autoTable is available
+            if (window.jspdf && window.jspdf.jsPDF) {
+                window.jsPDF.autoTable = window.jspdfAutoTable;
+            }
+        });
+    </script>
     <!-- NEW: Chart.js for a simple bar chart summary -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <!-- NEW: small CSS for loading state on "Gerar Relatório" button -->
@@ -238,12 +249,6 @@ $totalGeral = array_sum(array_column($totaisMes, 'total_custos'));
                             </select>
                         </div>
                         <div class="flex items-end space-x-2">
-                            <button onclick="mostrarRelatorio()" class="w-full bg-teal-600 hover:bg-teal-700 text-white px-4 py-2 rounded-lg font-medium">
-                                Gerar Relatório
-                            </button>
-                            <button onclick="exportarCsv()" class="w-full bg-gray-100 hover:bg-gray-200 text-gray-800 px-4 py-2 rounded-lg font-medium border border-gray-300">
-                                Exportar CSV
-                            </button>
                             <button onclick="gerarPdf(true)" class="w-full bg-indigo-100 hover:bg-indigo-200 text-indigo-800 px-4 py-2 rounded-lg font-medium border border-indigo-200">
                                 Visualizar PDF
                             </button>
@@ -254,10 +259,18 @@ $totalGeral = array_sum(array_column($totaisMes, 'total_custos'));
                     </div>
                 </div>
                 
-                <!-- Tabela de Custos -->
-                <div  id="bloco-relatorio" class="bg-white rounded-2xl p-6 shadow-lg" style="display:none;">
-                    <div class="overflow-x-auto">
-                        <table class="w-full">
+                <!-- Tabela de Custos com botão de visualização -->
+                <div class="mt-6">
+                    <button id="toggle-tabela" type="button" class="flex items-center text-sm text-indigo-600 hover:text-indigo-800 mb-2 font-medium">
+                        <svg id="eye-icon" xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                        </svg>
+                        <span id="toggle-text">Mostrar Tabela Detalhada</span>
+                    </button>
+                    <div id="bloco-relatorio" style="display: none;" class="bg-white rounded-lg shadow p-4 mt-2">
+                        <div class="overflow-x-auto">
+                            <table class="w-full">
                             <thead>
                                 <tr class="border-b border-gray-200">
                                     <th class="text-left py-3 px-4 font-semibold text-gray-700">Data</th>
@@ -302,7 +315,8 @@ $totalGeral = array_sum(array_column($totaisMes, 'total_custos'));
                                     <?php endforeach; ?>
                                 <?php endif; ?>
                             </tbody>
-                        </table>
+                            </table>
+                        </div>
                     </div>
                 </div>
 
@@ -333,47 +347,11 @@ $totalGeral = array_sum(array_column($totaisMes, 'total_custos'));
                                 <span class="text-xs bg-white/20 px-2 py-1 rounded">Central</span>
                             </div>
                             <h3 class="text-2xl font-bold mb-1" id="total-centralizado">R$ 0,00</h3>
-                            <p class="text-green-100 text-sm">Compras centralizadas</p>
                         </div>
                     </div>
 
                     <!-- Análise Detalhada -->
-                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                        <!-- Origem com Top 5 -->
-                        <div class="bg-white rounded-2xl p-6 shadow-lg">
-                            <div class="flex items-center justify-between mb-4">
-                                <h3 class="text-lg font-bold text-gray-800 flex items-center gap-2">
-                                    <svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
-                                    </svg>
-                                    Top 5 por Origem
-                                </h3>
-                                <span class="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded">Ranking</span>
-                            </div>
-                            <div class="overflow-x-auto">
-                                <table class="w-full">
-                                    <thead>
-                                        <tr class="border-b-2 border-gray-200">
-                                            <th class="text-left py-3 px-2 text-xs font-semibold text-gray-600">#</th>
-                                            <th class="text-left py-3 px-2 text-xs font-semibold text-gray-600">Origem</th>
-                                            <th class="text-right py-3 px-2 text-xs font-semibold text-gray-600">Total</th>
-                                            <th class="text-right py-3 px-2 text-xs font-semibold text-gray-600">Reg.</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody id="resumo-por-origem" class="divide-y divide-gray-100">
-                                        <tr>
-                                            <td colspan="4" class="text-center py-8 text-gray-500">
-                                                <svg class="w-12 h-12 mx-auto mb-2 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
-                                                </svg>
-                                                <p class="text-sm">Gere o relatório para visualizar</p>
-                                            </td>
-                                        </tr>
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
-
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
                         <!-- Gráfico Pizza por Tipo -->
                         <div class="bg-white rounded-2xl p-6 shadow-lg">
                             <div class="flex items-center justify-between mb-4">
@@ -607,36 +585,6 @@ $totalGeral = array_sum(array_column($totaisMes, 'total_custos'));
             if (maiorCustoEl) maiorCustoEl.innerText = 'R$ ' + formatCurrency(maiorCusto);
             if (totalCentralizadoEl) totalCentralizadoEl.innerText = 'R$ ' + formatCurrency(totalCentralizado);
 
-            // Top 5 por Origem
-            const tbodyResumo = document.getElementById('resumo-por-origem');
-            if (tbodyResumo) {
-                tbodyResumo.innerHTML = '';
-                const top5 = Array.from(porOrigem.entries())
-                    .sort((a, b) => b[1].total - a[1].total)
-                    .slice(0, 5);
-
-                if (top5.length === 0) {
-                    tbodyResumo.innerHTML = '<tr><td colspan="4" class="text-center py-6 text-gray-500">Sem dados</td></tr>';
-                } else {
-                    top5.forEach(([origem, info], index) => {
-                        const totalFmt = formatCurrency(info.total);
-                        const medalha = index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : '';
-                        const corBadge = index === 0 ? 'bg-yellow-100 text-yellow-800' : index === 1 ? 'bg-gray-100 text-gray-800' : index === 2 ? 'bg-orange-100 text-orange-800' : 'bg-blue-50 text-blue-700';
-                        tbodyResumo.innerHTML += `
-                            <tr class="hover:bg-gray-50 transition-colors">
-                                <td class="py-3 px-2">
-                                    <span class="inline-flex items-center justify-center w-6 h-6 rounded-full ${corBadge} text-xs font-bold">${index + 1}</span>
-                                    ${medalha ? `<span class="ml-1">${medalha}</span>` : ''}
-                                </td>
-                                <td class="py-3 px-2 font-medium text-gray-800">${origem.length > 25 ? origem.substring(0, 25) + '...' : origem}</td>
-                                <td class="py-3 px-2 text-right font-semibold text-gray-900">R$ ${totalFmt}</td>
-                                <td class="py-3 px-2 text-right text-gray-600">${info.registros}</td>
-                            </tr>
-                        `;
-                    });
-                }
-            }
-
             // Gráfico Pizza por Tipo
             const ctxPizza = document.getElementById('grafico-tipos-pizza');
             if (ctxPizza) {
@@ -860,12 +808,10 @@ $totalGeral = array_sum(array_column($totaisMes, 'total_custos'));
             // Limpar com verificações de segurança
             const maiorCustoEl = document.getElementById('maior-custo');
             const totalCentralizadoEl = document.getElementById('total-centralizado');
-            const resumoPorOrigem = document.getElementById('resumo-por-origem');
             const detalhamentoTipos = document.getElementById('detalhamento-tipos');
 
             if (maiorCustoEl) maiorCustoEl.innerText = 'R$ 0,00';
             if (totalCentralizadoEl) totalCentralizadoEl.innerText = 'R$ 0,00';
-            if (resumoPorOrigem) resumoPorOrigem.innerHTML = '<tr><td colspan="4" class="text-center py-8 text-gray-500">Sem dados para o período selecionado.</td></tr>';
             if (detalhamentoTipos) detalhamentoTipos.innerHTML = '<div class="text-center py-8 text-gray-500"><p class="text-sm">Sem dados para o período selecionado.</p></div>';
             
             // Limpar gráficos
@@ -879,7 +825,61 @@ $totalGeral = array_sum(array_column($totaisMes, 'total_custos'));
             const url = buildRelatorioUrl('buscar_custos');
             console.log('Relatório URL:', url);
 
-            // NEW: loading state for the "Gerar Relatório" button
+            // Return a promise to handle async operations
+            return new Promise((resolve, reject) => {
+                // Show report section
+                const reportSection = document.getElementById('bloco-relatorio');
+                if (reportSection) {
+                    reportSection.style.display = 'block';
+                }
+
+                // Make the AJAX request
+                fetch(url)
+                    .then(response => {
+                        if (!response.ok) {
+                            throw new Error(`HTTP error! status: ${response.status}`);
+                        }
+                        return response.json();
+                    })
+                    .then(data => {
+                        // Process the data and update the UI
+                        renderResumo(data);
+                        
+                        // Show the report section
+                        if (reportSection) {
+                            reportSection.style.display = 'block';
+                        }
+                        
+                        // Resolve the promise with the data
+                        resolve(data);
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        
+                        // Show error message
+                        if (reportSection) {
+                            reportSection.innerHTML = `
+                                <div class="bg-red-50 border-l-4 border-red-400 p-4">
+                                    <div class="flex">
+                                        <div class="flex-shrink-0">
+                                            <svg class="h-5 w-5 text-red-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                                                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd" />
+                                            </svg>
+                                        </div>
+                                        <div class="ml-3">
+                                            <p class="text-sm text-red-700">
+                                                Erro ao carregar os dados do relatório. Por favor, tente novamente.
+                                            </p>
+                                        </div>
+                                    </div>
+                                </div>
+                            `;
+                        }
+                        
+                        // Reject the promise with the error
+                        reject(error);
+                    });
+            });
             const gerarBtn = document.querySelector('button[onclick="buscarRelatorio()"]');
             if (gerarBtn) {
                 gerarBtn.classList.add('btn-loading');
@@ -996,22 +996,67 @@ $totalGeral = array_sum(array_column($totaisMes, 'total_custos'));
         }
 
         function gerarPdf(preview = false) {
-            // Detecção robusta do jsPDF
-            const PDF = (window.jspdf && window.jspdf.jsPDF) || window.jsPDF;
-            if (!PDF) {
-                alert('Biblioteca de PDF não carregou. Verifique a conexão.');
+            // Check if jsPDF is available
+            if (typeof window.jspdf === 'undefined' || typeof window.jspdf.jsPDF === 'undefined') {
+                alert('Biblioteca de PDF não carregou. Por favor, atualize a página e tente novamente.');
                 return;
             }
+            
+            // Create PDF instance in portrait mode
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF({
+                orientation: 'portrait',
+                unit: 'pt',
+                format: 'a4'
+            });
+            
+            // Set default font
+            doc.setFont('helvetica');
+            
+            // Make sure autoTable is available
+            if (typeof window.jspdfAutoTable !== 'undefined') {
+                doc.autoTable = window.jspdfAutoTable;
+            }
 
+            // Show loading state
+            const loadingMessage = preview ? 'Preparando visualização...' : 'Gerando PDF...';
+            const loadingElement = document.createElement('div');
+            loadingElement.style.position = 'fixed';
+            loadingElement.style.top = '50%';
+            loadingElement.style.left = '50%';
+            loadingElement.style.transform = 'translate(-50%, -50%)';
+            loadingElement.style.backgroundColor = 'rgba(0, 0, 0, 0.8)';
+            loadingElement.style.color = 'white';
+            loadingElement.style.padding = '15px 30px';
+            loadingElement.style.borderRadius = '5px';
+            loadingElement.style.zIndex = '9999';
+            loadingElement.textContent = loadingMessage;
+            document.body.appendChild(loadingElement);
+
+            // First ensure the report is generated
             const rows = Array.from(document.querySelectorAll('#lista-custos tr'));
             if (!rows.length || rows[0].querySelector('td[colspan]')) {
-                alert('Nenhum dado para gerar PDF. Gere o relatório primeiro.');
+                // If no data, try to fetch it first
+                buscarRelatorio().then(() => {
+                    // After fetching, try generating PDF again
+                    setTimeout(() => {
+                        document.body.removeChild(loadingElement);
+                        gerarPdf(preview);
+                    }, 1000);
+                }).catch(error => {
+                    console.error('Error fetching data:', error);
+                    document.body.removeChild(loadingElement);
+                    alert('Erro ao buscar dados. Por favor, tente novamente.');
+                });
                 return;
             }
 
-            // Verificar se AutoTable está disponível
-            if (typeof window.jspdf !== 'undefined' && typeof window.jspdf.jsPDF.prototype.autoTable === 'undefined') {
-                alert('Plugin AutoTable do jsPDF não foi carregado. Verifique a conexão.');
+            // Check if AutoTable is available
+            if (typeof doc.autoTable !== 'function') {
+                alert('O plugin AutoTable não foi carregado corretamente. Por favor, atualize a página.');
+                if (document.body.contains(loadingElement)) {
+                    document.body.removeChild(loadingElement);
+                }
                 return;
             }
 
@@ -1029,23 +1074,7 @@ $totalGeral = array_sum(array_column($totaisMes, 'total_custos'));
             const maiorCusto = document.getElementById('maior-custo')?.innerText || 'R$ 0,00';
             const totalCentralizado = document.getElementById('total-centralizado')?.innerText || 'R$ 0,00';
 
-            // Coletar Top 5 por origem
-            const top5Rows = Array.from(document.querySelectorAll('#resumo-por-origem tr'));
-            const top5Data = [];
-            top5Rows.forEach(tr => {
-                const tds = Array.from(tr.querySelectorAll('td'));
-                if (tds.length >= 4 && !tr.querySelector('td[colspan]')) {
-                    top5Data.push([
-                        tds[0]?.innerText.trim() || '',
-                        tds[1]?.innerText.trim() || '',
-                        tds[2]?.innerText.trim() || '',
-                        tds[3]?.innerText.trim() || ''
-                    ]);
-                }
-            });
-
-            // Criar documento PDF em paisagem
-            const doc = new PDF({ orientation: 'landscape', unit: 'pt', format: 'a4' });
+            // Document dimensions and styles
             const pageWidth = doc.internal.pageSize.getWidth();
             const pageHeight = doc.internal.pageSize.getHeight();
             const margem = 40;
@@ -1055,100 +1084,47 @@ $totalGeral = array_sum(array_column($totaisMes, 'total_custos'));
             const corPrimaria = [59, 130, 246]; // Azul
             const corSecundaria = [16, 185, 129]; // Verde
             const corDestaque = [139, 92, 246]; // Roxo
-
-            // Cabeçalho com fundo colorido
-            doc.setFillColor(...corPrimaria);
-            doc.rect(0, 0, pageWidth, 80, 'F');
             
-            doc.setTextColor(255, 255, 255);
-            doc.setFontSize(20);
-            doc.setFont(undefined, 'bold');
-            doc.text('Relatório Financeiro - Merenda Escolar', pageWidth / 2, 35, { align: 'center' });
+            // Cabeçalho compacto
+            doc.setFontSize(14); // Aumentado de 12 para 14
+            doc.setFont('helvetica', 'bold');
+            doc.text('Relatório Financeiro - Merenda Escolar', pageWidth / 2, 30, { align: 'center' });
             
-            doc.setFontSize(12);
-            doc.setFont(undefined, 'normal');
-            doc.text(`Período: ${mesText}/${anoText}`, pageWidth / 2, 55, { align: 'center' });
+            // Data/hora e período lado a lado
+            doc.setFontSize(10); // Aumentado de 8 para 10
+            doc.setFont('helvetica', 'normal');
+            const now = new Date();
+            const options = { 
+                day: '2-digit', 
+                month: '2-digit', 
+                year: 'numeric', 
+                hour: '2-digit', 
+                minute: '2-digit' 
+            };
+            const dataHora = now.toLocaleString('pt-BR', options);
             
-            doc.text(`Gerado em: ${new Date().toLocaleDateString('pt-BR')} às ${new Date().toLocaleTimeString('pt-BR')}`, pageWidth / 2, 70, { align: 'center' });
+            doc.text(`Período: ${mesText}/${anoText}`, margem, 45);
+            doc.text(`Gerado em: ${dataHora}`, pageWidth - margem, 45, { align: 'right' });
+            
+            // Linha divisória fina
+            doc.setDrawColor(200, 200, 200);
+            doc.setLineWidth(0.3);
+            doc.line(margem, 52, pageWidth - margem, 52);
+            
+            yPos = 70; // Ajustado para acomodar fontes maiores
 
-            yPos = 100;
-
-            // Seção de Estatísticas Principais
-            doc.setTextColor(0, 0, 0);
-            doc.setFontSize(14);
-            doc.setFont(undefined, 'bold');
-            doc.text('Estatísticas Principais', margem, yPos);
-            yPos += 20;
+            
 
             doc.setFontSize(10);
             doc.setFont(undefined, 'normal');
             const statsWidth = (pageWidth - (margem * 2)) / 3;
             const statsX = [margem, margem + statsWidth, margem + (statsWidth * 2)];
 
-            // Card 1: Total Geral
-            doc.setFillColor(16, 185, 129);
-            doc.rect(statsX[0], yPos, statsWidth - 10, 50, 'F');
-            doc.setTextColor(255, 255, 255);
-            doc.setFontSize(9);
-            doc.setFont(undefined, 'normal');
-            doc.text('Total Geral', statsX[0] + 5, yPos + 10);
-            doc.setFontSize(12);
-            doc.setFont(undefined, 'bold');
-            doc.text(total, statsX[0] + 5, yPos + 30);
-
-            // Card 2: Maior Custo
-            doc.setFillColor(59, 130, 246);
-            doc.rect(statsX[1], yPos, statsWidth - 10, 50, 'F');
-            doc.setFontSize(9);
-            doc.setFont(undefined, 'normal');
-            doc.text('Maior Custo', statsX[1] + 5, yPos + 10);
-            doc.setFontSize(12);
-            doc.setFont(undefined, 'bold');
-            doc.text(maiorCusto, statsX[1] + 5, yPos + 30);
-
-            // Card 3: Total Centralizado
-            doc.setFillColor(16, 185, 129);
-            doc.rect(statsX[2], yPos, statsWidth - 10, 50, 'F');
-            doc.setFontSize(9);
-            doc.setFont(undefined, 'normal');
-            doc.text('Centralizado', statsX[2] + 5, yPos + 10);
-            doc.setFontSize(12);
-            doc.setFont(undefined, 'bold');
-            doc.text(totalCentralizado, statsX[2] + 5, yPos + 30);
-
-            yPos += 70;
-
-            // Top 5 por Origem
-            if (top5Data.length > 0) {
-                doc.setFontSize(12);
-                doc.setFont(undefined, 'bold');
-                doc.text('Top 5 por Origem', margem, yPos);
-                yPos += 15;
-
-                const top5Head = [['#', 'Origem', 'Total (R$)', 'Registros']];
-                doc.autoTable({
-                    head: top5Head,
-                    body: top5Data.slice(0, 5),
-                    startY: yPos,
-                    styles: { fontSize: 8, cellPadding: 3 },
-                    headStyles: { fillColor: corPrimaria, textColor: [255, 255, 255], fontStyle: 'bold' },
-                    alternateRowStyles: { fillColor: [245, 247, 250] },
-                    columnStyles: { 
-                        0: { cellWidth: 30 },
-                        1: { cellWidth: 200 },
-                        2: { cellWidth: 100, halign: 'right' },
-                        3: { cellWidth: 80, halign: 'right' }
-                    },
-                    margin: { left: margem, right: margem }
-                });
-                yPos = doc.lastAutoTable.finalY + 20;
-            }
-
             // Tabela principal de custos
-            doc.setFontSize(12);
+            doc.setFontSize(14); // Aumentado de 12 para 14
             doc.setFont(undefined, 'bold');
             doc.text('Detalhamento de Custos', margem, yPos);
-            yPos += 15;
+            yPos += 20; // Aumentado o espaçamento
 
             const head = [['Data', 'Escola / Origem', 'Tipo', 'Descrição', 'Valor Total']];
             const body = rows.map(tr => {
@@ -1165,58 +1141,238 @@ $totalGeral = array_sum(array_column($totaisMes, 'total_custos'));
                 return null;
             }).filter(row => row !== null);
 
+            // Configurações da tabela de detalhamento de custos
             doc.autoTable({
                 head,
                 body,
                 startY: yPos,
+                margin: { 
+                    left: 15, // Reduzido para 15 (era margem)
+                    right: 15, // Reduzido para 15 (era margem)
+                    top: 10,
+                    bottom: 20
+                },
+                tableWidth: 'wrap', // Permite que a tabela seja maior que a página
                 styles: { 
-                    fontSize: 7, 
+                    fontSize: 9,
                     overflow: 'linebreak',
-                    cellPadding: 2
+                    cellPadding: 2, // Reduzido para 2 para melhorar o espaço
+                    lineWidth: 0.1,
+                    minCellHeight: 8,
+                    cellWidth: 'auto',
+                    valign: 'middle'
                 },
                 headStyles: { 
                     fillColor: corPrimaria, 
                     textColor: [255, 255, 255], 
                     fontStyle: 'bold',
-                    fontSize: 8
+                    fontSize: 9,
+                    cellPadding: 3,
+                    lineWidth: 0.1,
+                    halign: 'center'
                 },
-                alternateRowStyles: { fillColor: [245, 247, 250] },
+                alternateRowStyles: { 
+                    fillColor: [245, 247, 250],
+                    textColor: [0, 0, 0],
+                    fontSize: 9,
+                    cellPadding: 2
+                },
                 columnStyles: { 
-                    0: { cellWidth: 60 },
-                    1: { cellWidth: 120 },
-                    2: { cellWidth: 80 },
-                    3: { cellWidth: 180 },
-                    4: { cellWidth: 80, halign: 'right' }
+                    0: { 
+                        cellWidth: 55,   // Data
+                        halign: 'center',
+                        minCellWidth: 50
+                    },
+                    1: { 
+                        cellWidth: 120,  // Origem
+                        minCellWidth: 100
+                    },
+                    2: { 
+                        cellWidth: 80,   // Tipo
+                        halign: 'center',
+                        minCellWidth: 60
+                    },
+                    3: { 
+                        cellWidth: 180,  // Descrição
+                        minCellWidth: 150
+                    },
+                    4: { 
+                        cellWidth: 120,  // Valor Total - Aumentado para 120
+                        halign: 'right',
+                        fontStyle: 'bold',
+                        cellPadding: { right: 15 }, // Aumentado o espaço à direita
+                        minCellWidth: 100
+                    }
                 },
-                margin: { left: margem, right: margem },
-                theme: 'striped'
+                theme: 'grid',
+                tableLineColor: [200, 200, 200],
+                tableLineWidth: 0.2,
+                showHead: 'everyPage', // Mostra o cabeçalho em todas as páginas
+                didDrawPage: function(data) {
+                    // Adiciona o cabeçalho da seção em cada nova página
+                    if (data.pageNumber > 1) {
+                        doc.setFontSize(14);
+                        doc.setFont(undefined, 'bold');
+                        doc.text('Detalhamento de Custos (continuação)', margem, 30);
+                    }
+                }
             });
+            
+            // Atualiza a posição Y após a tabela
+            yPos = doc.lastAutoTable.finalY + 10;
 
-            // Rodapé
-            const finalY = doc.lastAutoTable.finalY + 20;
-            if (finalY > pageHeight - 40) {
+            // Posiciona os cards no final do documento, antes do rodapé
+            let cardsY = doc.lastAutoTable.finalY + 40; // Aumentado o espaçamento
+            
+            // Verifica se tem espaço suficiente para os cards + rodapé (150 = altura dos cards + título + margem)
+            if (cardsY > pageHeight - 150) {
                 doc.addPage();
+                cardsY = 40;
             }
 
+            // Título da seção de resumo
+            doc.setFontSize(14);
+            doc.setFont(undefined, 'bold');
+            doc.text('Resumo Financeiro', margem, cardsY);
+            cardsY += 25;
+
+            // Cards de estatísticas
+            const cardHeight = 70;
+            const cardMargin = 15; // Aumentado o espaçamento entre os cards
+            const cardWidth = (pageWidth - (margem * 2) - (cardMargin * 2)) / 3;
+            
+            // Card 1: Total Geral
+            doc.setFillColor(16, 185, 129);
+            doc.rect(margem, cardsY, cardWidth, cardHeight, 'F');
+            doc.setTextColor(255, 255, 255);
+            doc.setFontSize(10);
+            doc.setFont(undefined, 'normal');
+            doc.text('TOTAL GERAL', margem + (cardWidth / 2), cardsY + 15, { align: 'center' });
+            doc.setFontSize(14);
+            doc.setFont(undefined, 'bold');
+            doc.text(total, margem + (cardWidth / 2), cardsY + 40, { align: 'center' });
+
+            // Card 2: Maior Custo
+            doc.setFillColor(59, 130, 246);
+            doc.rect(margem + cardWidth + cardMargin, cardsY, cardWidth, cardHeight, 'F');
+            doc.setFontSize(10);
+            doc.setFont(undefined, 'normal');
+            doc.text('MAIOR CUSTO', margem + cardWidth + (cardWidth / 2) + cardMargin, cardsY + 15, { align: 'center' });
+            doc.setFontSize(14);
+            doc.setFont(undefined, 'bold');
+            doc.text(maiorCusto, margem + cardWidth + (cardWidth / 2) + cardMargin, cardsY + 40, { align: 'center' });
+
+            // Card 3: Total Centralizado
+            doc.setFillColor(139, 92, 246);
+            doc.rect(margem + (cardWidth * 2) + (cardMargin * 2), cardsY, cardWidth, cardHeight, 'F');
+            doc.setFontSize(10);
+            doc.setFont(undefined, 'normal');
+            doc.text('TOTAL CENTRALIZADO', margem + (cardWidth * 2) + (cardWidth / 2) + (cardMargin * 2), cardsY + 15, { align: 'center' });
+            doc.setFontSize(14);
+            doc.setFont(undefined, 'bold');
+            doc.text(totalCentralizado, margem + (cardWidth * 2) + (cardWidth / 2) + (cardMargin * 2), cardsY + 40, { align: 'center' });
+
+            // Atualiza a posição Y para o rodapé
+            cardsY += cardHeight + 30; // Aumentado o espaçamento após os cards
+
+            // Adiciona o rodapé
+            const footerY = Math.max(cardsY, pageHeight - 40);
             doc.setFontSize(8);
             doc.setTextColor(128, 128, 128);
             doc.text(`Total de Registros: ${registros} | Média: ${media}`, 
-                     pageWidth / 2, pageHeight - 20, { align: 'center' });
+                     pageWidth / 2, footerY, { align: 'center' });
             doc.text('SIGEA - Sistema de Gestão e Alimentação Escolar - Secretaria Municipal da Educação de Maranguape', 
-                     pageWidth / 2, pageHeight - 10, { align: 'center' });
+                     pageWidth / 2, footerY + 10, { align: 'center' });
+
+            // Remove loading message
+            if (document.body.contains(loadingElement)) {
+                document.body.removeChild(loadingElement);
+            }
 
             // Gerar ou visualizar PDF
-            if (preview) {
-                const blobUrl = doc.output('bloburl');
-                window.open(blobUrl, '_blank');
-            } else {
-                const fileName = `relatorio_financeiro_merenda_${mesText}_${anoText}_${Date.now()}.pdf`;
-                doc.save(fileName);
+            try {
+                if (preview) {
+                    // Para visualização
+                    doc.output('dataurlnewwindow');
+                } else {
+                    // Para download
+                    const fileName = `relatorio_financeiro_merenda_${mesText}_${anoText}_${new Date().getTime()}.pdf`;
+                    doc.save(fileName);
+                }
+                
+                // Remove loading message after a short delay
+                setTimeout(() => {
+                    if (document.body.contains(loadingElement)) {
+                        document.body.removeChild(loadingElement);
+                    }
+                }, 500);
+                
+            } catch (error) {
+                console.error('Erro ao gerar PDF:', error);
+                
+                // Remove loading message on error
+                if (document.body.contains(loadingElement)) {
+                    document.body.removeChild(loadingElement);
+                }
+                
+                alert('Ocorreu um erro ao gerar o PDF. Por favor, tente novamente.');
+                
+                // Se for preview, tenta abrir em uma nova aba como fallback
+                if (preview) {
+                    try {
+                        const pdfData = doc.output('datauristring');
+                        const newWindow = window.open();
+                        newWindow.document.write(`<iframe width='100%' height='100%' src='${pdfData}'></iframe>`);
+                    } catch (e) {
+                        console.error('Fallback preview failed:', e);
+                    }
+                }
             }
         }
 
+        // Toggle da visibilidade da tabela
+        document.addEventListener('DOMContentLoaded', function() {
+            // Elementos da interface
+            const toggleBtn = document.getElementById('toggle-tabela');
+            const tabela = document.getElementById('bloco-relatorio');
+            const eyeIcon = document.getElementById('eye-icon');
+            const toggleText = document.getElementById('toggle-text');
+            
+            // Garante que a tabela comece oculta
+            if (tabela) {
+                tabela.style.display = 'none';
+            }
+            
+            if (toggleBtn && tabela && eyeIcon && toggleText) {
+                toggleBtn.addEventListener('click', function() {
+                    // Alterna a visibilidade da tabela
+                    const isHidden = tabela.style.display === 'none';
+                    tabela.style.display = isHidden ? 'block' : 'none';
+                    
+                    // Atualiza o ícone e o texto do botão
+                    if (isHidden) {
+                        // Mostrar tabela
+                        eyeIcon.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />';
+                        toggleText.textContent = 'Ocultar Tabela Detalhada';
+                    } else {
+                        // Esconder tabela
+                        eyeIcon.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />';
+                        toggleText.textContent = 'Mostrar Tabela Detalhada';
+                    }
+                });
+            }
+        });
+
         function mostrarRelatorio() {
-            document.getElementById("bloco-relatorio").style.display = "block";
+            const tabela = document.getElementById("bloco-relatorio");
+            const toggleBtn = document.getElementById('toggle-tabela');
+            if (tabela && toggleBtn) {
+                tabela.style.display = "block";
+                // Atualiza o ícone para mostrar que a tabela está visível
+                const olhoIcon = toggleBtn.querySelector('svg');
+                olhoIcon.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />';
+                toggleBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">' + olhoIcon.innerHTML + '</svg> Ocultar Tabela Detalhada';
+            }
         }
 
 

@@ -180,6 +180,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao'])) {
                 'situacao' => $_POST['situacao'] ?? 'MATRICULADO',
                 'precisa_transporte' => isset($_POST['precisa_transporte']) ? 1 : 0,
                 'distrito_transporte' => !empty($_POST['distrito_transporte']) ? trim($_POST['distrito_transporte']) : null,
+                'localidade_transporte' => !empty($_POST['localidade_transporte']) ? trim($_POST['localidade_transporte']) : null,
                 'nome_social' => !empty($_POST['nome_social']) ? trim($_POST['nome_social']) : null,
                 'raca' => !empty($_POST['raca']) ? trim($_POST['raca']) : null,
                 'is_pcd' => isset($_POST['is_pcd']) ? 1 : 0,
@@ -222,6 +223,60 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao'])) {
             if ($result['success']) {
                 $alunoId = $result['id'] ?? null;
                 $mensagem = 'Aluno cadastrado com sucesso!';
+                
+                // Atualizar campos de transporte se necessário
+                if (isset($dados['precisa_transporte']) || isset($dados['distrito_transporte']) || isset($dados['localidade_transporte'])) {
+                    try {
+                        // Verificar se as colunas existem
+                        $stmtCheckPrecisa = $conn->query("SHOW COLUMNS FROM aluno LIKE 'precisa_transporte'");
+                        $temPrecisaTransporte = $stmtCheckPrecisa->rowCount() > 0;
+                        
+                        $stmtCheckDistrito = $conn->query("SHOW COLUMNS FROM aluno LIKE 'distrito_transporte'");
+                        $temDistritoTransporte = $stmtCheckDistrito->rowCount() > 0;
+                        
+                        $stmtCheckLocalidade = $conn->query("SHOW COLUMNS FROM aluno LIKE 'localidade_transporte'");
+                        $temLocalidadeTransporte = $stmtCheckLocalidade->rowCount() > 0;
+                        
+                        if ($temPrecisaTransporte || $temDistritoTransporte || $temLocalidadeTransporte) {
+                            $camposUpdate = [];
+                            $paramsUpdate = [':aluno_id' => $alunoId];
+                            
+                            if ($temPrecisaTransporte) {
+                                $camposUpdate[] = 'precisa_transporte = :precisa_transporte';
+                                $paramsUpdate[':precisa_transporte'] = isset($dados['precisa_transporte']) ? (int)$dados['precisa_transporte'] : 0;
+                            }
+                            
+                            // Sempre salvar distrito_transporte se a coluna existir e o valor não for vazio
+                            if ($temDistritoTransporte && isset($dados['distrito_transporte']) && trim($dados['distrito_transporte']) !== '') {
+                                $camposUpdate[] = 'distrito_transporte = :distrito_transporte';
+                                $paramsUpdate[':distrito_transporte'] = trim($dados['distrito_transporte']);
+                            } elseif ($temDistritoTransporte && isset($dados['distrito_transporte']) && trim($dados['distrito_transporte']) === '') {
+                                // Se foi enviado vazio, limpar o campo
+                                $camposUpdate[] = 'distrito_transporte = NULL';
+                            }
+                            
+                            // Sempre salvar localidade_transporte se a coluna existir e o valor não for vazio
+                            if ($temLocalidadeTransporte && isset($dados['localidade_transporte']) && trim($dados['localidade_transporte']) !== '') {
+                                $camposUpdate[] = 'localidade_transporte = :localidade_transporte';
+                                $paramsUpdate[':localidade_transporte'] = trim($dados['localidade_transporte']);
+                            } elseif ($temLocalidadeTransporte && isset($dados['localidade_transporte']) && trim($dados['localidade_transporte']) === '') {
+                                // Se foi enviado vazio, limpar o campo
+                                $camposUpdate[] = 'localidade_transporte = NULL';
+                            }
+                            
+                            if (!empty($camposUpdate)) {
+                                $sqlUpdate = "UPDATE aluno SET " . implode(', ', $camposUpdate) . " WHERE id = :aluno_id";
+                                $stmtUpdate = $conn->prepare($sqlUpdate);
+                                foreach ($paramsUpdate as $key => $value) {
+                                    $stmtUpdate->bindValue($key, $value);
+                                }
+                                $stmtUpdate->execute();
+                            }
+                        }
+                    } catch (Exception $e) {
+                        error_log("Erro ao atualizar campos de transporte: " . $e->getMessage());
+                    }
+                }
                 
                 // Verificar se deve criar responsável
                 $criarResponsavel = isset($_POST['criar_responsavel']) && $_POST['criar_responsavel'] === '1';
@@ -406,6 +461,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao'])) {
                 'ativo' => isset($_POST['ativo']) ? (int)$_POST['ativo'] : 1,
                 'precisa_transporte' => isset($_POST['precisa_transporte']) ? 1 : 0,
                 'distrito_transporte' => !empty($_POST['distrito_transporte']) ? trim($_POST['distrito_transporte']) : null,
+                'localidade_transporte' => !empty($_POST['localidade_transporte']) ? trim($_POST['localidade_transporte']) : null,
                 'nome_social' => !empty($_POST['nome_social']) ? trim($_POST['nome_social']) : null,
                 'raca' => !empty($_POST['raca']) ? trim($_POST['raca']) : null,
                 'is_pcd' => isset($_POST['is_pcd']) ? 1 : 0,
@@ -569,6 +625,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['acao'])) {
             echo json_encode(['success' => true, 'aluno' => $aluno]);
         } else {
             echo json_encode(['success' => false, 'message' => 'Aluno não encontrado']);
+        }
+        exit;
+    }
+    
+    if ($_GET['acao'] === 'buscar_localidades') {
+        $distrito = $_GET['distrito'] ?? null;
+        if (empty($distrito)) {
+            echo json_encode(['success' => false, 'message' => 'Distrito não informado']);
+            exit;
+        }
+        
+        try {
+            $sql = "SELECT DISTINCT localidade FROM distrito_localidade WHERE distrito = :distrito ORDER BY localidade ASC";
+            $stmt = $conn->prepare($sql);
+            $stmt->bindParam(':distrito', $distrito);
+            $stmt->execute();
+            $localidades = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            echo json_encode(['success' => true, 'localidades' => $localidades]);
+        } catch (Exception $e) {
+            echo json_encode(['success' => false, 'message' => 'Erro ao buscar localidades: ' . $e->getMessage()]);
         }
         exit;
     }
@@ -1058,13 +1134,29 @@ if (ob_get_level()) {
                                 <span class="text-sm font-medium text-gray-700">Aluno precisa de transporte escolar</span>
                             </label>
                         </div>
-                        <div id="container-distrito-transporte-editar" class="hidden">
-                            <label class="block text-sm font-medium text-gray-700 mb-2">Distrito de Origem</label>
-                            <div class="autocomplete-container">
-                                <input type="text" name="distrito_transporte" id="editar_distrito_transporte" 
-                                       class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" 
-                                       placeholder="Digite o distrito..." autocomplete="off">
-                                <div id="autocomplete-dropdown-transporte-editar" class="autocomplete-dropdown"></div>
+                        <div id="container-distrito-transporte-editar" class="hidden grid grid-cols-1 md:grid-cols-2 gap-4 w-full">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Distrito de Origem</label>
+                                <div class="autocomplete-container">
+                                    <input type="text" name="distrito_transporte" id="editar_distrito_transporte" 
+                                           class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" 
+                                           placeholder="Digite o distrito..." autocomplete="off"
+                                           oninput="buscarDistritosEditar(this.value)"
+                                           onchange="if(this.value) { distritoSelecionadoEditar = this.value; carregarLocalidadesEditar(this.value); }">
+                                    <div id="autocomplete-dropdown-transporte-editar" class="autocomplete-dropdown"></div>
+                                </div>
+                                <p class="text-xs text-gray-500 mt-1">Selecione o distrito onde o aluno precisa de transporte</p>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Localidade</label>
+                                <div class="autocomplete-container">
+                                    <input type="text" name="localidade_transporte" id="editar_localidade_transporte" 
+                                           class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" 
+                                           placeholder="Digite a localidade..." autocomplete="off"
+                                           oninput="buscarLocalidadesEditar(this.value)">
+                                    <div id="autocomplete-dropdown-localidade-editar" class="autocomplete-dropdown"></div>
+                                </div>
+                                <p class="text-xs text-gray-500 mt-1">Selecione a localidade do distrito selecionado</p>
                             </div>
                         </div>
                     </div>
@@ -1369,15 +1461,30 @@ if (ob_get_level()) {
                                 <span class="text-sm font-medium text-gray-700">Aluno precisa de transporte escolar</span>
                             </label>
                         </div>
-                        <div id="container-distrito-transporte" class="hidden">
-                            <label class="block text-sm font-medium text-gray-700 mb-2">Distrito de Origem *</label>
-                            <div class="autocomplete-container">
-                                <input type="text" name="distrito_transporte" id="distrito_transporte" 
-                                       class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" 
-                                       placeholder="Digite o distrito..." autocomplete="off">
-                                <div id="autocomplete-dropdown-transporte" class="autocomplete-dropdown"></div>
+                        <div id="container-distrito-transporte" class="hidden grid grid-cols-1 md:grid-cols-2 gap-4 w-full">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Distrito de Origem *</label>
+                                <div class="autocomplete-container">
+                                    <input type="text" name="distrito_transporte" id="distrito_transporte" 
+                                           class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" 
+                                           placeholder="Digite o distrito..." autocomplete="off"
+                                           oninput="buscarDistritos(this.value)"
+                                           onchange="if(this.value) { distritoSelecionado = this.value; carregarLocalidades(this.value); }">
+                                    <div id="autocomplete-dropdown-transporte" class="autocomplete-dropdown"></div>
+                                </div>
+                                <p class="text-xs text-gray-500 mt-1">Selecione o distrito onde o aluno precisa de transporte</p>
                             </div>
-                            <p class="text-xs text-gray-500 mt-1">Selecione o distrito onde o aluno precisa de transporte</p>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Localidade</label>
+                                <div class="autocomplete-container">
+                                    <input type="text" name="localidade_transporte" id="localidade_transporte" 
+                                           class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" 
+                                           placeholder="Digite a localidade..." autocomplete="off"
+                                           oninput="buscarLocalidades(this.value)">
+                                    <div id="autocomplete-dropdown-localidade" class="autocomplete-dropdown"></div>
+                                </div>
+                                <p class="text-xs text-gray-500 mt-1">Selecione a localidade do distrito selecionado</p>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -2187,6 +2294,13 @@ if (ob_get_level()) {
                 const precisaTransporte = aluno.precisa_transporte == 1 || aluno.precisa_transporte === '1';
                 document.getElementById('editar_precisa_transporte').checked = precisaTransporte;
                 document.getElementById('editar_distrito_transporte').value = aluno.distrito_transporte || '';
+                document.getElementById('editar_localidade_transporte').value = aluno.localidade_transporte || '';
+                
+                // Se tiver distrito, carregar localidades
+                if (aluno.distrito_transporte) {
+                    distritoSelecionadoEditar = aluno.distrito_transporte;
+                    carregarLocalidadesEditar(aluno.distrito_transporte);
+                }
                 toggleDistritoTransporteEditar();
                 
                 // Abrir modal
@@ -2528,6 +2642,188 @@ if (ob_get_level()) {
                 .catch(error => {
                     console.error('Erro ao filtrar alunos:', error);
                 });
+        }
+        
+        // Variáveis globais para transporte
+        let distritoSelecionado = null;
+        let localidadesDisponiveis = [];
+        let distritoSelecionadoEditar = null;
+        let localidadesDisponiveisEditar = [];
+        
+        // Funções para carregar localidades (cadastro)
+        function carregarLocalidades(distrito) {
+            if (!distrito) return;
+            
+            fetch(`?acao=buscar_localidades&distrito=${encodeURIComponent(distrito)}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success && data.localidades && data.localidades.length > 0) {
+                        localidadesDisponiveis = data.localidades;
+                        distritoSelecionado = distrito;
+                    }
+                })
+                .catch(error => {
+                    console.error('Erro ao carregar localidades:', error);
+                });
+        }
+        
+        function buscarLocalidades(query) {
+            const input = document.getElementById('localidade_transporte');
+            const dropdown = document.getElementById('autocomplete-dropdown-localidade');
+            if (!input || !dropdown || !distritoSelecionado) return;
+            
+            const queryLower = query.trim().toLowerCase();
+            
+            if (queryLower.length === 0) {
+                dropdown.classList.remove('show');
+                return;
+            }
+            
+            const filteredLocalidades = localidadesDisponiveis.filter(loc => 
+                loc.localidade.toLowerCase().includes(queryLower)
+            );
+            
+            if (filteredLocalidades.length === 0) {
+                dropdown.classList.remove('show');
+                return;
+            }
+            
+            dropdown.innerHTML = filteredLocalidades.map((loc) => `
+                <div class="autocomplete-item" onclick="selecionarLocalidade('${loc.localidade.replace(/'/g, "\\'")}')">
+                    <div>${loc.localidade}</div>
+                </div>
+            `).join('');
+            dropdown.classList.add('show');
+        }
+        
+        function selecionarLocalidade(localidade) {
+            document.getElementById('localidade_transporte').value = localidade;
+            document.getElementById('autocomplete-dropdown-localidade').classList.remove('show');
+        }
+        
+        // Funções para carregar localidades (edição)
+        function carregarLocalidadesEditar(distrito) {
+            if (!distrito) return;
+            
+            fetch(`?acao=buscar_localidades&distrito=${encodeURIComponent(distrito)}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success && data.localidades && data.localidades.length > 0) {
+                        localidadesDisponiveisEditar = data.localidades;
+                        distritoSelecionadoEditar = distrito;
+                    }
+                })
+                .catch(error => {
+                    console.error('Erro ao carregar localidades:', error);
+                });
+        }
+        
+        function buscarLocalidadesEditar(query) {
+            const input = document.getElementById('editar_localidade_transporte');
+            const dropdown = document.getElementById('autocomplete-dropdown-localidade-editar');
+            if (!input || !dropdown || !distritoSelecionadoEditar) return;
+            
+            const queryLower = query.trim().toLowerCase();
+            
+            if (queryLower.length === 0) {
+                dropdown.classList.remove('show');
+                return;
+            }
+            
+            const filteredLocalidades = localidadesDisponiveisEditar.filter(loc => 
+                loc.localidade.toLowerCase().includes(queryLower)
+            );
+            
+            if (filteredLocalidades.length === 0) {
+                dropdown.classList.remove('show');
+                return;
+            }
+            
+            dropdown.innerHTML = filteredLocalidades.map((loc) => `
+                <div class="autocomplete-item" onclick="selecionarLocalidadeEditar('${loc.localidade.replace(/'/g, "\\'")}')">
+                    <div>${loc.localidade}</div>
+                </div>
+            `).join('');
+            dropdown.classList.add('show');
+        }
+        
+        function selecionarLocalidadeEditar(localidade) {
+            document.getElementById('editar_localidade_transporte').value = localidade;
+            document.getElementById('autocomplete-dropdown-localidade-editar').classList.remove('show');
+        }
+        
+        // Função para buscar distritos (cadastro)
+        function buscarDistritos(query) {
+            const input = document.getElementById('distrito_transporte');
+            const dropdown = document.getElementById('autocomplete-dropdown-transporte');
+            if (!input || !dropdown) return;
+            
+            const queryLower = query.trim().toLowerCase();
+            
+            if (queryLower.length === 0) {
+                dropdown.classList.remove('show');
+                return;
+            }
+            
+            const filteredDistritos = distritosMaranguape.filter(distrito => 
+                distrito.toLowerCase().includes(queryLower)
+            );
+            
+            if (filteredDistritos.length === 0) {
+                dropdown.classList.remove('show');
+                return;
+            }
+            
+            dropdown.innerHTML = filteredDistritos.map((distrito) => `
+                <div class="autocomplete-item" onclick="selecionarDistrito('${distrito}')">
+                    <div>${distrito}</div>
+                </div>
+            `).join('');
+            dropdown.classList.add('show');
+        }
+        
+        function selecionarDistrito(distrito) {
+            document.getElementById('distrito_transporte').value = distrito;
+            document.getElementById('autocomplete-dropdown-transporte').classList.remove('show');
+            distritoSelecionado = distrito;
+            carregarLocalidades(distrito);
+        }
+        
+        // Função para buscar distritos (edição)
+        function buscarDistritosEditar(query) {
+            const input = document.getElementById('editar_distrito_transporte');
+            const dropdown = document.getElementById('autocomplete-dropdown-transporte-editar');
+            if (!input || !dropdown) return;
+            
+            const queryLower = query.trim().toLowerCase();
+            
+            if (queryLower.length === 0) {
+                dropdown.classList.remove('show');
+                return;
+            }
+            
+            const filteredDistritos = distritosMaranguape.filter(distrito => 
+                distrito.toLowerCase().includes(queryLower)
+            );
+            
+            if (filteredDistritos.length === 0) {
+                dropdown.classList.remove('show');
+                return;
+            }
+            
+            dropdown.innerHTML = filteredDistritos.map((distrito) => `
+                <div class="autocomplete-item" onclick="selecionarDistritoEditar('${distrito}')">
+                    <div>${distrito}</div>
+                </div>
+            `).join('');
+            dropdown.classList.add('show');
+        }
+        
+        function selecionarDistritoEditar(distrito) {
+            document.getElementById('editar_distrito_transporte').value = distrito;
+            document.getElementById('autocomplete-dropdown-transporte-editar').classList.remove('show');
+            distritoSelecionadoEditar = distrito;
+            carregarLocalidadesEditar(distrito);
         }
     </script>
 </body>

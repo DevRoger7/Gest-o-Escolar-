@@ -646,6 +646,271 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
             break;
             
+        case 'editar_aluno':
+            header('Content-Type: application/json');
+            try {
+                $alunoId = $_POST['aluno_id'] ?? null;
+                if (empty($alunoId)) {
+                    throw new Exception('ID do aluno não informado.');
+                }
+                
+                // Buscar aluno existente
+                $aluno = $alunoModel->buscarPorId($alunoId);
+                if (!$aluno) {
+                    throw new Exception('Aluno não encontrado.');
+                }
+                
+                // Preparar dados
+                $telefone = preg_replace('/[^0-9]/', '', $_POST['telefone'] ?? '');
+                $cpfAtual = preg_replace('/[^0-9]/', '', $_POST['cpf'] ?? '');
+                if (!empty($cpfAtual) && strlen($cpfAtual) !== 11) {
+                    throw new Exception('CPF inválido. Deve conter 11 dígitos.');
+                }
+                $emailAtual = !empty($_POST['email']) ? trim($_POST['email']) : '';
+                
+                // Verificar se CPF já existe em outro aluno
+                if (!empty($cpfAtual) && $cpfAtual !== $aluno['cpf']) {
+                    $conn = Database::getInstance()->getConnection();
+                    $sqlVerificarCPF = "SELECT id FROM pessoa WHERE cpf = :cpf AND id != :pessoa_id";
+                    $stmtVerificar = $conn->prepare($sqlVerificarCPF);
+                    $stmtVerificar->bindParam(':cpf', $cpfAtual);
+                    $stmtVerificar->bindParam(':pessoa_id', $aluno['pessoa_id']);
+                    $stmtVerificar->execute();
+                    if ($stmtVerificar->fetch()) {
+                        throw new Exception('CPF já cadastrado para outro aluno.');
+                    }
+                }
+                
+                if (!empty($emailAtual) && $emailAtual !== ($aluno['email'] ?? '')) {
+                    $conn = Database::getInstance()->getConnection();
+                    $sqlVerificarEmail = "SELECT id FROM pessoa WHERE email = :email AND id != :pessoa_id LIMIT 1";
+                    $stmtVerificarEmail = $conn->prepare($sqlVerificarEmail);
+                    $stmtVerificarEmail->bindParam(':email', $emailAtual);
+                    $stmtVerificarEmail->bindParam(':pessoa_id', $aluno['pessoa_id']);
+                    $stmtVerificarEmail->execute();
+                    if ($stmtVerificarEmail->fetch()) {
+                        throw new Exception('Email já cadastrado para outro usuário.');
+                    }
+                }
+                
+                $dados = [
+                    'nome' => trim($_POST['nome'] ?? ''),
+                    'data_nascimento' => $_POST['data_nascimento'] ?? null,
+                    'sexo' => $_POST['sexo'] ?? null,
+                    'email' => !empty($emailAtual) ? $emailAtual : null,
+                    'telefone' => !empty($telefone) ? $telefone : null,
+                    'matricula' => $_POST['matricula'] ?? $aluno['matricula'],
+                    'nis' => !empty($_POST['nis']) ? preg_replace('/[^0-9]/', '', trim($_POST['nis'])) : null,
+                    'data_matricula' => $_POST['data_matricula'] ?? $aluno['data_matricula'],
+                    'situacao' => $_POST['situacao'] ?? 'MATRICULADO',
+                    'ativo' => 1
+                ];
+                
+                // Validar campos obrigatórios
+                if (empty($dados['nome'])) {
+                    throw new Exception('Nome é obrigatório.');
+                }
+                if (empty($dados['data_nascimento'])) {
+                    throw new Exception('Data de nascimento é obrigatória.');
+                }
+                if (empty($dados['sexo'])) {
+                    throw new Exception('Sexo é obrigatório.');
+                }
+                
+                // Atualizar CPF se foi alterado
+                if (!empty($cpfAtual) && $cpfAtual !== $aluno['cpf']) {
+                    $conn = Database::getInstance()->getConnection();
+                    $sqlUpdateCPF = "UPDATE pessoa SET cpf = :cpf WHERE id = :pessoa_id";
+                    $stmtUpdateCPF = $conn->prepare($sqlUpdateCPF);
+                    $stmtUpdateCPF->bindParam(':cpf', $cpfAtual);
+                    $stmtUpdateCPF->bindParam(':pessoa_id', $aluno['pessoa_id']);
+                    $stmtUpdateCPF->execute();
+                }
+                
+                // Usar o model para atualizar o aluno
+                $result = $alunoModel->atualizar($alunoId, $dados);
+                
+                if ($result['success']) {
+                    echo json_encode([
+                        'success' => true,
+                        'message' => 'Aluno atualizado com sucesso!'
+                    ]);
+                } else {
+                    echo json_encode([
+                        'success' => false,
+                        'message' => $result['message'] ?? 'Erro ao atualizar aluno.'
+                    ]);
+                }
+            } catch (Exception $e) {
+                echo json_encode([
+                    'success' => false,
+                    'message' => $e->getMessage()
+                ]);
+            }
+            exit;
+            break;
+            
+        case 'cadastrar_e_matricular_aluno':
+            header('Content-Type: application/json');
+            try {
+                // Preparar dados
+                $cpf = preg_replace('/[^0-9]/', '', $_POST['cpf'] ?? '');
+                $telefone = preg_replace('/[^0-9]/', '', $_POST['telefone'] ?? '');
+                $emailInformado = !empty($_POST['email']) ? trim($_POST['email']) : '';
+                
+                // Validar CPF
+                if (empty($cpf) || strlen($cpf) !== 11) {
+                    throw new Exception('CPF inválido. Deve conter 11 dígitos.');
+                }
+                
+                // Verificar se CPF já existe
+                $stmt = $conn->prepare("SELECT id FROM pessoa WHERE cpf = :cpf");
+                $stmt->bindParam(':cpf', $cpf);
+                $stmt->execute();
+                if ($stmt->rowCount() > 0) {
+                    throw new Exception('CPF já cadastrado no sistema');
+                }
+                
+                // Verificar se email já existe
+                if (!empty($emailInformado)) {
+                    $stmtEmail = $conn->prepare("SELECT id FROM pessoa WHERE email = :email LIMIT 1");
+                    $stmtEmail->bindParam(':email', $emailInformado);
+                    $stmtEmail->execute();
+                    if ($stmtEmail->fetch()) {
+                        throw new Exception('Email já cadastrado no sistema');
+                    }
+                }
+                
+                // Gerar matrícula se não informada
+                $matricula = !empty($_POST['matricula']) ? trim($_POST['matricula']) : '';
+                if (empty($matricula)) {
+                    $ano = date('Y');
+                    $sqlMatricula = "SELECT MAX(CAST(SUBSTRING(matricula, 5) AS UNSIGNED)) as ultima_matricula 
+                                    FROM aluno 
+                                    WHERE matricula LIKE :ano_prefix";
+                    $stmtMatricula = $conn->prepare($sqlMatricula);
+                    $anoPrefix = $ano . '%';
+                    $stmtMatricula->bindParam(':ano_prefix', $anoPrefix);
+                    $stmtMatricula->execute();
+                    $result = $stmtMatricula->fetch(PDO::FETCH_ASSOC);
+                    $proximoNumero = ($result['ultima_matricula'] ?? 0) + 1;
+                    $matricula = $ano . str_pad($proximoNumero, 4, '0', STR_PAD_LEFT);
+                }
+                
+                // Preparar dados para o model
+                $dados = [
+                    'cpf' => $cpf,
+                    'nome' => trim($_POST['nome'] ?? ''),
+                    'data_nascimento' => $_POST['data_nascimento'] ?? null,
+                    'sexo' => $_POST['sexo'] ?? null,
+                    'email' => !empty($emailInformado) ? $emailInformado : null,
+                    'telefone' => !empty($telefone) ? $telefone : null,
+                    'matricula' => $matricula,
+                    'nis' => !empty($_POST['nis']) ? preg_replace('/[^0-9]/', '', trim($_POST['nis'])) : null,
+                    'escola_id' => $_POST['escola_id'] ?? null,
+                    'data_matricula' => $_POST['data_matricula'] ?? date('Y-m-d'),
+                    'situacao' => 'MATRICULADO',
+                    'precisa_transporte' => isset($_POST['precisa_transporte']) ? 1 : 0,
+                    'distrito_transporte' => !empty($_POST['distrito_transporte']) ? trim($_POST['distrito_transporte']) : null,
+                ];
+                
+                // Validar campos obrigatórios
+                if (empty($dados['nome'])) {
+                    throw new Exception('Nome é obrigatório.');
+                }
+                if (empty($dados['data_nascimento'])) {
+                    throw new Exception('Data de nascimento é obrigatória.');
+                }
+                if (empty($dados['sexo'])) {
+                    throw new Exception('Sexo é obrigatório.');
+                }
+                if (empty($dados['escola_id'])) {
+                    throw new Exception('Escola é obrigatória.');
+                }
+                
+                // Usar o model para criar o aluno
+                $result = $alunoModel->criar($dados);
+                
+                if ($result['success']) {
+                    $alunoId = $result['id'] ?? null;
+                    $mensagem = 'Aluno cadastrado com sucesso!';
+                    
+                    // Matricular em turma se informada
+                    $turmaId = !empty($_POST['turma_id']) ? $_POST['turma_id'] : null;
+                    if ($turmaId && $alunoId) {
+                        $resultadoMatricula = $alunoModel->matricularEmTurma($alunoId, $turmaId, $dados['data_matricula']);
+                        if ($resultadoMatricula) {
+                            $mensagem .= ' Aluno matriculado na turma com sucesso!';
+                        }
+                    }
+                    
+                    // Cadastrar responsável se informado
+                    $criarResponsavel = !empty($_POST['responsavel_nome']) && !empty($_POST['responsavel_cpf']);
+                    if ($criarResponsavel && $alunoId) {
+                        $responsavelCpf = preg_replace('/[^0-9]/', '', $_POST['responsavel_cpf'] ?? '');
+                        $responsavelTelefone = preg_replace('/[^0-9]/', '', $_POST['responsavel_telefone'] ?? '');
+                        $responsavelEmail = !empty($_POST['responsavel_email']) ? trim($_POST['responsavel_email']) : '';
+                        
+                        if (strlen($responsavelCpf) !== 11) {
+                            throw new Exception('CPF do responsável inválido. Deve conter 11 dígitos.');
+                        }
+                        
+                        if (empty($_POST['responsavel_nome'])) {
+                            throw new Exception('Nome do responsável é obrigatório.');
+                        }
+                        
+                        $dadosResponsavel = [
+                            'cpf' => $responsavelCpf,
+                            'nome' => trim($_POST['responsavel_nome']),
+                            'email' => !empty($responsavelEmail) ? $responsavelEmail : null,
+                            'telefone' => !empty($responsavelTelefone) ? $responsavelTelefone : null,
+                        ];
+                        
+                        $resultadoResponsavel = $responsavelModel->criar($dadosResponsavel);
+                        
+                        if ($resultadoResponsavel['success']) {
+                            $responsavelPessoaId = $resultadoResponsavel['pessoa_id'] ?? null;
+                            
+                            if ($responsavelPessoaId) {
+                                // Atualizar o responsavel_id na tabela aluno
+                                $sqlAtualizarResponsavel = "UPDATE aluno SET responsavel_id = :responsavel_id WHERE id = :aluno_id";
+                                $stmtAtualizarResp = $conn->prepare($sqlAtualizarResponsavel);
+                                $stmtAtualizarResp->bindParam(':responsavel_id', $responsavelPessoaId);
+                                $stmtAtualizarResp->bindParam(':aluno_id', $alunoId);
+                                $stmtAtualizarResp->execute();
+                                
+                                // Associar responsável ao aluno
+                                $parentesco = 'OUTRO';
+                                $associacao = $responsavelModel->associarAlunos($responsavelPessoaId, [$alunoId], $parentesco);
+                                
+                                if ($associacao['success']) {
+                                    $mensagem .= ' Responsável cadastrado e associado com sucesso!';
+                                }
+                            }
+                        }
+                    }
+                    
+                    echo json_encode([
+                        'success' => true,
+                        'message' => $mensagem,
+                        'id' => $alunoId,
+                        'matricula' => $matricula
+                    ]);
+                } else {
+                    echo json_encode([
+                        'success' => false,
+                        'message' => $result['message'] ?? 'Erro ao cadastrar aluno.'
+                    ]);
+                }
+            } catch (Exception $e) {
+                echo json_encode([
+                    'success' => false,
+                    'message' => $e->getMessage()
+                ]);
+            }
+            exit;
+            break;
+            
         case 'atribuir_professor':
             $turmaId = $_POST['turma_id'] ?? null;
             $professorId = $_POST['professor_id'] ?? null;
@@ -1909,6 +2174,50 @@ if (!empty($_GET['acao']) && $_GET['acao'] === 'listar_responsaveis') {
     exit;
 }
 
+// Listar alunos da escola
+if (!empty($_GET['acao']) && $_GET['acao'] === 'listar_alunos_escola') {
+    header('Content-Type: application/json');
+    try {
+        $escolaId = $escolaGestorId ?? null;
+        if (!$escolaId) {
+            throw new Exception('Escola não identificada');
+        }
+        
+        $filtros = [
+            'escola_id' => $escolaId,
+            'busca' => $_GET['busca'] ?? '',
+            'situacao' => $_GET['situacao'] ?? '',
+            'ativo' => 1
+        ];
+        
+        $alunos = $alunoModel->listar($filtros);
+        
+        // Buscar turma atual de cada aluno
+        $conn = Database::getInstance()->getConnection();
+        foreach ($alunos as &$aluno) {
+            $sqlTurma = "SELECT t.id, CONCAT(t.serie, ' ', t.letra, ' - ', t.turno) as turma_nome
+                        FROM aluno_turma at
+                        INNER JOIN turma t ON at.turma_id = t.id
+                        WHERE at.aluno_id = :aluno_id 
+                        AND (at.fim IS NULL OR at.fim = '' OR at.fim = '0000-00-00')
+                        AND t.ativo = 1
+                        ORDER BY at.inicio DESC
+                        LIMIT 1";
+            $stmtTurma = $conn->prepare($sqlTurma);
+            $stmtTurma->bindParam(':aluno_id', $aluno['id']);
+            $stmtTurma->execute();
+            $turma = $stmtTurma->fetch(PDO::FETCH_ASSOC);
+            $aluno['turma_nome'] = $turma['turma_nome'] ?? 'Sem turma';
+        }
+        
+        echo json_encode(['success' => true, 'alunos' => $alunos]);
+    } catch (Exception $e) {
+        echo json_encode(['success' => false, 'message' => $e->getMessage()]);
+    }
+    exit;
+}
+
+// Buscar dados de um aluno para edição
 if (!empty($_GET['acao']) && $_GET['acao'] === 'buscar_alunos' && !empty($_GET['busca'])) {
     header('Content-Type: application/json');
     try {
@@ -2288,6 +2597,9 @@ if (!defined('BASE_URL')) {
                 <button onclick="mostrarAba('cadastros')" id="tab-cadastros" class="tab-button py-4 px-1 border-b-2 border-transparent font-medium text-sm text-gray-500 hover:text-gray-700 hover:border-gray-300">
                     Cadastros
                 </button>
+                <button onclick="mostrarAba('alunos')" id="tab-alunos" class="tab-button py-4 px-1 border-b-2 border-transparent font-medium text-sm text-gray-500 hover:text-gray-700 hover:border-gray-300">
+                    Alunos
+                </button>
                 <button onclick="mostrarAba('responsaveis')" id="tab-responsaveis" class="tab-button py-4 px-1 border-b-2 border-transparent font-medium text-sm text-gray-500 hover:text-gray-700 hover:border-gray-300">
                     Responsáveis
                 </button>
@@ -2397,9 +2709,14 @@ if (!defined('BASE_URL')) {
             <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
                 <div class="flex justify-between items-center mb-6">
                     <h2 class="text-xl font-bold text-gray-800">Matrícula e Alocação de Alunos</h2>
-                    <button onclick="abrirModalMatricularAluno()" class="bg-primary-green text-white px-4 py-2 rounded-lg hover:bg-secondary-green transition-colors">
-                        + Matricular Aluno
-                    </button>
+                    <div class="flex space-x-3">
+                        <button onclick="window.location.href='matricular_aluno_escola.php'" class="bg-primary-green text-white px-4 py-2 rounded-lg hover:bg-secondary-green transition-colors">
+                            + Matricular Aluno
+                        </button>
+                        <button onclick="abrirModalAlocarAluno()" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors">
+                            + Alocar Aluno
+                        </button>
+                    </div>
                 </div>
 
                 <!-- Lista de Alunos -->
@@ -2443,7 +2760,7 @@ if (!defined('BASE_URL')) {
                                             ?>
                                         </td>
                                         <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                                            <button onclick="matricularAluno(<?= $aluno['id'] ?>)" class="text-primary-green hover:text-secondary-green mr-3">Matricular</button>
+                                            <button onclick="matricularAluno(<?= $aluno['id'] ?>)" class="text-primary-green hover:text-secondary-green mr-3">Alocar</button>
                                             <button onclick="transferirAluno(<?= $aluno['id'] ?>)" class="text-blue-600 hover:text-blue-800">Transferir</button>
                                         </td>
                                     </tr>
@@ -3043,6 +3360,62 @@ if (!defined('BASE_URL')) {
                         <tbody id="lista-responsaveis" class="bg-white divide-y divide-gray-200">
                             <tr>
                                 <td colspan="6" class="px-6 py-4 text-center text-gray-500">Carregando...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- ABA: ALUNOS -->
+        <div id="conteudo-alunos" class="aba-conteudo hidden">
+            <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+                <div class="flex justify-between items-center mb-6">
+                    <h2 class="text-xl font-bold text-gray-800">Gerenciamento de Alunos</h2>
+                </div>
+
+                <!-- Filtros -->
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Buscar</label>
+                        <input type="text" id="busca-aluno" placeholder="Nome, CPF ou Matrícula..." 
+                               class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-green focus:border-transparent"
+                               onkeyup="filtrarAlunos()">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Situação</label>
+                        <select id="filtro-situacao-aluno" onchange="filtrarAlunos()" 
+                                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-green focus:border-transparent">
+                            <option value="">Todas</option>
+                            <option value="MATRICULADO">Matriculado</option>
+                            <option value="TRANSFERIDO">Transferido</option>
+                            <option value="EVADIDO">Evadido</option>
+                            <option value="FORMADO">Formado</option>
+                        </select>
+                    </div>
+                    <div class="flex items-end">
+                        <button onclick="filtrarAlunos()" class="w-full bg-primary-green text-white px-4 py-2 rounded-lg hover:bg-secondary-green transition-colors">
+                            Filtrar
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Lista de Alunos -->
+                <div class="overflow-x-auto">
+                    <table class="min-w-full divide-y divide-gray-200">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Nome</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">CPF</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Matrícula</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Turma</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Situação</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tabela-alunos" class="bg-white divide-y divide-gray-200">
+                            <tr>
+                                <td colspan="6" class="px-6 py-4 text-center text-gray-500">Carregando alunos...</td>
                             </tr>
                         </tbody>
                     </table>
@@ -3785,14 +4158,14 @@ if (!defined('BASE_URL')) {
         </div>
     </div>
 
-    <!-- Modal Matricular Aluno -->
+    <!-- Modal Alocar Aluno -->
     <div id="modal-matricular-aluno" class="hidden fixed inset-0 bg-white overflow-y-auto h-full w-full z-50">
         <div class="w-full h-full flex flex-col">
             <!-- Header -->
             <div class="flex justify-between items-center p-6 border-b border-gray-200 bg-primary-green text-white sticky top-0 z-10 shadow-md">
                 <div>
-                    <h3 class="text-2xl font-bold">Matricular Aluno</h3>
-                    <p class="text-green-100 text-sm mt-1">Selecione o aluno e a turma para realizar a matrícula</p>
+                    <h3 class="text-2xl font-bold">Alocar Aluno</h3>
+                    <p class="text-green-100 text-sm mt-1">Selecione o aluno e a turma para realizar a alocação</p>
                 </div>
                 <button onclick="fecharModalMatricularAluno()" class="text-white hover:text-gray-200 transition-colors p-2 hover:bg-green-700 rounded-lg">
                     <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -4565,6 +4938,8 @@ if (!defined('BASE_URL')) {
             </div>
         </div>
 
+
+
     </div>
 
     <script>
@@ -4590,8 +4965,93 @@ if (!defined('BASE_URL')) {
             // Carregar dados específicos da aba
             if (aba === 'responsaveis') {
                 carregarResponsaveis();
+            } else if (aba === 'alunos') {
+                carregarAlunos();
             }
         }
+        
+        // Funções para gerenciar alunos
+        function carregarAlunos() {
+            const busca = document.getElementById('busca-aluno')?.value || '';
+            const situacao = document.getElementById('filtro-situacao-aluno')?.value || '';
+            
+            const params = new URLSearchParams({
+                acao: 'listar_alunos_escola',
+                busca: busca,
+                situacao: situacao
+            });
+            
+            fetch(`?${params.toString()}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        renderizarAlunos(data.alunos);
+                    } else {
+                        document.getElementById('tabela-alunos').innerHTML = 
+                            `<tr><td colspan="6" class="px-6 py-4 text-center text-red-500">${data.message || 'Erro ao carregar alunos'}</td></tr>`;
+                    }
+                })
+                .catch(error => {
+                    console.error('Erro:', error);
+                    document.getElementById('tabela-alunos').innerHTML = 
+                        '<tr><td colspan="6" class="px-6 py-4 text-center text-red-500">Erro ao carregar alunos</td></tr>';
+                });
+        }
+        
+        function renderizarAlunos(alunos) {
+            const tbody = document.getElementById('tabela-alunos');
+            
+            if (!alunos || alunos.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="6" class="px-6 py-4 text-center text-gray-500">Nenhum aluno encontrado</td></tr>';
+                return;
+            }
+            
+            tbody.innerHTML = alunos.map(aluno => `
+                <tr class="hover:bg-gray-50">
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <div class="text-sm font-medium text-gray-900">${aluno.nome || ''}</div>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        ${formatarCPF(aluno.cpf || '')}
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        ${aluno.matricula || '-'}
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        ${aluno.turma_nome || 'Sem turma'}
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                            aluno.situacao === 'MATRICULADO' ? 'bg-green-100 text-green-800' :
+                            aluno.situacao === 'TRANSFERIDO' ? 'bg-yellow-100 text-yellow-800' :
+                            aluno.situacao === 'EVADIDO' ? 'bg-red-100 text-red-800' :
+                            'bg-gray-100 text-gray-800'
+                        }">
+                            ${aluno.situacao || 'N/A'}
+                        </span>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                        <a href="editar_aluno_escola.php?aluno_id=${aluno.id}" 
+                           class="text-primary-green hover:text-secondary-green mr-3 cursor-pointer">
+                            Editar
+                        </a>
+                    </td>
+                </tr>
+            `).join('');
+            
+        }
+        
+        function filtrarAlunos() {
+            carregarAlunos();
+        }
+        
+        function formatarCPF(cpf) {
+            if (!cpf) return '-';
+            const cpfLimpo = cpf.replace(/\D/g, '');
+            if (cpfLimpo.length !== 11) return cpf;
+            return cpfLimpo.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4');
+        }
+        
 
         // Função para mostrar notificação de sucesso
         function mostrarNotificacaoSucesso(mensagem) {
@@ -5082,8 +5542,8 @@ if (!defined('BASE_URL')) {
             document.getElementById('modal-editar-turma').classList.add('hidden');
         }
 
-        // Modal Matricular Aluno
-        function abrirModalMatricularAluno() {
+        // Modal Alocar Aluno (matricular aluno existente em turma)
+        function abrirModalAlocarAluno() {
             document.getElementById('modal-matricular-aluno').classList.remove('hidden');
             document.getElementById('form-matricular-aluno').reset();
             document.getElementById('matricular-aluno-id').value = '';
@@ -5096,6 +5556,7 @@ if (!defined('BASE_URL')) {
             document.getElementById('matricular-aluno-id').value = '';
             document.getElementById('resultados-busca-aluno').classList.add('hidden');
         }
+        
 
         function selecionarAlunoParaMatricula(alunoId, nome, cpf, matricula) {
             document.getElementById('matricular-aluno-id').value = alunoId;
@@ -5193,7 +5654,7 @@ if (!defined('BASE_URL')) {
                             aluno.cpf || '',
                             aluno.matricula || ''
                         );
-                        abrirModalMatricularAluno();
+                        abrirModalAlocarAluno();
                     } else {
                         alert('Erro ao carregar dados do aluno.');
                     }

@@ -20,6 +20,30 @@ $db = Database::getInstance();
 $conn = $db->getConnection();
 $usuarioId = $_SESSION['usuario_id'] ?? null;
 
+// Processar requisições GET para buscar localidades
+if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['acao']) && $_GET['acao'] === 'buscar_localidades') {
+    header('Content-Type: application/json; charset=utf-8');
+    ob_clean();
+    
+    $distrito = $_GET['distrito'] ?? null;
+    if (empty($distrito)) {
+        echo json_encode(['success' => false, 'message' => 'Distrito não informado']);
+        exit;
+    }
+    
+    try {
+        $sql = "SELECT DISTINCT localidade FROM distrito_localidade WHERE distrito = :distrito ORDER BY localidade ASC";
+        $stmt = $conn->prepare($sql);
+        $stmt->bindParam(':distrito', $distrito);
+        $stmt->execute();
+        $localidades = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        echo json_encode(['success' => true, 'localidades' => $localidades]);
+    } catch (Exception $e) {
+        echo json_encode(['success' => false, 'message' => 'Erro ao buscar localidades: ' . $e->getMessage()]);
+    }
+    exit;
+}
+
 // Processar ações AJAX
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao'])) {
     header('Content-Type: application/json; charset=utf-8');
@@ -38,24 +62,38 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao'])) {
             // Verificar se as colunas de transporte existem
             $colunaPrecisaExiste = false;
             $colunaDistritoExiste = false;
+            $colunaLocalidadeExiste = false;
             try {
                 $checkColPrecisa = $conn->query("SHOW COLUMNS FROM aluno LIKE 'precisa_transporte'");
                 $colunaPrecisaExiste = $checkColPrecisa->rowCount() > 0;
                 
                 $checkColDistrito = $conn->query("SHOW COLUMNS FROM aluno LIKE 'distrito_transporte'");
                 $colunaDistritoExiste = $checkColDistrito->rowCount() > 0;
+                
+                $checkColLocalidade = $conn->query("SHOW COLUMNS FROM aluno LIKE 'localidade_transporte'");
+                $colunaLocalidadeExiste = $checkColLocalidade->rowCount() > 0;
             } catch (Exception $e) {
                 $colunaPrecisaExiste = false;
                 $colunaDistritoExiste = false;
+                $colunaLocalidadeExiste = false;
             }
             
+            // Query corrigida: distrito e localidade sempre vêm da tabela aluno, nunca misturados
             $sql = "SELECT a.id, a.matricula, " . 
                    ($colunaPrecisaExiste ? "a.precisa_transporte, " : "1 as precisa_transporte, ") . 
-                   ($colunaDistritoExiste ? "a.distrito_transporte" : "NULL as distrito_transporte") . ",
+                   // DISTRITO: SEMPRE da coluna distrito_transporte da tabela aluno
+                   ($colunaDistritoExiste ? 
+                       "IFNULL(NULLIF(TRIM(a.distrito_transporte), ''), '-') as distrito_transporte" : 
+                       "'-' as distrito_transporte"
+                   ) . ", " .
+                   // LOCALIDADE: SEMPRE da coluna localidade_transporte da tabela aluno (NUNCA do distrito)
+                   ($colunaLocalidadeExiste ? 
+                       "IFNULL(NULLIF(TRIM(a.localidade_transporte), ''), COALESCE(NULLIF(TRIM(ga.bairro), ''), NULLIF(TRIM(ga.endereco), ''), NULLIF(TRIM(p.bairro), ''), '-')) as localidade" : 
+                       "COALESCE(NULLIF(TRIM(ga.bairro), ''), NULLIF(TRIM(ga.endereco), ''), NULLIF(TRIM(p.bairro), ''), '-') as localidade"
+                   ) . ",
                            p.nome, p.cpf, p.email, p.telefone,
                            e.nome as escola_nome, e.id as escola_id,
                            CONCAT(t.serie, ' ', t.letra, ' - ', t.turno) as turma_nome,
-                           COALESCE(ga.bairro, ga.endereco, p.bairro, 'Não informado') as localidade,
                            ga.latitude, ga.longitude,
                            CASE WHEN ar.id IS NOT NULL THEN 1 ELSE 0 END as ja_lotado,
                            r.nome as rota_nome
@@ -95,7 +133,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao'])) {
             }
             
             if (!empty($localidade)) {
-                $sql .= " AND (COALESCE(ga.bairro, ga.endereco, p.bairro) LIKE :localidade)";
+                if ($colunaLocalidadeExiste) {
+                    $sql .= " AND (a.localidade_transporte LIKE :localidade OR COALESCE(ga.bairro, ga.endereco, p.bairro) LIKE :localidade)";
+                } else {
+                    $sql .= " AND (COALESCE(ga.bairro, ga.endereco, p.bairro) LIKE :localidade)";
+                }
                 $params[':localidade'] = "%{$localidade}%";
             }
             
@@ -169,11 +211,29 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao'])) {
                 $colunaDistritoExiste = false;
             }
             
+            // Verificar se coluna localidade_transporte existe
+            $colunaLocalidadeExiste = false;
+            try {
+                $checkColLocalidade = $conn->query("SHOW COLUMNS FROM aluno LIKE 'localidade_transporte'");
+                $colunaLocalidadeExiste = $checkColLocalidade->rowCount() > 0;
+            } catch (Exception $e) {
+                $colunaLocalidadeExiste = false;
+            }
+            
             // Buscar alunos do distrito/localidade que ainda não estão lotados
-            $sql = "SELECT a.id, a.matricula, " . ($colunaDistritoExiste ? "a.distrito_transporte" : "NULL as distrito_transporte") . ",
+            $sql = "SELECT a.id, a.matricula, " . 
+                   // DISTRITO: SEMPRE da coluna distrito_transporte da tabela aluno
+                   ($colunaDistritoExiste ? 
+                       "IFNULL(NULLIF(TRIM(a.distrito_transporte), ''), '-') as distrito_transporte" : 
+                       "'-' as distrito_transporte"
+                   ) . ", " .
+                   // LOCALIDADE: SEMPRE da coluna localidade_transporte da tabela aluno (NUNCA do distrito)
+                   ($colunaLocalidadeExiste ? 
+                       "IFNULL(NULLIF(TRIM(a.localidade_transporte), ''), COALESCE(NULLIF(TRIM(ga.bairro), ''), NULLIF(TRIM(ga.endereco), ''), NULLIF(TRIM(p.bairro), ''), '-')) as localidade" : 
+                       "COALESCE(NULLIF(TRIM(ga.bairro), ''), NULLIF(TRIM(ga.endereco), ''), NULLIF(TRIM(p.bairro), ''), '-') as localidade"
+                   ) . ",
                            p.nome, p.cpf,
                            e.nome as escola_nome,
-                           COALESCE(ga.bairro, ga.endereco, p.bairro, 'Não informado') as localidade,
                            ga.latitude, ga.longitude
                     FROM aluno a
                     INNER JOIN pessoa p ON a.pessoa_id = p.id
@@ -199,7 +259,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao'])) {
             }
             
             if (!empty($localidade)) {
-                $sql .= " AND (COALESCE(ga.bairro, ga.endereco, p.bairro) LIKE :localidade)";
+                if ($colunaLocalidadeExiste) {
+                    $sql .= " AND (a.localidade_transporte LIKE :localidade OR COALESCE(ga.bairro, ga.endereco, p.bairro) LIKE :localidade)";
+                } else {
+                    $sql .= " AND (COALESCE(ga.bairro, ga.endereco, p.bairro) LIKE :localidade)";
+                }
                 $params[':localidade'] = "%{$localidade}%";
             }
             
@@ -972,8 +1036,15 @@ try {
                         </div>
                         <div>
                             <label class="block text-xs md:text-sm font-medium text-gray-700 mb-1.5">Localidade (opcional)</label>
-                            <input type="text" id="sugestao-localidade" placeholder="Nome da localidade/bairro..." 
-                                   class="w-full px-3 md:px-4 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-green focus:border-transparent transition-all">
+                            <div class="autocomplete-container">
+                                <input type="text" id="sugestao-localidade" placeholder="Digite a localidade..." 
+                                       class="w-full px-3 md:px-4 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-green focus:border-transparent transition-all" 
+                                       autocomplete="off"
+                                       oninput="buscarLocalidadesSugestao(this.value)"
+                                       disabled>
+                                <div id="autocomplete-dropdown-sugestao-localidade" class="autocomplete-dropdown"></div>
+                            </div>
+                            <p class="text-xs text-gray-500 mt-1">Selecione primeiro um distrito para habilitar</p>
                         </div>
                     </div>
                     
@@ -1122,7 +1193,7 @@ try {
                     </div>
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-1.5">CPF *</label>
-                        <input type="text" name="cpf" required class="w-full px-3 md:px-4 py-2.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-green focus:border-transparent transition-all" placeholder="000.000.000-00">
+                        <input type="text" name="cpf" id="cpf-criar-usuario" required class="w-full px-3 md:px-4 py-2.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-green focus:border-transparent transition-all" placeholder="000.000.000-00" maxlength="14" oninput="formatarCPF(this)">
                     </div>
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-1.5">Email *</label>
@@ -1130,11 +1201,16 @@ try {
                     </div>
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-1.5">Telefone</label>
-                        <input type="text" name="telefone" class="w-full px-3 md:px-4 py-2.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-green focus:border-transparent transition-all" placeholder="(85) 99999-9999">
+                        <input type="text" name="telefone" id="telefone-criar-usuario" class="w-full px-3 md:px-4 py-2.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-green focus:border-transparent transition-all" placeholder="(85) 99999-9999" maxlength="15" oninput="formatarTelefone(this)">
                     </div>
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-1.5">Senha *</label>
-                        <input type="password" name="senha" required class="w-full px-3 md:px-4 py-2.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-green focus:border-transparent transition-all">
+                        <div class="relative">
+                            <input type="password" name="senha" id="senha-criar-usuario" required class="w-full px-3 md:px-4 py-2.5 pr-10 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-green focus:border-transparent transition-all">
+                            <button type="button" onclick="toggleSenha('senha-criar-usuario', 'toggle-senha-criar-usuario')" class="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors">
+                                <i id="toggle-senha-criar-usuario" class="fas fa-eye"></i>
+                            </button>
+                        </div>
                     </div>
                 </div>
                 <div class="mt-6 flex flex-col sm:flex-row justify-end gap-3">
@@ -1182,6 +1258,45 @@ try {
             }
         }
 
+        // Funções de formatação
+        function formatarCPF(input) {
+            let valor = input.value.replace(/\D/g, '');
+            if (valor.length <= 11) {
+                valor = valor.replace(/(\d{3})(\d)/, '$1.$2');
+                valor = valor.replace(/(\d{3})(\d)/, '$1.$2');
+                valor = valor.replace(/(\d{3})(\d{1,2})$/, '$1-$2');
+                input.value = valor;
+            }
+        }
+        
+        function formatarTelefone(input) {
+            let valor = input.value.replace(/\D/g, '');
+            if (valor.length <= 11) {
+                if (valor.length <= 10) {
+                    valor = valor.replace(/(\d{2})(\d)/, '($1) $2');
+                    valor = valor.replace(/(\d{4})(\d)/, '$1-$2');
+                } else {
+                    valor = valor.replace(/(\d{2})(\d)/, '($1) $2');
+                    valor = valor.replace(/(\d{5})(\d)/, '$1-$2');
+                }
+                input.value = valor;
+            }
+        }
+        
+        function toggleSenha(inputId, iconId) {
+            const input = document.getElementById(inputId);
+            const icon = document.getElementById(iconId);
+            if (input.type === 'password') {
+                input.type = 'text';
+                icon.classList.remove('fa-eye');
+                icon.classList.add('fa-eye-slash');
+            } else {
+                input.type = 'password';
+                icon.classList.remove('fa-eye-slash');
+                icon.classList.add('fa-eye');
+            }
+        }
+        
         // Modais
         function abrirModalCriarUsuario(tipo) {
             tipoUsuarioAtual = tipo;
@@ -1189,6 +1304,21 @@ try {
             const titulo = tipo === 'ADM_TRANSPORTE' ? 'Criar Administrador de Transporte' : 'Criar Usuário Transporte Aluno';
             document.getElementById('modalTituloUsuario').textContent = titulo;
             document.getElementById('modalCriarUsuario').classList.remove('hidden');
+            // Resetar campos e formatações
+            const form = document.getElementById('formCriarUsuario');
+            if (form) {
+                form.reset();
+                // Resetar ícone de senha
+                const senhaIcon = document.getElementById('toggle-senha-criar-usuario');
+                if (senhaIcon) {
+                    const senhaInput = document.getElementById('senha-criar-usuario');
+                    if (senhaInput) {
+                        senhaInput.type = 'password';
+                        senhaIcon.classList.remove('fa-eye-slash');
+                        senhaIcon.classList.add('fa-eye');
+                    }
+                }
+            }
         }
 
         function fecharModalCriarUsuario() {
@@ -1200,6 +1330,16 @@ try {
             if (form) {
                 form.reset();
                 tipoUsuarioAtual = null;
+                // Resetar ícone de senha
+                const senhaIcon = document.getElementById('toggle-senha-criar-usuario');
+                if (senhaIcon) {
+                    const senhaInput = document.getElementById('senha-criar-usuario');
+                    if (senhaInput) {
+                        senhaInput.type = 'password';
+                        senhaIcon.classList.remove('fa-eye-slash');
+                        senhaIcon.classList.add('fa-eye');
+                    }
+                }
             }
         }
         
@@ -1211,6 +1351,17 @@ try {
             const formData = new FormData(e.target);
             const tipo = tipoUsuarioAtual;
             const acao = tipo === 'ADM_TRANSPORTE' ? 'criar_usuario_adm_transporte' : 'criar_usuario_transporte_aluno';
+            
+            // Remover formatação do CPF e Telefone antes de enviar
+            const cpfInput = document.getElementById('cpf-criar-usuario');
+            const telefoneInput = document.getElementById('telefone-criar-usuario');
+            if (cpfInput) {
+                formData.set('cpf', cpfInput.value.replace(/\D/g, ''));
+            }
+            if (telefoneInput && telefoneInput.value) {
+                formData.set('telefone', telefoneInput.value.replace(/\D/g, ''));
+            }
+            
             formData.append('acao', acao);
             
             const submitBtn = e.target.querySelector('button[type="submit"]');
@@ -1435,6 +1586,15 @@ try {
                 document.getElementById('sugestao-distrito-value').value = distrito;
                 inputSugestaoDistrito.value = distrito;
                 dropdownSugestaoDistrito.classList.remove('show');
+                
+                // Habilitar campo de localidade e carregar localidades do distrito
+                const inputLocalidade = document.getElementById('sugestao-localidade');
+                if (inputLocalidade) {
+                    inputLocalidade.disabled = false;
+                    inputLocalidade.placeholder = 'Digite a localidade...';
+                    inputLocalidade.value = ''; // Limpar valor anterior
+                    carregarLocalidadesSugestao(distrito);
+                }
             };
         }
 
@@ -1494,12 +1654,17 @@ try {
                     
                     // Desktop table view
                     if (tbody) {
-                        tbody.innerHTML = data.dados.map(a => `
+                        tbody.innerHTML = data.dados.map(a => {
+                            // Garantir que distrito e localidade estão corretos
+                            const distrito = (a.distrito_transporte && a.distrito_transporte !== '-' && a.distrito_transporte !== null && a.distrito_transporte !== '') ? a.distrito_transporte : '-';
+                            const localidade = (a.localidade && a.localidade !== '-' && a.localidade !== null && a.localidade !== '') ? a.localidade : '-';
+                            
+                            return `
                             <tr class="table-row">
                                 <td class="px-4 md:px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${escapeHtml(a.nome)}</td>
                                 <td class="px-4 md:px-6 py-4 whitespace-nowrap text-sm text-gray-500">${escapeHtml(a.escola_nome)}</td>
-                                <td class="px-4 md:px-6 py-4 whitespace-nowrap text-sm text-gray-500">${escapeHtml(a.distrito_transporte)}</td>
-                                <td class="px-4 md:px-6 py-4 whitespace-nowrap text-sm text-gray-500">${escapeHtml(a.localidade)}</td>
+                                <td class="px-4 md:px-6 py-4 whitespace-nowrap text-sm text-gray-500">${escapeHtml(distrito)}</td>
+                                <td class="px-4 md:px-6 py-4 whitespace-nowrap text-sm text-gray-500">${escapeHtml(localidade)}</td>
                                 <td class="px-4 md:px-6 py-4 whitespace-nowrap">
                                     ${a.ja_lotado == 1 ? `
                                         <span class="px-2 py-1 text-xs rounded-full bg-blue-100 text-blue-800" title="Rota: ${escapeHtml(a.rota_nome || 'N/A')}">
@@ -1512,12 +1677,18 @@ try {
                                     `}
                                 </td>
                             </tr>
-                        `).join('');
+                            `;
+                        }).join('');
                     }
                     
                     // Mobile card view
                     if (mobileContainer) {
-                        mobileContainer.innerHTML = data.dados.map(a => `
+                        mobileContainer.innerHTML = data.dados.map(a => {
+                            // Garantir que distrito e localidade estão corretos
+                            const distrito = (a.distrito_transporte && a.distrito_transporte !== '-' && a.distrito_transporte !== null && a.distrito_transporte !== '') ? a.distrito_transporte : '-';
+                            const localidade = (a.localidade && a.localidade !== '-' && a.localidade !== null && a.localidade !== '') ? a.localidade : '-';
+                            
+                            return `
                             <div class="mobile-card">
                                 <div class="mobile-card-header">
                                     <div class="flex-1 min-w-0">
@@ -1537,15 +1708,16 @@ try {
                                 <div class="mobile-card-body">
                                     <div class="mobile-card-row">
                                         <span class="mobile-card-label"><i class="fas fa-map-marker-alt mr-1"></i>Distrito</span>
-                                        <span class="mobile-card-value">${escapeHtml(a.distrito_transporte)}</span>
+                                        <span class="mobile-card-value">${escapeHtml(distrito)}</span>
                                     </div>
                                     <div class="mobile-card-row">
                                         <span class="mobile-card-label"><i class="fas fa-home mr-1"></i>Localidade</span>
-                                        <span class="mobile-card-value">${escapeHtml(a.localidade)}</span>
+                                        <span class="mobile-card-value">${escapeHtml(localidade)}</span>
                                     </div>
                                 </div>
                             </div>
-                        `).join('');
+                            `;
+                        }).join('');
                     }
                 } else {
                     throw new Error(data.mensagem || 'Erro ao carregar alunos');
@@ -1917,6 +2089,82 @@ try {
         document.getElementById('buscar-aluno-transporte')?.addEventListener('input', debounce(carregarAlunosTransporte, 500));
         document.getElementById('buscar-motorista-transporte')?.addEventListener('input', debounce(carregarMotoristasTransporte, 500));
         document.getElementById('buscar-usuario-transporte')?.addEventListener('input', debounce(carregarUsuariosTransporte, 500));
+
+        // Variáveis globais para sugestão de lotação
+        let distritoSugestaoSelecionado = null;
+        let localidadesSugestaoDisponiveis = [];
+        
+        // Funções para carregar localidades na sugestão de lotação
+        function carregarLocalidadesSugestao(distrito) {
+            if (!distrito) {
+                const inputLocalidade = document.getElementById('sugestao-localidade');
+                if (inputLocalidade) {
+                    inputLocalidade.disabled = true;
+                    inputLocalidade.value = '';
+                    inputLocalidade.placeholder = 'Selecione primeiro um distrito';
+                }
+                return;
+            }
+            
+            fetch(`?acao=buscar_localidades&distrito=${encodeURIComponent(distrito)}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success && data.localidades && data.localidades.length > 0) {
+                        localidadesSugestaoDisponiveis = data.localidades;
+                        distritoSugestaoSelecionado = distrito;
+                    } else {
+                        localidadesSugestaoDisponiveis = [];
+                        distritoSugestaoSelecionado = null;
+                    }
+                })
+                .catch(error => {
+                    console.error('Erro ao carregar localidades:', error);
+                    localidadesSugestaoDisponiveis = [];
+                });
+        }
+        
+        function buscarLocalidadesSugestao(query) {
+            const input = document.getElementById('sugestao-localidade');
+            const dropdown = document.getElementById('autocomplete-dropdown-sugestao-localidade');
+            if (!input || !dropdown || !distritoSugestaoSelecionado) return;
+            
+            const queryLower = query.trim().toLowerCase();
+            
+            if (queryLower.length === 0) {
+                dropdown.classList.remove('show');
+                return;
+            }
+            
+            const filteredLocalidades = localidadesSugestaoDisponiveis.filter(loc => 
+                loc.localidade.toLowerCase().includes(queryLower)
+            );
+            
+            if (filteredLocalidades.length === 0) {
+                dropdown.classList.remove('show');
+                return;
+            }
+            
+            dropdown.innerHTML = filteredLocalidades.map((loc) => `
+                <div class="autocomplete-item" onclick="selecionarLocalidadeSugestao('${loc.localidade.replace(/'/g, "\\'")}')">
+                    <div>${loc.localidade}</div>
+                </div>
+            `).join('');
+            dropdown.classList.add('show');
+        }
+        
+        window.selecionarLocalidadeSugestao = function(localidade) {
+            document.getElementById('sugestao-localidade').value = localidade;
+            document.getElementById('autocomplete-dropdown-sugestao-localidade').classList.remove('show');
+        };
+        
+        // Fechar dropdown ao clicar fora
+        document.addEventListener('click', function(e) {
+            const dropdown = document.getElementById('autocomplete-dropdown-sugestao-localidade');
+            const input = document.getElementById('sugestao-localidade');
+            if (dropdown && input && !input.contains(e.target) && !dropdown.contains(e.target)) {
+                dropdown.classList.remove('show');
+            }
+        });
 
         // Carregar dados iniciais e configurar eventos
         document.addEventListener('DOMContentLoaded', function() {
