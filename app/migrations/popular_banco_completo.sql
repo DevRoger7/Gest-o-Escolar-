@@ -42,15 +42,15 @@ INSERT INTO `pessoa` (`id`, `cpf`, `nome`, `data_nascimento`, `sexo`, `email`, `
 (12, '12345678912', 'Jose Santos', '1972-08-22', 'M', 'jose.santos@email.com', '(85) 98888-3333', '(85) 98888-3333', NULL, 'Rua Principal', '300', NULL, 'Massape', 'Maranguape', 'CE', '61979-000', 'RESPONSAVEL', NULL, 'Pai de aluno', NOW(), NOW(), NULL, 1, NULL, 'BRANCA'),
 (13, '12345678913', 'Rita Oliveira', '1978-05-10', 'F', 'rita.oliveira@email.com', '(85) 98888-4444', '(85) 98888-4444', NULL, 'Estrada da Lagoa', '400', NULL, 'Lagoa', 'Maranguape', 'CE', '61950-100', 'RESPONSAVEL', NULL, 'Mãe de aluno', NOW(), NOW(), NULL, 1, NULL, 'PRETA'),
 
--- Alunos
-(14, '11111111111', 'Lucas Mendes', '2010-03-15', 'M', NULL, NULL, NULL, NULL, 'Rua da Pedra', '100', NULL, 'Pedra D''água', 'Maranguape', 'CE', '61979-200', 'ALUNO', NULL, NULL, NOW(), NOW(), NULL, 1, NULL, 'BRANCA'),
-(15, '11111111112', 'Sofia Barbosa', '2011-07-20', 'F', NULL, NULL, NULL, NULL, 'Rua das Vassouras', '200', NULL, 'Vassouras', 'Maranguape', 'CE', '61979-100', 'ALUNO', NULL, NULL, NOW(), NOW(), NULL, 1, NULL, 'PARDA'),
-(16, '11111111113', 'Gabriel Santos', '2010-11-05', 'M', NULL, NULL, NULL, NULL, 'Rua Principal', '300', NULL, 'Massape', 'Maranguape', 'CE', '61979-000', 'ALUNO', NULL, NULL, NOW(), NOW(), NULL, 1, NULL, 'BRANCA'),
-(17, '11111111114', 'Isabella Oliveira', '2012-01-18', 'F', NULL, NULL, NULL, NULL, 'Estrada da Lagoa', '400', NULL, 'Lagoa', 'Maranguape', 'CE', '61950-100', 'ALUNO', NULL, NULL, NOW(), NOW(), NULL, 1, NULL, 'PRETA'),
-(18, '11111111115', 'Enzo Silva', '2011-09-25', 'M', NULL, NULL, NULL, NULL, 'Rua Principal', '500', NULL, 'Massape', 'Maranguape', 'CE', '61979-000', 'ALUNO', NULL, NULL, NOW(), NOW(), NULL, 1, NULL, 'BRANCA'),
-(19, '11111111116', 'Maria Eduarda', '2010-12-10', 'F', NULL, NULL, NULL, NULL, 'Rua das Flores', '600', NULL, 'Vassouras', 'Maranguape', 'CE', '61979-100', 'ALUNO', NULL, NULL, NOW(), NOW(), NULL, 1, NULL, 'PARDA'),
-(20, '11111111117', 'Rafael Costa', '2012-04-30', 'M', NULL, NULL, NULL, NULL, 'Rua da Pedra', '700', NULL, 'Pedra D''água', 'Maranguape', 'CE', '61979-200', 'ALUNO', NULL, NULL, NOW(), NOW(), NULL, 1, NULL, 'BRANCA'),
-(21, '11111111118', 'Julia Ferreira', '2011-08-15', 'F', NULL, NULL, NULL, NULL, 'Estrada da Lagoa', '800', NULL, 'Lagoa', 'Maranguape', 'CE', '61950-100', 'ALUNO', NULL, NULL, NOW(), NOW(), NULL, 1, NULL, 'PRETA'),
+-- Alunos (crianças - sem email/telefone próprio, usam dados do responsável)
+(14, '11111111111', 'Lucas Mendes', '2010-03-15', 'M', NULL, NULL, NULL, NULL, 'Rua da Pedra', '100', NULL, 'Pedra D''água', 'Maranguape', 'CE', '61979-200', 'ALUNO', NULL, 'Aluno do 1º Ano - Filho de Paulo Mendes', NOW(), NOW(), NULL, 1, NULL, 'BRANCA'),
+(15, '11111111112', 'Sofia Barbosa', '2011-07-20', 'F', NULL, NULL, NULL, NULL, 'Rua das Vassouras', '200', NULL, 'Vassouras', 'Maranguape', 'CE', '61979-100', 'ALUNO', NULL, 'Aluna do 1º Ano - Filha de Lucia Barbosa', NOW(), NOW(), NULL, 1, NULL, 'PARDA'),
+(16, '11111111113', 'Gabriel Santos', '2010-11-05', 'M', NULL, NULL, NULL, NULL, 'Rua Principal', '300', NULL, 'Massape', 'Maranguape', 'CE', '61979-000', 'ALUNO', NULL, 'Aluno do 2º Ano - Filho de Jose Santos', NOW(), NOW(), NULL, 1, NULL, 'BRANCA'),
+(17, '11111111114', 'Isabella Oliveira', '2012-01-18', 'F', NULL, NULL, NULL, NULL, 'Estrada da Lagoa', '400', NULL, 'Lagoa', 'Maranguape', 'CE', '61950-100', 'ALUNO', NULL, 'Aluna do 4º Ano - Filha de Rita Oliveira', NOW(), NOW(), NULL, 1, NULL, 'PRETA'),
+(18, '11111111115', 'Enzo Silva', '2011-09-25', 'M', NULL, NULL, NULL, NULL, 'Rua Principal', '500', NULL, 'Massape', 'Maranguape', 'CE', '61979-000', 'ALUNO', NULL, 'Aluno do 2º Ano - Filho de Jose Santos', NOW(), NOW(), NULL, 1, NULL, 'BRANCA'),
+(19, '11111111116', 'Maria Eduarda', '2010-12-10', 'F', NULL, NULL, NULL, NULL, 'Rua das Flores', '600', NULL, 'Vassouras', 'Maranguape', 'CE', '61979-100', 'ALUNO', NULL, 'Aluna do 3º Ano - Filha de Lucia Barbosa', NOW(), NOW(), NULL, 1, NULL, 'PARDA'),
+(20, '11111111117', 'Rafael Costa', '2012-04-30', 'M', NULL, NULL, NULL, NULL, 'Rua da Pedra', '700', NULL, 'Pedra D''água', 'Maranguape', 'CE', '61979-200', 'ALUNO', NULL, 'Aluno do 1º Ano - Filho de Paulo Mendes', NOW(), NOW(), NULL, 1, NULL, 'BRANCA'),
+(21, '11111111118', 'Julia Ferreira', '2011-08-15', 'F', NULL, NULL, NULL, NULL, 'Estrada da Lagoa', '800', NULL, 'Lagoa', 'Maranguape', 'CE', '61950-100', 'ALUNO', NULL, 'Aluna do 5º Ano - Filha de Rita Oliveira', NOW(), NOW(), NULL, 1, NULL, 'PRETA'),
 
 -- Motoristas
 (22, '12345678922', 'Antonio Motorista', '1980-06-15', 'M', 'antonio.motorista@transporte.com', '(85) 97777-1111', '(85) 97777-1111', NULL, 'Rua do Transporte', '100', NULL, 'Centro', 'Maranguape', 'CE', '61940-000', 'OUTRO', NULL, 'Motorista de transporte escolar', NOW(), NOW(), NULL, 1, NULL, 'BRANCA'),
