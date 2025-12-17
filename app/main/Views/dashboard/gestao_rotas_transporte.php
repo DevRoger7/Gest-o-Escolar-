@@ -394,6 +394,120 @@ try {
         .autocomplete-item.selected .distrito-nome {
             color: #1f2937;
         }
+        /* Notificação estilizada */
+        .notification-container {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 9999;
+            max-width: 400px;
+            animation: slideInRight 0.3s ease-out;
+        }
+        @keyframes slideInRight {
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+        @keyframes slideOutRight {
+            from {
+                transform: translateX(0);
+                opacity: 1;
+            }
+            to {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+        }
+        .notification {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15), 0 4px 10px rgba(0, 0, 0, 0.1);
+            padding: 16px 20px;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+            border-left: 4px solid;
+            transition: all 0.3s ease;
+        }
+        .notification.warning {
+            border-left-color: #f59e0b;
+            background: linear-gradient(135deg, #fef3c7 0%, #ffffff 100%);
+        }
+        .notification.error {
+            border-left-color: #ef4444;
+            background: linear-gradient(135deg, #fee2e2 0%, #ffffff 100%);
+        }
+        .notification.success {
+            border-left-color: #10b981;
+            background: linear-gradient(135deg, #d1fae5 0%, #ffffff 100%);
+        }
+        .notification.info {
+            border-left-color: #3b82f6;
+            background: linear-gradient(135deg, #dbeafe 0%, #ffffff 100%);
+        }
+        .notification-icon {
+            flex-shrink: 0;
+            width: 24px;
+            height: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            font-size: 14px;
+        }
+        .notification.warning .notification-icon {
+            background: #f59e0b;
+            color: white;
+        }
+        .notification.error .notification-icon {
+            background: #ef4444;
+            color: white;
+        }
+        .notification.success .notification-icon {
+            background: #10b981;
+            color: white;
+        }
+        .notification.info .notification-icon {
+            background: #3b82f6;
+            color: white;
+        }
+        .notification-content {
+            flex: 1;
+            min-width: 0;
+        }
+        .notification-title {
+            font-weight: 600;
+            font-size: 15px;
+            color: #1f2937;
+            margin-bottom: 4px;
+        }
+        .notification-message {
+            font-size: 14px;
+            color: #4b5563;
+            line-height: 1.5;
+        }
+        .notification-close {
+            flex-shrink: 0;
+            width: 20px;
+            height: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            color: #6b7280;
+            border-radius: 4px;
+            transition: all 0.2s;
+        }
+        .notification-close:hover {
+            background: rgba(0, 0, 0, 0.05);
+            color: #1f2937;
+        }
         @media (max-width: 1023px) {
             .sidebar-mobile {
                 transform: translateX(-100%);
@@ -624,7 +738,7 @@ try {
             formData.append('acao', 'criar_rota');
             const distritoPrincipal = document.getElementById('distrito-principal').value;
             if (!distritoPrincipal) {
-                alert('Selecione uma escola para definir o distrito da rota');
+                showNotification('Atenção', 'Selecione uma escola para definir o distrito da rota', 'warning');
                 return;
             }
             formData.append('distrito', distritoPrincipal);
@@ -640,15 +754,15 @@ try {
             .then(response => response.json())
             .then(data => {
                 if (data.status) {
-                    alert(data.mensagem);
-                    location.reload();
+                    showNotification('Sucesso', data.mensagem, 'success');
+                    setTimeout(() => location.reload(), 1500);
                 } else {
-                    alert('Erro: ' + data.mensagem);
+                    showNotification('Erro', data.mensagem, 'error');
                 }
             })
             .catch(error => {
                 console.error('Erro:', error);
-                alert('Erro ao criar rota');
+                showNotification('Erro', 'Erro ao criar rota', 'error');
             });
         }
         
@@ -694,7 +808,7 @@ try {
                             inputLocalidade.placeholder = 'Digite o nome da localidade...';
                             carregarLocalidadesDistrito(data.distrito);
                         } else {
-                            alert('Escola não possui distrito cadastrado. Por favor, cadastre o distrito da escola primeiro.');
+                            showNotification('Atenção', 'Escola não possui distrito cadastrado. Por favor, cadastre o distrito da escola primeiro.', 'warning');
                             inputDistrito.value = '';
                             hiddenDistrito.value = '';
                             inputLocalidade.disabled = true;
@@ -702,7 +816,7 @@ try {
                     })
                     .catch(error => {
                         console.error('Erro:', error);
-                        alert('Erro ao buscar distrito da escola');
+                        showNotification('Erro', 'Erro ao buscar distrito da escola', 'error');
                     });
             }
         }
@@ -901,6 +1015,58 @@ try {
                 window.location.href = '../auth/logout.php';
             }
         };
+        
+        // Função para mostrar notificação estilizada
+        function showNotification(title, message, type = 'info', duration = 5000) {
+            // Criar container se não existir
+            let container = document.getElementById('notification-container');
+            if (!container) {
+                container = document.createElement('div');
+                container.id = 'notification-container';
+                container.className = 'notification-container';
+                document.body.appendChild(container);
+            }
+            
+            // Criar notificação
+            const notification = document.createElement('div');
+            notification.className = `notification ${type}`;
+            
+            // Ícones por tipo
+            const icons = {
+                'warning': '<i class="fas fa-exclamation-triangle"></i>',
+                'error': '<i class="fas fa-times-circle"></i>',
+                'success': '<i class="fas fa-check-circle"></i>',
+                'info': '<i class="fas fa-info-circle"></i>'
+            };
+            
+            notification.innerHTML = `
+                <div class="notification-icon">
+                    ${icons[type] || icons.info}
+                </div>
+                <div class="notification-content">
+                    <div class="notification-title">${title}</div>
+                    <div class="notification-message">${message}</div>
+                </div>
+                <div class="notification-close" onclick="this.parentElement.remove()">
+                    <i class="fas fa-times"></i>
+                </div>
+            `;
+            
+            // Adicionar ao container
+            container.appendChild(notification);
+            
+            // Auto-remover após duração
+            if (duration > 0) {
+                setTimeout(() => {
+                    notification.style.animation = 'slideOutRight 0.3s ease-out';
+                    setTimeout(() => {
+                        if (notification.parentElement) {
+                            notification.remove();
+                        }
+                    }, 300);
+                }, duration);
+            }
+        }
     </script>
 </body>
 </html>

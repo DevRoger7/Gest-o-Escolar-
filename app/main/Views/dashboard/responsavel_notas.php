@@ -83,8 +83,62 @@ if ($alunoSelecionadoId) {
             $stmtDisciplinas->execute();
             $todasDisciplinas = $stmtDisciplinas->fetchAll(PDO::FETCH_ASSOC);
             
-            // Buscar todas as notas
-            $notas = $notaModel->buscarPorAluno($alunoSelecionadoId, $turmaId);
+            // Buscar todas as notas - usar query direta como na página do aluno
+            $sqlNotas = "SELECT n.*, 
+                        COALESCE(d.nome, 'Disciplina não identificada') as disciplina_nome, 
+                        COALESCE(d.id, n.disciplina_id) as disciplina_id,
+                        a.titulo as avaliacao_titulo,
+                        a.tipo as avaliacao_tipo
+                        FROM nota n
+                        LEFT JOIN disciplina d ON n.disciplina_id = d.id
+                        LEFT JOIN avaliacao a ON n.avaliacao_id = a.id
+                        WHERE n.aluno_id = :aluno_id AND n.turma_id = :turma_id
+                        ORDER BY COALESCE(d.nome, 'ZZZ') ASC, n.bimestre ASC, n.lancado_em DESC";
+            $stmtNotas = $conn->prepare($sqlNotas);
+            $stmtNotas->bindParam(':aluno_id', $alunoSelecionadoId, PDO::PARAM_INT);
+            $stmtNotas->bindParam(':turma_id', $turmaId, PDO::PARAM_INT);
+            $stmtNotas->execute();
+            $notas = $stmtNotas->fetchAll(PDO::FETCH_ASSOC);
+            
+            // Garantir que disciplina_id seja sempre um inteiro
+            foreach ($notas as &$nota) {
+                if (isset($nota['disciplina_id'])) {
+                    $nota['disciplina_id'] = (int)$nota['disciplina_id'];
+                }
+                if (isset($nota['bimestre'])) {
+                    $nota['bimestre'] = (int)$nota['bimestre'];
+                }
+            }
+            unset($nota); // Limpar referência
+            
+            // Se não encontrou notas, tentar buscar sem filtro de turma
+            if (empty($notas)) {
+                $sqlNotas2 = "SELECT n.*, 
+                            COALESCE(d.nome, 'Disciplina não identificada') as disciplina_nome, 
+                            COALESCE(d.id, n.disciplina_id) as disciplina_id,
+                            a.titulo as avaliacao_titulo,
+                            a.tipo as avaliacao_tipo
+                            FROM nota n
+                            LEFT JOIN disciplina d ON n.disciplina_id = d.id
+                            LEFT JOIN avaliacao a ON n.avaliacao_id = a.id
+                            WHERE n.aluno_id = :aluno_id
+                            ORDER BY COALESCE(d.nome, 'ZZZ') ASC, n.bimestre ASC, n.lancado_em DESC";
+                $stmtNotas2 = $conn->prepare($sqlNotas2);
+                $stmtNotas2->bindParam(':aluno_id', $alunoSelecionadoId, PDO::PARAM_INT);
+                $stmtNotas2->execute();
+                $notas = $stmtNotas2->fetchAll(PDO::FETCH_ASSOC);
+                
+                // Garantir que disciplina_id seja sempre um inteiro
+                foreach ($notas as &$nota) {
+                    if (isset($nota['disciplina_id'])) {
+                        $nota['disciplina_id'] = (int)$nota['disciplina_id'];
+                    }
+                    if (isset($nota['bimestre'])) {
+                        $nota['bimestre'] = (int)$nota['bimestre'];
+                    }
+                }
+                unset($nota);
+            }
         }
     }
 }
@@ -106,8 +160,13 @@ foreach ($todasDisciplinas as $disciplina) {
 }
 
 foreach ($notas as $nota) {
-    $disciplinaId = $nota['disciplina_id'];
-    $bimestre = $nota['bimestre'] ?? null;
+    $disciplinaId = isset($nota['disciplina_id']) ? (int)$nota['disciplina_id'] : null;
+    $bimestre = isset($nota['bimestre']) ? (int)$nota['bimestre'] : null;
+    
+    // Pular notas sem disciplina_id válido
+    if (!$disciplinaId || $disciplinaId <= 0) {
+        continue;
+    }
     
     if (!isset($notasAgrupadas[$disciplinaId])) {
         $notasAgrupadas[$disciplinaId] = [
