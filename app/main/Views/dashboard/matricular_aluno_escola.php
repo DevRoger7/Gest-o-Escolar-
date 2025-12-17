@@ -727,8 +727,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['acao']) && $_GET['acao'
                                     <input type="text" name="cep" id="cep" maxlength="9"
                                            placeholder="00000-000"
                                            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-green focus:border-transparent"
-                                           oninput="formatarCEP(this)"
-                                           onblur="buscarCEP(this.value, 'endereco', 'bairro', 'cidade', 'estado')">
+                                           oninput="formatarCEP(this)">
                                     <p class="text-xs text-gray-500 mt-1">Digite o CEP para preencher automaticamente</p>
                                 </div>
                                 <div class="md:col-span-2 lg:col-span-3">
@@ -884,19 +883,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['acao']) && $_GET['acao'
                                         <span class="text-sm font-medium text-gray-700">Aluno precisa de transporte escolar</span>
                                     </label>
                                 </div>
-                                <div id="container-distrito-transporte" class="hidden space-y-4">
+                                <div id="container-distrito-transporte" class="hidden grid grid-cols-1 md:grid-cols-2 gap-4 w-full">
                                     <div>
                                         <label class="block text-sm font-medium text-gray-700 mb-2">Distrito de Origem</label>
                                         <div class="autocomplete-container">
                                             <input type="text" name="distrito_transporte" id="distrito_transporte" 
                                                    class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-green focus:border-transparent" 
                                                    placeholder="Digite o distrito..." autocomplete="off"
-                                                   oninput="buscarDistritos(this.value)">
+                                                   oninput="buscarDistritos(this.value)"
+                                                   onchange="if(this.value) { distritoSelecionado = this.value; carregarLocalidades(this.value); }">
                                             <div id="autocomplete-dropdown-transporte" class="autocomplete-dropdown"></div>
                                         </div>
                                         <p class="text-xs text-gray-500 mt-1">Selecione o distrito onde o aluno precisa de transporte</p>
                                     </div>
-                                    <div id="container-localidade-transporte" class="hidden">
+                                    <div>
                                         <label class="block text-sm font-medium text-gray-700 mb-2">Localidade</label>
                                         <div class="autocomplete-container">
                                             <input type="text" name="localidade_transporte" id="localidade_transporte" 
@@ -974,8 +974,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['acao']) && $_GET['acao'
                                     <input type="text" name="responsavel_cep" id="responsavel_cep" maxlength="9"
                                            placeholder="00000-000"
                                            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-green focus:border-transparent"
-                                           oninput="formatarCEP(this)"
-                                           onblur="buscarCEP(this.value, 'responsavel_endereco', 'responsavel_bairro', 'responsavel_cidade', 'responsavel_estado')">
+                                           oninput="formatarCEP(this)">
                                     <p class="text-xs text-gray-500 mt-1">Digite o CEP para preencher automaticamente</p>
                                 </div>
                                 <div class="md:col-span-2 lg:col-span-3">
@@ -1305,11 +1304,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['acao']) && $_GET['acao'
                 initAutocompleteDistrito();
             } else {
                 container.classList.add('hidden');
-                if (containerLocalidade) {
-                    containerLocalidade.classList.add('hidden');
-                }
                 document.getElementById('distrito_transporte').value = '';
                 document.getElementById('localidade_transporte').value = '';
+                distritoSelecionado = null;
+                localidadesDisponiveis = [];
             }
         }
         
@@ -1357,10 +1355,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['acao']) && $_GET['acao'
         
         function carregarLocalidades(distrito) {
             if (!distrito) {
-                const containerLocalidade = document.getElementById('container-localidade-transporte');
-                if (containerLocalidade) {
-                    containerLocalidade.classList.add('hidden');
-                }
                 return;
             }
             
@@ -1369,25 +1363,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['acao']) && $_GET['acao'
                 .then(data => {
                     if (data.success && data.localidades && data.localidades.length > 0) {
                         localidadesDisponiveis = data.localidades;
-                        const containerLocalidade = document.getElementById('container-localidade-transporte');
-                        if (containerLocalidade) {
-                            containerLocalidade.classList.remove('hidden');
-                            document.getElementById('localidade_transporte').value = '';
-                            initAutocompleteLocalidade();
-                        }
-                    } else {
-                        const containerLocalidade = document.getElementById('container-localidade-transporte');
-                        if (containerLocalidade) {
-                            containerLocalidade.classList.add('hidden');
-                        }
+                        distritoSelecionado = distrito;
                     }
                 })
                 .catch(error => {
                     console.error('Erro ao carregar localidades:', error);
-                    const containerLocalidade = document.getElementById('container-localidade-transporte');
-                    if (containerLocalidade) {
-                        containerLocalidade.classList.add('hidden');
-                    }
                 });
         }
         

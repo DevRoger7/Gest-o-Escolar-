@@ -435,12 +435,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao'])) {
                 $username = strtolower(trim(preg_replace('/[^a-zA-Z0-9]/', '', $_POST['cpf'])));
                 $senhaHash = password_hash($_POST['senha'], PASSWORD_DEFAULT);
                 
-                $stmt = $conn->prepare("INSERT INTO usuario (pessoa_id, username, senha, role, ativo, criado_por) 
-                                       VALUES (:pessoa_id, :username, :senha, 'ADM_TRANSPORTE', 1, :criado_por)");
+                $stmt = $conn->prepare("INSERT INTO usuario (pessoa_id, username, senha_hash, role, ativo) 
+                                       VALUES (:pessoa_id, :username, :senha_hash, 'ADM_TRANSPORTE', 1)");
                 $stmt->bindParam(':pessoa_id', $pessoaId, PDO::PARAM_INT);
                 $stmt->bindParam(':username', $username);
-                $stmt->bindParam(':senha', $senhaHash);
-                $stmt->bindParam(':criado_por', $usuarioId, PDO::PARAM_INT);
+                $stmt->bindParam(':senha_hash', $senhaHash);
                 $stmt->execute();
                 
                 $conn->commit();
@@ -475,16 +474,173 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao'])) {
                 $username = strtolower(trim(preg_replace('/[^a-zA-Z0-9]/', '', $_POST['cpf'])));
                 $senhaHash = password_hash($_POST['senha'], PASSWORD_DEFAULT);
                 
-                $stmt = $conn->prepare("INSERT INTO usuario (pessoa_id, username, senha, role, ativo, criado_por) 
-                                       VALUES (:pessoa_id, :username, :senha, 'TRANSPORTE_ALUNO', 1, :criado_por)");
+                $stmt = $conn->prepare("INSERT INTO usuario (pessoa_id, username, senha_hash, role, ativo) 
+                                       VALUES (:pessoa_id, :username, :senha_hash, 'TRANSPORTE_ALUNO', 1)");
                 $stmt->bindParam(':pessoa_id', $pessoaId, PDO::PARAM_INT);
                 $stmt->bindParam(':username', $username);
-                $stmt->bindParam(':senha', $senhaHash);
-                $stmt->bindParam(':criado_por', $usuarioId, PDO::PARAM_INT);
+                $stmt->bindParam(':senha_hash', $senhaHash);
                 $stmt->execute();
                 
                 $conn->commit();
                 $resposta = ['status' => true, 'mensagem' => 'Usuário Transporte Aluno criado com sucesso!'];
+            }
+        }
+        
+        // Editar Usuário de Transporte
+        elseif ($acao === 'editar_usuario_transporte') {
+            $usuarioId = $_POST['usuario_id'] ?? null;
+            if (empty($usuarioId)) {
+                $resposta = ['status' => false, 'mensagem' => 'ID do usuário não informado.'];
+            } else {
+                try {
+                    // Buscar dados do usuário
+                    $sql = "SELECT u.id, u.username, u.role as tipo, u.ativo, p.id as pessoa_id, p.nome, p.cpf, p.email, p.telefone
+                            FROM usuario u 
+                            INNER JOIN pessoa p ON u.pessoa_id = p.id 
+                            WHERE u.id = :usuario_id AND u.role IN ('ADM_TRANSPORTE', 'TRANSPORTE_ALUNO')";
+                    $stmt = $conn->prepare($sql);
+                    $stmt->bindParam(':usuario_id', $usuarioId, PDO::PARAM_INT);
+                    $stmt->execute();
+                    $usuario = $stmt->fetch(PDO::FETCH_ASSOC);
+                    
+                    if (!$usuario) {
+                        $resposta = ['status' => false, 'mensagem' => 'Usuário não encontrado.'];
+                    } else {
+                        $resposta = ['status' => true, 'dados' => $usuario];
+                    }
+                } catch (PDOException $e) {
+                    error_log("Erro ao buscar usuário: " . $e->getMessage());
+                    $resposta = ['status' => false, 'mensagem' => 'Erro ao buscar dados do usuário.'];
+                }
+            }
+        }
+        
+        // Atualizar Usuário de Transporte
+        elseif ($acao === 'atualizar_usuario_transporte') {
+            $usuarioId = $_POST['usuario_id'] ?? null;
+            if (empty($usuarioId)) {
+                $resposta = ['status' => false, 'mensagem' => 'ID do usuário não informado.'];
+            } else {
+                try {
+                    $conn->beginTransaction();
+                    
+                    // Buscar pessoa_id do usuário
+                    $sql = "SELECT pessoa_id FROM usuario WHERE id = :usuario_id";
+                    $stmt = $conn->prepare($sql);
+                    $stmt->bindParam(':usuario_id', $usuarioId, PDO::PARAM_INT);
+                    $stmt->execute();
+                    $usuario = $stmt->fetch(PDO::FETCH_ASSOC);
+                    
+                    if (!$usuario) {
+                        throw new Exception('Usuário não encontrado.');
+                    }
+                    
+                    $pessoaId = $usuario['pessoa_id'];
+                    
+                    // Atualizar dados da pessoa
+                    $nome = trim($_POST['nome'] ?? '');
+                    $email = !empty($_POST['email']) ? trim($_POST['email']) : null;
+                    $telefone = !empty($_POST['telefone']) ? preg_replace('/[^0-9]/', '', $_POST['telefone']) : null;
+                    
+                    $sqlPessoa = "UPDATE pessoa SET nome = :nome, email = :email, telefone = :telefone WHERE id = :pessoa_id";
+                    $stmtPessoa = $conn->prepare($sqlPessoa);
+                    $stmtPessoa->bindParam(':nome', $nome);
+                    $stmtPessoa->bindParam(':email', $email);
+                    $stmtPessoa->bindParam(':telefone', $telefone);
+                    $stmtPessoa->bindParam(':pessoa_id', $pessoaId, PDO::PARAM_INT);
+                    $stmtPessoa->execute();
+                    
+                    // Atualizar senha se fornecida
+                    if (!empty($_POST['senha'])) {
+                        $senhaHash = password_hash($_POST['senha'], PASSWORD_DEFAULT);
+                        $sqlSenha = "UPDATE usuario SET senha_hash = :senha_hash WHERE id = :usuario_id";
+                        $stmtSenha = $conn->prepare($sqlSenha);
+                        $stmtSenha->bindParam(':senha_hash', $senhaHash);
+                        $stmtSenha->bindParam(':usuario_id', $usuarioId, PDO::PARAM_INT);
+                        $stmtSenha->execute();
+                    }
+                    
+                    // Atualizar status ativo
+                    $ativo = isset($_POST['ativo']) ? (int)$_POST['ativo'] : 1;
+                    $sqlAtivo = "UPDATE usuario SET ativo = :ativo WHERE id = :usuario_id";
+                    $stmtAtivo = $conn->prepare($sqlAtivo);
+                    $stmtAtivo->bindParam(':ativo', $ativo, PDO::PARAM_INT);
+                    $stmtAtivo->bindParam(':usuario_id', $usuarioId, PDO::PARAM_INT);
+                    $stmtAtivo->execute();
+                    
+                    $conn->commit();
+                    $resposta = ['status' => true, 'mensagem' => 'Usuário atualizado com sucesso!'];
+                } catch (Exception $e) {
+                    if ($conn->inTransaction()) {
+                        $conn->rollBack();
+                    }
+                    error_log("Erro ao atualizar usuário: " . $e->getMessage());
+                    $resposta = ['status' => false, 'mensagem' => 'Erro ao atualizar usuário: ' . $e->getMessage()];
+                }
+            }
+        }
+        
+        // Excluir Usuário de Transporte
+        elseif ($acao === 'excluir_usuario_transporte') {
+            $usuarioId = $_POST['usuario_id'] ?? null;
+            if (empty($usuarioId)) {
+                $resposta = ['status' => false, 'mensagem' => 'ID do usuário não informado.'];
+            } else {
+                try {
+                    $conn->beginTransaction();
+                    
+                    // Buscar pessoa_id do usuário
+                    $sql = "SELECT pessoa_id FROM usuario WHERE id = :usuario_id";
+                    $stmt = $conn->prepare($sql);
+                    $stmt->bindParam(':usuario_id', $usuarioId, PDO::PARAM_INT);
+                    $stmt->execute();
+                    $usuario = $stmt->fetch(PDO::FETCH_ASSOC);
+                    
+                    if (!$usuario) {
+                        throw new Exception('Usuário não encontrado.');
+                    }
+                    
+                    $pessoaId = $usuario['pessoa_id'];
+                    
+                    // Excluir usuário
+                    $sqlUsuario = "DELETE FROM usuario WHERE id = :usuario_id";
+                    $stmtUsuario = $conn->prepare($sqlUsuario);
+                    $stmtUsuario->bindParam(':usuario_id', $usuarioId, PDO::PARAM_INT);
+                    $stmtUsuario->execute();
+                    
+                    // Excluir pessoa (se não estiver sendo usada em outras tabelas)
+                    // Verificar se pessoa está sendo usada em outras tabelas
+                    $sqlCheck = "SELECT COUNT(*) as total FROM (
+                        SELECT pessoa_id FROM motorista WHERE pessoa_id = :pessoa_id
+                        UNION ALL
+                        SELECT pessoa_id FROM funcionario WHERE pessoa_id = :pessoa_id
+                        UNION ALL
+                        SELECT pessoa_id FROM professor WHERE pessoa_id = :pessoa_id
+                        UNION ALL
+                        SELECT pessoa_id FROM gestor WHERE pessoa_id = :pessoa_id
+                    ) as total";
+                    $stmtCheck = $conn->prepare($sqlCheck);
+                    $stmtCheck->bindParam(':pessoa_id', $pessoaId, PDO::PARAM_INT);
+                    $stmtCheck->execute();
+                    $check = $stmtCheck->fetch(PDO::FETCH_ASSOC);
+                    
+                    if ($check['total'] == 0) {
+                        // Só excluir pessoa se não estiver sendo usada
+                        $sqlPessoa = "DELETE FROM pessoa WHERE id = :pessoa_id";
+                        $stmtPessoa = $conn->prepare($sqlPessoa);
+                        $stmtPessoa->bindParam(':pessoa_id', $pessoaId, PDO::PARAM_INT);
+                        $stmtPessoa->execute();
+                    }
+                    
+                    $conn->commit();
+                    $resposta = ['status' => true, 'mensagem' => 'Usuário excluído com sucesso!'];
+                } catch (Exception $e) {
+                    if ($conn->inTransaction()) {
+                        $conn->rollBack();
+                    }
+                    error_log("Erro ao excluir usuário: " . $e->getMessage());
+                    $resposta = ['status' => false, 'mensagem' => 'Erro ao excluir usuário: ' . $e->getMessage()];
+                }
             }
         }
         
@@ -1219,6 +1375,66 @@ try {
                     </button>
                     <button type="submit" class="btn-primary px-4 py-2.5 text-white rounded-lg text-sm font-medium">
                         <i class="fas fa-check mr-2"></i>Criar Usuário
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal Editar Usuário -->
+    <div id="modalEditarUsuario" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50 flex items-center justify-center p-4 modal-overlay">
+        <div class="bg-white rounded-xl p-4 md:p-6 max-w-md w-full modal-content shadow-2xl">
+            <div class="flex items-center justify-between mb-6">
+                <h3 class="text-lg md:text-xl font-bold text-gray-900">Editar Usuário</h3>
+                <button onclick="fecharModalEditarUsuario()" class="text-gray-400 hover:text-gray-600 transition-colors p-1 rounded-lg hover:bg-gray-100">
+                    <i class="fas fa-times text-xl"></i>
+                </button>
+            </div>
+            <form id="form-editar-usuario" onsubmit="event.preventDefault(); salvarEdicaoUsuario();">
+                <input type="hidden" id="editar-usuario-id" name="usuario_id">
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1.5">Nome Completo *</label>
+                        <input type="text" id="editar-nome" name="nome" required class="w-full px-3 md:px-4 py-2.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-green focus:border-transparent transition-all">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1.5">Username</label>
+                        <input type="text" id="editar-username" name="username" readonly class="w-full px-3 md:px-4 py-2.5 text-sm border border-gray-300 rounded-lg bg-gray-100 text-gray-600">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1.5">Tipo</label>
+                        <input type="text" id="editar-tipo" name="tipo" readonly class="w-full px-3 md:px-4 py-2.5 text-sm border border-gray-300 rounded-lg bg-gray-100 text-gray-600">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1.5">Email *</label>
+                        <input type="email" id="editar-email" name="email" required class="w-full px-3 md:px-4 py-2.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-green focus:border-transparent transition-all">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1.5">Telefone</label>
+                        <input type="text" id="editar-telefone" name="telefone" class="w-full px-3 md:px-4 py-2.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-green focus:border-transparent transition-all" placeholder="(85) 99999-9999" maxlength="15" oninput="formatarTelefone(this)">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1.5">Nova Senha (deixe em branco para manter a atual)</label>
+                        <div class="relative">
+                            <input type="password" id="editar-senha" name="senha" class="w-full px-3 md:px-4 py-2.5 pr-10 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-green focus:border-transparent transition-all">
+                            <button type="button" onclick="toggleSenha('editar-senha', 'toggle-senha-editar-usuario')" class="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors">
+                                <i id="toggle-senha-editar-usuario" class="fas fa-eye"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="flex items-center space-x-2">
+                            <input type="checkbox" id="editar-ativo" name="ativo" class="w-4 h-4 text-primary-green border-gray-300 rounded focus:ring-primary-green">
+                            <span class="text-sm font-medium text-gray-700">Usuário Ativo</span>
+                        </label>
+                    </div>
+                </div>
+                <div class="mt-6 flex flex-col sm:flex-row justify-end gap-3">
+                    <button type="button" onclick="fecharModalEditarUsuario()" class="px-4 py-2.5 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-all text-sm font-medium">
+                        Cancelar
+                    </button>
+                    <button type="submit" class="btn-primary px-4 py-2.5 text-white rounded-lg text-sm font-medium">
+                        <i class="fas fa-save mr-2"></i>Salvar Alterações
                     </button>
                 </div>
             </form>
@@ -2085,6 +2301,132 @@ try {
             };
         }
 
+        // Função para editar usuário de transporte
+        window.editarUsuarioTransporte = function(usuarioId) {
+            const formData = new FormData();
+            formData.append('acao', 'editar_usuario_transporte');
+            formData.append('usuario_id', usuarioId);
+            
+            fetch('gestao_usuarios_transporte.php', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status && data.dados) {
+                    const usuario = data.dados;
+                    
+                    // Mapeamento de tipos para nomes amigáveis
+                    const tipoNomes = {
+                        'ADM_TRANSPORTE': 'Administrador de Transporte',
+                        'TRANSPORTE_ALUNO': 'Transporte Aluno'
+                    };
+                    
+                    // Preencher formulário de edição
+                    document.getElementById('editar-usuario-id').value = usuario.id;
+                    document.getElementById('editar-nome').value = usuario.nome || '';
+                    document.getElementById('editar-email').value = usuario.email || '';
+                    document.getElementById('editar-telefone').value = usuario.telefone || '';
+                    document.getElementById('editar-username').value = usuario.username || '';
+                    document.getElementById('editar-tipo').value = tipoNomes[usuario.tipo] || usuario.tipo || '';
+                    document.getElementById('editar-ativo').checked = usuario.ativo == 1;
+                    document.getElementById('editar-senha').value = '';
+                    
+                    // Resetar ícone de senha
+                    const senhaIcon = document.getElementById('toggle-senha-editar-usuario');
+                    if (senhaIcon) {
+                        const senhaInput = document.getElementById('editar-senha');
+                        if (senhaInput) {
+                            senhaInput.type = 'password';
+                            senhaIcon.classList.remove('fa-eye-slash');
+                            senhaIcon.classList.add('fa-eye');
+                        }
+                    }
+                    
+                    // Mostrar modal de edição
+                    document.getElementById('modalEditarUsuario').classList.remove('hidden');
+                } else {
+                    alert('Erro ao carregar dados do usuário: ' + (data.mensagem || 'Erro desconhecido'));
+                }
+            })
+            .catch(error => {
+                console.error('Erro:', error);
+                alert('Erro ao carregar dados do usuário.');
+            });
+        };
+        
+        // Função para excluir usuário de transporte
+        window.excluirUsuarioTransporte = function(usuarioId) {
+            if (!confirm('Tem certeza que deseja excluir este usuário? Esta ação não pode ser desfeita.')) {
+                return;
+            }
+            
+            const formData = new FormData();
+            formData.append('acao', 'excluir_usuario_transporte');
+            formData.append('usuario_id', usuarioId);
+            
+            fetch('gestao_usuarios_transporte.php', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status) {
+                    alert('Usuário excluído com sucesso!');
+                    carregarUsuariosTransporte();
+                } else {
+                    alert('Erro ao excluir usuário: ' + (data.mensagem || 'Erro desconhecido'));
+                }
+            })
+            .catch(error => {
+                console.error('Erro:', error);
+                alert('Erro ao excluir usuário.');
+            });
+        };
+        
+        // Função para salvar edição
+        function salvarEdicaoUsuario() {
+            const formData = new FormData();
+            formData.append('acao', 'atualizar_usuario_transporte');
+            formData.append('usuario_id', document.getElementById('editar-usuario-id').value);
+            formData.append('nome', document.getElementById('editar-nome').value);
+            formData.append('email', document.getElementById('editar-email').value);
+            formData.append('telefone', document.getElementById('editar-telefone').value);
+            
+            // Só enviar senha se foi preenchida
+            const senha = document.getElementById('editar-senha').value;
+            if (senha && senha.trim() !== '') {
+                formData.append('senha', senha);
+            }
+            
+            formData.append('ativo', document.getElementById('editar-ativo').checked ? 1 : 0);
+            
+            fetch('gestao_usuarios_transporte.php', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status) {
+                    alert('Usuário atualizado com sucesso!');
+                    document.getElementById('modalEditarUsuario').classList.add('hidden');
+                    carregarUsuariosTransporte();
+                } else {
+                    alert('Erro ao atualizar usuário: ' + (data.mensagem || 'Erro desconhecido'));
+                }
+            })
+            .catch(error => {
+                console.error('Erro:', error);
+                alert('Erro ao atualizar usuário.');
+            });
+        }
+        
+        // Função para fechar modal de edição
+        function fecharModalEditarUsuario() {
+            document.getElementById('modalEditarUsuario').classList.add('hidden');
+            document.getElementById('form-editar-usuario').reset();
+        }
+        
         // Event listeners
         document.getElementById('buscar-aluno-transporte')?.addEventListener('input', debounce(carregarAlunosTransporte, 500));
         document.getElementById('buscar-motorista-transporte')?.addEventListener('input', debounce(carregarMotoristasTransporte, 500));
@@ -2178,12 +2520,25 @@ try {
                 });
             }
             
+            const modalEditar = document.getElementById('modalEditarUsuario');
+            if (modalEditar) {
+                modalEditar.addEventListener('click', function(e) {
+                    if (e.target === modalEditar) {
+                        fecharModalEditarUsuario();
+                    }
+                });
+            }
+            
             // Fechar modal com ESC
             document.addEventListener('keydown', function(e) {
                 if (e.key === 'Escape') {
                     const modal = document.getElementById('modalCriarUsuario');
                     if (modal && !modal.classList.contains('hidden')) {
                         fecharModalCriarUsuario();
+                    }
+                    const modalEditar = document.getElementById('modalEditarUsuario');
+                    if (modalEditar && !modalEditar.classList.contains('hidden')) {
+                        fecharModalEditarUsuario();
                     }
                 }
             });
