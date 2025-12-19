@@ -761,7 +761,7 @@ $funcionarios = $funcionarioModel->listar(['ativo' => 1]);
                 </div>
                 <div>
                     <h3 class="text-lg font-semibold text-gray-900">Confirmar Saída</h3>
-                    <p class="text-sm text-gray-600">Tem certeza que deseja sair do sistema?</p>
+                    <p class="text-sm text-gray-600">Tem certeza que deseja sair do sistema??</p>
                 </div>
             </div>
             <div class="flex space-x-3">
