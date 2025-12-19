@@ -618,24 +618,6 @@ $funcionarios = $funcionarioModel->listar(['ativo' => 1]);
                             </div>
                         </div>
                     </div>
-                    
-                    <!-- Informações de Acesso -->
-                    <div>
-                        <h3 class="text-lg font-semibold text-gray-800 mb-4 pb-2 border-b border-gray-200">Informações de Acesso</h3>
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-2">Nova Senha (deixe em branco para manter a atual)</label>
-                                <input type="password" name="senha" id="editar_senha"
-                                       class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent">
-                                <p class="text-xs text-gray-500 mt-1">Deixe em branco para manter a senha atual</p>
-                            </div>
-                            <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-2">Username</label>
-                                <input type="text" id="editar_username_preview" readonly
-                                       class="w-full px-4 py-2 border border-gray-300 rounded-lg bg-gray-50">
-                            </div>
-                        </div>
-                    </div>
                 </form>
             </div>
             
@@ -745,26 +727,6 @@ $funcionarios = $funcionarioModel->listar(['ativo' => 1]);
                                 <input type="date" name="data_admissao" id="data_admissao"
                                        value="<?= date('Y-m-d') ?>"
                                        class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent">
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <!-- Informações de Acesso -->
-                    <div>
-                        <h3 class="text-lg font-semibold text-gray-800 mb-4 pb-2 border-b border-gray-200">Informações de Acesso</h3>
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-2">Senha Padrão</label>
-                                <input type="password" name="senha" id="senha" value="123456"
-                                       class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent">
-                                <p class="text-xs text-gray-500 mt-1">Senha padrão: 123456 (pode ser alterada pelo funcionário após o primeiro login)</p>
-                            </div>
-                            <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-2">Username</label>
-                                <input type="text" id="username_preview" readonly
-                                       class="w-full px-4 py-2 border border-gray-300 rounded-lg bg-gray-50"
-                                       placeholder="Será gerado automaticamente">
-                                <p class="text-xs text-gray-500 mt-1">O username será gerado automaticamente baseado no primeiro nome</p>
                             </div>
                         </div>
                     </div>

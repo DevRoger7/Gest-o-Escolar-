@@ -446,11 +446,11 @@ try {
                         </select>
                     </div>
                     <?php if ($podeEditar): ?>
-                    <div class="flex items-end">
+                    <!-- <div class="flex items-end">
                         <button onclick="abrirModalPontoCentral()" class="w-full bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors">
                             <i class="fas fa-map-marker-alt mr-2"></i>Definir Ponto Central
                         </button>
-                    </div>
+                    </div> -->
                     <?php endif; ?>
                 </div>
             </div>

@@ -1058,13 +1058,27 @@ if (ob_get_level()) {
                                 <span class="text-sm font-medium text-gray-700">Aluno precisa de transporte escolar</span>
                             </label>
                         </div>
-                        <div id="container-distrito-transporte-editar" class="hidden">
-                            <label class="block text-sm font-medium text-gray-700 mb-2">Distrito de Origem</label>
-                            <div class="autocomplete-container">
-                                <input type="text" name="distrito_transporte" id="editar_distrito_transporte" 
-                                       class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" 
-                                       placeholder="Digite o distrito..." autocomplete="off">
-                                <div id="autocomplete-dropdown-transporte-editar" class="autocomplete-dropdown"></div>
+                        <div id="container-distrito-transporte-editar" class="hidden space-y-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Distrito de Origem *</label>
+                                <div class="autocomplete-container">
+                                    <input type="text" name="editar_distrito_transporte" id="editar_distrito_transporte" 
+                                           class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" 
+                                           placeholder="Digite o distrito..." autocomplete="off">
+                                    <div id="autocomplete-dropdown-transporte-editar" class="autocomplete-dropdown"></div>
+                                </div>
+                                <p class="text-xs text-gray-500 mt-1">Selecione o distrito onde o aluno precisa de transporte</p>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Localidade (opcional)</label>
+                                <select name="editar_localidade_transporte" id="editar_localidade_transporte"
+                                        class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                                    <option value="">Selecione uma localidade...</option>
+                                    <option value="centro">Centro</option>
+                                    <option value="zona_rural">Zona Rural</option>
+                                    <option value="outra">Outra</option>
+                                </select>
+                                <p class="text-xs text-gray-500 mt-1">Selecione a localidade do endereço do aluno</p>
                             </div>
                         </div>
                     </div>
@@ -1369,15 +1383,28 @@ if (ob_get_level()) {
                                 <span class="text-sm font-medium text-gray-700">Aluno precisa de transporte escolar</span>
                             </label>
                         </div>
-                        <div id="container-distrito-transporte" class="hidden">
-                            <label class="block text-sm font-medium text-gray-700 mb-2">Distrito de Origem *</label>
-                            <div class="autocomplete-container">
-                                <input type="text" name="distrito_transporte" id="distrito_transporte" 
-                                       class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" 
-                                       placeholder="Digite o distrito..." autocomplete="off">
-                                <div id="autocomplete-dropdown-transporte" class="autocomplete-dropdown"></div>
+                        <div id="container-distrito-transporte" class="hidden space-y-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Distrito de Origem *</label>
+                                <div class="autocomplete-container">
+                                    <input type="text" name="distrito_transporte" id="distrito_transporte" 
+                                           class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" 
+                                           placeholder="Digite o distrito..." autocomplete="off">
+                                    <div id="autocomplete-dropdown-transporte" class="autocomplete-dropdown"></div>
+                                </div>
+                                <p class="text-xs text-gray-500 mt-1">Selecione o distrito onde o aluno precisa de transporte</p>
                             </div>
-                            <p class="text-xs text-gray-500 mt-1">Selecione o distrito onde o aluno precisa de transporte</p>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Localidade (opcional) -> funcionalidade em desenvolvimento 🔧🔨</label>
+                                <select name="localidade_transporte" id="localidade_transporte" disabled
+                                        class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-gray-100 cursor-not-allowed">
+                                    <option value="">Selecione uma localidade...</option>
+                                    <option value="centro">Centro</option>
+                                    <option value="zona_rural">Zona Rural</option>
+                                    <option value="outra">Outra</option>
+                                </select>
+                                <p class="text-xs text-gray-500 mt-1">Selecione a localidade do endereço do aluno</p>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -2453,32 +2480,37 @@ if (ob_get_level()) {
         function toggleDistritoTransporte() {
             const precisaTransporte = document.getElementById('precisa_transporte').checked;
             const container = document.getElementById('container-distrito-transporte');
-            const input = document.getElementById('distrito_transporte');
+            const inputDistrito = document.getElementById('distrito_transporte');
+            const selectLocalidade = document.getElementById('localidade_transporte');
             
             if (precisaTransporte) {
                 container.classList.remove('hidden');
-                input.required = true;
-                // Inicializar autocomplete quando aparecer
-                setTimeout(() => initAutocompleteDistrito('distrito_transporte', 'autocomplete-dropdown-transporte'), 100);
+                inputDistrito.required = true;
+                selectLocalidade.required = true;
             } else {
                 container.classList.add('hidden');
-                input.required = false;
-                input.value = '';
+                inputDistrito.required = false;
+                inputDistrito.value = '';
+                selectLocalidade.value = '';
             }
         }
         
         function toggleDistritoTransporteEditar() {
             const precisaTransporte = document.getElementById('editar_precisa_transporte').checked;
             const container = document.getElementById('container-distrito-transporte-editar');
-            const input = document.getElementById('editar_distrito_transporte');
+            const inputDistrito = document.getElementById('editar_distrito_transporte');
+            const selectLocalidade = document.getElementById('editar_localidade_transporte');
             
             if (precisaTransporte) {
                 container.classList.remove('hidden');
+                inputDistrito.required = true;
                 // Inicializar autocomplete quando aparecer
                 setTimeout(() => initAutocompleteDistrito('editar_distrito_transporte', 'autocomplete-dropdown-transporte-editar'), 100);
             } else {
                 container.classList.add('hidden');
-                input.value = '';
+                inputDistrito.required = false;
+                inputDistrito.value = '';
+                if (selectLocalidade) selectLocalidade.value = '';
             }
         }
         
