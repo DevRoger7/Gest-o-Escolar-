@@ -615,11 +615,24 @@ $totalGeral = array_sum(array_column($totaisMes, 'total_custos'));
         }
         
         function abrirModalNovaEntrada() {
-            document.getElementById('modal-nova-entrada').classList.remove('hidden');
-            document.getElementById('form-entrada').reset();
-            document.getElementById('entrada-produto-id').value = '';
-            document.getElementById('sugestoes-produto').classList.add('hidden');
+            const modal = document.getElementById('modal-nova-entrada');
+            const form = document.getElementById('form-entrada');
+            const campoProduto = document.getElementById('entrada-produto-nome');
+            const produtoIdInput = document.getElementById('entrada-produto-id');
+            const sugestoes = document.getElementById('sugestoes-produto');
+            
+            modal.classList.remove('hidden');
+            form.reset();
+            produtoIdInput.value = '';
+            sugestoes.classList.add('hidden');
             produtoSelecionado = null;
+            sugestaoAtivaProduto = -1;
+            
+            // Remover classes de feedback visual
+            campoProduto.classList.remove('bg-green-50', 'border-green-300');
+            
+            // Focar no campo de produto
+            setTimeout(() => campoProduto.focus(), 100);
         }
 
         function fecharModalNovaEntrada() {
@@ -655,36 +668,99 @@ $totalGeral = array_sum(array_column($totaisMes, 'total_custos'));
                 p.nome.toLowerCase().includes(termoLower)
             );
             
+            sugestoes.innerHTML = '';
+            
+            // Se não encontrou produtos, mostrar opção de criar novo
             if (produtosFiltrados.length === 0) {
-                sugestoes.innerHTML = '<div class="p-3 text-gray-500 text-sm">Nenhum produto encontrado. O produto será criado automaticamente.</div>';
-                sugestoes.classList.remove('hidden');
+                const criarNovo = document.createElement('div');
+                criarNovo.className = 'p-4 border-b border-gray-200 bg-blue-50';
+                criarNovo.innerHTML = `
+                    <div class="flex items-center space-x-2">
+                        <svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+                        </svg>
+                        <div>
+                            <div class="font-semibold text-blue-900">Criar novo produto: "${termo}"</div>
+                            <div class="text-xs text-blue-700 mt-1">O produto será criado automaticamente ao salvar</div>
+                        </div>
+                    </div>
+                `;
+                sugestoes.appendChild(criarNovo);
                 produtoIdInput.value = '';
                 produtoSelecionado = null;
+                sugestoes.classList.remove('hidden');
                 return;
             }
             
-            sugestoes.innerHTML = '';
+            // Mostrar produtos encontrados
             produtosFiltrados.forEach((produto, index) => {
                 const item = document.createElement('div');
-                item.className = 'p-3 cursor-pointer hover:bg-gray-100 sugestao-item-produto';
+                item.className = 'p-3 cursor-pointer hover:bg-gray-100 sugestao-item-produto border-b border-gray-100';
+                if (index === 0) item.classList.add('bg-gray-50');
                 item.setAttribute('data-id', produto.id);
                 item.setAttribute('data-nome', produto.nome);
                 item.setAttribute('data-unidade', produto.unidade);
-                item.innerHTML = `<div class="font-medium">${produto.nome}</div><div class="text-sm text-gray-500">${produto.unidade}</div>`;
+                item.setAttribute('data-index', index);
+                item.innerHTML = `
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <div class="font-medium text-gray-900">${produto.nome}</div>
+                            <div class="text-sm text-gray-500">Unidade: ${produto.unidade}</div>
+                        </div>
+                        <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+                        </svg>
+                    </div>
+                `;
                 item.addEventListener('click', () => selecionarProduto(produto.id, produto.nome, produto.unidade));
+                item.addEventListener('mouseenter', function() {
+                    document.querySelectorAll('.sugestao-item-produto').forEach(el => el.classList.remove('bg-gray-50'));
+                    this.classList.add('bg-gray-50');
+                });
                 sugestoes.appendChild(item);
             });
+            
+            // Adicionar opção de criar novo produto mesmo quando há sugestões
+            const criarNovo = document.createElement('div');
+            criarNovo.className = 'p-3 cursor-pointer hover:bg-blue-50 border-t-2 border-blue-200 bg-blue-50 sugestao-criar-novo';
+            criarNovo.innerHTML = `
+                <div class="flex items-center space-x-2">
+                    <svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+                    </svg>
+                    <div>
+                        <div class="font-semibold text-blue-900">Criar novo produto: "${termo}"</div>
+                        <div class="text-xs text-blue-700 mt-1">Usar este nome mesmo que existam produtos similares</div>
+                    </div>
+                </div>
+            `;
+            criarNovo.addEventListener('click', function() {
+                produtoIdInput.value = '';
+                produtoSelecionado = null;
+                sugestoes.classList.add('hidden');
+            });
+            sugestoes.appendChild(criarNovo);
             
             sugestoes.classList.remove('hidden');
             sugestaoAtivaProduto = -1;
         }
 
         function selecionarProduto(id, nome, unidade) {
-            document.getElementById('entrada-produto-nome').value = nome;
-            document.getElementById('entrada-produto-id').value = id;
-            document.getElementById('sugestoes-produto').classList.add('hidden');
+            const campoProduto = document.getElementById('entrada-produto-nome');
+            const produtoIdInput = document.getElementById('entrada-produto-id');
+            const sugestoes = document.getElementById('sugestoes-produto');
+            
+            campoProduto.value = nome;
+            produtoIdInput.value = id;
+            sugestoes.classList.add('hidden');
             produtoSelecionado = {id: id, nome: nome, unidade: unidade};
             sugestaoAtivaProduto = -1;
+            
+            // Feedback visual
+            campoProduto.classList.add('bg-green-50', 'border-green-300');
+            setTimeout(() => {
+                campoProduto.classList.remove('bg-green-50', 'border-green-300');
+            }, 1000);
         }
 
         document.addEventListener('DOMContentLoaded', function() {
@@ -694,6 +770,45 @@ $totalGeral = array_sum(array_column($totaisMes, 'total_custos'));
             if (campoProduto) {
                 campoProduto.addEventListener('input', function() {
                     buscarProdutos(this.value);
+                    sugestaoAtivaProduto = -1;
+                });
+                
+                // Navegação por teclado
+                campoProduto.addEventListener('keydown', function(e) {
+                    const itens = sugestoes.querySelectorAll('.sugestao-item-produto');
+                    const criarNovo = sugestoes.querySelector('.sugestao-criar-novo');
+                    
+                    if (sugestoes.classList.contains('hidden')) return;
+                    
+                    if (e.key === 'ArrowDown') {
+                        e.preventDefault();
+                        sugestaoAtivaProduto = Math.min(sugestaoAtivaProduto + 1, itens.length - 1);
+                        if (itens[sugestaoAtivaProduto]) {
+                            itens[sugestaoAtivaProduto].scrollIntoView({ block: 'nearest' });
+                            itens.forEach((el, i) => {
+                                el.classList.toggle('bg-gray-50', i === sugestaoAtivaProduto);
+                            });
+                        }
+                    } else if (e.key === 'ArrowUp') {
+                        e.preventDefault();
+                        sugestaoAtivaProduto = Math.max(sugestaoAtivaProduto - 1, -1);
+                        if (sugestaoAtivaProduto >= 0 && itens[sugestaoAtivaProduto]) {
+                            itens[sugestaoAtivaProduto].scrollIntoView({ block: 'nearest' });
+                            itens.forEach((el, i) => {
+                                el.classList.toggle('bg-gray-50', i === sugestaoAtivaProduto);
+                            });
+                        }
+                    } else if (e.key === 'Enter' && sugestaoAtivaProduto >= 0 && itens[sugestaoAtivaProduto]) {
+                        e.preventDefault();
+                        const produto = itens[sugestaoAtivaProduto];
+                        selecionarProduto(
+                            produto.getAttribute('data-id'),
+                            produto.getAttribute('data-nome'),
+                            produto.getAttribute('data-unidade')
+                        );
+                    } else if (e.key === 'Escape') {
+                        sugestoes.classList.add('hidden');
+                    }
                 });
                 
                 document.addEventListener('click', function(e) {
@@ -705,16 +820,43 @@ $totalGeral = array_sum(array_column($totaisMes, 'total_custos'));
         });
 
         function salvarEntrada() {
+            const campoProduto = document.getElementById('entrada-produto-nome');
+            const produtoIdInput = document.getElementById('entrada-produto-id');
+            const produtoNome = campoProduto.value.trim();
+            
+            if (!produtoNome) {
+                alert('Por favor, informe o nome do produto.');
+                campoProduto.focus();
+                return;
+            }
+            
+            const isNovoProduto = !produtoIdInput.value || produtoIdInput.value === '';
+            const mensagemConfirmacao = isNovoProduto 
+                ? `Criar novo produto "${produtoNome}" e registrar entrada?`
+                : 'Registrar entrada do produto?';
+            
+            if (!confirm(mensagemConfirmacao)) {
+                return;
+            }
+            
             const formData = new FormData();
             formData.append('acao', 'registrar_entrada');
-            formData.append('produto_nome', document.getElementById('entrada-produto-nome').value);
-            formData.append('produto_id', document.getElementById('entrada-produto-id').value);
+            formData.append('produto_nome', produtoNome);
+            formData.append('produto_id', produtoIdInput.value || '');
             formData.append('quantidade', document.getElementById('entrada-quantidade').value);
             formData.append('lote', document.getElementById('entrada-lote').value);
             formData.append('fornecedor_id', document.getElementById('entrada-fornecedor-id').value);
             formData.append('nota_fiscal', document.getElementById('entrada-nota-fiscal').value);
             formData.append('valor_unitario', document.getElementById('entrada-valor-unitario').value);
             formData.append('validade', document.getElementById('entrada-validade').value);
+            
+            // Mostrar loading
+            const btnSalvar = document.getElementById('btn-salvar-entrada');
+            const textoOriginal = btnSalvar?.textContent || 'Salvar Entrada';
+            if (btnSalvar) {
+                btnSalvar.disabled = true;
+                btnSalvar.textContent = 'Salvando...';
+            }
             
             fetch('', {
                 method: 'POST',
@@ -723,7 +865,10 @@ $totalGeral = array_sum(array_column($totaisMes, 'total_custos'));
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
-                    alert('Entrada registrada com sucesso!');
+                    const mensagem = isNovoProduto 
+                        ? `Produto "${produtoNome}" criado e entrada registrada com sucesso!`
+                        : 'Entrada registrada com sucesso!';
+                    alert(mensagem);
                     fecharModalNovaEntrada();
                     filtrarCustos(); // Recarregar lista de custos
                 } else {
@@ -733,6 +878,12 @@ $totalGeral = array_sum(array_column($totaisMes, 'total_custos'));
             .catch(error => {
                 console.error('Erro:', error);
                 alert('Erro ao processar requisição');
+            })
+            .finally(() => {
+                if (btnSalvar) {
+                    btnSalvar.disabled = false;
+                    btnSalvar.textContent = textoOriginal;
+                }
             });
         }
     </script>
@@ -753,13 +904,29 @@ $totalGeral = array_sum(array_column($totaisMes, 'total_custos'));
                 <form id="form-entrada" class="space-y-6">
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div class="relative">
-                            <label class="block text-sm font-medium text-gray-700 mb-2">Produto *</label>
-                            <input type="text" id="entrada-produto-nome" required 
-                                   placeholder="Digite o nome do produto..."
-                                   class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                                   autocomplete="off">
+                            <label class="block text-sm font-medium text-gray-700 mb-2">
+                                Produto *
+                                <span class="text-xs font-normal text-gray-500 ml-2">(busque existente ou crie novo)</span>
+                            </label>
+                            <div class="relative">
+                                <input type="text" id="entrada-produto-nome" required 
+                                       placeholder="Digite para buscar ou criar novo produto..."
+                                       class="w-full px-4 py-2 pr-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                                       autocomplete="off">
+                                <div class="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
+                                    <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                                    </svg>
+                                </div>
+                            </div>
                             <input type="hidden" id="entrada-produto-id" value="">
-                            <div id="sugestoes-produto" class="hidden absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto"></div>
+                            <div id="sugestoes-produto" class="hidden absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-xl max-h-60 overflow-y-auto" style="box-shadow: 0 10px 25px rgba(0,0,0,0.1);"></div>
+                            <p class="text-xs text-gray-500 mt-1">
+                                <svg class="w-4 h-4 inline mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                </svg>
+                                Se não encontrar o produto, ele será criado automaticamente ao salvar
+                            </p>
                         </div>
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-2">Quantidade (Kg) *</label>
@@ -801,7 +968,7 @@ $totalGeral = array_sum(array_column($totaisMes, 'total_custos'));
                 <button onclick="fecharModalNovaEntrada()" class="flex-1 px-6 py-3 text-gray-700 bg-white border border-gray-300 hover:bg-gray-50 rounded-lg font-medium transition-colors">
                     Cancelar
                 </button>
-                <button onclick="salvarEntrada()" class="flex-1 px-6 py-3 text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg font-medium transition-colors">
+                <button id="btn-salvar-entrada" onclick="salvarEntrada()" class="flex-1 px-6 py-3 text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg font-medium transition-colors">
                     Salvar Entrada
                 </button>
             </div>

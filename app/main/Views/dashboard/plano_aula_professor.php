@@ -195,24 +195,32 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao'])) {
                 
                 // Se não encontrar disciplinas, criar plano sem disciplina
                 if (empty($disciplinas)) {
-                    $dadosPlano = [
-                        'turma_id' => $turmaId,
-                        'disciplina_id' => null,
-                        'professor_id' => $professorId,
-                        'titulo' => $dados['titulo'] ?? 'Plano de Aula',
-                        'conteudo' => $dados['conteudo'] ?? null,
-                        'objetivos' => $dados['objetivos'] ?? null,
-                        'metodologia' => $dados['metodologia'] ?? null,
-                        'recursos' => $dados['recursos'] ?? null,
-                        'avaliacao' => $dados['avaliacao'] ?? null,
-                        'data_aula' => $dados['data_aula'],
-                        'bimestre' => $dados['bimestre'] ?? null,
-                        'observacoes' => $dados['observacoes'] ?? null
-                    ];
-                    
-                    $resultado = $planoAulaModel->criar($dadosPlano);
-                    if ($resultado['success']) {
-                        $planosCriados[] = $resultado['id'];
+                $dadosPlano = [
+                    'turma_id' => $turmaId,
+                    'disciplina_id' => null,
+                    'professor_id' => $professorId,
+                    'titulo' => $dados['titulo'] ?? 'Plano de Aula',
+                    'conteudo' => $dados['conteudo'] ?? null,
+                    'objetivos' => $dados['objetivos'] ?? null,
+                    'metodologia' => $dados['metodologia'] ?? null,
+                    'recursos' => $dados['recursos'] ?? null,
+                    'avaliacao' => $dados['avaliacao'] ?? null,
+                    'atividades_flexibilizadas' => $dados['atividades_flexibilizadas'] ?? null,
+                    'data_aula' => $dados['data_aula'],
+                    'bimestre' => $dados['bimestre'] ?? null,
+                    'observacoes' => $dados['observacoes'] ?? null,
+                    'observacoes_complementares' => $dados['observacoes_complementares'] ?? null,
+                    'secoes_temas' => $dados['secoes_temas'] ?? null,
+                    'habilidades' => $dados['habilidades'] ?? null,
+                    'competencias_socioemocionais' => $dados['competencias_socioemocionais'] ?? null,
+                    'competencias_especificas' => $dados['competencias_especificas'] ?? null,
+                    'competencias_gerais' => $dados['competencias_gerais'] ?? null,
+                    'disciplinas_componentes' => $dados['disciplinas_componentes'] ?? null
+                ];
+                
+                $resultado = $planoAulaModel->criar($dadosPlano);
+                if ($resultado['success']) {
+                    $planosCriados[] = $resultado['id'];
                     }
                 } else {
                     // Criar um plano para cada disciplina do professor nesta turma
@@ -227,9 +235,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao'])) {
                             'metodologia' => $dados['metodologia'] ?? null,
                             'recursos' => $dados['recursos'] ?? null,
                             'avaliacao' => $dados['avaliacao'] ?? null,
+                            'atividades_flexibilizadas' => $dados['atividades_flexibilizadas'] ?? null,
                             'data_aula' => $dados['data_aula'],
                             'bimestre' => $dados['bimestre'] ?? null,
-                            'observacoes' => $dados['observacoes'] ?? null
+                            'observacoes' => $dados['observacoes'] ?? null,
+                            'observacoes_complementares' => $dados['observacoes_complementares'] ?? null,
+                            'secoes_temas' => $dados['secoes_temas'] ?? null,
+                            'habilidades' => $dados['habilidades'] ?? null,
+                            'competencias_socioemocionais' => $dados['competencias_socioemocionais'] ?? null,
+                            'competencias_especificas' => $dados['competencias_especificas'] ?? null,
+                            'competencias_gerais' => $dados['competencias_gerais'] ?? null,
+                            'disciplinas_componentes' => $dados['disciplinas_componentes'] ?? null
                         ];
                         
                         $resultado = $planoAulaModel->criar($dadosPlano);
@@ -263,56 +279,134 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['acao'])) {
             exit;
         }
         
+        // Verificar se o professor_id está disponível
+        if (!$professorId) {
+            error_log("ERRO: professor_id não está disponível na ação buscar_turmas_escola");
+            echo json_encode(['success' => false, 'message' => 'Professor não identificado']);
+            exit;
+        }
+        
         try {
+            // Log inicial
+            error_log("=== BUSCA DE TURMAS - INÍCIO ===");
+            error_log("Escola ID recebido: $escolaId");
+            error_log("Professor ID: $professorId");
+            
+            // Verificar se professor_id é válido
+            if (empty($professorId) || !is_numeric($professorId)) {
+                error_log("ERRO: professor_id inválido ou vazio");
+                echo json_encode(['success' => false, 'message' => 'Professor não identificado corretamente']);
+                exit;
+            }
+            
+            // Verificar se escola_id é válido
+            if (empty($escolaId) || !is_numeric($escolaId)) {
+                error_log("ERRO: escola_id inválido ou vazio");
+                echo json_encode(['success' => false, 'message' => 'Escola não identificada corretamente']);
+                exit;
+            }
+            
+            // Primeiro, verificar se existem registros na turma_professor para este professor e escola
+            $sqlVerificar = "SELECT COUNT(*) as total 
+                            FROM turma_professor tp
+                            INNER JOIN turma t ON tp.turma_id = t.id 
+                            WHERE t.escola_id = :escola_id 
+                            AND tp.professor_id = :professor_id
+                            AND t.ativo = 1";
+            
+            $stmtVerificar = $conn->prepare($sqlVerificar);
+            $stmtVerificar->bindParam(':escola_id', $escolaId, PDO::PARAM_INT);
+            $stmtVerificar->bindParam(':professor_id', $professorId, PDO::PARAM_INT);
+            $stmtVerificar->execute();
+            $verificacao = $stmtVerificar->fetch(PDO::FETCH_ASSOC);
+            error_log("Total de registros turma_professor para professor $professorId e escola $escolaId: " . $verificacao['total']);
+            
             // Buscar apenas as turmas únicas que o professor está atribuído na escola
-            // Usar a mesma lógica do código original (linha 110) - apenas tp.fim IS NULL
+            // Incluir informações da série para identificar o nível de ensino
+            // Considerar ativa se fim é NULL, vazio, data zero, ou data futura
+            $dataAtual = date('Y-m-d');
             $sqlTurmas = "SELECT DISTINCT 
                             t.id as turma_id,
-                            CONCAT(t.serie, ' ', t.letra, ' - ', t.turno) as turma_nome
+                            CONCAT(t.serie, ' ', t.letra, ' - ', t.turno) as turma_nome,
+                            t.serie_id,
+                            s.nivel_ensino,
+                            s.ordem as serie_ordem,
+                            t.serie as serie_nome,
+                            tp.fim as fim_atribuicao,
+                            tp.inicio as inicio_atribuicao
                           FROM turma_professor tp
                           INNER JOIN turma t ON tp.turma_id = t.id 
+                          LEFT JOIN serie s ON t.serie_id = s.id
                           WHERE t.escola_id = :escola_id 
                           AND tp.professor_id = :professor_id
-                          AND tp.fim IS NULL
                           AND t.ativo = 1
-                          ORDER BY t.serie, t.letra";
+                          AND (
+                              tp.fim IS NULL 
+                              OR tp.fim = '' 
+                              OR tp.fim = '0000-00-00' 
+                              OR tp.fim = '0000-00-00 00:00:00'
+                              OR tp.fim >= :data_atual
+                          )
+                          ORDER BY s.ordem ASC, t.serie, t.letra";
             
             $stmtTurmas = $conn->prepare($sqlTurmas);
             $stmtTurmas->bindParam(':escola_id', $escolaId, PDO::PARAM_INT);
             $stmtTurmas->bindParam(':professor_id', $professorId, PDO::PARAM_INT);
+            $stmtTurmas->bindParam(':data_atual', $dataAtual);
             $stmtTurmas->execute();
             $turmas = $stmtTurmas->fetchAll(PDO::FETCH_ASSOC);
             
+            // Remover campos de debug do resultado final
+            foreach ($turmas as &$turma) {
+                unset($turma['fim_atribuicao']);
+                unset($turma['inicio_atribuicao']);
+            }
+            unset($turma);
+            
             // Log para debug
-            error_log("Busca de turmas - Escola ID: $escolaId, Professor ID: $professorId, Turmas encontradas: " . count($turmas));
+            error_log("Total de turmas encontradas: " . count($turmas));
+            
             if (count($turmas) > 0) {
                 error_log("Primeira turma encontrada: " . json_encode($turmas[0]));
             } else {
                 error_log("ATENÇÃO: Nenhuma turma encontrada para professor $professorId na escola $escolaId");
-                // Tentar buscar sem filtro de escola para debug
+                // Se não encontrou turmas, verificar se há registros sem o filtro de fim
                 $sqlDebug = "SELECT DISTINCT 
                                 t.id as turma_id,
                                 CONCAT(t.serie, ' ', t.letra, ' - ', t.turno) as turma_nome,
-                                t.escola_id,
-                                tp.fim as fim_atribuicao
+                                tp.fim as fim_atribuicao,
+                                tp.professor_id,
+                                t.escola_id
                               FROM turma_professor tp
                               INNER JOIN turma t ON tp.turma_id = t.id 
-                              WHERE tp.professor_id = :professor_id
+                              WHERE t.escola_id = :escola_id 
+                              AND tp.professor_id = :professor_id
                               AND t.ativo = 1
-                              ORDER BY t.serie, t.letra";
+                              ORDER BY t.serie, t.letra
+                              LIMIT 5";
+                
                 $stmtDebug = $conn->prepare($sqlDebug);
+                $stmtDebug->bindParam(':escola_id', $escolaId, PDO::PARAM_INT);
                 $stmtDebug->bindParam(':professor_id', $professorId, PDO::PARAM_INT);
                 $stmtDebug->execute();
                 $turmasDebug = $stmtDebug->fetchAll(PDO::FETCH_ASSOC);
-                error_log("Turmas do professor (sem filtro de escola): " . count($turmasDebug));
+                error_log("Turmas encontradas SEM filtro de fim: " . count($turmasDebug));
                 if (count($turmasDebug) > 0) {
-                    error_log("Primeira turma (sem filtro): " . json_encode($turmasDebug[0]));
+                    error_log("Exemplo (sem filtro): " . json_encode($turmasDebug[0]));
                 }
             }
             
-            echo json_encode(['success' => true, 'turmas' => $turmas]);
+            // Garantir que retorna um array mesmo se vazio
+            if (!is_array($turmas)) {
+                $turmas = [];
+            }
+            
+            error_log("Retornando " . count($turmas) . " turmas para o frontend");
+            error_log("JSON que será enviado: " . json_encode(['success' => true, 'turmas' => $turmas], JSON_UNESCAPED_UNICODE));
+            
+            echo json_encode(['success' => true, 'turmas' => $turmas], JSON_UNESCAPED_UNICODE);
         } catch (Exception $e) {
-            error_log("Erro ao buscar turmas: " . $e->getMessage());
+            error_log("ERRO ao buscar turmas: " . $e->getMessage());
             error_log("Stack trace: " . $e->getTraceAsString());
             echo json_encode(['success' => false, 'message' => 'Erro ao buscar turmas: ' . $e->getMessage()]);
         }
@@ -351,6 +445,325 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['acao'])) {
             echo json_encode(['success' => true, 'disciplinas' => $disciplinas]);
         } catch (Exception $e) {
             echo json_encode(['success' => false, 'message' => 'Erro ao buscar disciplinas: ' . $e->getMessage()]);
+        }
+        exit;
+    }
+    
+    if ($_GET['acao'] === 'buscar_habilidades_turma') {
+        $turmaId = $_GET['turma_id'] ?? null;
+        $disciplinaId = $_GET['disciplina_id'] ?? null;
+        
+        if (empty($turmaId)) {
+            echo json_encode(['success' => false, 'message' => 'ID da turma não fornecido']);
+            exit;
+        }
+        
+        try {
+            // Buscar informações da turma e série
+            $sqlTurma = "SELECT t.id, t.serie_id, t.serie, s.nivel_ensino, s.ordem as serie_ordem
+                        FROM turma t
+                        LEFT JOIN serie s ON t.serie_id = s.id
+                        WHERE t.id = :turma_id";
+            
+            $stmtTurma = $conn->prepare($sqlTurma);
+            $stmtTurma->bindParam(':turma_id', $turmaId, PDO::PARAM_INT);
+            $stmtTurma->execute();
+            $turma = $stmtTurma->fetch(PDO::FETCH_ASSOC);
+            
+            if (!$turma) {
+                echo json_encode(['success' => false, 'message' => 'Turma não encontrada']);
+                exit;
+            }
+            
+            // Determinar o nível de ensino baseado na série (opcional, para informações adicionais)
+            $nivelEnsino = null;
+            $serieOrdem = $turma['serie_ordem'] ?? null;
+            $serieNome = $turma['serie'] ?? '';
+            
+            if ($turma['nivel_ensino'] === 'EDUCACAO_INFANTIL') {
+                $nivelEnsino = 'EDUCACAO_INFANTIL';
+            } elseif ($turma['nivel_ensino'] === 'ENSINO_FUNDAMENTAL') {
+                // Verificar se é Anos Iniciais (1º ao 5º) ou Anos Finais (6º ao 9º)
+                if ($serieOrdem !== null) {
+                    if ($serieOrdem >= 1 && $serieOrdem <= 5) {
+                        $nivelEnsino = 'ENSINO_FUNDAMENTAL_ANOS_INICIAIS';
+                    } elseif ($serieOrdem >= 6 && $serieOrdem <= 9) {
+                        $nivelEnsino = 'ENSINO_FUNDAMENTAL_ANOS_FINAIS';
+                    }
+                } else {
+                    // Tentar identificar pela série (ex: "1º Ano", "6º Ano")
+                    if (preg_match('/^[1-5]º/', $serieNome)) {
+                        $nivelEnsino = 'ENSINO_FUNDAMENTAL_ANOS_INICIAIS';
+                    } elseif (preg_match('/^[6-9]º/', $serieNome)) {
+                        $nivelEnsino = 'ENSINO_FUNDAMENTAL_ANOS_FINAIS';
+                    }
+                }
+            }
+            
+            // Extrair número do ano/série (mais importante que o nível de ensino)
+            $numeroAno = null;
+            if ($serieOrdem !== null && $serieOrdem > 0 && $serieOrdem <= 9) {
+                // Validar que serie_ordem está no range válido (1-9)
+                $numeroAno = (int)$serieOrdem;
+            } elseif (!empty($serieNome)) {
+                // Priorizar extração do número do ordinal (1º, 2º, etc) no início da string
+                // Exemplos: "1º Ano", "1º", "1", "Primeiro Ano", etc.
+                
+                // Primeiro, tentar pegar o número do ordinal no início (mais confiável)
+                if (preg_match('/^([1-9])º/', trim($serieNome), $matches)) {
+                    $numeroAno = (int)$matches[1];
+                } 
+                // Se não encontrar, tentar nomes por extenso
+                elseif (preg_match('/^PRIMEIRO|^1º|^1\s/', strtoupper(trim($serieNome)))) {
+                    $numeroAno = 1;
+                } elseif (preg_match('/^SEGUNDO|^2º|^2\s/', strtoupper(trim($serieNome)))) {
+                    $numeroAno = 2;
+                } elseif (preg_match('/^TERCEIRO|^3º|^3\s/', strtoupper(trim($serieNome)))) {
+                    $numeroAno = 3;
+                } elseif (preg_match('/^QUARTO|^4º|^4\s/', strtoupper(trim($serieNome)))) {
+                    $numeroAno = 4;
+                } elseif (preg_match('/^QUINTO|^5º|^5\s/', strtoupper(trim($serieNome)))) {
+                    $numeroAno = 5;
+                } elseif (preg_match('/^SEXTO|^6º|^6\s/', strtoupper(trim($serieNome)))) {
+                    $numeroAno = 6;
+                } elseif (preg_match('/^SETIMO|^SÉTIMO|^7º|^7\s/', strtoupper(trim($serieNome)))) {
+                    $numeroAno = 7;
+                } elseif (preg_match('/^OITAVO|^8º|^8\s/', strtoupper(trim($serieNome)))) {
+                    $numeroAno = 8;
+                } elseif (preg_match('/^NONO|^9º|^9\s/', strtoupper(trim($serieNome)))) {
+                    $numeroAno = 9;
+                }
+                // Por último, tentar pegar o primeiro número de 1 a 9 (evitar pegar 10, 11, etc)
+                elseif (preg_match('/\b([1-9])\b/', $serieNome, $matches)) {
+                    $numeroAno = (int)$matches[1];
+                }
+            }
+            
+            // Validar que o número do ano está no range válido (1-9)
+            if ($numeroAno !== null && ($numeroAno < 1 || $numeroAno > 9)) {
+                error_log("AVISO: Número do ano inválido detectado: $numeroAno (serie_ordem: $serieOrdem, serie_nome: $serieNome)");
+                $numeroAno = null; // Resetar para forçar nova tentativa
+                
+                // Tentar extrair novamente apenas do nome da série, ignorando serie_ordem
+                if (!empty($serieNome)) {
+                    if (preg_match('/^([1-9])º/', trim($serieNome), $matches)) {
+                        $numeroAno = (int)$matches[1];
+                    }
+                }
+            }
+            
+            // Se não conseguimos extrair o número do ano, não podemos buscar habilidades
+            if (!$numeroAno) {
+                echo json_encode([
+                    'success' => false, 
+                    'message' => 'Não foi possível identificar o ano/série da turma. Verifique se a série está cadastrada corretamente.',
+                    'debug' => [
+                        'serie_ordem' => $serieOrdem,
+                        'serie_nome' => $serieNome,
+                        'nivel_ensino' => $turma['nivel_ensino'] ?? null
+                    ]
+                ]);
+                exit;
+            }
+            
+            // Buscar informações da disciplina se fornecida
+            $codigoDisciplinaBNCC = null;
+            if ($disciplinaId) {
+                $sqlDisciplina = "SELECT id, codigo, nome FROM disciplina WHERE id = :disciplina_id AND ativo = 1 LIMIT 1";
+                $stmtDisciplina = $conn->prepare($sqlDisciplina);
+                $stmtDisciplina->bindParam(':disciplina_id', $disciplinaId, PDO::PARAM_INT);
+                $stmtDisciplina->execute();
+                $disciplina = $stmtDisciplina->fetch(PDO::FETCH_ASSOC);
+                
+                if ($disciplina) {
+                    // Mapear código da disciplina para código BNCC
+                    $nomeDisciplina = strtoupper($disciplina['nome']);
+                    $codigoDisciplina = strtoupper($disciplina['codigo'] ?? '');
+                    
+                    // Mapeamento de códigos de disciplinas para códigos BNCC
+                    $mapeamentoBNCC = [
+                        'PORT' => 'LP',
+                        'PORTUGUES' => 'LP',
+                        'LÍNGUA PORTUGUESA' => 'LP',
+                        'LINGUA PORTUGUESA' => 'LP',
+                        'MAT' => 'MA',
+                        'MATEMATICA' => 'MA',
+                        'MATEMÁTICA' => 'MA',
+                        'HIST' => 'HI',
+                        'HISTORIA' => 'HI',
+                        'HISTÓRIA' => 'HI',
+                        'GEO' => 'GE',
+                        'GEOGRAFIA' => 'GE',
+                        'CIEN' => 'CN',
+                        'CIENCIAS' => 'CN',
+                        'CIÊNCIAS' => 'CN',
+                        'ART' => 'AR',
+                        'ARTES' => 'AR',
+                        'EDF' => 'EF',
+                        'EDUCACAO FISICA' => 'EF',
+                        'EDUCAÇÃO FÍSICA' => 'EF',
+                        'ING' => 'LI',
+                        'INGLES' => 'LI',
+                        'INGLÊS' => 'LI',
+                    ];
+                    
+                    // Tentar encontrar o código BNCC
+                    if (!empty($codigoDisciplina) && isset($mapeamentoBNCC[$codigoDisciplina])) {
+                        $codigoDisciplinaBNCC = $mapeamentoBNCC[$codigoDisciplina];
+                    } elseif (isset($mapeamentoBNCC[$nomeDisciplina])) {
+                        $codigoDisciplinaBNCC = $mapeamentoBNCC[$nomeDisciplina];
+                    } else {
+                        // Tentar extrair do nome (ex: "Língua Portuguesa" → "LP")
+                        foreach ($mapeamentoBNCC as $chave => $codigo) {
+                            if (stripos($nomeDisciplina, $chave) !== false || stripos($chave, $nomeDisciplina) !== false) {
+                                $codigoDisciplinaBNCC = $codigo;
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+            
+            // Buscar habilidades do banco de dados
+            $habilidades = [];
+            if (!$disciplinaId) {
+                // Se não houver disciplina selecionada, retornar sucesso mas sem habilidades
+                echo json_encode([
+                    'success' => true, 
+                    'nivel_ensino' => $nivelEnsino,
+                    'serie_ordem' => $serieOrdem,
+                    'serie_nome' => $serieNome,
+                    'disciplina_id' => null,
+                    'codigo_disciplina_bncc' => null,
+                    'numero_ano' => $numeroAno,
+                    'habilidades' => [],
+                    'message' => 'Selecione uma disciplina para ver as habilidades disponíveis'
+                ]);
+                exit;
+            }
+            
+            if ($codigoDisciplinaBNCC && $numeroAno) {
+                // Verificar quais colunas existem na tabela
+                $sqlVerificarColunas = "SHOW COLUMNS FROM habilidades_bncc";
+                $stmtVerificar = $conn->prepare($sqlVerificarColunas);
+                $stmtVerificar->execute();
+                $colunas = $stmtVerificar->fetchAll(PDO::FETCH_COLUMN);
+                
+                // Determinar nome da coluna de código
+                $colunaCodigo = 'codigo_bncc';
+                if (!in_array('codigo_bncc', $colunas) && in_array('codigo', $colunas)) {
+                    $colunaCodigo = 'codigo';
+                }
+                
+                // Determinar se existe coluna ativo
+                $temColunaAtivo = in_array('ativo', $colunas);
+                
+                // Buscar habilidades que:
+                // 1. Começam com "EF" (Ensino Fundamental)
+                // 2. Contêm o número do ano na posição correta (após "EF")
+                // 3. Contêm o código da disciplina (MA, LP, etc)
+                // Exemplo: EF01MA01, EF01MA02, EF12MA01 (para 1º ano), EF69MA01 (para 6º ao 9º)
+                
+                // Construir query baseada nas colunas disponíveis
+                $sqlHabilidades = "SELECT {$colunaCodigo} as codigo, descricao 
+                                  FROM habilidades_bncc 
+                                  WHERE 1=1";
+                
+                // Adicionar filtro de ativo se a coluna existir
+                if ($temColunaAtivo) {
+                    $sqlHabilidades .= " AND ativo = 1";
+                }
+                
+                // Adicionar filtro de código
+                $sqlHabilidades .= " AND {$colunaCodigo} LIKE :padrao_disciplina";
+                $sqlHabilidades .= " ORDER BY {$colunaCodigo} ASC";
+                
+                // Padrão: EF + qualquer coisa + código disciplina + qualquer coisa
+                // Exemplo para Matemática: EF%MA%
+                $padraoDisciplina = "EF%" . $codigoDisciplinaBNCC . "%";
+                
+                $stmtHabilidades = $conn->prepare($sqlHabilidades);
+                $stmtHabilidades->bindParam(':padrao_disciplina', $padraoDisciplina);
+                $stmtHabilidades->execute();
+                $habilidadesBanco = $stmtHabilidades->fetchAll(PDO::FETCH_ASSOC);
+                
+                // Filtrar para garantir que o código contém o número do ano
+                // O padrão BNCC é: EF + número(s) do(s) ano(s) + código disciplina + número
+                // Exemplos válidos para 1º ano: EF01MA01, EF12MA01, EF15MA01
+                // Exemplos válidos para 2º ano: EF02MA01, EF12MA01, EF25MA01
+                foreach ($habilidadesBanco as $hab) {
+                    $codigo = strtoupper($hab['codigo']);
+                    
+                    // Verificar se contém o código da disciplina
+                    if (strpos($codigo, $codigoDisciplinaBNCC) === false) {
+                        continue;
+                    }
+                    
+                    // Extrair a parte numérica após "EF" e antes do código da disciplina
+                    // Exemplo: "EF01MA01" → extrair "01"
+                    if (preg_match('/^EF(\d+)/', $codigo, $matches)) {
+                        $numerosAno = $matches[1];
+                        
+                        // Verificar se o número do ano está presente
+                        // Pode ser: "01" (1º ano), "12" (1º e 2º ano), "15" (1º e 5º ano), etc
+                        // Formatar o número do ano com zero à esquerda para comparação (1 → "01", 2 → "02")
+                        $numeroAnoFormatado = str_pad((string)$numeroAno, 2, '0', STR_PAD_LEFT);
+                        
+                        // Verificar se contém o número do ano (com ou sem zero à esquerda)
+                        if (strpos($numerosAno, $numeroAnoFormatado) !== false || 
+                            strpos($numerosAno, (string)$numeroAno) !== false) {
+                            $habilidades[] = [
+                                'id' => $hab['codigo'],
+                                'codigo' => $hab['codigo'],
+                                'nome' => $hab['codigo'] . ' - ' . $hab['descricao']
+                            ];
+                        }
+                    }
+                }
+            }
+            
+            echo json_encode([
+                'success' => true, 
+                'nivel_ensino' => $nivelEnsino,
+                'serie_ordem' => $serieOrdem,
+                'serie_nome' => $serieNome,
+                'disciplina_id' => $disciplinaId,
+                'codigo_disciplina_bncc' => $codigoDisciplinaBNCC,
+                'numero_ano' => $numeroAno,
+                'habilidades' => $habilidades
+            ]);
+        } catch (Exception $e) {
+            error_log("ERRO ao buscar habilidades: " . $e->getMessage());
+            echo json_encode(['success' => false, 'message' => 'Erro ao buscar habilidades: ' . $e->getMessage()]);
+        }
+        exit;
+    }
+    
+    if ($_GET['acao'] === 'buscar_plano') {
+        $planoId = $_GET['plano_id'] ?? null;
+        
+        if (empty($planoId)) {
+            echo json_encode(['success' => false, 'message' => 'ID do plano não fornecido']);
+            exit;
+        }
+        
+        try {
+            $plano = $planoAulaModel->buscarPorId($planoId);
+            
+            if (!$plano) {
+                echo json_encode(['success' => false, 'message' => 'Plano de aula não encontrado']);
+                exit;
+            }
+            
+            // Verificar se o plano pertence ao professor logado
+            if ($plano['professor_id'] != $professorId) {
+                echo json_encode(['success' => false, 'message' => 'Você não tem permissão para visualizar este plano']);
+                exit;
+            }
+            
+            echo json_encode(['success' => true, 'plano' => $plano]);
+        } catch (Exception $e) {
+            echo json_encode(['success' => false, 'message' => 'Erro ao buscar plano: ' . $e->getMessage()]);
         }
         exit;
     }
@@ -442,6 +855,14 @@ if ($professorId) {
         .tab-inactive {
             border-bottom: 2px solid transparent;
             color: #6B7280;
+        }
+        /* Estilo para selects com textos longos */
+        select option {
+            white-space: normal;
+            padding: 8px;
+        }
+        select {
+            min-height: 42px;
         }
     </style>
 </head>
@@ -794,8 +1215,19 @@ if ($professorId) {
                                     <label class="block text-sm font-medium text-gray-700 mb-2">Competência Socioemocional</label>
                                     <div class="flex gap-2 mb-3">
                                         <select id="select-competencia-socioemocional" 
-                                                class="flex-1 px-4 py-2 border border-gray-300 rounded-lg">
+                                                onchange="atualizarCompetenciasEspecificas()"
+                                                class="w-full px-4 py-2 border border-gray-300 rounded-lg">
                                             <option value="">Selecione uma competência socioemocional</option>
+                                            <option value="1">ABERTURA AO NOVO</option>
+                                            <option value="2">AMABILIDADE</option>
+                                            <option value="3">AUTOGESTÃO</option>
+                                            <option value="4">ENGAJAMENTO COM OS OUTROS</option>
+                                            <option value="5">RESILIÊNCIA EMOCIONAL</option>
+                                        </select>
+                                        <select id="select-competencia-especifica-socioemocional" 
+                                                class="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                                                disabled>
+                                            <option value="">Selecione primeiro uma competência socioemocional</option>
                                         </select>
                                         <button type="button" onclick="adicionarCompetenciaSocioemocional()" 
                                                 class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center justify-center min-w-[48px]">
@@ -813,19 +1245,34 @@ if ($professorId) {
                                                 </tr>
                                             </thead>
                                             <tbody id="tabela-competencia-socioemocional" class="bg-white">
-                                                <!-- Itens serão adicionados aqui via JavaScript -->
+                                                <tr>
+                                                    <td colspan="2" class="text-center py-4 text-gray-500 text-sm">
+                                                        Nenhuma competência selecionada
+                                                    </td>
+                                                </tr>
                                             </tbody>
                                         </table>
                                     </div>
                                 </div>
                                 
-                                <!-- Competência Específica -->
-                                <div>
+                                <!-- Competência Específica (apenas para Português) -->
+                                <div id="secao-competencia-especifica">
                                     <label class="block text-sm font-medium text-gray-700 mb-2">Competência Específica</label>
                                     <div class="flex gap-2 mb-3">
                                         <select id="select-competencia-especifica" 
-                                                class="flex-1 px-4 py-2 border border-gray-300 rounded-lg">
+                                                class="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                                                title="Selecione uma competência específica">
                                             <option value="">Selecione uma competência específica</option>
+                                            <option value="1" title="ANALISAR INFORMAÇÕES, ARGUMENTOS E OPINIÕES MANIFESTADAS EM INTERAÇÕES SOCIAIS E NOS MEIOS DE COMUNICAÇÃO, POSICIONANDO-SE ÉTICA E CRITICAMENTE EM RELAÇÃO A CONTEÚDOS DISCRIMINATÓRIOS QUE FEREM DIREITOS HUMANOS E AMBIENTAIS.">ANALISAR INFORMAÇÕES, ARGUMENTOS E OPINIÕES MANIFESTADAS EM INTERAÇÕES SOCIAIS E NOS MEIOS DE COMUNICAÇÃO, POSICIONANDO-SE ÉTICA E CRITICAMENTE EM RELAÇÃO A CONTEÚDOS DISCRIMINATÓRIOS QUE FEREM DIREITOS HUMANOS E AMBIENTAIS.</option>
+                                            <option value="2" title="APROPRIAR-SE DA LINGUAGEM ESCRITA, RECONHECENDO-A COMO FORMA DE INTERAÇÃO NOS DIFERENTES CAMPOS DE ATUAÇÃO DA VIDA SOCIAL E UTILIZANDO-A PARA AMPLIAR SUAS POSSIBILIDADES DE PARTICIPAR DA CULTURA LETRADA, DE CONSTRUIR CONHECIMENTOS (INCLUSIVE ESCOLARES) E DE SE ENVOLVER COM MAIOR AUTONOMIA E PROTAGONISMO NA VIDA SOCIAL.">APROPRIAR-SE DA LINGUAGEM ESCRITA, RECONHECENDO-A COMO FORMA DE INTERAÇÃO NOS DIFERENTES CAMPOS DE ATUAÇÃO DA VIDA SOCIAL E UTILIZANDO-A PARA AMPLIAR SUAS POSSIBILIDADES DE PARTICIPAR DA CULTURA LETRADA, DE CONSTRUIR CONHECIMENTOS (INCLUSIVE ESCOLARES) E DE SE ENVOLVER COM MAIOR AUTONOMIA E PROTAGONISMO NA VIDA SOCIAL.</option>
+                                            <option value="3" title="COMPREENDER A LÍNGUA COMO FENÔMENO CULTURAL, HISTÓRICO, SOCIAL, VARIÁVEL, HETEROGÊNEO E SENSÍVEL AOS CONTEXTOS DE USO, RECONHECENDO-A COMO MEIO DE CONSTRUÇÃO DE IDENTIDADES DE SEUS USUÁRIOS E DA COMUNIDADE A QUE PERTENCEM.">COMPREENDER A LÍNGUA COMO FENÔMENO CULTURAL, HISTÓRICO, SOCIAL, VARIÁVEL, HETEROGÊNEO E SENSÍVEL AOS CONTEXTOS DE USO, RECONHECENDO-A COMO MEIO DE CONSTRUÇÃO DE IDENTIDADES DE SEUS USUÁRIOS E DA COMUNIDADE A QUE PERTENCEM.</option>
+                                            <option value="4" title="COMPREENDER O FENÔMENO DA VARIAÇÃO LINGUÍSTICA, DEMONSTRANDO ATITUDE RESPEITOSA DIANTE DE VARIEDADES LINGUÍSTICAS E REJEITANDO PRECONCEITOS LINGUÍSTICOS.">COMPREENDER O FENÔMENO DA VARIAÇÃO LINGUÍSTICA, DEMONSTRANDO ATITUDE RESPEITOSA DIANTE DE VARIEDADES LINGUÍSTICAS E REJEITANDO PRECONCEITOS LINGUÍSTICOS.</option>
+                                            <option value="5" title="EMPREGAR, NAS INTERAÇÕES SOCIAIS, A VARIEDADE E O ESTILO DE LINGUAGEM ADEQUADOS À SITUAÇÃO COMUNICATIVA, AO(S) INTERLOCUTOR(ES) E AO GÊNERO DO DISCURSO/GÊNERO TEXTUAL.">EMPREGAR, NAS INTERAÇÕES SOCIAIS, A VARIEDADE E O ESTILO DE LINGUAGEM ADEQUADOS À SITUAÇÃO COMUNICATIVA, AO(S) INTERLOCUTOR(ES) E AO GÊNERO DO DISCURSO/GÊNERO TEXTUAL.</option>
+                                            <option value="6" title="ENVOLVER-SE EM PRÁTICAS DE LEITURA LITERÁRIA QUE POSSIBILITEM O DESENVOLVIMENTO DO SENSO ESTÉTICO PARA FRUIÇÃO, VALORIZANDO A LITERATURA E OUTRAS MANIFESTAÇÕES ARTÍSTICO-CULTURAIS COMO FORMAS DE ACESSO ÀS DIMENSÕES LÚDICAS, DE IMAGINÁRIO E ENCANTAMENTO, RECONHECENDO O POTENCIAL TRANSFORMADOR E HUMANIZADOR DA EXPERIÊNCIA COM A LITERATURA.">ENVOLVER-SE EM PRÁTICAS DE LEITURA LITERÁRIA QUE POSSIBILITEM O DESENVOLVIMENTO DO SENSO ESTÉTICO PARA FRUIÇÃO, VALORIZANDO A LITERATURA E OUTRAS MANIFESTAÇÕES ARTÍSTICO-CULTURAIS COMO FORMAS DE ACESSO ÀS DIMENSÕES LÚDICAS, DE IMAGINÁRIO E ENCANTAMENTO, RECONHECENDO O POTENCIAL TRANSFORMADOR E HUMANIZADOR DA EXPERIÊNCIA COM A LITERATURA.</option>
+                                            <option value="7" title="LER, ESCUTAR E PRODUZIR TEXTOS ORAIS, ESCRITOS E MULTISSEMIÓTICOS QUE CIRCULAM EM DIFERENTES CAMPOS DE ATUAÇÃO E MÍDIAS, COM COMPREENSÃO, AUTONOMIA, FLUÊNCIA E CRITICIDADE, DE MODO A SE EXPRESSAR E PARTILHAR INFORMAÇÕES, EXPERIÊNCIAS, IDEIAS E SENTIMENTOS, E CONTINUAR APRENDENDO.">LER, ESCUTAR E PRODUZIR TEXTOS ORAIS, ESCRITOS E MULTISSEMIÓTICOS QUE CIRCULAM EM DIFERENTES CAMPOS DE ATUAÇÃO E MÍDIAS, COM COMPREENSÃO, AUTONOMIA, FLUÊNCIA E CRITICIDADE, DE MODO A SE EXPRESSAR E PARTILHAR INFORMAÇÕES, EXPERIÊNCIAS, IDEIAS E SENTIMENTOS, E CONTINUAR APRENDENDO.</option>
+                                            <option value="8" title="MOBILIZAR PRÁTICAS DA CULTURA DIGITAL, DIFERENTES LINGUAGENS, MÍDIAS E FERRAMENTAS DIGITAIS PARA EXPANDIR AS FORMAS DE PRODUZIR SENTIDOS (NOS PROCESSOS DE COMPREENSÃO E PRODUÇÃO), APRENDER E REFLETIR SOBRE O MUNDO E REALIZAR DIFERENTES PROJETOS AUTORAIS.">MOBILIZAR PRÁTICAS DA CULTURA DIGITAL, DIFERENTES LINGUAGENS, MÍDIAS E FERRAMENTAS DIGITAIS PARA EXPANDIR AS FORMAS DE PRODUZIR SENTIDOS (NOS PROCESSOS DE COMPREENSÃO E PRODUÇÃO), APRENDER E REFLETIR SOBRE O MUNDO E REALIZAR DIFERENTES PROJETOS AUTORAIS.</option>
+                                            <option value="9" title="RECONHECER O TEXTO COMO LUGAR DE MANIFESTAÇÃO E NEGOCIAÇÃO DE SENTIDOS, VALORES E IDEOLOGIAS.">RECONHECER O TEXTO COMO LUGAR DE MANIFESTAÇÃO E NEGOCIAÇÃO DE SENTIDOS, VALORES E IDEOLOGIAS.</option>
+                                            <option value="10" title="SELECIONAR TEXTOS E LIVROS PARA LEITURA INTEGRAL, DE ACORDO COM OBJETIVOS, INTERESSES E PROJETOS PESSOAIS (ESTUDO, FORMAÇÃO PESSOAL, ENTRETENIMENTO, PESQUISA, TRABALHO ETC.).">SELECIONAR TEXTOS E LIVROS PARA LEITURA INTEGRAL, DE ACORDO COM OBJETIVOS, INTERESSES E PROJETOS PESSOAIS (ESTUDO, FORMAÇÃO PESSOAL, ENTRETENIMENTO, PESQUISA, TRABALHO ETC.).</option>
                                         </select>
                                         <button type="button" onclick="adicionarCompetenciaEspecifica()" 
                                                 class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center justify-center min-w-[48px]">
@@ -838,13 +1285,16 @@ if ($professorId) {
                                         <table class="w-full">
                                             <thead class="bg-gray-100">
                                                 <tr>
-                                                    <th class="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase">COMPONENTE</th>
-                                                    <th class="px-4 py-3 text-center text-xs font-bold text-gray-700 uppercase">COMPETÊNCIA ESPECÍFICA</th>
+                                                    <th class="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase">COMPETÊNCIA ESPECÍFICA</th>
                                                     <th class="px-4 py-3 text-right text-xs font-bold text-gray-700 uppercase">AÇÃO</th>
                                                 </tr>
                                             </thead>
                                             <tbody id="tabela-competencia-especifica" class="bg-white">
-                                                <!-- Itens serão adicionados aqui via JavaScript -->
+                                                <tr>
+                                                    <td colspan="2" class="text-center py-4 text-gray-500 text-sm">
+                                                        Nenhuma competência selecionada
+                                                    </td>
+                                                </tr>
                                             </tbody>
                                         </table>
                                     </div>
@@ -884,11 +1334,57 @@ if ($professorId) {
                         
                         <!-- Aba HABILIDADES -->
                         <div id="aba-habilidades" class="aba-conteudo hidden">
-                            <div class="mb-4">
-                                <label class="block text-sm font-medium text-gray-700 mb-2">Habilidades</label>
-                                <textarea id="habilidades" rows="6" 
+                            <div class="space-y-6">
+                                <!-- Observações Complementares -->
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">Observações Complementares</label>
+                                    <textarea id="observacoes-complementares" rows="6" 
+                                              class="w-full px-4 py-2 border border-gray-300 rounded-lg resize-y"
+                                              placeholder="Adicione observações complementares..."></textarea>
+                                </div>
+                                
+                                <!-- Seções e Temas -->
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">Seções e Temas</label>
+                                    <textarea id="secoes-temas" rows="6" 
+                                              class="w-full px-4 py-2 border border-gray-300 rounded-lg resize-y"
+                                              placeholder="Descreva as seções e temas..."></textarea>
+                                </div>
+                                
+                                <!-- Habilidade -->
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">Habilidade</label>
+                                    <div class="flex gap-2 mb-3">
+                                        <select id="select-habilidade" 
                                           class="w-full px-4 py-2 border border-gray-300 rounded-lg"
-                                          placeholder="Descreva as habilidades que serão trabalhadas..."></textarea>
+                                                disabled>
+                                            <option value="">Selecione uma turma e disciplina primeiro</option>
+                                        </select>
+                                        <button type="button" onclick="adicionarHabilidade()" 
+                                                class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center justify-center min-w-[48px]">
+                                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+                                            </svg>
+                                        </button>
+                                    </div>
+                                    <div class="border border-gray-200 rounded-lg overflow-hidden">
+                                        <table class="w-full">
+                                            <thead class="bg-gray-100">
+                                                <tr>
+                                                    <th class="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase">HABILIDADE</th>
+                                                    <th class="px-4 py-3 text-right text-xs font-bold text-gray-700 uppercase">AÇÃO</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody id="tabela-habilidades" class="bg-white">
+                                                <tr>
+                                                    <td colspan="2" class="text-center py-4 text-gray-500 text-sm">
+                                                        Nenhuma habilidade adicionada
+                                                    </td>
+                                                </tr>
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                         
@@ -1043,6 +1539,167 @@ if ($professorId) {
         </div>
     </div>
     
+    <!-- Modal Visualizar Plano Completo -->
+    <div id="modal-ver-plano" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden items-center justify-center p-4" style="display: none;">
+        <div class="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+            <!-- Header -->
+            <div class="bg-primary-green text-white px-6 py-4 flex-shrink-0">
+                <div class="flex justify-between items-center">
+                    <h3 id="modal-ver-plano-titulo" class="text-2xl font-bold">Plano de Aula</h3>
+                    <button onclick="fecharModalVerPlano()" class="text-white hover:text-gray-200 transition-colors">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Conteúdo Scrollável -->
+            <div class="flex-1 overflow-y-auto p-6">
+                <!-- Informações Básicas -->
+                <div class="grid grid-cols-2 md:grid-cols-3 gap-4 mb-6">
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-1">Data da Aula</label>
+                        <p id="modal-ver-plano-data" class="text-gray-900">-</p>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-1">Escola</label>
+                        <p id="modal-ver-plano-escola" class="text-gray-900">-</p>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-1">Turma</label>
+                        <p id="modal-ver-plano-turma" class="text-gray-900">-</p>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-1">Disciplina</label>
+                        <p id="modal-ver-plano-disciplina" class="text-gray-900">-</p>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-1">Professor</label>
+                        <p id="modal-ver-plano-professor" class="text-gray-900">-</p>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-1">Bimestre</label>
+                        <p id="modal-ver-plano-bimestre" class="text-gray-900">-</p>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-1">Status</label>
+                        <span id="modal-ver-plano-status" class="inline-block px-3 py-1 rounded-full text-xs font-semibold bg-gray-100 text-gray-800">-</span>
+                    </div>
+                </div>
+                
+                <div class="border-t border-gray-200 pt-6 space-y-6">
+                    <!-- Conteúdo -->
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-2">Conteúdo</label>
+                        <div id="modal-ver-plano-conteudo" class="bg-gray-50 rounded-lg p-4 text-gray-900 whitespace-pre-wrap min-h-[80px]">-</div>
+                    </div>
+                    
+                    <!-- Objetivos -->
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-2">Objetivo(s) da Aula</label>
+                        <div id="modal-ver-plano-objetivos" class="bg-gray-50 rounded-lg p-4 text-gray-900 whitespace-pre-wrap min-h-[80px]">-</div>
+                    </div>
+                    
+                    <!-- Metodologia -->
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-2">Metodologia</label>
+                        <div id="modal-ver-plano-metodologia" class="bg-gray-50 rounded-lg p-4 text-gray-900 whitespace-pre-wrap min-h-[80px]">-</div>
+                    </div>
+                    
+                    <!-- Recursos -->
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-2">Recursos</label>
+                        <div id="modal-ver-plano-recursos" class="bg-gray-50 rounded-lg p-4 text-gray-900 whitespace-pre-wrap min-h-[80px]">-</div>
+                    </div>
+                    
+                    <!-- Avaliação -->
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-2">Avaliação</label>
+                        <div id="modal-ver-plano-avaliacao" class="bg-gray-50 rounded-lg p-4 text-gray-900 whitespace-pre-wrap min-h-[80px]">-</div>
+                    </div>
+                    
+                    <!-- Atividades Flexibilizadas -->
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-2">Atividades Flexibilizadas</label>
+                        <div id="modal-ver-plano-atividades-flexibilizadas" class="bg-gray-50 rounded-lg p-4 text-gray-900 whitespace-pre-wrap min-h-[80px]">-</div>
+                    </div>
+                    
+                    <!-- Observações -->
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-2">Observações</label>
+                        <div id="modal-ver-plano-observacoes" class="bg-gray-50 rounded-lg p-4 text-gray-900 whitespace-pre-wrap min-h-[80px]">-</div>
+                    </div>
+                    
+                    <!-- Observações Complementares -->
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-2">Observações Complementares</label>
+                        <div id="modal-ver-plano-observacoes-complementares" class="bg-gray-50 rounded-lg p-4 text-gray-900 whitespace-pre-wrap min-h-[80px]">-</div>
+                    </div>
+                    
+                    <!-- Seções e Temas -->
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-2">Seções e Temas</label>
+                        <div id="modal-ver-plano-secoes-temas" class="bg-gray-50 rounded-lg p-4 text-gray-900 whitespace-pre-wrap min-h-[80px]">-</div>
+                    </div>
+                    
+                    <!-- Habilidades -->
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-2">Habilidades</label>
+                        <div id="modal-ver-plano-habilidades" class="bg-gray-50 rounded-lg p-4 text-gray-900 whitespace-pre-wrap min-h-[80px]">-</div>
+                    </div>
+                    
+                    <!-- Competências Socioemocionais -->
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-2">Competências Socioemocionais</label>
+                        <div id="modal-ver-plano-competencias-socioemocionais" class="bg-gray-50 rounded-lg p-4 text-gray-900 whitespace-pre-wrap min-h-[80px]">-</div>
+                    </div>
+                    
+                    <!-- Competências Específicas -->
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-2">Competências Específicas</label>
+                        <div id="modal-ver-plano-competencias-especificas" class="bg-gray-50 rounded-lg p-4 text-gray-900 whitespace-pre-wrap min-h-[80px]">-</div>
+                    </div>
+                    
+                    <!-- Competências Gerais -->
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-2">Competências Gerais</label>
+                        <div id="modal-ver-plano-competencias-gerais" class="bg-gray-50 rounded-lg p-4 text-gray-900 whitespace-pre-wrap min-h-[80px]">-</div>
+                    </div>
+                    
+                    <!-- Componentes Curriculares -->
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-2">Componentes Curriculares</label>
+                        <div id="modal-ver-plano-disciplinas-componentes" class="bg-gray-50 rounded-lg p-4 text-gray-900 whitespace-pre-wrap min-h-[80px]">-</div>
+                    </div>
+                </div>
+                
+                <!-- Informações do Sistema -->
+                <div class="border-t border-gray-200 pt-6 mt-6">
+                    <h4 class="text-sm font-semibold text-gray-700 mb-3">Informações do Sistema</h4>
+                    <div class="grid grid-cols-2 gap-4 text-sm">
+                        <div>
+                            <label class="block text-gray-600 mb-1">Criado por:</label>
+                            <p id="modal-ver-plano-criado-por" class="text-gray-900">-</p>
+                        </div>
+                        <div>
+                            <label class="block text-gray-600 mb-1">Criado em:</label>
+                            <p id="modal-ver-plano-criado-em" class="text-gray-900">-</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Footer -->
+            <div class="bg-gray-50 px-6 py-4 flex-shrink-0 border-t border-gray-200 flex justify-end">
+                <button onclick="fecharModalVerPlano()" 
+                        class="px-6 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-lg font-medium transition-colors">
+                    Fechar
+                </button>
+            </div>
+        </div>
+    </div>
+    
     <script>
         const turmasProfessor = <?= json_encode($turmasProfessor) ?>;
         const escolas = <?= json_encode(array_values($escolas)) ?>;
@@ -1058,6 +1715,49 @@ if ($professorId) {
         
         // Array para armazenar disciplinas (componentes curriculares) selecionadas
         let disciplinasComponente = [];
+        
+        // Array para armazenar habilidades
+        let habilidades = [];
+        
+        // Mapeamento de Competências Socioemocionais para Competências Específicas
+        const competenciasEspecificasMap = {
+            '1': [ // Abertura ao novo
+                { id: '1-1', nome: 'CURIOSIDADE PARA APRENDER' },
+                { id: '1-2', nome: 'IMAGINAÇÃO CRIATIVA' },
+                { id: '1-3', nome: 'INTERESSE ARTÍSTICO' }
+            ],
+            '2': [ // Amabilidade
+                { id: '2-1', nome: 'CONFIANÇA' },
+                { id: '2-2', nome: 'EMPATIA' },
+                { id: '2-3', nome: 'RESPEITO' }
+            ],
+            '3': [ // Autogestão
+                { id: '3-1', nome: 'DETERMINAÇÃO' },
+                { id: '3-2', nome: 'FOCO' },
+                { id: '3-3', nome: 'ORGANIZAÇÃO' },
+                { id: '3-4', nome: 'PERSISTÊNCIA' },
+                { id: '3-5', nome: 'RESPONSABILIDADE' }
+            ],
+            '4': [ // Engajamento com os outros
+                { id: '4-1', nome: 'ASSERTIVIDADE' },
+                { id: '4-2', nome: 'ENTUSIASMO' },
+                { id: '4-3', nome: 'INICIATIVA SOCIAL' }
+            ],
+            '5': [ // Resiliência emocional
+                { id: '5-1', nome: 'AUTOCONFIANÇA' },
+                { id: '5-2', nome: 'TOLERÂNCIA E FRUSTRAÇÃO' },
+                { id: '5-3', nome: 'TOLERÂNCIA AO ESTRESSE' }
+            ]
+        };
+        
+        // Nomes das Competências Socioemocionais
+        const competenciasSocioemocionaisNomes = {
+            '1': 'ABERTURA AO NOVO',
+            '2': 'AMABILIDADE',
+            '3': 'AUTOGESTÃO',
+            '4': 'ENGAJAMENTO COM OS OUTROS',
+            '5': 'RESILIÊNCIA EMOCIONAL'
+        };
         
         window.toggleSidebar = function() {
             const sidebar = document.getElementById('sidebar');
@@ -1084,33 +1784,63 @@ if ($professorId) {
                 conteudo.classList.add('hidden');
             });
             document.getElementById('aba-' + aba).classList.remove('hidden');
-            
+        
             // Se a aba de componentes for aberta e houver escola selecionada, carregar disciplinas
             if (aba === 'componentes') {
-                const escolaId = document.getElementById('escola-select').value;
+            const escolaId = document.getElementById('escola-select').value;
                 if (escolaId) {
                     carregarDisciplinasEscola(escolaId);
                 }
             }
+            
+            // Se a aba de habilidades for aberta e houver turma selecionada, carregar habilidades
+            if (aba === 'habilidades') {
+                if (turmasSelecionadas.length > 0) {
+                    const primeiraTurma = turmasSelecionadas[0];
+                    carregarHabilidadesTurma(primeiraTurma.turma_id);
+                }
+            }
+            
+            // Se a aba de competências for aberta, atualizar visibilidade da competência específica
+            if (aba === 'competencias') {
+                atualizarVisibilidadeCompetenciaEspecifica();
+            }
         }
         
         async function carregarTurmasEscola() {
-            const escolaId = document.getElementById('escola-select').value;
+            const escolaSelect = document.getElementById('escola-select');
+            const escolaId = escolaSelect ? escolaSelect.value : null;
             const turmaSelect = document.getElementById('turma-select');
+            
+            if (!turmaSelect) {
+                console.error('Select de turma não encontrado');
+                return;
+            }
             
             turmaSelect.innerHTML = '<option value="">Carregando turmas...</option>';
             turmaSelect.disabled = true;
             
-            if (!escolaId) {
+            if (!escolaId || escolaId === '') {
                 turmaSelect.innerHTML = '<option value="">Selecione uma escola</option>';
                 turmaSelect.disabled = false;
+                // Limpar disciplinas também
+                const disciplinaSelect = document.getElementById('select-disciplina-componente');
+                if (disciplinaSelect) {
+                    disciplinaSelect.innerHTML = '<option value="">Selecione uma escola primeiro</option>';
+                }
                 return;
             }
             
-            console.log('Carregando turmas para escola ID:', escolaId);
+            console.log('=== CARREGANDO TURMAS ===');
+            console.log('Escola ID:', escolaId);
+            console.log('URL:', `?acao=buscar_turmas_escola&escola_id=${escolaId}`);
             
             try {
-                const response = await fetch(`?acao=buscar_turmas_escola&escola_id=${escolaId}`);
+                const url = `?acao=buscar_turmas_escola&escola_id=${escolaId}`;
+                console.log('Fazendo requisição para:', url);
+                
+                const response = await fetch(url);
+                console.log('Status da resposta:', response.status);
                 
                 // Verificar se a resposta é JSON válido
                 const contentType = response.headers.get('content-type');
@@ -1127,39 +1857,56 @@ if ($professorId) {
                 console.log('Resposta da busca de turmas:', data);
                 console.log('Success:', data.success);
                 console.log('Turmas recebidas:', data.turmas ? data.turmas.length : 0);
-                
-                turmaSelect.innerHTML = '<option value="">Selecione uma turma</option>';
+                console.log('Tipo de data.turmas:', typeof data.turmas);
+                console.log('É array?', Array.isArray(data.turmas));
+            
+            turmaSelect.innerHTML = '<option value="">Selecione uma turma</option>';
                 turmaSelect.disabled = false;
                 
-                if (data.success && data.turmas && data.turmas.length > 0) {
-                    data.turmas.forEach(turma => {
-                        console.log('Adicionando turma:', turma);
+                if (!data.success) {
+                    console.error('Erro na resposta do servidor:', data.message || 'Erro desconhecido');
+                    turmaSelect.innerHTML = '<option value="">Erro ao carregar turmas: ' + (data.message || 'Erro desconhecido') + '</option>';
+                    turmaSelect.disabled = false;
+                    return;
+                }
+                
+                if (data.turmas && Array.isArray(data.turmas) && data.turmas.length > 0) {
+                    console.log(`Encontradas ${data.turmas.length} turmas`);
+                    
+                    data.turmas.forEach((turma, index) => {
+                        console.log(`Turma ${index}:`, turma);
                         const option = document.createElement('option');
-                        // Usar apenas o ID da turma (sem disciplina)
-                        option.value = turma.turma_id;
-                        option.textContent = turma.turma_nome;
-                        option.dataset.turmaId = turma.turma_id;
-                        option.dataset.turmaNome = turma.turma_nome;
+                        option.value = turma.turma_id || turma.id;
+                        option.textContent = turma.turma_nome || turma.nome || 'Turma sem nome';
+                        option.dataset.turmaId = turma.turma_id || turma.id;
+                        option.dataset.turmaNome = turma.turma_nome || turma.nome;
+                        // Armazenar informações da série para identificar nível de ensino
+                        option.dataset.serieId = turma.serie_id || '';
+                        option.dataset.nivelEnsino = turma.nivel_ensino || '';
+                        option.dataset.serieOrdem = turma.serie_ordem || '';
+                        option.dataset.serieNome = turma.serie_nome || turma.serie || '';
                         turmaSelect.appendChild(option);
+                        console.log(`Opção ${index} adicionada:`, option.value, option.textContent);
                     });
+                    
+                    // Verificar se as opções foram realmente adicionadas
+                    console.log('Total de opções no select após adicionar:', turmaSelect.options.length);
                     console.log('Turmas carregadas com sucesso:', data.turmas.length);
                 } else {
-                    const option = document.createElement('option');
-                    option.value = '';
-                    option.textContent = 'Nenhuma turma disponível para esta escola';
-                    option.disabled = true;
-                    turmaSelect.appendChild(option);
                     console.warn('Nenhuma turma encontrada para a escola:', escolaId);
-                    console.warn('Resposta completa:', data);
-                    if (data.message) {
-                        console.warn('Mensagem de erro:', data.message);
-                    }
+                    console.warn('data.turmas:', data.turmas);
+                    console.warn('É array?', Array.isArray(data.turmas));
+                    console.warn('Tamanho:', data.turmas ? data.turmas.length : 'N/A');
+                    
+                    turmaSelect.innerHTML = '<option value="">Nenhuma turma disponível para esta escola</option>';
+                    turmaSelect.disabled = false;
                 }
                 
                 // Carregar disciplinas da escola também
                 await carregarDisciplinasEscola(escolaId);
             } catch (error) {
                 console.error('Erro ao carregar turmas:', error);
+                console.error('Stack:', error.stack);
                 turmaSelect.innerHTML = '<option value="">Erro ao carregar turmas</option>';
                 turmaSelect.disabled = false;
             }
@@ -1241,25 +1988,56 @@ if ($professorId) {
             atualizarTabelaDisciplinasComponente();
         }
         
-        function atualizarTabelaDisciplinasComponente() {
-            const tbody = document.getElementById('tabela-disciplinas-componente');
+        // Funções para gerenciar Habilidades
+        function adicionarHabilidade() {
+            const select = document.getElementById('select-habilidade');
+            const selectedOption = select.options[select.selectedIndex];
             
-            if (disciplinasComponente.length === 0) {
+            if (!selectedOption.value) {
+                alert('Selecione uma habilidade');
+                return;
+            }
+            
+            const habilidade = {
+                id: selectedOption.value,
+                nome: selectedOption.text
+            };
+            
+            // Verificar se já foi adicionada
+            if (habilidades.find(h => h.id == habilidade.id)) {
+                alert('Esta habilidade já foi adicionada');
+                return;
+            }
+            
+            habilidades.push(habilidade);
+            atualizarTabelaHabilidades();
+            select.value = '';
+        }
+        
+        function removerHabilidade(index) {
+            habilidades.splice(index, 1);
+            atualizarTabelaHabilidades();
+        }
+        
+        function atualizarTabelaHabilidades() {
+            const tbody = document.getElementById('tabela-habilidades');
+            
+            if (habilidades.length === 0) {
                 tbody.innerHTML = `
                     <tr>
                         <td colspan="2" class="text-center py-4 text-gray-500 text-sm">
-                            Nenhuma disciplina selecionada
+                            Nenhuma habilidade adicionada
                         </td>
                     </tr>
                 `;
                 return;
             }
             
-            tbody.innerHTML = disciplinasComponente.map((disciplina, index) => `
+            tbody.innerHTML = habilidades.map((habilidade, index) => `
                 <tr class="border-b border-gray-100">
-                    <td class="py-3 px-4 text-sm text-gray-900">${disciplina.nome}</td>
+                    <td class="py-3 px-4 text-sm text-gray-900">${habilidade.nome}</td>
                     <td class="py-3 px-4 text-right">
-                        <button type="button" onclick="removerDisciplinaComponente(${index})" 
+                        <button type="button" onclick="removerHabilidade(${index})" 
                                 class="text-red-600 hover:text-red-800 text-sm font-medium">
                             Remover
                         </button>
@@ -1267,6 +2045,19 @@ if ($professorId) {
                 </tr>
             `).join('');
         }
+        
+        // Permitir adicionar habilidade ao pressionar Enter
+        document.addEventListener('DOMContentLoaded', function() {
+            const inputHabilidade = document.getElementById('input-habilidade');
+            if (inputHabilidade) {
+                inputHabilidade.addEventListener('keypress', function(e) {
+                    if (e.key === 'Enter') {
+                        e.preventDefault();
+                        adicionarHabilidade();
+                    }
+                });
+            }
+        });
         
         function adicionarTurma() {
             const turmaSelect = document.getElementById('turma-select');
@@ -1286,13 +2077,258 @@ if ($professorId) {
                 return;
             }
             
+            // Armazenar informações da série para identificar nível de ensino
             turmasSelecionadas.push({
                 turma_id: turmaId,
-                turma_nome: turmaNome
+                turma_nome: turmaNome,
+                serie_id: selectedOption.dataset.serieId || null,
+                nivel_ensino: selectedOption.dataset.nivelEnsino || null,
+                serie_ordem: selectedOption.dataset.serieOrdem || null,
+                serie_nome: selectedOption.dataset.serieNome || null
             });
             
             atualizarTabelaTurmas();
             turmaSelect.value = '';
+            
+            // Se houver turma selecionada, carregar habilidades quando a aba habilidades for aberta
+            if (turmasSelecionadas.length > 0) {
+                // Verificar se a aba habilidades está visível e carregar habilidades
+                const abaHabilidades = document.getElementById('aba-habilidades');
+                if (abaHabilidades && !abaHabilidades.classList.contains('hidden')) {
+                    carregarHabilidadesTurma(turmaId);
+                }
+            }
+        }
+        
+        // Função para carregar habilidades baseadas na turma e disciplina selecionadas
+        async function carregarHabilidadesTurma(turmaId) {
+            if (!turmaId) {
+                const selectHabilidade = document.getElementById('select-habilidade');
+                if (selectHabilidade) {
+                    selectHabilidade.innerHTML = '<option value="">Selecione uma turma primeiro</option>';
+                    selectHabilidade.disabled = true;
+                }
+                return;
+            }
+            
+            // Buscar a primeira disciplina do professor (ou a selecionada)
+            let disciplinaId = null;
+            
+            // Se houver disciplinas selecionadas, usar a primeira
+            if (disciplinasComponente && disciplinasComponente.length > 0) {
+                disciplinaId = disciplinasComponente[0].id;
+            } else {
+                // Se não houver disciplina selecionada, não podemos carregar habilidades
+                const selectHabilidade = document.getElementById('select-habilidade');
+                if (selectHabilidade) {
+                    selectHabilidade.innerHTML = '<option value="">Selecione uma disciplina primeiro</option>';
+                    selectHabilidade.disabled = true;
+                }
+                return;
+            }
+            
+            try {
+                const url = `?acao=buscar_habilidades_turma&turma_id=${turmaId}${disciplinaId ? '&disciplina_id=' + disciplinaId : ''}`;
+                const response = await fetch(url);
+                const data = await response.json();
+                
+                if (data.success) {
+                    console.log('Nível de ensino identificado:', data.nivel_ensino);
+                    console.log('Série:', data.serie_nome);
+                    console.log('Disciplina ID:', disciplinaId);
+                    console.log('Código Disciplina BNCC:', data.codigo_disciplina_bncc);
+                    console.log('Número do Ano:', data.numero_ano);
+                    console.log('Habilidades encontradas:', data.habilidades);
+                    
+                    // Popular o select de habilidades com as habilidades retornadas do banco
+                    popularSelectHabilidades(data.habilidades, data.codigo_disciplina_bncc, data.numero_ano);
+                } else {
+                    console.error('Erro ao buscar habilidades:', data.message);
+                    const selectHabilidade = document.getElementById('select-habilidade');
+                    if (selectHabilidade) {
+                        selectHabilidade.innerHTML = '<option value="">Erro ao carregar habilidades: ' + (data.message || 'Erro desconhecido') + '</option>';
+                        selectHabilidade.disabled = true;
+                    }
+                }
+            } catch (error) {
+                console.error('Erro ao carregar habilidades:', error);
+                const selectHabilidade = document.getElementById('select-habilidade');
+                if (selectHabilidade) {
+                    selectHabilidade.innerHTML = '<option value="">Erro ao carregar habilidades</option>';
+                    selectHabilidade.disabled = true;
+                }
+            }
+        }
+        
+        // Função para popular o select de habilidades com dados do banco
+        function popularSelectHabilidades(habilidadesBanco, codigoDisciplinaBNCC, numeroAno) {
+            const selectHabilidade = document.getElementById('select-habilidade');
+            if (!selectHabilidade) return;
+            
+            // Limpar o select
+            selectHabilidade.innerHTML = '<option value="">Selecione uma habilidade</option>';
+            
+            // Se houver habilidades do banco, usar elas
+            if (habilidadesBanco && Array.isArray(habilidadesBanco) && habilidadesBanco.length > 0) {
+                habilidadesBanco.forEach(habilidade => {
+                    const option = document.createElement('option');
+                    option.value = habilidade.id || habilidade.codigo;
+                    option.textContent = habilidade.nome || (habilidade.codigo + ' - ' + (habilidade.descricao || ''));
+                    option.title = habilidade.nome || (habilidade.codigo + ' - ' + (habilidade.descricao || '')); // Para mostrar texto completo no hover
+                    selectHabilidade.appendChild(option);
+                });
+                selectHabilidade.disabled = false;
+                console.log(`${habilidadesBanco.length} habilidades carregadas do banco de dados`);
+            } else {
+                // Se não houver habilidades no banco, mostrar mensagem apropriada
+                if (!codigoDisciplinaBNCC) {
+                    selectHabilidade.innerHTML = '<option value="">Não foi possível identificar o código da disciplina. Verifique se a disciplina está cadastrada corretamente.</option>';
+                } else if (!numeroAno) {
+                    selectHabilidade.innerHTML = '<option value="">Não foi possível identificar o ano/série da turma.</option>';
+                } else {
+                    // Validar se o número do ano está dentro do range válido (1-9)
+                    const anoValido = numeroAno >= 1 && numeroAno <= 9;
+                    if (!anoValido) {
+                        console.error('Número do ano inválido detectado:', numeroAno);
+                        selectHabilidade.innerHTML = '<option value="">Erro: Ano/série inválido detectado (' + numeroAno + '). Verifique a configuração da turma.</option>';
+                    } else {
+                        selectHabilidade.innerHTML = '<option value="">Nenhuma habilidade encontrada para ' + codigoDisciplinaBNCC + ' no ' + numeroAno + 'º ano. Verifique se as habilidades estão cadastradas no banco de dados.</option>';
+                    }
+                }
+                selectHabilidade.disabled = true;
+            }
+        }
+        
+        // Função para verificar se há Português nas disciplinas selecionadas
+        function verificarSeTemPortugues() {
+            if (!disciplinasComponente || disciplinasComponente.length === 0) {
+                return false;
+            }
+            
+            return disciplinasComponente.some(disciplina => {
+                const nome = disciplina.nome.toLowerCase();
+                return nome.includes('português') || 
+                       nome.includes('portugues') || 
+                       nome.includes('língua portuguesa') || 
+                       nome.includes('lingua portuguesa') ||
+                       nome.includes('portuguesa');
+            });
+        }
+        
+        // Função para obter nome da disciplina atual (para mensagens)
+        function obterNomeDisciplinaAtual() {
+            if (!disciplinasComponente || disciplinasComponente.length === 0) {
+                return 'esta matéria';
+            }
+            return disciplinasComponente[0].nome;
+        }
+        
+        // Função para atualizar estado da seção de Competência Específica baseado na disciplina
+        function atualizarVisibilidadeCompetenciaEspecifica() {
+            const secaoCompetenciaEspecifica = document.getElementById('secao-competencia-especifica');
+            const selectCompetenciaEspecifica = document.getElementById('select-competencia-especifica');
+            
+            if (!secaoCompetenciaEspecifica || !selectCompetenciaEspecifica) return;
+            
+            // Encontrar o botão de adicionar (próximo elemento irmão)
+            const containerSelect = selectCompetenciaEspecifica.parentElement;
+            const botaoAdicionar = containerSelect ? containerSelect.querySelector('button[onclick="adicionarCompetenciaEspecifica()"]') : null;
+            
+            const temPortugues = verificarSeTemPortugues();
+            
+            if (temPortugues) {
+                // Habilitar o select e restaurar as opções originais se necessário
+                selectCompetenciaEspecifica.disabled = false;
+                selectCompetenciaEspecifica.style.opacity = '1';
+                
+                // Verificar se o select tem apenas a mensagem de erro, se sim, restaurar opções
+                if (selectCompetenciaEspecifica.options.length === 1 && 
+                    selectCompetenciaEspecifica.options[0].text.includes('disponíveis apenas')) {
+                    // Restaurar opções originais de competências específicas
+                    selectCompetenciaEspecifica.innerHTML = `
+                        <option value="">Selecione uma competência específica</option>
+                        <option value="1" title="ANALISAR INFORMAÇÕES, ARGUMENTOS E OPINIÕES MANIFESTADAS EM INTERAÇÕES SOCIAIS E NOS MEIOS DE COMUNICAÇÃO, POSICIONANDO-SE ÉTICA E CRITICAMENTE EM RELAÇÃO A CONTEÚDOS DISCRIMINATÓRIOS QUE FEREM DIREITOS HUMANOS E AMBIENTAIS.">ANALISAR INFORMAÇÕES, ARGUMENTOS E OPINIÕES MANIFESTADAS EM INTERAÇÕES SOCIAIS E NOS MEIOS DE COMUNICAÇÃO, POSICIONANDO-SE ÉTICA E CRITICAMENTE EM RELAÇÃO A CONTEÚDOS DISCRIMINATÓRIOS QUE FEREM DIREITOS HUMANOS E AMBIENTAIS.</option>
+                        <option value="2" title="APROPRIAR-SE DA LINGUAGEM ESCRITA, RECONHECENDO-A COMO FORMA DE INTERAÇÃO NOS DIFERENTES CAMPOS DE ATUAÇÃO DA VIDA SOCIAL E UTILIZANDO-A PARA AMPLIAR SUAS POSSIBILIDADES DE PARTICIPAR DA CULTURA LETRADA, DE CONSTRUIR CONHECIMENTOS (INCLUSIVE ESCOLARES) E DE SE ENVOLVER COM MAIOR AUTONOMIA E PROTAGONISMO NA VIDA SOCIAL.">APROPRIAR-SE DA LINGUAGEM ESCRITA, RECONHECENDO-A COMO FORMA DE INTERAÇÃO NOS DIFERENTES CAMPOS DE ATUAÇÃO DA VIDA SOCIAL E UTILIZANDO-A PARA AMPLIAR SUAS POSSIBILIDADES DE PARTICIPAR DA CULTURA LETRADA, DE CONSTRUIR CONHECIMENTOS (INCLUSIVE ESCOLARES) E DE SE ENVOLVER COM MAIOR AUTONOMIA E PROTAGONISMO NA VIDA SOCIAL.</option>
+                        <option value="3" title="COMPREENDER A LÍNGUA COMO FENÔMENO CULTURAL, HISTÓRICO, SOCIAL, VARIÁVEL, HETEROGÊNEO E SENSÍVEL AOS CONTEXTOS DE USO, RECONHECENDO-A COMO MEIO DE CONSTRUÇÃO DE IDENTIDADES DE SEUS USUÁRIOS E DA COMUNIDADE A QUE PERTENCEM.">COMPREENDER A LÍNGUA COMO FENÔMENO CULTURAL, HISTÓRICO, SOCIAL, VARIÁVEL, HETEROGÊNEO E SENSÍVEL AOS CONTEXTOS DE USO, RECONHECENDO-A COMO MEIO DE CONSTRUÇÃO DE IDENTIDADES DE SEUS USUÁRIOS E DA COMUNIDADE A QUE PERTENCEM.</option>
+                        <option value="4" title="COMPREENDER O FENÔMENO DA VARIAÇÃO LINGUÍSTICA, DEMONSTRANDO ATITUDE RESPEITOSA DIANTE DE VARIEDADES LINGUÍSTICAS E REJEITANDO PRECONCEITOS LINGUÍSTICOS.">COMPREENDER O FENÔMENO DA VARIAÇÃO LINGUÍSTICA, DEMONSTRANDO ATITUDE RESPEITOSA DIANTE DE VARIEDADES LINGUÍSTICAS E REJEITANDO PRECONCEITOS LINGUÍSTICOS.</option>
+                        <option value="5" title="EMPREGAR, NAS INTERAÇÕES SOCIAIS, A VARIEDADE E O ESTILO DE LINGUAGEM ADEQUADOS À SITUAÇÃO COMUNICATIVA, AO(S) INTERLOCUTOR(ES) E AO GÊNERO DO DISCURSO/GÊNERO TEXTUAL.">EMPREGAR, NAS INTERAÇÕES SOCIAIS, A VARIEDADE E O ESTILO DE LINGUAGEM ADEQUADOS À SITUAÇÃO COMUNICATIVA, AO(S) INTERLOCUTOR(ES) E AO GÊNERO DO DISCURSO/GÊNERO TEXTUAL.</option>
+                        <option value="6" title="ENVOLVER-SE EM PRÁTICAS DE LEITURA LITERÁRIA QUE POSSIBILITEM O DESENVOLVIMENTO DO SENSO ESTÉTICO PARA FRUIÇÃO, VALORIZANDO A LITERATURA E OUTRAS MANIFESTAÇÕES ARTÍSTICO-CULTURAIS COMO FORMAS DE ACESSO ÀS DIMENSÕES LÚDICAS, DE IMAGINÁRIO E ENCANTAMENTO, RECONHECENDO O POTENCIAL TRANSFORMADOR E HUMANIZADOR DA EXPERIÊNCIA COM A LITERATURA.">ENVOLVER-SE EM PRÁTICAS DE LEITURA LITERÁRIA QUE POSSIBILITEM O DESENVOLVIMENTO DO SENSO ESTÉTICO PARA FRUIÇÃO, VALORIZANDO A LITERATURA E OUTRAS MANIFESTAÇÕES ARTÍSTICO-CULTURAIS COMO FORMAS DE ACESSO ÀS DIMENSÕES LÚDICAS, DE IMAGINÁRIO E ENCANTAMENTO, RECONHECENDO O POTENCIAL TRANSFORMADOR E HUMANIZADOR DA EXPERIÊNCIA COM A LITERATURA.</option>
+                        <option value="7" title="LER, ESCUTAR E PRODUZIR TEXTOS ORAIS, ESCRITOS E MULTISSEMIÓTICOS QUE CIRCULAM EM DIFERENTES CAMPOS DE ATUAÇÃO E MÍDIAS, COM COMPREENSÃO, AUTONOMIA, FLUÊNCIA E CRITICIDADE, DE MODO A SE EXPRESSAR E PARTILHAR INFORMAÇÕES, EXPERIÊNCIAS, IDEIAS E SENTIMENTOS, E CONTINUAR APRENDENDO.">LER, ESCUTAR E PRODUZIR TEXTOS ORAIS, ESCRITOS E MULTISSEMIÓTICOS QUE CIRCULAM EM DIFERENTES CAMPOS DE ATUAÇÃO E MÍDIAS, COM COMPREENSÃO, AUTONOMIA, FLUÊNCIA E CRITICIDADE, DE MODO A SE EXPRESSAR E PARTILHAR INFORMAÇÕES, EXPERIÊNCIAS, IDEIAS E SENTIMENTOS, E CONTINUAR APRENDENDO.</option>
+                        <option value="8" title="MOBILIZAR PRÁTICAS DA CULTURA DIGITAL, DIFERENTES LINGUAGENS, MÍDIAS E FERRAMENTAS DIGITAIS PARA EXPANDIR AS FORMAS DE PRODUZIR SENTIDOS (NOS PROCESSOS DE COMPREENSÃO E PRODUÇÃO), APRENDER E REFLETIR SOBRE O MUNDO E REALIZAR DIFERENTES PROJETOS AUTORAIS.">MOBILIZAR PRÁTICAS DA CULTURA DIGITAL, DIFERENTES LINGUAGENS, MÍDIAS E FERRAMENTAS DIGITAIS PARA EXPANDIR AS FORMAS DE PRODUZIR SENTIDOS (NOS PROCESSOS DE COMPREENSÃO E PRODUÇÃO), APRENDER E REFLETIR SOBRE O MUNDO E REALIZAR DIFERENTES PROJETOS AUTORAIS.</option>
+                        <option value="9" title="RECONHECER O TEXTO COMO LUGAR DE MANIFESTAÇÃO E NEGOCIAÇÃO DE SENTIDOS, VALORES E IDEOLOGIAS.">RECONHECER O TEXTO COMO LUGAR DE MANIFESTAÇÃO E NEGOCIAÇÃO DE SENTIDOS, VALORES E IDEOLOGIAS.</option>
+                        <option value="10" title="SELECIONAR TEXTOS E LIVROS PARA LEITURA INTEGRAL, DE ACORDO COM OBJETIVOS, INTERESSES E PROJETOS PESSOAIS (ESTUDO, FORMAÇÃO PESSOAL, ENTRETENIMENTO, PESQUISA, TRABALHO ETC.).">SELECIONAR TEXTOS E LIVROS PARA LEITURA INTEGRAL, DE ACORDO COM OBJETIVOS, INTERESSES E PROJETOS PESSOAIS (ESTUDO, FORMAÇÃO PESSOAL, ENTRETENIMENTO, PESQUISA, TRABALHO ETC.).</option>
+                    `;
+                }
+                
+                if (botaoAdicionar) {
+                    botaoAdicionar.disabled = false;
+                    botaoAdicionar.style.opacity = '1';
+                }
+            } else {
+                // Desabilitar o select e mostrar mensagem
+                selectCompetenciaEspecifica.disabled = true;
+                selectCompetenciaEspecifica.style.opacity = '0.6';
+                
+                const nomeDisciplina = obterNomeDisciplinaAtual();
+                if (disciplinasComponente.length === 0) {
+                    selectCompetenciaEspecifica.innerHTML = '<option value="">Selecione uma disciplina primeiro</option>';
+                } else {
+                    selectCompetenciaEspecifica.innerHTML = `<option value="">Competências específicas disponíveis apenas para Língua Portuguesa. Disciplina atual: ${nomeDisciplina}</option>`;
+                }
+                
+                if (botaoAdicionar) {
+                    botaoAdicionar.disabled = true;
+                    botaoAdicionar.style.opacity = '0.6';
+                }
+                // Limpar competências específicas se não houver Português
+                competenciasEspecificas = [];
+                atualizarTabelaCompetenciasEspecificas();
+            }
+        }
+        
+        // Observar mudanças nas disciplinas selecionadas para recarregar habilidades
+        function atualizarTabelaDisciplinasComponente() {
+            const tbody = document.getElementById('tabela-disciplinas-componente');
+            
+            if (disciplinasComponente.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="2" class="text-center py-4 text-gray-500 text-sm">
+                            Nenhuma disciplina selecionada
+                        </td>
+                    </tr>
+                `;
+                // Se não houver disciplina, desabilitar select de habilidades
+                const selectHabilidade = document.getElementById('select-habilidade');
+                if (selectHabilidade) {
+                    selectHabilidade.innerHTML = '<option value="">Selecione uma disciplina primeiro</option>';
+                    selectHabilidade.disabled = true;
+                }
+                // Ocultar seção de competência específica
+                atualizarVisibilidadeCompetenciaEspecifica();
+                return;
+            }
+            
+            tbody.innerHTML = disciplinasComponente.map((disciplina, index) => `
+                <tr class="border-b border-gray-100">
+                    <td class="py-3 px-4 text-sm text-gray-900">${disciplina.nome}</td>
+                    <td class="py-3 px-4 text-right">
+                        <button type="button" onclick="removerDisciplinaComponente(${index})" 
+                                class="text-red-600 hover:text-red-800 text-sm font-medium">
+                            Remover
+                        </button>
+                    </td>
+                </tr>
+            `).join('');
+            
+            // Atualizar visibilidade da seção de competência específica
+            atualizarVisibilidadeCompetenciaEspecifica();
+            
+            // Se houver turma selecionada, recarregar habilidades
+            if (turmasSelecionadas.length > 0) {
+                const primeiraTurma = turmasSelecionadas[0];
+                carregarHabilidadesTurma(primeiraTurma.turma_id);
+            }
         }
         
         function removerTurma(index) {
@@ -1327,30 +2363,72 @@ if ($professorId) {
             `).join('');
         }
         
+        // Função para atualizar as competências específicas baseado na socioemocional selecionada (para o select socioemocional)
+        function atualizarCompetenciasEspecificas() {
+            const selectSocioemocional = document.getElementById('select-competencia-socioemocional');
+            const selectEspecificaSocioemocional = document.getElementById('select-competencia-especifica-socioemocional');
+            const socioemocionalId = selectSocioemocional.value;
+            
+            // Limpar o select de específicas
+            selectEspecificaSocioemocional.innerHTML = '<option value="">Selecione uma competência específica</option>';
+            
+            if (!socioemocionalId) {
+                selectEspecificaSocioemocional.disabled = true;
+                selectEspecificaSocioemocional.innerHTML = '<option value="">Selecione primeiro uma competência socioemocional</option>';
+                return;
+            }
+            
+            // Habilitar o select e popular com as competências específicas
+            selectEspecificaSocioemocional.disabled = false;
+            const competenciasEspecificas = competenciasEspecificasMap[socioemocionalId];
+            
+            if (competenciasEspecificas && competenciasEspecificas.length > 0) {
+                competenciasEspecificas.forEach(comp => {
+                    const option = document.createElement('option');
+                    option.value = comp.id;
+                    option.textContent = comp.nome;
+                    option.title = comp.nome; // Adicionar title para mostrar texto completo no hover
+                    option.dataset.componente = competenciasSocioemocionaisNomes[socioemocionalId];
+                    selectEspecificaSocioemocional.appendChild(option);
+                });
+            }
+        }
+        
         // Funções para gerenciar Competências Socioemocionais
         function adicionarCompetenciaSocioemocional() {
-            const select = document.getElementById('select-competencia-socioemocional');
-            const selectedOption = select.options[select.selectedIndex];
+            const selectSocioemocional = document.getElementById('select-competencia-socioemocional');
+            const selectEspecificaSocioemocional = document.getElementById('select-competencia-especifica-socioemocional');
+            const selectedOptionSocioemocional = selectSocioemocional.options[selectSocioemocional.selectedIndex];
+            const selectedOptionEspecifica = selectEspecificaSocioemocional.options[selectEspecificaSocioemocional.selectedIndex];
             
-            if (!selectedOption.value) {
+            if (!selectedOptionSocioemocional.value) {
                 alert('Selecione uma competência socioemocional');
                 return;
             }
             
+            if (!selectedOptionEspecifica.value) {
+                alert('Selecione uma competência específica');
+                return;
+            }
+            
             const competencia = {
-                id: selectedOption.value,
-                nome: selectedOption.text
+                id: selectedOptionEspecifica.value,
+                socioemocional_id: selectedOptionSocioemocional.value,
+                socioemocional_nome: competenciasSocioemocionaisNomes[selectedOptionSocioemocional.value] || '',
+                nome: selectedOptionEspecifica.text
             };
             
             // Verificar se já foi adicionada
-            if (competenciasSocioemocionais.find(c => c.id == competencia.id)) {
-                alert('Esta competência socioemocional já foi adicionada');
+            if (competenciasSocioemocionais.find(c => c.id == competencia.id && c.socioemocional_id == competencia.socioemocional_id)) {
+                alert('Esta competência já foi adicionada');
                 return;
             }
             
             competenciasSocioemocionais.push(competencia);
             atualizarTabelaCompetenciasSocioemocionais();
-            select.value = '';
+            selectSocioemocional.value = '';
+            selectEspecificaSocioemocional.innerHTML = '<option value="">Selecione uma competência específica</option>';
+            selectEspecificaSocioemocional.disabled = true;
         }
         
         function removerCompetenciaSocioemocional(index) {
@@ -1365,7 +2443,7 @@ if ($professorId) {
                 tbody.innerHTML = `
                     <tr>
                         <td colspan="2" class="text-center py-4 text-gray-500 text-sm">
-                            Nenhuma competência socioemocional selecionada
+                            Nenhuma competência selecionada
                         </td>
                     </tr>
                 `;
@@ -1385,10 +2463,10 @@ if ($professorId) {
             `).join('');
         }
         
-        // Funções para gerenciar Competências Específicas
+        // Funções para gerenciar Competências Específicas (independente)
         function adicionarCompetenciaEspecifica() {
-            const select = document.getElementById('select-competencia-especifica');
-            const selectedOption = select.options[select.selectedIndex];
+            const selectEspecifica = document.getElementById('select-competencia-especifica');
+            const selectedOption = selectEspecifica.options[selectEspecifica.selectedIndex];
             
             if (!selectedOption.value) {
                 alert('Selecione uma competência específica');
@@ -1397,20 +2475,47 @@ if ($professorId) {
             
             const competencia = {
                 id: selectedOption.value,
-                componente: selectedOption.dataset.componente || '',
                 nome: selectedOption.text
             };
             
             // Verificar se já foi adicionada
             if (competenciasEspecificas.find(c => c.id == competencia.id)) {
-                alert('Esta competência específica já foi adicionada');
+                alert('Esta competência já foi adicionada');
                 return;
             }
             
             competenciasEspecificas.push(competencia);
             atualizarTabelaCompetenciasEspecificas();
-            select.value = '';
+            selectEspecifica.value = '';
+            selectEspecifica.title = 'Selecione uma competência específica'; // Resetar title
         }
+        
+        // Atualizar title do select quando uma opção for selecionada
+        document.addEventListener('DOMContentLoaded', function() {
+            const selectEspecifica = document.getElementById('select-competencia-especifica');
+            if (selectEspecifica) {
+                selectEspecifica.addEventListener('change', function() {
+                    const selectedOption = this.options[this.selectedIndex];
+                    if (selectedOption && selectedOption.value) {
+                        this.title = selectedOption.text;
+                    } else {
+                        this.title = 'Selecione uma competência específica';
+                    }
+                });
+            }
+            
+            const selectEspecificaSocioemocional = document.getElementById('select-competencia-especifica-socioemocional');
+            if (selectEspecificaSocioemocional) {
+                selectEspecificaSocioemocional.addEventListener('change', function() {
+                    const selectedOption = this.options[this.selectedIndex];
+                    if (selectedOption && selectedOption.value) {
+                        this.title = selectedOption.text;
+                    } else {
+                        this.title = 'Selecione uma competência específica';
+                    }
+                });
+            }
+        });
         
         function removerCompetenciaEspecifica(index) {
             competenciasEspecificas.splice(index, 1);
@@ -1423,8 +2528,8 @@ if ($professorId) {
             if (competenciasEspecificas.length === 0) {
                 tbody.innerHTML = `
                     <tr>
-                        <td colspan="3" class="text-center py-4 text-gray-500 text-sm">
-                            Nenhuma competência específica selecionada
+                        <td colspan="2" class="text-center py-4 text-gray-500 text-sm">
+                            Nenhuma competência selecionada
                         </td>
                     </tr>
                 `;
@@ -1433,8 +2538,7 @@ if ($professorId) {
             
             tbody.innerHTML = competenciasEspecificas.map((comp, index) => `
                 <tr class="border-b border-gray-100">
-                    <td class="py-3 px-4 text-sm text-gray-900">${comp.componente || '-'}</td>
-                    <td class="py-3 px-4 text-sm text-gray-700 text-center">${comp.nome}</td>
+                    <td class="py-3 px-4 text-sm text-gray-900">${comp.nome}</td>
                     <td class="py-3 px-4 text-right">
                         <button type="button" onclick="removerCompetenciaEspecifica(${index})" 
                                 class="text-red-600 hover:text-red-800 text-sm font-medium">
@@ -1542,8 +2646,8 @@ if ($professorId) {
             const observacoesPlano = document.getElementById('observacoes-plano');
             if (observacoesPlano) observacoesPlano.value = '';
             
-            const habilidades = document.getElementById('habilidades');
-            if (habilidades) habilidades.value = '';
+            // componentes-curriculares foi substituído por select e tabela, não precisa resetar
+            // habilidades foi substituído por select-habilidade, será resetado mais abaixo
             
             // Garantir que o select de escola está populado corretamente
             console.log('Escolas disponíveis:', escolas);
@@ -1557,9 +2661,12 @@ if ($professorId) {
                     escolaSelect.appendChild(option);
                 });
                 
-                // Restaurar a escola selecionada se estava pré-selecionada
-                if (escolaSelecionada) {
-                    escolaSelect.value = escolaSelecionada;
+                // Garantir que o evento onchange está configurado
+                escolaSelect.onchange = carregarTurmasEscola;
+            
+            // Restaurar a escola selecionada se estava pré-selecionada
+            if (escolaSelecionada) {
+                escolaSelect.value = escolaSelecionada;
                     // Carregar turmas da escola selecionada
                     carregarTurmasEscola();
                 } else if (escolas.length === 1) {
@@ -1577,6 +2684,12 @@ if ($professorId) {
                 }
             }
             
+            // Limpar turmas selecionadas e resetar arrays
+            turmasSelecionadas = [];
+            disciplinasComponente = [];
+            atualizarTabelaTurmas();
+            atualizarTabelaDisciplinasComponente();
+            
             // Limpar turma select
             const turmaSelect = document.getElementById('turma-select');
             if (turmaSelect) {
@@ -1588,11 +2701,41 @@ if ($professorId) {
             competenciasEspecificas = [];
             competenciasGerais = [];
             disciplinasComponente = [];
+            habilidades = [];
             atualizarTabelaTurmas();
             atualizarTabelaCompetenciasSocioemocionais();
             atualizarTabelaCompetenciasEspecificas();
             atualizarTabelaCompetenciasGerais();
             atualizarTabelaDisciplinasComponente();
+            atualizarTabelaHabilidades();
+            atualizarVisibilidadeCompetenciaEspecifica();
+            
+            // Limpar campos de texto
+            document.getElementById('observacoes-complementares').value = '';
+            document.getElementById('secoes-temas').value = '';
+            
+            // Limpar select de habilidades
+            const selectHabilidade = document.getElementById('select-habilidade');
+            if (selectHabilidade) {
+                selectHabilidade.innerHTML = '<option value="">Selecione uma turma e disciplina primeiro</option>';
+                selectHabilidade.disabled = true;
+            }
+            
+            // Resetar selects de competências
+            const selectSocioemocional = document.getElementById('select-competencia-socioemocional');
+            const selectEspecificaSocioemocional = document.getElementById('select-competencia-especifica-socioemocional');
+            const selectEspecifica = document.getElementById('select-competencia-especifica');
+            if (selectSocioemocional) {
+                selectSocioemocional.value = '';
+            }
+            if (selectEspecificaSocioemocional) {
+                selectEspecificaSocioemocional.innerHTML = '<option value="">Selecione uma competência específica</option>';
+                selectEspecificaSocioemocional.disabled = true;
+            }
+            if (selectEspecifica) {
+                selectEspecifica.value = '';
+            }
+            
             mostrarAba('turma');
             
             // Se a escola já estiver pré-selecionada (professor atua em apenas uma escola), carregar turmas automaticamente
@@ -1669,18 +2812,26 @@ if ($professorId) {
                 return;
             }
             
+            // Coletar todos os dados do formulário
             const dados = {
                 data_aula: document.getElementById('data-aula').value,
                 turmas: turmasSelecionadas,
                 titulo: document.getElementById('titulo-plano').value || 'Plano de Aula',
-                conteudo: document.getElementById('conteudo-plano').value,
-                objetivos: document.getElementById('objetivos-plano').value,
-                metodologia: document.getElementById('metodologia-plano').value,
-                recursos: document.getElementById('recursos-plano').value,
-                avaliacao: document.getElementById('avaliacao-plano').value,
-                atividades_flexibilizadas: document.getElementById('atividades-flexibilizadas').value,
-                bimestre: document.getElementById('bimestre-plano').value,
-                observacoes: document.getElementById('observacoes-plano').value
+                conteudo: document.getElementById('conteudo-plano').value || null,
+                objetivos: document.getElementById('objetivos-plano').value || null,
+                metodologia: document.getElementById('metodologia-plano').value || null,
+                recursos: document.getElementById('recursos-plano').value || null,
+                avaliacao: document.getElementById('avaliacao-plano').value || null,
+                atividades_flexibilizadas: document.getElementById('atividades-flexibilizadas').value || null,
+                bimestre: document.getElementById('bimestre-plano').value || null,
+                observacoes: document.getElementById('observacoes-plano').value || null,
+                observacoes_complementares: document.getElementById('observacoes-complementares').value || null,
+                secoes_temas: document.getElementById('secoes-temas').value || null,
+                habilidades: JSON.stringify(habilidades),
+                competencias_socioemocionais: JSON.stringify(competenciasSocioemocionais),
+                competencias_especificas: JSON.stringify(competenciasEspecificas),
+                competencias_gerais: JSON.stringify(competenciasGerais),
+                disciplinas_componentes: JSON.stringify(disciplinasComponente)
             };
             
             const formData = new FormData();
@@ -1715,8 +2866,102 @@ if ($professorId) {
             }
         }
         
-        function visualizarPlano(id) {
-            alert('Funcionalidade de visualização será implementada. ID: ' + id);
+        async function visualizarPlano(id) {
+            try {
+                const response = await fetch(`?acao=buscar_plano&plano_id=${id}`);
+                const data = await response.json();
+                
+                if (!data.success) {
+                    alert('Erro ao carregar plano: ' + (data.message || 'Erro desconhecido'));
+                    return;
+                }
+                
+                const plano = data.plano;
+                
+                // Preencher modal com os dados
+                document.getElementById('modal-ver-plano-titulo').textContent = plano.titulo || 'Plano de Aula';
+                document.getElementById('modal-ver-plano-data').textContent = new Date(plano.data_aula).toLocaleDateString('pt-BR');
+                document.getElementById('modal-ver-plano-escola').textContent = plano.escola_nome || '-';
+                document.getElementById('modal-ver-plano-turma').textContent = plano.turma_nome || '-';
+                document.getElementById('modal-ver-plano-disciplina').textContent = plano.disciplina_nome || '-';
+                document.getElementById('modal-ver-plano-professor').textContent = plano.professor_nome || '-';
+                document.getElementById('modal-ver-plano-bimestre').textContent = plano.bimestre ? `${plano.bimestre}º Bimestre` : '-';
+                document.getElementById('modal-ver-plano-status').textContent = plano.status || 'APROVADO';
+                
+                // Status com cor
+                const statusElement = document.getElementById('modal-ver-plano-status');
+                statusElement.className = 'px-3 py-1 rounded-full text-xs font-semibold ';
+                switch(plano.status) {
+                    case 'APROVADO':
+                        statusElement.className += 'bg-green-100 text-green-800';
+                        break;
+                    case 'APLICADO':
+                        statusElement.className += 'bg-blue-100 text-blue-800';
+                        break;
+                    case 'CANCELADO':
+                        statusElement.className += 'bg-red-100 text-red-800';
+                        break;
+                    default:
+                        statusElement.className += 'bg-gray-100 text-gray-800';
+                }
+                
+                // Função auxiliar para formatar JSON arrays
+                function formatarLista(jsonString) {
+                    if (!jsonString) return 'Não informado';
+                    try {
+                        const lista = JSON.parse(jsonString);
+                        if (Array.isArray(lista) && lista.length > 0) {
+                            return lista.map(item => {
+                                if (typeof item === 'object' && item.nome) {
+                                    return item.nome;
+                                }
+                                return item;
+                            }).join(', ');
+                        }
+                        return 'Não informado';
+                    } catch (e) {
+                        // Se não for JSON válido, retornar como texto
+                        return jsonString || 'Não informado';
+                    }
+                }
+                
+                // Campos de texto
+                document.getElementById('modal-ver-plano-conteudo').textContent = plano.conteudo || 'Não informado';
+                document.getElementById('modal-ver-plano-objetivos').textContent = plano.objetivos || 'Não informado';
+                document.getElementById('modal-ver-plano-metodologia').textContent = plano.metodologia || 'Não informado';
+                document.getElementById('modal-ver-plano-recursos').textContent = plano.recursos || 'Não informado';
+                document.getElementById('modal-ver-plano-avaliacao').textContent = plano.avaliacao || 'Não informado';
+                document.getElementById('modal-ver-plano-atividades-flexibilizadas').textContent = plano.atividades_flexibilizadas || 'Não informado';
+                document.getElementById('modal-ver-plano-observacoes').textContent = plano.observacoes || 'Não informado';
+                document.getElementById('modal-ver-plano-observacoes-complementares').textContent = plano.observacoes_complementares || 'Não informado';
+                document.getElementById('modal-ver-plano-secoes-temas').textContent = plano.secoes_temas || 'Não informado';
+                document.getElementById('modal-ver-plano-habilidades').textContent = formatarLista(plano.habilidades);
+                document.getElementById('modal-ver-plano-competencias-socioemocionais').textContent = formatarLista(plano.competencias_socioemocionais);
+                document.getElementById('modal-ver-plano-competencias-especificas').textContent = formatarLista(plano.competencias_especificas);
+                document.getElementById('modal-ver-plano-competencias-gerais').textContent = formatarLista(plano.competencias_gerais);
+                document.getElementById('modal-ver-plano-disciplinas-componentes').textContent = formatarLista(plano.disciplinas_componentes);
+                
+                // Informações adicionais
+                if (plano.criado_por_nome) {
+                    document.getElementById('modal-ver-plano-criado-por').textContent = plano.criado_por_nome;
+                } else {
+                    document.getElementById('modal-ver-plano-criado-por').textContent = '-';
+                }
+                
+                document.getElementById('modal-ver-plano-criado-em').textContent = plano.criado_em ? new Date(plano.criado_em).toLocaleString('pt-BR') : '-';
+                
+                // Abrir modal
+                document.getElementById('modal-ver-plano').classList.remove('hidden');
+                document.getElementById('modal-ver-plano').style.display = 'flex';
+            } catch (error) {
+                console.error('Erro ao carregar plano:', error);
+                alert('Erro ao carregar plano. Por favor, tente novamente.');
+            }
+        }
+        
+        function fecharModalVerPlano() {
+            document.getElementById('modal-ver-plano').classList.add('hidden');
+            document.getElementById('modal-ver-plano').style.display = 'none';
         }
         
         function editarPlano(id) {
@@ -1791,9 +3036,12 @@ if ($professorId) {
             tbody.innerHTML = planos.map(plano => `
                 <tr class="hover:bg-gray-50 ${planos.indexOf(plano) % 2 === 0 ? 'bg-white' : 'bg-gray-50'}">
                     <td class="px-6 py-4 whitespace-nowrap">
-                        <button onclick="abrirMenuAcoes(${plano.id})" class="text-blue-600 hover:text-blue-800">
+                        <button onclick="visualizarPlano(${plano.id})" 
+                                class="text-blue-600 hover:text-blue-800 transition-colors" 
+                                title="Visualizar plano completo">
                             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z"></path>
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
                             </svg>
                         </button>
                     </td>

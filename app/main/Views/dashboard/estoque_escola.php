@@ -132,6 +132,49 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['acao'])) {
                     ? (int)$_SESSION['escola_selecionada_id'] 
                     : (int)$escolaGestorId;
         
+        // Validar se a escola existe
+        if (!$escolaId || $escolaId <= 0) {
+            while (ob_get_level()) {
+                ob_end_clean();
+            }
+            echo json_encode([
+                'success' => false, 
+                'message' => 'Nenhuma escola selecionada',
+                'estoque' => []
+            ], JSON_UNESCAPED_UNICODE);
+            exit;
+        }
+        
+        // Verificar se a escola existe no banco
+        try {
+            $sqlCheck = "SELECT id FROM escola WHERE id = :escola_id AND ativo = 1 LIMIT 1";
+            $stmtCheck = $conn->prepare($sqlCheck);
+            $stmtCheck->bindParam(':escola_id', $escolaId, PDO::PARAM_INT);
+            $stmtCheck->execute();
+            if (!$stmtCheck->fetch()) {
+                while (ob_get_level()) {
+                    ob_end_clean();
+                }
+                echo json_encode([
+                    'success' => false, 
+                    'message' => 'Escola não encontrada ou inativa',
+                    'estoque' => []
+                ], JSON_UNESCAPED_UNICODE);
+                exit;
+            }
+        } catch (Exception $e) {
+            while (ob_get_level()) {
+                ob_end_clean();
+            }
+            error_log("Erro ao validar escola: " . $e->getMessage());
+            echo json_encode([
+                'success' => false, 
+                'message' => 'Erro ao validar escola',
+                'estoque' => []
+            ], JSON_UNESCAPED_UNICODE);
+            exit;
+        }
+        
         // Verificar se a coluna estoque_central_id existe
         try {
             $checkColumn = $conn->query("SHOW COLUMNS FROM pacote_escola_item LIKE 'estoque_central_id'");

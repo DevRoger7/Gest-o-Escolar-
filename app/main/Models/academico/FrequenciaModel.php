@@ -15,18 +15,52 @@ class FrequenciaModel {
     
     /**
      * Registra frequência de aluno
+     * @param array $dados Dados da frequência
+     * @param bool $permitirAtualizacao Se true, permite atualizar frequência existente (usado internamente)
+     * @return bool|array Retorna true em sucesso, ou array com erro se frequência já existe
      */
-    public function registrar($dados) {
+    public function registrar($dados, $permitirAtualizacao = false) {
         $conn = $this->db->getConnection();
+        
+        $alunoId = $dados['aluno_id'];
+        $turmaId = $dados['turma_id'];
+        $data = $dados['data'];
+        
+        // Verificar se já existe frequência para este aluno nesta data (a menos que seja permitida atualização)
+        if (!$permitirAtualizacao) {
+            $sqlVerificar = "SELECT id FROM frequencia 
+                            WHERE aluno_id = :aluno_id 
+                            AND turma_id = :turma_id 
+                            AND data = :data
+                            LIMIT 1";
+            $stmtVerificar = $conn->prepare($sqlVerificar);
+            $stmtVerificar->bindParam(':aluno_id', $alunoId);
+            $stmtVerificar->bindParam(':turma_id', $turmaId);
+            $stmtVerificar->bindParam(':data', $data);
+            $stmtVerificar->execute();
+            $frequenciaExistente = $stmtVerificar->fetch(PDO::FETCH_ASSOC);
+            
+            if ($frequenciaExistente) {
+                // Buscar nome do aluno para mensagem de erro
+                $sqlAluno = "SELECT p.nome FROM aluno a INNER JOIN pessoa p ON a.pessoa_id = p.id WHERE a.id = :aluno_id LIMIT 1";
+                $stmtAluno = $conn->prepare($sqlAluno);
+                $stmtAluno->bindParam(':aluno_id', $alunoId);
+                $stmtAluno->execute();
+                $aluno = $stmtAluno->fetch(PDO::FETCH_ASSOC);
+                $alunoNome = $aluno ? $aluno['nome'] : 'Aluno';
+                
+                return [
+                    'success' => false,
+                    'message' => "Já existe frequência registrada para {$alunoNome} no dia " . date('d/m/Y', strtotime($data)) . ". Use a opção 'Editar' para modificar a frequência existente."
+                ];
+            }
+        }
         
         $sql = "INSERT INTO frequencia (aluno_id, turma_id, data, presenca, observacao, registrado_por, registrado_em)
                 VALUES (:aluno_id, :turma_id, :data, :presenca, :observacao, :registrado_por, NOW())
                 ON DUPLICATE KEY UPDATE presenca = :presenca, observacao = :observacao, atualizado_em = NOW()";
         
         $stmt = $conn->prepare($sql);
-        $alunoId = $dados['aluno_id'];
-        $turmaId = $dados['turma_id'];
-        $data = $dados['data'];
         $presenca = isset($dados['presenca']) ? (int)$dados['presenca'] : 0;
         $observacao = $dados['observacao'] ?? null;
         $registradoPor = (isset($_SESSION['usuario_id']) && is_numeric($_SESSION['usuario_id'])) ? (int)$_SESSION['usuario_id'] : null;
@@ -66,7 +100,14 @@ class FrequenciaModel {
             $stmt->bindValue(':registrado_por', $registradoPor);
         }
         
-        return $stmt->execute();
+        $resultado = $stmt->execute();
+        
+        // Se o resultado for um array (erro), retornar como está, senão retornar boolean
+        if (is_array($resultado)) {
+            return $resultado;
+        }
+        
+        return $resultado;
     }
     
     /**
@@ -77,6 +118,42 @@ class FrequenciaModel {
         
         try {
             $conn->beginTransaction();
+            
+            // Verificar se já existem frequências registradas para algum aluno nesta data
+            $alunosComFrequencia = [];
+            foreach ($frequencias as $freq) {
+                $alunoId = isset($freq['aluno_id']) ? (int)$freq['aluno_id'] : null;
+                if (!$alunoId) {
+                    throw new Exception('Aluno inválido ao registrar frequência');
+                }
+                
+                // Verificar se já existe frequência para este aluno nesta data
+                $sqlVerificar = "SELECT f.id, p.nome as aluno_nome 
+                                FROM frequencia f
+                                INNER JOIN aluno a ON f.aluno_id = a.id
+                                INNER JOIN pessoa p ON a.pessoa_id = p.id
+                                WHERE f.aluno_id = :aluno_id 
+                                AND f.turma_id = :turma_id 
+                                AND f.data = :data
+                                LIMIT 1";
+                $stmtVerificar = $conn->prepare($sqlVerificar);
+                $stmtVerificar->bindParam(':aluno_id', $alunoId);
+                $stmtVerificar->bindParam(':turma_id', $turmaId);
+                $stmtVerificar->bindParam(':data', $data);
+                $stmtVerificar->execute();
+                $frequenciaExistente = $stmtVerificar->fetch(PDO::FETCH_ASSOC);
+                
+                if ($frequenciaExistente) {
+                    $alunosComFrequencia[] = $frequenciaExistente['aluno_nome'];
+                }
+            }
+            
+            // Se houver alunos com frequência já registrada, retornar erro
+            if (!empty($alunosComFrequencia)) {
+                $conn->rollBack();
+                $mensagem = 'Já existe frequência registrada para o dia ' . date('d/m/Y', strtotime($data)) . ' para os seguintes alunos: ' . implode(', ', $alunosComFrequencia) . '. Use a opção "Editar" para modificar a frequência existente.';
+                return ['success' => false, 'message' => $mensagem, 'alunos_com_frequencia' => $alunosComFrequencia];
+            }
             
             foreach ($frequencias as $freq) {
                 $alunoId = isset($freq['aluno_id']) ? (int)$freq['aluno_id'] : null;
@@ -102,14 +179,21 @@ class FrequenciaModel {
                         : 'Falta justificada';
                 }
 
-                $ok = $this->registrar([
+                $resultado = $this->registrar([
                     'aluno_id' => $alunoId,
                     'turma_id' => $turmaId,
                     'data' => $data,
                     'presenca' => $presenca,
                     'observacao' => $observacao
                 ]);
-                if (!$ok) {
+                
+                // Se retornou array, é um erro
+                if (is_array($resultado) && isset($resultado['success']) && !$resultado['success']) {
+                    throw new Exception($resultado['message'] ?? 'Falha ao salvar frequência para aluno ID ' . $alunoId);
+                }
+                
+                // Se retornou false, também é erro
+                if ($resultado === false) {
                     throw new Exception('Falha ao salvar frequência para aluno ID ' . $alunoId);
                 }
             }

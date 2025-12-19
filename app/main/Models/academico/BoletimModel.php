@@ -95,8 +95,40 @@ class BoletimModel {
                 $stmtBoletim->bindParam(':frequencia_percentual', $freq['percentual']);
                 $stmtBoletim->bindParam(':total_faltas', $totalFaltas);
                 $stmtBoletim->bindParam(':situacao', $situacao);
-                $geradoPor = (isset($_SESSION['usuario_id']) && is_numeric($_SESSION['usuario_id'])) ? (int)$_SESSION['usuario_id'] : null;
-                $stmtBoletim->bindParam(':gerado_por', $geradoPor);
+                
+                // Validar e obter usuario_id válido
+                $geradoPor = null;
+                if (isset($_SESSION['usuario_id']) && is_numeric($_SESSION['usuario_id'])) {
+                    $usuarioIdParam = (int)$_SESSION['usuario_id'];
+                    // Verificar se o usuário existe na tabela
+                    $sqlVerificarUsuario = "SELECT id FROM usuario WHERE id = :usuario_id LIMIT 1";
+                    $stmtVerificarUsuario = $conn->prepare($sqlVerificarUsuario);
+                    $stmtVerificarUsuario->bindParam(':usuario_id', $usuarioIdParam);
+                    $stmtVerificarUsuario->execute();
+                    $usuarioExiste = $stmtVerificarUsuario->fetch(PDO::FETCH_ASSOC);
+                    if ($usuarioExiste) {
+                        $geradoPor = $usuarioIdParam;
+                    }
+                }
+                
+                // Se não encontrou usuário válido, tentar obter a partir do pessoa_id da sessão
+                if ($geradoPor === null && isset($_SESSION['pessoa_id']) && is_numeric($_SESSION['pessoa_id'])) {
+                    $pessoaIdSessao = (int)$_SESSION['pessoa_id'];
+                    $sqlUsuario = "SELECT id FROM usuario WHERE pessoa_id = :pessoa_id LIMIT 1";
+                    $stmtUsuario = $conn->prepare($sqlUsuario);
+                    $stmtUsuario->bindParam(':pessoa_id', $pessoaIdSessao);
+                    $stmtUsuario->execute();
+                    $usuario = $stmtUsuario->fetch(PDO::FETCH_ASSOC);
+                    if ($usuario && isset($usuario['id'])) {
+                        $geradoPor = (int)$usuario['id'];
+                    }
+                }
+                
+                if ($geradoPor === null) {
+                    $stmtBoletim->bindValue(':gerado_por', null, PDO::PARAM_NULL);
+                } else {
+                    $stmtBoletim->bindParam(':gerado_por', $geradoPor);
+                }
                 $stmtBoletim->execute();
                 
                 $boletimId = $conn->lastInsertId();

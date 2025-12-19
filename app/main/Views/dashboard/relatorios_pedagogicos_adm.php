@@ -23,7 +23,38 @@ $stmtEscolas = $conn->prepare($sqlEscolas);
 $stmtEscolas->execute();
 $escolas = $stmtEscolas->fetchAll(PDO::FETCH_ASSOC);
 
-// Estatísticas
+// Processar requisição AJAX para buscar estatísticas filtradas
+if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['acao']) && $_GET['acao'] === 'buscar_estatisticas') {
+    header('Content-Type: application/json');
+    
+    $escolaId = !empty($_GET['escola_id']) ? (int)$_GET['escola_id'] : null;
+    $ano = !empty($_GET['ano']) ? (int)$_GET['ano'] : date('Y');
+    
+    try {
+        $totalAlunos = $stats->getTotalAlunos($escolaId);
+        $totalProfessores = $stats->getTotalProfessores($escolaId);
+        $totalTurmas = $stats->getTotalTurmas($escolaId);
+        $mediaGeral = $stats->getMediaGeralNotas($escolaId);
+        
+        echo json_encode([
+            'success' => true,
+            'data' => [
+                'totalAlunos' => $totalAlunos,
+                'totalProfessores' => $totalProfessores,
+                'totalTurmas' => $totalTurmas,
+                'mediaGeral' => $mediaGeral
+            ]
+        ]);
+    } catch (Exception $e) {
+        echo json_encode([
+            'success' => false,
+            'message' => $e->getMessage()
+        ]);
+    }
+    exit;
+}
+
+// Estatísticas iniciais (sem filtro)
 $totalAlunos = $stats->getTotalAlunos();
 $totalProfessores = $stats->getTotalProfessores();
 $totalTurmas = $stats->getTotalTurmas();
@@ -260,6 +291,9 @@ $mediaGeral = $stats->getMediaGeral();
             mediaGeral: <?= json_encode((float)$mediaGeral) ?>
         };
 
+        // Variável global para armazenar estatísticas atuais (inicializada com baseStats)
+        let statsAtuais = { ...baseStats };
+
         // PDF Export Function
         function exportarRelatorioPDF() {
             const { jsPDF } = window.jspdf;
@@ -297,10 +331,10 @@ $mediaGeral = $stats->getMediaGeral();
             // Add stats table
             cursorY += 8;
             const stats = [
-                { label: 'Alunos', value: baseStats.totalAlunos },
-                { label: 'Professores', value: baseStats.totalProfessores },
-                { label: 'Turmas', value: baseStats.totalTurmas },
-                { label: 'Média Geral', value: Number(baseStats.mediaGeral).toFixed(1) }
+                { label: 'Alunos', value: statsAtuais.totalAlunos },
+                { label: 'Professores', value: statsAtuais.totalProfessores },
+                { label: 'Turmas', value: statsAtuais.totalTurmas },
+                { label: 'Média Geral', value: Number(statsAtuais.mediaGeral).toFixed(1) }
             ];
             
             const colWidth = (pageWidth - 2 * margin) / 4;
@@ -352,22 +386,22 @@ $mediaGeral = $stats->getMediaGeral();
             const tableData = [
                 { 
                     label: 'Total de Alunos', 
-                    value: baseStats.totalAlunos, 
+                    value: statsAtuais.totalAlunos, 
                     note: 'Contagem geral de matrículas' 
                 },
                 { 
                     label: 'Total de Professores', 
-                    value: baseStats.totalProfessores, 
+                    value: statsAtuais.totalProfessores, 
                     note: 'Docentes ativos' 
                 },
                 { 
                     label: 'Total de Turmas', 
-                    value: baseStats.totalTurmas, 
+                    value: statsAtuais.totalTurmas, 
                     note: 'Turmas em funcionamento' 
                 },
                 { 
                     label: 'Média Geral', 
-                    value: Number(baseStats.mediaGeral).toFixed(1), 
+                    value: Number(statsAtuais.mediaGeral).toFixed(1), 
                     note: 'Média das notas no sistema' 
                 }
             ];
@@ -411,11 +445,42 @@ $mediaGeral = $stats->getMediaGeral();
         }
 
         // Enhance the report rendering on click
-        function gerarRelatorio() {
+        async function gerarRelatorio() {
             const escolaSelect = document.getElementById('filtro-escola');
             const escolaId = escolaSelect.value;
             const escolaNome = escolaSelect.options[escolaSelect.selectedIndex]?.text || 'Todas as escolas';
             const ano = document.getElementById('filtro-ano').value;
+
+            // Mostrar loading
+            document.getElementById('relatorio-conteudo').innerHTML = `
+                <div class="flex items-center justify-center py-12">
+                    <div class="text-center">
+                        <svg class="animate-spin h-8 w-8 text-indigo-600 mx-auto mb-4" fill="none" viewBox="0 0 24 24">
+                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        <p class="text-gray-600">Carregando dados...</p>
+                    </div>
+                </div>
+            `;
+
+            try {
+                // Buscar dados filtrados
+                const url = `?acao=buscar_estatisticas&escola_id=${escolaId || ''}&ano=${ano}`;
+                const response = await fetch(url);
+                const result = await response.json();
+
+                if (result.success && result.data) {
+                    statsAtuais = result.data;
+                } else {
+                    // Se houver erro, usar dados base
+                    statsAtuais = baseStats;
+                }
+            } catch (error) {
+                console.error('Erro ao buscar estatísticas:', error);
+                // Em caso de erro, usar dados base
+                statsAtuais = baseStats;
+            }
 
             const html = `
                 <div class="space-y-6">
@@ -438,19 +503,19 @@ $mediaGeral = $stats->getMediaGeral();
                     <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
                         <div class="bg-gray-50 rounded-xl p-4">
                             <div class="text-xs text-gray-500 mb-1">Alunos</div>
-                            <div class="text-2xl font-bold text-gray-800">${baseStats.totalAlunos}</div>
+                            <div class="text-2xl font-bold text-gray-800">${statsAtuais.totalAlunos}</div>
                         </div>
                         <div class="bg-gray-50 rounded-xl p-4">
                             <div class="text-xs text-gray-500 mb-1">Professores</div>
-                            <div class="text-2xl font-bold text-gray-800">${baseStats.totalProfessores}</div>
+                            <div class="text-2xl font-bold text-gray-800">${statsAtuais.totalProfessores}</div>
                         </div>
                         <div class="bg-gray-50 rounded-xl p-4">
                             <div class="text-xs text-gray-500 mb-1">Turmas</div>
-                            <div class="text-2xl font-bold text-gray-800">${baseStats.totalTurmas}</div>
+                            <div class="text-2xl font-bold text-gray-800">${statsAtuais.totalTurmas}</div>
                         </div>
                         <div class="bg-gray-50 rounded-xl p-4">
                             <div class="text-xs text-gray-500 mb-1">Média Geral</div>
-                            <div class="text-2xl font-bold text-gray-800">${Number(baseStats.mediaGeral).toFixed(1)}</div>
+                            <div class="text-2xl font-bold text-gray-800">${Number(statsAtuais.mediaGeral).toFixed(1)}</div>
                         </div>
                     </div>
 
@@ -467,22 +532,22 @@ $mediaGeral = $stats->getMediaGeral();
                             <tbody class="bg-white divide-y divide-gray-200">
                                 <tr>
                                     <td class="px-4 py-2 text-sm text-gray-700">Total de Alunos</td>
-                                    <td class="px-4 py-2 text-sm font-semibold text-gray-900">${baseStats.totalAlunos}</td>
+                                    <td class="px-4 py-2 text-sm font-semibold text-gray-900">${statsAtuais.totalAlunos}</td>
                                     <td class="px-4 py-2 text-sm text-gray-600">Contagem geral de matrículas</td>
                                 </tr>
                                 <tr>
                                     <td class="px-4 py-2 text-sm text-gray-700">Total de Professores</td>
-                                    <td class="px-4 py-2 text-sm font-semibold text-gray-900">${baseStats.totalProfessores}</td>
+                                    <td class="px-4 py-2 text-sm font-semibold text-gray-900">${statsAtuais.totalProfessores}</td>
                                     <td class="px-4 py-2 text-sm text-gray-600">Docentes ativos</td>
                                 </tr>
                                 <tr>
                                     <td class="px-4 py-2 text-sm text-gray-700">Total de Turmas</td>
-                                    <td class="px-4 py-2 text-sm font-semibold text-gray-900">${baseStats.totalTurmas}</td>
+                                    <td class="px-4 py-2 text-sm font-semibold text-gray-900">${statsAtuais.totalTurmas}</td>
                                     <td class="px-4 py-2 text-sm text-gray-600">Turmas em funcionamento</td>
                                 </tr>
                                 <tr>
                                     <td class="px-4 py-2 text-sm text-gray-700">Média Geral</td>
-                                    <td class="px-4 py-2 text-sm font-semibold text-gray-900">${Number(baseStats.mediaGeral).toFixed(1)}</td>
+                                    <td class="px-4 py-2 text-sm font-semibold text-gray-900">${Number(statsAtuais.mediaGeral).toFixed(1)}</td>
                                     <td class="px-4 py-2 text-sm text-gray-600">Média das notas no sistema</td>
                                 </tr>
                             </tbody>

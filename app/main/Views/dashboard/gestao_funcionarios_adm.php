@@ -88,6 +88,34 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao'])) {
             
             $conn->beginTransaction();
             
+            // Gerar matrícula automaticamente se não fornecida
+            $matricula = !empty($_POST['matricula']) ? trim($_POST['matricula']) : null;
+            if (empty($matricula)) {
+                $ano = date('Y');
+                // Buscar última matrícula de funcionário do ano atual
+                $sqlMatricula = "SELECT MAX(CAST(SUBSTRING(matricula, 5) AS UNSIGNED)) as ultima_matricula 
+                                FROM funcionario 
+                                WHERE matricula LIKE :ano_prefix AND matricula IS NOT NULL AND matricula != ''";
+                $stmtMatricula = $conn->prepare($sqlMatricula);
+                $anoPrefix = $ano . '%';
+                $stmtMatricula->bindParam(':ano_prefix', $anoPrefix);
+                $stmtMatricula->execute();
+                $result = $stmtMatricula->fetch(PDO::FETCH_ASSOC);
+                $proximoNumero = ($result['ultima_matricula'] ?? 0) + 1;
+                $matricula = $ano . str_pad($proximoNumero, 4, '0', STR_PAD_LEFT);
+                
+                // Verificar se a matrícula gerada já existe (caso raro, mas possível)
+                $sqlVerificarMatricula = "SELECT id FROM funcionario WHERE matricula = :matricula";
+                $stmtVerificarMat = $conn->prepare($sqlVerificarMatricula);
+                $stmtVerificarMat->bindParam(':matricula', $matricula);
+                $stmtVerificarMat->execute();
+                if ($stmtVerificarMat->fetch()) {
+                    // Se já existe, incrementar
+                    $proximoNumero++;
+                    $matricula = $ano . str_pad($proximoNumero, 4, '0', STR_PAD_LEFT);
+                }
+            }
+            
             // Preparar dados para o model
             $dados = [
                 'cpf' => $cpf,
@@ -96,7 +124,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao'])) {
                 'sexo' => $_POST['sexo'] ?? null,
                 'email' => !empty($_POST['email']) ? trim($_POST['email']) : null,
                 'telefone' => !empty($telefone) ? $telefone : null,
-                'matricula' => !empty($_POST['matricula']) ? trim($_POST['matricula']) : null,
+                'matricula' => $matricula,
                 'cargo' => trim($_POST['cargo'] ?? ''),
                 'setor' => !empty($_POST['setor']) ? trim($_POST['setor']) : null,
                 'data_admissao' => $_POST['data_admissao'] ?? date('Y-m-d')
@@ -125,7 +153,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao'])) {
             $sqlFunc = "INSERT INTO funcionario (pessoa_id, matricula, cargo, setor, data_admissao, ativo, criado_por)
                        VALUES (:pessoa_id, :matricula, :cargo, :setor, :data_admissao, 1, :criado_por)";
             $stmtFunc = $conn->prepare($sqlFunc);
-            $matriculaParam = !empty($_POST['matricula']) ? trim($_POST['matricula']) : null;
+            $matriculaParam = $matricula; // Usar a matrícula gerada automaticamente ou fornecida
             $cargoParam = trim($_POST['cargo'] ?? '');
             $setorParam = !empty($_POST['setor']) ? trim($_POST['setor']) : null;
             $dataAdmissaoParam = $_POST['data_admissao'] ?? date('Y-m-d');
@@ -147,6 +175,28 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao'])) {
             $stmtUsuario->bindParam(':username', $username);
             $stmtUsuario->bindParam(':senha_hash', $senhaHash);
             $stmtUsuario->execute();
+            
+            // 4. Criar lotações se houver escolas selecionadas
+            if (!empty($_POST['escolas_lotacao']) && is_array($_POST['escolas_lotacao'])) {
+                $sqlLotacao = "INSERT INTO funcionario_lotacao (funcionario_id, escola_id, inicio, setor, criado_por)
+                              VALUES (:funcionario_id, :escola_id, CURDATE(), :setor, :criado_por)";
+                $stmtLotacao = $conn->prepare($sqlLotacao);
+                $criadoPorLotacao = (isset($_SESSION['usuario_id']) && is_numeric($_SESSION['usuario_id'])) ? (int)$_SESSION['usuario_id'] : null;
+                
+                $setoresLotacao = isset($_POST['setores_lotacao']) && is_array($_POST['setores_lotacao']) ? $_POST['setores_lotacao'] : [];
+                
+                foreach ($_POST['escolas_lotacao'] as $index => $escolaId) {
+                    $escolaIdInt = (int)$escolaId;
+                    if ($escolaIdInt > 0) {
+                        $setorLotacao = isset($setoresLotacao[$index]) && !empty(trim($setoresLotacao[$index])) ? trim($setoresLotacao[$index]) : null;
+                        $stmtLotacao->bindParam(':funcionario_id', $funcionarioId, PDO::PARAM_INT);
+                        $stmtLotacao->bindParam(':escola_id', $escolaIdInt, PDO::PARAM_INT);
+                        $stmtLotacao->bindParam(':setor', $setorLotacao);
+                        $stmtLotacao->bindParam(':criado_por', $criadoPorLotacao);
+                        $stmtLotacao->execute();
+                    }
+                }
+            }
             
             $conn->commit();
             
@@ -360,6 +410,169 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['acao'])) {
         
         $funcionarios = $funcionarioModel->listar($filtros);
         echo json_encode(['success' => true, 'funcionarios' => $funcionarios]);
+        exit;
+    }
+    
+    if ($_GET['acao'] === 'buscar_lotacoes_funcionario') {
+        try {
+            $funcionarioId = $_GET['funcionario_id'] ?? null;
+            if (empty($funcionarioId)) {
+                throw new Exception('ID do funcionário é obrigatório.');
+            }
+            
+            $funcionarioId = (int)$funcionarioId;
+            if ($funcionarioId <= 0) {
+                throw new Exception('ID do funcionário inválido.');
+            }
+            
+            $sql = "SELECT fl.id, fl.funcionario_id, fl.escola_id, fl.inicio, fl.fim, fl.setor, fl.observacoes,
+                           e.nome as escola_nome
+                    FROM funcionario_lotacao fl
+                    INNER JOIN escola e ON fl.escola_id = e.id
+                    WHERE fl.funcionario_id = :funcionario_id AND fl.fim IS NULL
+                    ORDER BY fl.inicio DESC";
+            $stmt = $conn->prepare($sql);
+            $stmt->bindParam(':funcionario_id', $funcionarioId, PDO::PARAM_INT);
+            $stmt->execute();
+            $lotacoes = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            
+            ob_clean();
+            echo json_encode(['success' => true, 'lotacoes' => $lotacoes], JSON_UNESCAPED_UNICODE);
+        } catch (Exception $e) {
+            ob_clean();
+            error_log("Erro ao buscar lotações do funcionário: " . $e->getMessage());
+            echo json_encode(['success' => false, 'message' => $e->getMessage(), 'lotacoes' => []], JSON_UNESCAPED_UNICODE);
+        } catch (PDOException $e) {
+            ob_clean();
+            error_log("Erro PDO ao buscar lotações do funcionário: " . $e->getMessage());
+            echo json_encode(['success' => false, 'message' => 'Erro ao buscar lotações.', 'lotacoes' => []], JSON_UNESCAPED_UNICODE);
+        }
+        exit;
+    }
+}
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao'])) {
+    header('Content-Type: application/json');
+    
+    if ($_POST['acao'] === 'adicionar_lotacao_funcionario') {
+        try {
+            $funcionarioId = $_POST['funcionario_id'] ?? null;
+            $escolaId = $_POST['escola_id'] ?? null;
+            $setor = !empty($_POST['setor']) ? trim($_POST['setor']) : null;
+            $dataInicio = $_POST['data_inicio'] ?? date('Y-m-d');
+            
+            if (empty($funcionarioId) || empty($escolaId)) {
+                throw new Exception('Funcionário e escola são obrigatórios.');
+            }
+            
+            $funcionarioId = (int)$funcionarioId;
+            $escolaId = (int)$escolaId;
+            
+            if ($funcionarioId <= 0 || $escolaId <= 0) {
+                throw new Exception('IDs inválidos.');
+            }
+            
+            // Verificar se já existe lotação ativa para este funcionário nesta escola
+            $sqlVerificar = "SELECT id FROM funcionario_lotacao 
+                            WHERE funcionario_id = :funcionario_id 
+                            AND escola_id = :escola_id 
+                            AND fim IS NULL";
+            $stmtVerificar = $conn->prepare($sqlVerificar);
+            $stmtVerificar->bindParam(':funcionario_id', $funcionarioId, PDO::PARAM_INT);
+            $stmtVerificar->bindParam(':escola_id', $escolaId, PDO::PARAM_INT);
+            $stmtVerificar->execute();
+            
+            if ($stmtVerificar->fetch()) {
+                throw new Exception('O funcionário já está lotado nesta escola.');
+            }
+            
+            // Criar nova lotação
+            $criadoPor = (isset($_SESSION['usuario_id']) && is_numeric($_SESSION['usuario_id'])) ? (int)$_SESSION['usuario_id'] : null;
+            $sqlLotar = "INSERT INTO funcionario_lotacao (funcionario_id, escola_id, inicio, setor, criado_por)
+                        VALUES (:funcionario_id, :escola_id, :inicio, :setor, :criado_por)";
+            $stmtLotar = $conn->prepare($sqlLotar);
+            $stmtLotar->bindParam(':funcionario_id', $funcionarioId, PDO::PARAM_INT);
+            $stmtLotar->bindParam(':escola_id', $escolaId, PDO::PARAM_INT);
+            $stmtLotar->bindParam(':inicio', $dataInicio);
+            $stmtLotar->bindParam(':setor', $setor);
+            $stmtLotar->bindParam(':criado_por', $criadoPor);
+            $stmtLotar->execute();
+            
+            ob_clean();
+            echo json_encode([
+                'success' => true,
+                'message' => 'Lotação adicionada com sucesso!'
+            ], JSON_UNESCAPED_UNICODE);
+        } catch (Exception $e) {
+            ob_clean();
+            error_log("Erro ao adicionar lotação: " . $e->getMessage());
+            echo json_encode([
+                'success' => false,
+                'message' => $e->getMessage()
+            ], JSON_UNESCAPED_UNICODE);
+        } catch (PDOException $e) {
+            ob_clean();
+            error_log("Erro PDO ao adicionar lotação: " . $e->getMessage());
+            echo json_encode([
+                'success' => false,
+                'message' => 'Erro ao processar requisição. Tente novamente.'
+            ], JSON_UNESCAPED_UNICODE);
+        }
+        exit;
+    }
+    
+    if ($_POST['acao'] === 'remover_lotacao_funcionario') {
+        ob_clean();
+        try {
+            $funcionarioId = $_POST['funcionario_id'] ?? null;
+            $escolaId = $_POST['escola_id'] ?? null;
+            
+            if (empty($funcionarioId) || empty($escolaId)) {
+                throw new Exception('Funcionário e escola são obrigatórios.');
+            }
+            
+            $funcionarioId = (int)$funcionarioId;
+            $escolaId = (int)$escolaId;
+            
+            if ($funcionarioId <= 0 || $escolaId <= 0) {
+                throw new Exception('IDs inválidos.');
+            }
+            
+            // Encerrar lotação
+            $sqlRemover = "UPDATE funcionario_lotacao 
+                          SET fim = CURDATE() 
+                          WHERE funcionario_id = :funcionario_id 
+                          AND escola_id = :escola_id 
+                          AND fim IS NULL";
+            $stmtRemover = $conn->prepare($sqlRemover);
+            $stmtRemover->bindParam(':funcionario_id', $funcionarioId, PDO::PARAM_INT);
+            $stmtRemover->bindParam(':escola_id', $escolaId, PDO::PARAM_INT);
+            $result = $stmtRemover->execute();
+            
+            if ($result) {
+                ob_clean();
+                echo json_encode([
+                    'success' => true,
+                    'message' => 'Lotação removida com sucesso!'
+                ], JSON_UNESCAPED_UNICODE);
+            } else {
+                throw new Exception('Erro ao remover lotação.');
+            }
+        } catch (Exception $e) {
+            ob_clean();
+            error_log("Erro ao remover lotação: " . $e->getMessage());
+            echo json_encode([
+                'success' => false,
+                'message' => $e->getMessage()
+            ], JSON_UNESCAPED_UNICODE);
+        } catch (PDOException $e) {
+            ob_clean();
+            error_log("Erro PDO ao remover lotação: " . $e->getMessage());
+            echo json_encode([
+                'success' => false,
+                'message' => 'Erro ao processar requisição. Tente novamente.'
+            ], JSON_UNESCAPED_UNICODE);
+        }
         exit;
     }
 }
@@ -710,7 +923,9 @@ $funcionarios = $funcionarioModel->listar(['ativo' => 1]);
                             <div>
                                 <label class="block text-sm font-medium text-gray-700 mb-2">Matrícula</label>
                                 <input type="text" name="matricula" id="matricula"
-                                       class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent">
+                                       placeholder="Será gerada automaticamente se deixada em branco"
+                                       class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent bg-gray-50">
+                                <p class="text-xs text-gray-500 mt-1">A matrícula será gerada automaticamente se deixada em branco</p>
                             </div>
                             <div>
                                 <label class="block text-sm font-medium text-gray-700 mb-2">Cargo *</label>
@@ -827,6 +1042,86 @@ $funcionarios = $funcionarioModel->listar(['ativo' => 1]);
             if (modal) {
                 modal.style.display = 'none';
                 modal.classList.add('hidden');
+                // Limpar escolas
+                escolasNovoFuncionario = [];
+                atualizarTabelaEscolasNovoFuncionario();
+                const selectEscola = document.getElementById('nova_escola_lotacao');
+                const inputSetor = document.getElementById('nova_setor_lotacao');
+                if (selectEscola) selectEscola.value = '';
+                if (inputSetor) inputSetor.value = '';
+            }
+        }
+        
+        function atualizarTabelaEscolasNovoFuncionario() {
+            const tbody = document.getElementById('tabela-escolas-novo-funcionario');
+            if (!tbody) return;
+            
+            if (escolasNovoFuncionario.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="3" class="text-center py-4 text-gray-500 text-sm">
+                            Nenhuma escola vinculada
+                        </td>
+                    </tr>
+                `;
+                return;
+            }
+            
+            tbody.innerHTML = '';
+            escolasNovoFuncionario.forEach((escola, index) => {
+                tbody.innerHTML += `
+                    <tr class="border-b border-gray-100 hover:bg-gray-50">
+                        <td class="px-4 py-3 text-sm text-gray-900">${escola.nome || '-'}</td>
+                        <td class="px-4 py-3 text-sm text-gray-700">${escola.setor || '-'}</td>
+                        <td class="px-4 py-3 text-right">
+                            <button onclick="removerEscolaNovoFuncionario(${index})" 
+                                    class="text-red-600 hover:text-red-700 font-medium text-sm">
+                                Remover
+                            </button>
+                        </td>
+                    </tr>
+                `;
+            });
+        }
+        
+        function adicionarEscolaNovoFuncionario() {
+            const selectEscola = document.getElementById('nova_escola_lotacao');
+            const inputSetor = document.getElementById('nova_setor_lotacao');
+            
+            if (!selectEscola || !selectEscola.value) {
+                alert('Selecione uma escola');
+                return;
+            }
+            
+            const escolaId = selectEscola.value;
+            const escolaNome = selectEscola.options[selectEscola.selectedIndex].text;
+            const setor = inputSetor ? inputSetor.value.trim() : null;
+            
+            // Verificar se já está na lista
+            if (escolasNovoFuncionario.some(e => e.id == escolaId)) {
+                alert('Esta escola já foi adicionada');
+                return;
+            }
+            
+            // Adicionar à lista
+            escolasNovoFuncionario.push({
+                id: escolaId,
+                nome: escolaNome,
+                setor: setor
+            });
+            
+            // Atualizar tabela
+            atualizarTabelaEscolasNovoFuncionario();
+            
+            // Limpar campos
+            selectEscola.value = '';
+            if (inputSetor) inputSetor.value = '';
+        }
+        
+        function removerEscolaNovoFuncionario(index) {
+            if (confirm('Tem certeza que deseja remover esta escola?')) {
+                escolasNovoFuncionario.splice(index, 1);
+                atualizarTabelaEscolasNovoFuncionario();
             }
         }
         
@@ -888,6 +1183,16 @@ $funcionarios = $funcionarioModel->listar(['ativo' => 1]);
             const formData = new FormData(this);
             formData.append('acao', 'cadastrar_funcionario');
             
+            // Adicionar escolas selecionadas
+            escolasNovoFuncionario.forEach((escola, index) => {
+                formData.append('escolas_lotacao[]', escola.id);
+                if (escola.setor) {
+                    formData.append('setores_lotacao[]', escola.setor);
+                } else {
+                    formData.append('setores_lotacao[]', '');
+                }
+            });
+            
             try {
                 const response = await fetch('', {
                     method: 'POST',
@@ -905,6 +1210,9 @@ $funcionarios = $funcionarioModel->listar(['ativo' => 1]);
                     document.getElementById('data_admissao').value = new Date().toISOString().split('T')[0];
                     document.getElementById('senha').value = '123456';
                     atualizarPreviewUsername();
+                    // Limpar escolas
+                    escolasNovoFuncionario = [];
+                    atualizarTabelaEscolasNovoFuncionario();
                     
                     // Recarregar lista de funcionários após 1.5 segundos
                     setTimeout(() => {
@@ -932,6 +1240,12 @@ $funcionarios = $funcionarioModel->listar(['ativo' => 1]);
             }
         });
 
+        // Array para armazenar lotações do funcionário
+        let lotacoesFuncionario = [];
+        
+        // Array para armazenar escolas do novo funcionário
+        let escolasNovoFuncionario = [];
+        
         async function editarFuncionario(id) {
             try {
                 // Buscar dados do funcionário
@@ -960,6 +1274,9 @@ $funcionarios = $funcionarioModel->listar(['ativo' => 1]);
                 document.getElementById('editar_ativo').value = func.ativo !== undefined ? func.ativo : 1;
                 document.getElementById('editar_username_preview').value = func.username || '';
                 
+                // Carregar lotações do funcionário
+                await carregarLotacoesFuncionario(func.id);
+                
                 // Abrir modal
                 const modal = document.getElementById('modalEditarFuncionario');
                 if (modal) {
@@ -975,11 +1292,155 @@ $funcionarios = $funcionarioModel->listar(['ativo' => 1]);
             }
         }
         
+        async function carregarLotacoesFuncionario(funcionarioId) {
+            try {
+                const response = await fetch('?acao=buscar_lotacoes_funcionario&funcionario_id=' + funcionarioId);
+                const data = await response.json();
+                
+                if (data.success && data.lotacoes) {
+                    lotacoesFuncionario = data.lotacoes;
+                } else {
+                    lotacoesFuncionario = [];
+                }
+                
+                atualizarTabelaEscolasFuncionario();
+            } catch (error) {
+                console.error('Erro ao carregar lotações:', error);
+                lotacoesFuncionario = [];
+                atualizarTabelaEscolasFuncionario();
+            }
+        }
+        
+        function atualizarTabelaEscolasFuncionario() {
+            const tbody = document.getElementById('tabela-escolas-funcionario');
+            if (!tbody) return;
+            
+            if (lotacoesFuncionario.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="4" class="text-center py-4 text-gray-500 text-sm">
+                            Nenhuma escola vinculada
+                        </td>
+                    </tr>
+                `;
+                return;
+            }
+            
+            tbody.innerHTML = '';
+            lotacoesFuncionario.forEach(lotacao => {
+                const dataInicio = lotacao.inicio ? new Date(lotacao.inicio).toLocaleDateString('pt-BR') : '-';
+                tbody.innerHTML += `
+                    <tr class="border-b border-gray-100 hover:bg-gray-50">
+                        <td class="px-4 py-3 text-sm text-gray-900">${lotacao.escola_nome || '-'}</td>
+                        <td class="px-4 py-3 text-sm text-gray-700">${lotacao.setor || '-'}</td>
+                        <td class="px-4 py-3 text-sm text-gray-700">${dataInicio}</td>
+                        <td class="px-4 py-3 text-right">
+                            <button onclick="removerEscolaFuncionario(${lotacao.escola_id}, ${lotacao.funcionario_id})" 
+                                    class="text-red-600 hover:text-red-700 font-medium text-sm">
+                                Remover
+                            </button>
+                        </td>
+                    </tr>
+                `;
+            });
+        }
+        
+        async function adicionarEscolaFuncionario() {
+            const selectEscola = document.getElementById('editar_escola_lotacao');
+            const inputSetor = document.getElementById('editar_setor_lotacao');
+            const funcionarioId = document.getElementById('editar_funcionario_id').value;
+            
+            if (!selectEscola || !selectEscola.value) {
+                alert('Selecione uma escola');
+                return;
+            }
+            
+            if (!funcionarioId) {
+                alert('ID do funcionário não encontrado');
+                return;
+            }
+            
+            const escolaId = selectEscola.value;
+            const setor = inputSetor ? inputSetor.value.trim() : null;
+            
+            // Verificar se já está na lista
+            if (lotacoesFuncionario.some(l => l.escola_id == escolaId)) {
+                alert('Esta escola já está vinculada ao funcionário');
+                return;
+            }
+            
+            try {
+                const formData = new FormData();
+                formData.append('acao', 'adicionar_lotacao_funcionario');
+                formData.append('funcionario_id', funcionarioId);
+                formData.append('escola_id', escolaId);
+                formData.append('setor', setor || '');
+                formData.append('data_inicio', new Date().toISOString().split('T')[0]);
+                
+                const response = await fetch('', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    // Recarregar lotações
+                    await carregarLotacoesFuncionario(funcionarioId);
+                    selectEscola.value = '';
+                    if (inputSetor) inputSetor.value = '';
+                    alert('Escola vinculada com sucesso!');
+                } else {
+                    alert('Erro ao vincular escola: ' + (data.message || 'Erro desconhecido'));
+                }
+            } catch (error) {
+                console.error('Erro ao adicionar escola:', error);
+                alert('Erro ao processar requisição. Por favor, tente novamente.');
+            }
+        }
+        
+        async function removerEscolaFuncionario(escolaId, funcionarioId) {
+            if (!confirm('Tem certeza que deseja remover esta escola do funcionário?')) {
+                return;
+            }
+            
+            try {
+                const formData = new FormData();
+                formData.append('acao', 'remover_lotacao_funcionario');
+                formData.append('funcionario_id', funcionarioId);
+                formData.append('escola_id', escolaId);
+                
+                const response = await fetch('', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    // Recarregar lotações
+                    await carregarLotacoesFuncionario(funcionarioId);
+                    alert('Escola removida com sucesso!');
+                } else {
+                    alert('Erro ao remover escola: ' + (data.message || 'Erro desconhecido'));
+                }
+            } catch (error) {
+                console.error('Erro ao remover escola:', error);
+                alert('Erro ao processar requisição. Por favor, tente novamente.');
+            }
+        }
+        
         function fecharModalEditarFuncionario() {
             const modal = document.getElementById('modalEditarFuncionario');
             if (modal) {
                 modal.style.display = 'none';
                 modal.classList.add('hidden');
+                // Limpar lotações
+                lotacoesFuncionario = [];
+                const selectEscola = document.getElementById('editar_escola_lotacao');
+                const inputSetor = document.getElementById('editar_setor_lotacao');
+                if (selectEscola) selectEscola.value = '';
+                if (inputSetor) inputSetor.value = '';
             }
         }
         

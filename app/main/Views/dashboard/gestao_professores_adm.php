@@ -197,7 +197,33 @@ if (($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['acao'])) ||
             $pessoaId = $conn->lastInsertId();
             
             // 2. Criar professor
+            // Gerar matrícula automaticamente se não fornecida
             $matricula = !empty($_POST['matricula']) ? trim($_POST['matricula']) : null;
+            if (empty($matricula)) {
+                $ano = date('Y');
+                // Buscar última matrícula de professor do ano atual
+                $sqlMatricula = "SELECT MAX(CAST(SUBSTRING(matricula, 5) AS UNSIGNED)) as ultima_matricula 
+                                FROM professor 
+                                WHERE matricula LIKE :ano_prefix AND matricula IS NOT NULL AND matricula != ''";
+                $stmtMatricula = $conn->prepare($sqlMatricula);
+                $anoPrefix = $ano . '%';
+                $stmtMatricula->bindParam(':ano_prefix', $anoPrefix);
+                $stmtMatricula->execute();
+                $result = $stmtMatricula->fetch(PDO::FETCH_ASSOC);
+                $proximoNumero = ($result['ultima_matricula'] ?? 0) + 1;
+                $matricula = $ano . str_pad($proximoNumero, 4, '0', STR_PAD_LEFT);
+                
+                // Verificar se a matrícula gerada já existe (caso raro, mas possível)
+                $sqlVerificarMatricula = "SELECT id FROM professor WHERE matricula = :matricula";
+                $stmtVerificarMat = $conn->prepare($sqlVerificarMatricula);
+                $stmtVerificarMat->bindParam(':matricula', $matricula);
+                $stmtVerificarMat->execute();
+                if ($stmtVerificarMat->fetch()) {
+                    // Se já existe, incrementar
+                    $proximoNumero++;
+                    $matricula = $ano . str_pad($proximoNumero, 4, '0', STR_PAD_LEFT);
+                }
+            }
             
             // Processar múltiplas formações
             $formacoes = [];
@@ -1382,7 +1408,9 @@ $professores = $stmtProfessores->fetchAll(PDO::FETCH_ASSOC);
                             <div>
                                 <label class="block text-sm font-medium text-gray-700 mb-2">Matrícula</label>
                                 <input type="text" name="matricula" id="matricula"
-                                       class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent">
+                                       placeholder="Será gerada automaticamente se deixada em branco"
+                                       class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent bg-gray-50">
+                                <p class="text-xs text-gray-500 mt-1">A matrícula será gerada automaticamente se deixada em branco</p>
                             </div>
                             <div class="md:col-span-2 lg:col-span-3">
                                 <label class="block text-sm font-medium text-gray-700 mb-2">Formações</label>

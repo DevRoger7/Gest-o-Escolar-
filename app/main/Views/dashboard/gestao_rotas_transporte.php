@@ -20,7 +20,62 @@ $db = Database::getInstance();
 $conn = $db->getConnection();
 $usuarioId = $_SESSION['usuario_id'] ?? null;
 
-// Processar ações AJAX
+// Processar ações GET primeiro (buscar distrito da escola, localidades)
+if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['acao'])) {
+    header('Content-Type: application/json; charset=utf-8');
+    ob_clean();
+    
+    $acao = $_GET['acao'];
+    
+    // Buscar distrito da escola
+    if ($acao === 'buscar_distrito_escola') {
+        $escolaId = $_GET['escola_id'] ?? null;
+        if (!$escolaId) {
+            echo json_encode(['status' => false, 'mensagem' => 'ID da escola não informado']);
+            exit;
+        }
+        
+        try {
+            $stmt = $conn->prepare("SELECT distrito FROM escola WHERE id = :id AND ativo = 1");
+            $stmt->bindParam(':id', $escolaId, PDO::PARAM_INT);
+            $stmt->execute();
+            $escola = $stmt->fetch(PDO::FETCH_ASSOC);
+            
+            if ($escola) {
+                echo json_encode(['status' => true, 'distrito' => $escola['distrito']]);
+            } else {
+                echo json_encode(['status' => false, 'mensagem' => 'Escola não encontrada']);
+            }
+        } catch (PDOException $e) {
+            echo json_encode(['status' => false, 'mensagem' => 'Erro: ' . $e->getMessage()]);
+        }
+        exit;
+    }
+    
+    // Buscar localidades do distrito
+    if ($acao === 'buscar_localidades_distrito') {
+        $distrito = $_GET['distrito'] ?? '';
+        if (empty($distrito)) {
+            echo json_encode(['status' => false, 'mensagem' => 'Distrito não informado']);
+            exit;
+        }
+        
+        try {
+            $stmt = $conn->prepare("SELECT DISTINCT localidade FROM distrito_localidade WHERE distrito = :distrito AND ativo = 1 ORDER BY localidade ASC");
+            $stmt->bindParam(':distrito', $distrito);
+            $stmt->execute();
+            $localidades = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            
+            $localidadesList = array_column($localidades, 'localidade');
+            echo json_encode(['status' => true, 'localidades' => $localidadesList]);
+        } catch (PDOException $e) {
+            echo json_encode(['status' => false, 'mensagem' => 'Erro: ' . $e->getMessage()]);
+        }
+        exit;
+    }
+}
+
+// Processar ações AJAX POST
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao'])) {
     header('Content-Type: application/json; charset=utf-8');
     ob_clean();
@@ -34,9 +89,33 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao'])) {
             $escolaId = $_POST['escola_id'] ?? null;
             $turno = $_POST['turno'] ?? null;
             
-            // Buscar alunos agrupados por distrito_transporte
+            // Verificar se as colunas existem
+            $colunaPrecisaExiste = false;
+            $colunaDistritoExiste = false;
+            $colunaLocalidadeExiste = false;
+            try {
+                $checkColPrecisa = $conn->query("SHOW COLUMNS FROM aluno LIKE 'precisa_transporte'");
+                $colunaPrecisaExiste = $checkColPrecisa->rowCount() > 0;
+                
+                $checkColDistrito = $conn->query("SHOW COLUMNS FROM aluno LIKE 'distrito_transporte'");
+                $colunaDistritoExiste = $checkColDistrito->rowCount() > 0;
+                
+                $checkColLocalidade = $conn->query("SHOW COLUMNS FROM aluno LIKE 'localidade_transporte'");
+                $colunaLocalidadeExiste = $checkColLocalidade->rowCount() > 0;
+            } catch (Exception $e) {
+                $colunaPrecisaExiste = false;
+                $colunaDistritoExiste = false;
+                $colunaLocalidadeExiste = false;
+            }
+            
+            // Buscar alunos agrupados por distrito e localidade
+            // Usar localidade_transporte se existir, senão usar distrito_transporte como fallback
             $sql = "SELECT 
-                           a.distrito_transporte as localidade,
+                           " . ($colunaDistritoExiste ? "IFNULL(NULLIF(TRIM(a.distrito_transporte), ''), '-')" : "'-'" ) . " as distrito,
+                           " . ($colunaLocalidadeExiste ? 
+                               "IFNULL(NULLIF(TRIM(a.localidade_transporte), ''), IFNULL(NULLIF(TRIM(a.distrito_transporte), ''), '-'))" : 
+                               ($colunaDistritoExiste ? "IFNULL(NULLIF(TRIM(a.distrito_transporte), ''), '-')" : "'-'")
+                           ) . " as localidade,
                            COUNT(DISTINCT a.id) as total_alunos,
                            GROUP_CONCAT(DISTINCT a.id) as alunos_ids,
                            GROUP_CONCAT(DISTINCT p.nome SEPARATOR ', ') as alunos_nomes,
@@ -51,10 +130,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao'])) {
                     LEFT JOIN turma t ON at.turma_id = t.id AND t.ativo = 1
                     LEFT JOIN escola e ON t.escola_id = e.id AND e.ativo = 1
                     LEFT JOIN geolocalizacao_aluno ga ON a.id = ga.aluno_id AND ga.principal = 1
-                    WHERE a.ativo = 1 
-                      AND a.precisa_transporte = 1 
-                      AND a.distrito_transporte IS NOT NULL 
-                      AND a.distrito_transporte != ''";
+                    WHERE a.ativo = 1";
+            
+            // Adicionar filtro de precisa_transporte se a coluna existir
+            if ($colunaPrecisaExiste) {
+                $sql .= " AND a.precisa_transporte = 1";
+            }
+            
+            // Adicionar filtro de distrito_transporte se a coluna existir
+            if ($colunaDistritoExiste) {
+                $sql .= " AND a.distrito_transporte IS NOT NULL AND a.distrito_transporte != ''";
+            }
             
             $params = [];
             if ($escolaId) {
@@ -66,8 +152,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao'])) {
                 $params[':turno'] = $turno;
             }
             
-            $sql .= " GROUP BY a.distrito_transporte, e.id, e.nome, t.turno
-                      HAVING latitude IS NOT NULL AND longitude IS NOT NULL";
+            // Agrupar por distrito e localidade
+            if ($colunaLocalidadeExiste) {
+                $sql .= " GROUP BY a.distrito_transporte, a.localidade_transporte, e.id, e.nome, t.turno";
+            } elseif ($colunaDistritoExiste) {
+                $sql .= " GROUP BY a.distrito_transporte, e.id, e.nome, t.turno";
+            } else {
+                $sql .= " GROUP BY e.id, e.nome, t.turno";
+            }
+            
+            $sql .= " HAVING latitude IS NOT NULL AND longitude IS NOT NULL";
             
             $stmt = $conn->prepare($sql);
             foreach ($params as $key => $value) {
@@ -112,6 +206,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao'])) {
         
         // Criar rota
         elseif ($acao === 'criar_rota') {
+            // Verificar se o usuário tem permissão para criar rotas
+            if (!eAdm() && $tipoUsuarioUpper !== 'ADM_TRANSPORTE') {
+                $resposta = ['status' => false, 'mensagem' => 'Você não tem permissão para criar rotas.'];
+                echo json_encode($resposta, JSON_UNESCAPED_UNICODE);
+                exit;
+            }
+            
             $conn->beginTransaction();
             
             // Verificar se o usuário existe na tabela usuario
@@ -192,10 +293,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao'])) {
     exit;
 }
 
-// Buscar escolas
+// Buscar escolas com distrito
 $escolas = [];
 try {
-    $stmt = $conn->query("SELECT id, nome FROM escola WHERE ativo = 1 ORDER BY nome ASC");
+    // Verificar se a coluna distrito existe antes de buscar
+    $stmtCheck = $conn->query("SHOW COLUMNS FROM escola LIKE 'distrito'");
+    $colunaDistritoExiste = $stmtCheck->rowCount() > 0;
+    
+    if ($colunaDistritoExiste) {
+        $stmt = $conn->query("SELECT id, nome, distrito FROM escola WHERE ativo = 1 ORDER BY nome ASC");
+    } else {
+        $stmt = $conn->query("SELECT id, nome FROM escola WHERE ativo = 1 ORDER BY nome ASC");
+    }
     $escolas = $stmt->fetchAll(PDO::FETCH_ASSOC);
 } catch (PDOException $e) {
     error_log("Erro ao buscar escolas: " . $e->getMessage());
@@ -285,6 +394,120 @@ try {
         .autocomplete-item.selected .distrito-nome {
             color: #1f2937;
         }
+        /* Notificação estilizada */
+        .notification-container {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 9999;
+            max-width: 400px;
+            animation: slideInRight 0.3s ease-out;
+        }
+        @keyframes slideInRight {
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+        @keyframes slideOutRight {
+            from {
+                transform: translateX(0);
+                opacity: 1;
+            }
+            to {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+        }
+        .notification {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15), 0 4px 10px rgba(0, 0, 0, 0.1);
+            padding: 16px 20px;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+            border-left: 4px solid;
+            transition: all 0.3s ease;
+        }
+        .notification.warning {
+            border-left-color: #f59e0b;
+            background: linear-gradient(135deg, #fef3c7 0%, #ffffff 100%);
+        }
+        .notification.error {
+            border-left-color: #ef4444;
+            background: linear-gradient(135deg, #fee2e2 0%, #ffffff 100%);
+        }
+        .notification.success {
+            border-left-color: #10b981;
+            background: linear-gradient(135deg, #d1fae5 0%, #ffffff 100%);
+        }
+        .notification.info {
+            border-left-color: #3b82f6;
+            background: linear-gradient(135deg, #dbeafe 0%, #ffffff 100%);
+        }
+        .notification-icon {
+            flex-shrink: 0;
+            width: 24px;
+            height: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            font-size: 14px;
+        }
+        .notification.warning .notification-icon {
+            background: #f59e0b;
+            color: white;
+        }
+        .notification.error .notification-icon {
+            background: #ef4444;
+            color: white;
+        }
+        .notification.success .notification-icon {
+            background: #10b981;
+            color: white;
+        }
+        .notification.info .notification-icon {
+            background: #3b82f6;
+            color: white;
+        }
+        .notification-content {
+            flex: 1;
+            min-width: 0;
+        }
+        .notification-title {
+            font-weight: 600;
+            font-size: 15px;
+            color: #1f2937;
+            margin-bottom: 4px;
+        }
+        .notification-message {
+            font-size: 14px;
+            color: #4b5563;
+            line-height: 1.5;
+        }
+        .notification-close {
+            flex-shrink: 0;
+            width: 20px;
+            height: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            color: #6b7280;
+            border-radius: 4px;
+            transition: all 0.2s;
+        }
+        .notification-close:hover {
+            background: rgba(0, 0, 0, 0.05);
+            color: #1f2937;
+        }
         @media (max-width: 1023px) {
             .sidebar-mobile {
                 transform: translateX(-100%);
@@ -370,59 +593,68 @@ try {
                 <!-- Painel Lateral -->
                 <div class="space-y-6">
                     <!-- Criar Nova Rota -->
-                    <div class="bg-white rounded-lg shadow p-4">
-                        <h3 class="text-lg font-bold text-gray-900 mb-4">Criar Nova Rota</h3>
-                        <form id="formCriarRota" onsubmit="criarRota(event)" class="space-y-4">
-                            <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-1">Nome da Rota *</label>
-                                <input type="text" name="nome" required class="w-full px-3 py-2 border border-gray-300 rounded-lg" placeholder="Ex: Rota Interior - Manhã">
-                            </div>
-                            <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-1">Código</label>
-                                <input type="text" name="codigo" class="w-full px-3 py-2 border border-gray-300 rounded-lg" placeholder="Ex: ROTA-001">
-                            </div>
-                            <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-1">Escola</label>
-                                <select name="escola_id" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
-                                    <option value="">Selecione</option>
-                                    <?php foreach ($escolas as $escola): ?>
-                                        <option value="<?= $escola['id'] ?>"><?= htmlspecialchars($escola['nome']) ?></option>
-                                    <?php endforeach; ?>
-                                </select>
-                            </div>
-                            <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-1">Turno</label>
-                                <select name="turno" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
-                                    <option value="">Selecione</option>
-                                    <option value="MANHA">Manhã</option>
-                                    <option value="TARDE">Tarde</option>
-                                    <option value="NOITE">Noite</option>
-                                    <option value="INTEGRAL">Integral</option>
-                                </select>
-                            </div>
-                            <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-1">Distrito Principal *</label>
-                                <div class="autocomplete-container mb-3">
-                                    <input type="text" id="input-distrito-principal" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-green focus:border-primary-green" placeholder="Selecione o distrito principal..." autocomplete="off" required>
-                                    <div id="autocomplete-dropdown-distrito" class="autocomplete-dropdown"></div>
+                    <div class="bg-white rounded-lg shadow flex flex-col" style="max-height: calc(100vh - 200px);">
+                        <div class="p-4 border-b border-gray-200 flex-shrink-0">
+                            <h3 class="text-lg font-bold text-gray-900">Criar Nova Rota</h3>
+                        </div>
+                        <form id="formCriarRota" onsubmit="criarRota(event)" class="flex flex-col flex-1 overflow-hidden">
+                            <div class="flex-1 overflow-y-auto p-4 space-y-4">
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">Nome da Rota *</label>
+                                    <input type="text" name="nome" required class="w-full px-3 py-2 border border-gray-300 rounded-lg" placeholder="Ex: Rota Interior - Manhã">
                                 </div>
-                                <input type="hidden" id="distrito-principal" name="distrito">
-                            </div>
-                            <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-1">Localidades</label>
-                                <div id="localidades-selecionadas" class="space-y-2 mb-2"></div>
-                                <div class="autocomplete-container">
-                                    <input type="text" id="input-localidade" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-green focus:border-primary-green" placeholder="Digite o nome da localidade..." autocomplete="off">
-                                    <div id="autocomplete-dropdown" class="autocomplete-dropdown"></div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">Código</label>
+                                    <input type="text" name="codigo" class="w-full px-3 py-2 border border-gray-300 rounded-lg" placeholder="Ex: ROTA-001">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">Escola *</label>
+                                    <select name="escola_id" id="escola-select" required class="w-full px-3 py-2 border border-gray-300 rounded-lg" onchange="carregarDistritoEscola()">
+                                        <option value="">Selecione a escola</option>
+                                        <?php foreach ($escolas as $escola): ?>
+                                            <option value="<?= $escola['id'] ?>" data-distrito="<?= htmlspecialchars($escola['distrito'] ?? '') ?>"><?= htmlspecialchars($escola['nome']) ?></option>
+                                        <?php endforeach; ?>
+                                    </select>
+                                    <p class="text-xs text-gray-500 mt-1">Ao selecionar a escola, o distrito será preenchido automaticamente</p>
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">Turno</label>
+                                    <select name="turno" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
+                                        <option value="">Selecione</option>
+                                        <option value="MANHA">Manhã</option>
+                                        <option value="TARDE">Tarde</option>
+                                        <option value="NOITE">Noite</option>
+                                        <option value="INTEGRAL">Integral</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">Distrito *</label>
+                                    <div class="autocomplete-container mb-3">
+                                        <input type="text" id="input-distrito-principal" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-green focus:border-primary-green" placeholder="Selecione o distrito..." autocomplete="off" required readonly>
+                                        <div id="autocomplete-dropdown-distrito" class="autocomplete-dropdown"></div>
+                                    </div>
+                                    <input type="hidden" id="distrito-principal" name="distrito">
+                                    <p class="text-xs text-gray-500 mt-1">Preenchido automaticamente ao selecionar a escola</p>
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">Localidades</label>
+                                    <div id="localidades-selecionadas" class="space-y-2 mb-2"></div>
+                                    <div class="autocomplete-container">
+                                        <input type="text" id="input-localidade" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-green focus:border-primary-green" placeholder="Selecione o distrito primeiro..." autocomplete="off" disabled>
+                                        <div id="autocomplete-dropdown" class="autocomplete-dropdown"></div>
+                                    </div>
+                                    <p class="text-xs text-gray-500 mt-1">Selecione as localidades deste distrito que a rota atenderá</p>
+                                </div>
+                                <div class="pt-4 border-t">
+                                    <p class="text-sm text-gray-600 mb-2">Pontos selecionados: <span id="total-pontos">0</span></p>
+                                    <p class="text-sm text-gray-600 mb-2">Alunos selecionados: <span id="total-alunos">0</span></p>
                                 </div>
                             </div>
-                            <div class="pt-4 border-t">
-                                <p class="text-sm text-gray-600 mb-2">Pontos selecionados: <span id="total-pontos">0</span></p>
-                                <p class="text-sm text-gray-600 mb-2">Alunos selecionados: <span id="total-alunos">0</span></p>
+                            <div class="p-4 border-t border-gray-200 flex justify-end space-x-3 flex-shrink-0 bg-white">
+                                <button type="submit" class="px-6 py-2 bg-primary-green text-white rounded-lg hover:bg-green-700 transition-colors" style="background-color: #16a34a; z-index: 11; min-width: 120px; position: relative;">
+                                    <i class="fas fa-save mr-2"></i>Salvar Rota
+                                </button>
                             </div>
-                            <button type="submit" class="w-full px-4 py-2 bg-primary-green text-white rounded-lg hover:bg-green-700 transition-colors">
-                                <i class="fas fa-save mr-2"></i>Salvar Rota
-                            </button>
                         </form>
                     </div>
 
@@ -506,7 +738,7 @@ try {
             formData.append('acao', 'criar_rota');
             const distritoPrincipal = document.getElementById('distrito-principal').value;
             if (!distritoPrincipal) {
-                alert('Selecione o distrito principal da rota');
+                showNotification('Atenção', 'Selecione uma escola para definir o distrito da rota', 'warning');
                 return;
             }
             formData.append('distrito', distritoPrincipal);
@@ -522,134 +754,112 @@ try {
             .then(response => response.json())
             .then(data => {
                 if (data.status) {
-                    alert(data.mensagem);
-                    location.reload();
+                    showNotification('Sucesso', data.mensagem, 'success');
+                    setTimeout(() => location.reload(), 1500);
                 } else {
-                    alert('Erro: ' + data.mensagem);
+                    showNotification('Erro', data.mensagem, 'error');
                 }
             })
             .catch(error => {
                 console.error('Erro:', error);
-                alert('Erro ao criar rota');
+                showNotification('Erro', 'Erro ao criar rota', 'error');
             });
         }
         
-        // Lista de distritos de Maranguape para autocomplete
-        const distritosMaranguape = [
-            'Amanari',
-            'Antônio Marques',
-            'Cachoeira',
-            'Itapebussu',
-            'Jubaia',
-            'Ladeira Grande',
-            'Lages',
-            'Lagoa do Juvenal',
-            'Manoel Guedes',
-            'Sede',
-            'Papara',
-            'Penedo',
-            'Sapupara',
-            'São João do Amanari',
-            'Tanques',
-            'Umarizeiras',
-            'Vertentes do Lagedo'
-        ];
-        
-        // Autocomplete para distrito principal
-        const inputDistritoPrincipal = document.getElementById('input-distrito-principal');
-        const dropdownDistrito = document.getElementById('autocomplete-dropdown-distrito');
-        let filteredDistritosPrincipal = [];
-        let selectedIndexPrincipal = -1;
-        
-        if (inputDistritoPrincipal && dropdownDistrito) {
-            inputDistritoPrincipal.addEventListener('input', function() {
-                const query = this.value.toLowerCase().trim();
-                selectedIndexPrincipal = -1;
-                
-                if (query.length === 0) {
-                    dropdownDistrito.classList.remove('show');
-                    return;
-                }
-                
-                filteredDistritosPrincipal = distritosMaranguape.filter(distrito => 
-                    distrito.toLowerCase().includes(query)
-                );
-                
-                if (filteredDistritosPrincipal.length === 0) {
-                    dropdownDistrito.classList.remove('show');
-                    return;
-                }
-                
-                renderDropdownPrincipal();
-                dropdownDistrito.classList.add('show');
-            });
+        // Carregar distrito quando selecionar escola
+        function carregarDistritoEscola() {
+            const escolaSelect = document.getElementById('escola-select');
+            const inputDistrito = document.getElementById('input-distrito-principal');
+            const hiddenDistrito = document.getElementById('distrito-principal');
+            const inputLocalidade = document.getElementById('input-localidade');
             
-            inputDistritoPrincipal.addEventListener('keydown', function(e) {
-                if (!dropdownDistrito.classList.contains('show')) return;
-                
-                const items = dropdownDistrito.querySelectorAll('.autocomplete-item');
-                
-                if (e.key === 'ArrowDown') {
-                    e.preventDefault();
-                    selectedIndexPrincipal = Math.min(selectedIndexPrincipal + 1, items.length - 1);
-                    updateSelectionPrincipal(items);
-                } else if (e.key === 'ArrowUp') {
-                    e.preventDefault();
-                    selectedIndexPrincipal = Math.max(selectedIndexPrincipal - 1, -1);
-                    updateSelectionPrincipal(items);
-                } else if (e.key === 'Enter') {
-                    e.preventDefault();
-                    if (selectedIndexPrincipal >= 0 && filteredDistritosPrincipal[selectedIndexPrincipal]) {
-                        selecionarDistritoPrincipal(filteredDistritosPrincipal[selectedIndexPrincipal]);
-                    }
-                } else if (e.key === 'Escape') {
-                    dropdownDistrito.classList.remove('show');
-                }
-            });
+            const escolaId = escolaSelect.value;
             
-            document.addEventListener('click', function(e) {
-                if (!inputDistritoPrincipal.contains(e.target) && !dropdownDistrito.contains(e.target)) {
-                    dropdownDistrito.classList.remove('show');
-                }
-            });
-            
-            function renderDropdownPrincipal() {
-                dropdownDistrito.innerHTML = filteredDistritosPrincipal.map((distrito, index) => `
-                    <div class="autocomplete-item ${index === selectedIndexPrincipal ? 'selected' : ''}" 
-                         data-index="${index}" 
-                         onclick="selecionarDistritoPrincipal('${distrito}')">
-                        <div class="distrito-nome">${distrito}</div>
-                    </div>
-                `).join('');
+            if (!escolaId) {
+                inputDistrito.value = '';
+                hiddenDistrito.value = '';
+                inputLocalidade.disabled = true;
+                inputLocalidade.placeholder = 'Selecione o distrito primeiro...';
+                localidadesSelecionadas.clear();
+                atualizarLocalidades();
+                return;
             }
             
-            function updateSelectionPrincipal(items) {
-                items.forEach((item, index) => {
-                    if (index === selectedIndexPrincipal) {
-                        item.classList.add('selected');
-                        item.scrollIntoView({ block: 'nearest' });
+            // Buscar distrito do option selecionado (data-distrito)
+            const selectedOption = escolaSelect.options[escolaSelect.selectedIndex];
+            const distrito = selectedOption.getAttribute('data-distrito');
+            
+            if (distrito) {
+                inputDistrito.value = distrito;
+                hiddenDistrito.value = distrito;
+                // Habilitar campo de localidades e carregar localidades do distrito
+                inputLocalidade.disabled = false;
+                inputLocalidade.placeholder = 'Digite o nome da localidade...';
+                carregarLocalidadesDistrito(distrito);
+            } else {
+                // Se não tiver no data-attribute, buscar via AJAX
+                fetch(`gestao_rotas_transporte.php?acao=buscar_distrito_escola&escola_id=${escolaId}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.status && data.distrito) {
+                            inputDistrito.value = data.distrito;
+                            hiddenDistrito.value = data.distrito;
+                            inputLocalidade.disabled = false;
+                            inputLocalidade.placeholder = 'Digite o nome da localidade...';
+                            carregarLocalidadesDistrito(data.distrito);
+                        } else {
+                            showNotification('Atenção', 'Escola não possui distrito cadastrado. Por favor, cadastre o distrito da escola primeiro.', 'warning');
+                            inputDistrito.value = '';
+                            hiddenDistrito.value = '';
+                            inputLocalidade.disabled = true;
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Erro:', error);
+                        showNotification('Erro', 'Erro ao buscar distrito da escola', 'error');
+                    });
+            }
+        }
+        
+        // Carregar localidades do distrito
+        let localidadesDisponiveis = [];
+        
+        function carregarLocalidadesDistrito(distrito) {
+            if (!distrito) {
+                localidadesDisponiveis = [];
+                return;
+            }
+            
+            fetch(`gestao_rotas_transporte.php?acao=buscar_localidades_distrito&distrito=${encodeURIComponent(distrito)}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status) {
+                        localidadesDisponiveis = data.localidades;
+                        // Limpar localidades selecionadas e recarregar
+                        localidadesSelecionadas.clear();
+                        atualizarLocalidades();
                     } else {
-                        item.classList.remove('selected');
+                        console.error('Erro ao carregar localidades:', data.mensagem);
+                        localidadesDisponiveis = [];
                     }
+                })
+                .catch(error => {
+                    console.error('Erro:', error);
+                    localidadesDisponiveis = [];
                 });
-            }
-            
-            window.selecionarDistritoPrincipal = function(distrito) {
-                document.getElementById('distrito-principal').value = distrito;
-                inputDistritoPrincipal.value = distrito;
-                dropdownDistrito.classList.remove('show');
-            };
         }
         
         // Autocomplete customizado para localidades
         const inputLocalidade = document.getElementById('input-localidade');
         const dropdown = document.getElementById('autocomplete-dropdown');
         let selectedIndex = -1;
-        let filteredDistritos = [];
+        let filteredLocalidades = [];
         
         if (inputLocalidade && dropdown) {
-            // Filtrar distritos conforme digitação
+            // Filtrar localidades conforme digitação
             inputLocalidade.addEventListener('input', function() {
+                if (this.disabled) return;
+                
                 const query = this.value.trim().toLowerCase();
                 selectedIndex = -1;
                 
@@ -658,12 +868,12 @@ try {
                     return;
                 }
                 
-                // Filtrar distritos que contêm o texto digitado
-                filteredDistritos = distritosMaranguape.filter(distrito => 
-                    distrito.toLowerCase().includes(query)
+                // Filtrar localidades do distrito que contêm o texto digitado
+                filteredLocalidades = localidadesDisponiveis.filter(localidade => 
+                    localidade.toLowerCase().includes(query)
                 );
                 
-                if (filteredDistritos.length === 0) {
+                if (filteredLocalidades.length === 0) {
                     dropdown.classList.remove('show');
                     return;
                 }
@@ -675,6 +885,7 @@ try {
             
             // Navegação com teclado
             inputLocalidade.addEventListener('keydown', function(e) {
+                if (this.disabled) return;
                 if (!dropdown.classList.contains('show')) return;
                 
                 const items = dropdown.querySelectorAll('.autocomplete-item');
@@ -689,10 +900,10 @@ try {
                     updateSelection(items);
                 } else if (e.key === 'Enter') {
                     e.preventDefault();
-                    if (selectedIndex >= 0 && filteredDistritos[selectedIndex]) {
-                        selecionarDistrito(filteredDistritos[selectedIndex]);
+                    if (selectedIndex >= 0 && filteredLocalidades[selectedIndex]) {
+                        selecionarLocalidade(filteredLocalidades[selectedIndex]);
                     } else if (this.value.trim()) {
-                        // Se não há seleção, adiciona o que foi digitado
+                        // Se não há seleção, adiciona o que foi digitado (se for uma localidade válida)
                         adicionarLocalidade(this.value.trim());
                     }
                 } else if (e.key === 'Escape') {
@@ -708,11 +919,11 @@ try {
             });
             
             function renderDropdown() {
-                dropdown.innerHTML = filteredDistritos.map((distrito, index) => `
+                dropdown.innerHTML = filteredLocalidades.map((localidade, index) => `
                     <div class="autocomplete-item ${index === selectedIndex ? 'selected' : ''}" 
                          data-index="${index}" 
-                         onclick="selecionarDistrito('${distrito}')">
-                        <div class="distrito-nome">${distrito}</div>
+                         onclick="selecionarLocalidade('${localidade.replace(/'/g, "\\'")}')">
+                        <div class="distrito-nome">${localidade}</div>
                     </div>
                 `).join('');
             }
@@ -728,16 +939,16 @@ try {
                 });
             }
             
-            window.selecionarDistrito = function(distrito) {
-                adicionarLocalidade(distrito);
+            window.selecionarLocalidade = function(localidade) {
+                adicionarLocalidade(localidade);
                 inputLocalidade.value = '';
                 dropdown.classList.remove('show');
             };
             
             function adicionarLocalidade(localidade) {
                 // Verificar se a localidade existe na lista (case-insensitive)
-                const localidadeEncontrada = distritosMaranguape.find(d => 
-                    d.toLowerCase() === localidade.toLowerCase()
+                const localidadeEncontrada = localidadesDisponiveis.find(l => 
+                    l.toLowerCase() === localidade.toLowerCase()
                 );
                 
                 if (localidadeEncontrada) {
@@ -804,6 +1015,58 @@ try {
                 window.location.href = '../auth/logout.php';
             }
         };
+        
+        // Função para mostrar notificação estilizada
+        function showNotification(title, message, type = 'info', duration = 5000) {
+            // Criar container se não existir
+            let container = document.getElementById('notification-container');
+            if (!container) {
+                container = document.createElement('div');
+                container.id = 'notification-container';
+                container.className = 'notification-container';
+                document.body.appendChild(container);
+            }
+            
+            // Criar notificação
+            const notification = document.createElement('div');
+            notification.className = `notification ${type}`;
+            
+            // Ícones por tipo
+            const icons = {
+                'warning': '<i class="fas fa-exclamation-triangle"></i>',
+                'error': '<i class="fas fa-times-circle"></i>',
+                'success': '<i class="fas fa-check-circle"></i>',
+                'info': '<i class="fas fa-info-circle"></i>'
+            };
+            
+            notification.innerHTML = `
+                <div class="notification-icon">
+                    ${icons[type] || icons.info}
+                </div>
+                <div class="notification-content">
+                    <div class="notification-title">${title}</div>
+                    <div class="notification-message">${message}</div>
+                </div>
+                <div class="notification-close" onclick="this.parentElement.remove()">
+                    <i class="fas fa-times"></i>
+                </div>
+            `;
+            
+            // Adicionar ao container
+            container.appendChild(notification);
+            
+            // Auto-remover após duração
+            if (duration > 0) {
+                setTimeout(() => {
+                    notification.style.animation = 'slideOutRight 0.3s ease-out';
+                    setTimeout(() => {
+                        if (notification.parentElement) {
+                            notification.remove();
+                        }
+                    }, 300);
+                }, duration);
+            }
+        }
     </script>
 </body>
 </html>

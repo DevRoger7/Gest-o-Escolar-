@@ -74,8 +74,19 @@ class DashboardStats {
     /**
      * Conta o total de professores cadastrados
      */
-    public function getTotalProfessores() {
-        $stmt = $this->conn->query("SELECT COUNT(*) as total FROM professor WHERE ativo = 1");
+    public function getTotalProfessores($escolaId = null) {
+        if ($escolaId) {
+            $stmt = $this->conn->prepare("
+                SELECT COUNT(DISTINCT pr.id) as total 
+                FROM professor pr
+                INNER JOIN professor_lotacao pl ON pr.id = pl.professor_id AND pl.fim IS NULL
+                WHERE pr.ativo = 1 AND pl.escola_id = :escola_id
+            ");
+            $stmt->bindParam(':escola_id', $escolaId, PDO::PARAM_INT);
+            $stmt->execute();
+        } else {
+            $stmt = $this->conn->query("SELECT COUNT(*) as total FROM professor WHERE ativo = 1");
+        }
         $result = $stmt->fetch(PDO::FETCH_ASSOC);
         return (int)$result['total'];
     }

@@ -20,6 +20,30 @@ $db = Database::getInstance();
 $conn = $db->getConnection();
 $usuarioId = $_SESSION['usuario_id'] ?? null;
 
+// Processar requisições GET para buscar localidades
+if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['acao']) && $_GET['acao'] === 'buscar_localidades') {
+    header('Content-Type: application/json; charset=utf-8');
+    ob_clean();
+    
+    $distrito = $_GET['distrito'] ?? null;
+    if (empty($distrito)) {
+        echo json_encode(['success' => false, 'message' => 'Distrito não informado']);
+        exit;
+    }
+    
+    try {
+        $sql = "SELECT DISTINCT localidade FROM distrito_localidade WHERE distrito = :distrito ORDER BY localidade ASC";
+        $stmt = $conn->prepare($sql);
+        $stmt->bindParam(':distrito', $distrito);
+        $stmt->execute();
+        $localidades = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        echo json_encode(['success' => true, 'localidades' => $localidades]);
+    } catch (Exception $e) {
+        echo json_encode(['success' => false, 'message' => 'Erro ao buscar localidades: ' . $e->getMessage()]);
+    }
+    exit;
+}
+
 // Processar ações AJAX
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao'])) {
     header('Content-Type: application/json; charset=utf-8');
@@ -38,24 +62,38 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao'])) {
             // Verificar se as colunas de transporte existem
             $colunaPrecisaExiste = false;
             $colunaDistritoExiste = false;
+            $colunaLocalidadeExiste = false;
             try {
                 $checkColPrecisa = $conn->query("SHOW COLUMNS FROM aluno LIKE 'precisa_transporte'");
                 $colunaPrecisaExiste = $checkColPrecisa->rowCount() > 0;
                 
                 $checkColDistrito = $conn->query("SHOW COLUMNS FROM aluno LIKE 'distrito_transporte'");
                 $colunaDistritoExiste = $checkColDistrito->rowCount() > 0;
+                
+                $checkColLocalidade = $conn->query("SHOW COLUMNS FROM aluno LIKE 'localidade_transporte'");
+                $colunaLocalidadeExiste = $checkColLocalidade->rowCount() > 0;
             } catch (Exception $e) {
                 $colunaPrecisaExiste = false;
                 $colunaDistritoExiste = false;
+                $colunaLocalidadeExiste = false;
             }
             
+            // Query corrigida: distrito e localidade sempre vêm da tabela aluno, nunca misturados
             $sql = "SELECT a.id, a.matricula, " . 
                    ($colunaPrecisaExiste ? "a.precisa_transporte, " : "1 as precisa_transporte, ") . 
-                   ($colunaDistritoExiste ? "a.distrito_transporte" : "NULL as distrito_transporte") . ",
+                   // DISTRITO: SEMPRE da coluna distrito_transporte da tabela aluno
+                   ($colunaDistritoExiste ? 
+                       "IFNULL(NULLIF(TRIM(a.distrito_transporte), ''), '-') as distrito_transporte" : 
+                       "'-' as distrito_transporte"
+                   ) . ", " .
+                   // LOCALIDADE: SEMPRE da coluna localidade_transporte da tabela aluno (NUNCA do distrito)
+                   ($colunaLocalidadeExiste ? 
+                       "IFNULL(NULLIF(TRIM(a.localidade_transporte), ''), COALESCE(NULLIF(TRIM(ga.bairro), ''), NULLIF(TRIM(ga.endereco), ''), NULLIF(TRIM(p.bairro), ''), '-')) as localidade" : 
+                       "COALESCE(NULLIF(TRIM(ga.bairro), ''), NULLIF(TRIM(ga.endereco), ''), NULLIF(TRIM(p.bairro), ''), '-') as localidade"
+                   ) . ",
                            p.nome, p.cpf, p.email, p.telefone,
                            e.nome as escola_nome, e.id as escola_id,
                            CONCAT(t.serie, ' ', t.letra, ' - ', t.turno) as turma_nome,
-                           COALESCE(ga.bairro, ga.endereco, p.bairro, 'Não informado') as localidade,
                            ga.latitude, ga.longitude,
                            CASE WHEN ar.id IS NOT NULL THEN 1 ELSE 0 END as ja_lotado,
                            r.nome as rota_nome
@@ -95,7 +133,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao'])) {
             }
             
             if (!empty($localidade)) {
-                $sql .= " AND (COALESCE(ga.bairro, ga.endereco, p.bairro) LIKE :localidade)";
+                if ($colunaLocalidadeExiste) {
+                    $sql .= " AND (a.localidade_transporte LIKE :localidade OR COALESCE(ga.bairro, ga.endereco, p.bairro) LIKE :localidade)";
+                } else {
+                    $sql .= " AND (COALESCE(ga.bairro, ga.endereco, p.bairro) LIKE :localidade)";
+                }
                 $params[':localidade'] = "%{$localidade}%";
             }
             
@@ -169,11 +211,29 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao'])) {
                 $colunaDistritoExiste = false;
             }
             
+            // Verificar se coluna localidade_transporte existe
+            $colunaLocalidadeExiste = false;
+            try {
+                $checkColLocalidade = $conn->query("SHOW COLUMNS FROM aluno LIKE 'localidade_transporte'");
+                $colunaLocalidadeExiste = $checkColLocalidade->rowCount() > 0;
+            } catch (Exception $e) {
+                $colunaLocalidadeExiste = false;
+            }
+            
             // Buscar alunos do distrito/localidade que ainda não estão lotados
-            $sql = "SELECT a.id, a.matricula, " . ($colunaDistritoExiste ? "a.distrito_transporte" : "NULL as distrito_transporte") . ",
+            $sql = "SELECT a.id, a.matricula, " . 
+                   // DISTRITO: SEMPRE da coluna distrito_transporte da tabela aluno
+                   ($colunaDistritoExiste ? 
+                       "IFNULL(NULLIF(TRIM(a.distrito_transporte), ''), '-') as distrito_transporte" : 
+                       "'-' as distrito_transporte"
+                   ) . ", " .
+                   // LOCALIDADE: SEMPRE da coluna localidade_transporte da tabela aluno (NUNCA do distrito)
+                   ($colunaLocalidadeExiste ? 
+                       "IFNULL(NULLIF(TRIM(a.localidade_transporte), ''), COALESCE(NULLIF(TRIM(ga.bairro), ''), NULLIF(TRIM(ga.endereco), ''), NULLIF(TRIM(p.bairro), ''), '-')) as localidade" : 
+                       "COALESCE(NULLIF(TRIM(ga.bairro), ''), NULLIF(TRIM(ga.endereco), ''), NULLIF(TRIM(p.bairro), ''), '-') as localidade"
+                   ) . ",
                            p.nome, p.cpf,
                            e.nome as escola_nome,
-                           COALESCE(ga.bairro, ga.endereco, p.bairro, 'Não informado') as localidade,
                            ga.latitude, ga.longitude
                     FROM aluno a
                     INNER JOIN pessoa p ON a.pessoa_id = p.id
@@ -199,7 +259,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao'])) {
             }
             
             if (!empty($localidade)) {
-                $sql .= " AND (COALESCE(ga.bairro, ga.endereco, p.bairro) LIKE :localidade)";
+                if ($colunaLocalidadeExiste) {
+                    $sql .= " AND (a.localidade_transporte LIKE :localidade OR COALESCE(ga.bairro, ga.endereco, p.bairro) LIKE :localidade)";
+                } else {
+                    $sql .= " AND (COALESCE(ga.bairro, ga.endereco, p.bairro) LIKE :localidade)";
+                }
                 $params[':localidade'] = "%{$localidade}%";
             }
             
@@ -371,12 +435,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao'])) {
                 $username = strtolower(trim(preg_replace('/[^a-zA-Z0-9]/', '', $_POST['cpf'])));
                 $senhaHash = password_hash($_POST['senha'], PASSWORD_DEFAULT);
                 
-                $stmt = $conn->prepare("INSERT INTO usuario (pessoa_id, username, senha, role, ativo, criado_por) 
-                                       VALUES (:pessoa_id, :username, :senha, 'ADM_TRANSPORTE', 1, :criado_por)");
+                $stmt = $conn->prepare("INSERT INTO usuario (pessoa_id, username, senha_hash, role, ativo) 
+                                       VALUES (:pessoa_id, :username, :senha_hash, 'ADM_TRANSPORTE', 1)");
                 $stmt->bindParam(':pessoa_id', $pessoaId, PDO::PARAM_INT);
                 $stmt->bindParam(':username', $username);
-                $stmt->bindParam(':senha', $senhaHash);
-                $stmt->bindParam(':criado_por', $usuarioId, PDO::PARAM_INT);
+                $stmt->bindParam(':senha_hash', $senhaHash);
                 $stmt->execute();
                 
                 $conn->commit();
@@ -411,16 +474,173 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao'])) {
                 $username = strtolower(trim(preg_replace('/[^a-zA-Z0-9]/', '', $_POST['cpf'])));
                 $senhaHash = password_hash($_POST['senha'], PASSWORD_DEFAULT);
                 
-                $stmt = $conn->prepare("INSERT INTO usuario (pessoa_id, username, senha, role, ativo, criado_por) 
-                                       VALUES (:pessoa_id, :username, :senha, 'TRANSPORTE_ALUNO', 1, :criado_por)");
+                $stmt = $conn->prepare("INSERT INTO usuario (pessoa_id, username, senha_hash, role, ativo) 
+                                       VALUES (:pessoa_id, :username, :senha_hash, 'TRANSPORTE_ALUNO', 1)");
                 $stmt->bindParam(':pessoa_id', $pessoaId, PDO::PARAM_INT);
                 $stmt->bindParam(':username', $username);
-                $stmt->bindParam(':senha', $senhaHash);
-                $stmt->bindParam(':criado_por', $usuarioId, PDO::PARAM_INT);
+                $stmt->bindParam(':senha_hash', $senhaHash);
                 $stmt->execute();
                 
                 $conn->commit();
                 $resposta = ['status' => true, 'mensagem' => 'Usuário Transporte Aluno criado com sucesso!'];
+            }
+        }
+        
+        // Editar Usuário de Transporte
+        elseif ($acao === 'editar_usuario_transporte') {
+            $usuarioId = $_POST['usuario_id'] ?? null;
+            if (empty($usuarioId)) {
+                $resposta = ['status' => false, 'mensagem' => 'ID do usuário não informado.'];
+            } else {
+                try {
+                    // Buscar dados do usuário
+                    $sql = "SELECT u.id, u.username, u.role as tipo, u.ativo, p.id as pessoa_id, p.nome, p.cpf, p.email, p.telefone
+                            FROM usuario u 
+                            INNER JOIN pessoa p ON u.pessoa_id = p.id 
+                            WHERE u.id = :usuario_id AND u.role IN ('ADM_TRANSPORTE', 'TRANSPORTE_ALUNO')";
+                    $stmt = $conn->prepare($sql);
+                    $stmt->bindParam(':usuario_id', $usuarioId, PDO::PARAM_INT);
+                    $stmt->execute();
+                    $usuario = $stmt->fetch(PDO::FETCH_ASSOC);
+                    
+                    if (!$usuario) {
+                        $resposta = ['status' => false, 'mensagem' => 'Usuário não encontrado.'];
+                    } else {
+                        $resposta = ['status' => true, 'dados' => $usuario];
+                    }
+                } catch (PDOException $e) {
+                    error_log("Erro ao buscar usuário: " . $e->getMessage());
+                    $resposta = ['status' => false, 'mensagem' => 'Erro ao buscar dados do usuário.'];
+                }
+            }
+        }
+        
+        // Atualizar Usuário de Transporte
+        elseif ($acao === 'atualizar_usuario_transporte') {
+            $usuarioId = $_POST['usuario_id'] ?? null;
+            if (empty($usuarioId)) {
+                $resposta = ['status' => false, 'mensagem' => 'ID do usuário não informado.'];
+            } else {
+                try {
+                    $conn->beginTransaction();
+                    
+                    // Buscar pessoa_id do usuário
+                    $sql = "SELECT pessoa_id FROM usuario WHERE id = :usuario_id";
+                    $stmt = $conn->prepare($sql);
+                    $stmt->bindParam(':usuario_id', $usuarioId, PDO::PARAM_INT);
+                    $stmt->execute();
+                    $usuario = $stmt->fetch(PDO::FETCH_ASSOC);
+                    
+                    if (!$usuario) {
+                        throw new Exception('Usuário não encontrado.');
+                    }
+                    
+                    $pessoaId = $usuario['pessoa_id'];
+                    
+                    // Atualizar dados da pessoa
+                    $nome = trim($_POST['nome'] ?? '');
+                    $email = !empty($_POST['email']) ? trim($_POST['email']) : null;
+                    $telefone = !empty($_POST['telefone']) ? preg_replace('/[^0-9]/', '', $_POST['telefone']) : null;
+                    
+                    $sqlPessoa = "UPDATE pessoa SET nome = :nome, email = :email, telefone = :telefone WHERE id = :pessoa_id";
+                    $stmtPessoa = $conn->prepare($sqlPessoa);
+                    $stmtPessoa->bindParam(':nome', $nome);
+                    $stmtPessoa->bindParam(':email', $email);
+                    $stmtPessoa->bindParam(':telefone', $telefone);
+                    $stmtPessoa->bindParam(':pessoa_id', $pessoaId, PDO::PARAM_INT);
+                    $stmtPessoa->execute();
+                    
+                    // Atualizar senha se fornecida
+                    if (!empty($_POST['senha'])) {
+                        $senhaHash = password_hash($_POST['senha'], PASSWORD_DEFAULT);
+                        $sqlSenha = "UPDATE usuario SET senha_hash = :senha_hash WHERE id = :usuario_id";
+                        $stmtSenha = $conn->prepare($sqlSenha);
+                        $stmtSenha->bindParam(':senha_hash', $senhaHash);
+                        $stmtSenha->bindParam(':usuario_id', $usuarioId, PDO::PARAM_INT);
+                        $stmtSenha->execute();
+                    }
+                    
+                    // Atualizar status ativo
+                    $ativo = isset($_POST['ativo']) ? (int)$_POST['ativo'] : 1;
+                    $sqlAtivo = "UPDATE usuario SET ativo = :ativo WHERE id = :usuario_id";
+                    $stmtAtivo = $conn->prepare($sqlAtivo);
+                    $stmtAtivo->bindParam(':ativo', $ativo, PDO::PARAM_INT);
+                    $stmtAtivo->bindParam(':usuario_id', $usuarioId, PDO::PARAM_INT);
+                    $stmtAtivo->execute();
+                    
+                    $conn->commit();
+                    $resposta = ['status' => true, 'mensagem' => 'Usuário atualizado com sucesso!'];
+                } catch (Exception $e) {
+                    if ($conn->inTransaction()) {
+                        $conn->rollBack();
+                    }
+                    error_log("Erro ao atualizar usuário: " . $e->getMessage());
+                    $resposta = ['status' => false, 'mensagem' => 'Erro ao atualizar usuário: ' . $e->getMessage()];
+                }
+            }
+        }
+        
+        // Excluir Usuário de Transporte
+        elseif ($acao === 'excluir_usuario_transporte') {
+            $usuarioId = $_POST['usuario_id'] ?? null;
+            if (empty($usuarioId)) {
+                $resposta = ['status' => false, 'mensagem' => 'ID do usuário não informado.'];
+            } else {
+                try {
+                    $conn->beginTransaction();
+                    
+                    // Buscar pessoa_id do usuário
+                    $sql = "SELECT pessoa_id FROM usuario WHERE id = :usuario_id";
+                    $stmt = $conn->prepare($sql);
+                    $stmt->bindParam(':usuario_id', $usuarioId, PDO::PARAM_INT);
+                    $stmt->execute();
+                    $usuario = $stmt->fetch(PDO::FETCH_ASSOC);
+                    
+                    if (!$usuario) {
+                        throw new Exception('Usuário não encontrado.');
+                    }
+                    
+                    $pessoaId = $usuario['pessoa_id'];
+                    
+                    // Excluir usuário
+                    $sqlUsuario = "DELETE FROM usuario WHERE id = :usuario_id";
+                    $stmtUsuario = $conn->prepare($sqlUsuario);
+                    $stmtUsuario->bindParam(':usuario_id', $usuarioId, PDO::PARAM_INT);
+                    $stmtUsuario->execute();
+                    
+                    // Excluir pessoa (se não estiver sendo usada em outras tabelas)
+                    // Verificar se pessoa está sendo usada em outras tabelas
+                    $sqlCheck = "SELECT COUNT(*) as total FROM (
+                        SELECT pessoa_id FROM motorista WHERE pessoa_id = :pessoa_id
+                        UNION ALL
+                        SELECT pessoa_id FROM funcionario WHERE pessoa_id = :pessoa_id
+                        UNION ALL
+                        SELECT pessoa_id FROM professor WHERE pessoa_id = :pessoa_id
+                        UNION ALL
+                        SELECT pessoa_id FROM gestor WHERE pessoa_id = :pessoa_id
+                    ) as total";
+                    $stmtCheck = $conn->prepare($sqlCheck);
+                    $stmtCheck->bindParam(':pessoa_id', $pessoaId, PDO::PARAM_INT);
+                    $stmtCheck->execute();
+                    $check = $stmtCheck->fetch(PDO::FETCH_ASSOC);
+                    
+                    if ($check['total'] == 0) {
+                        // Só excluir pessoa se não estiver sendo usada
+                        $sqlPessoa = "DELETE FROM pessoa WHERE id = :pessoa_id";
+                        $stmtPessoa = $conn->prepare($sqlPessoa);
+                        $stmtPessoa->bindParam(':pessoa_id', $pessoaId, PDO::PARAM_INT);
+                        $stmtPessoa->execute();
+                    }
+                    
+                    $conn->commit();
+                    $resposta = ['status' => true, 'mensagem' => 'Usuário excluído com sucesso!'];
+                } catch (Exception $e) {
+                    if ($conn->inTransaction()) {
+                        $conn->rollBack();
+                    }
+                    error_log("Erro ao excluir usuário: " . $e->getMessage());
+                    $resposta = ['status' => false, 'mensagem' => 'Erro ao excluir usuário: ' . $e->getMessage()];
+                }
             }
         }
         
@@ -972,8 +1192,15 @@ try {
                         </div>
                         <div>
                             <label class="block text-xs md:text-sm font-medium text-gray-700 mb-1.5">Localidade (opcional)</label>
-                            <input type="text" id="sugestao-localidade" placeholder="Nome da localidade/bairro..." 
-                                   class="w-full px-3 md:px-4 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-green focus:border-transparent transition-all">
+                            <div class="autocomplete-container">
+                                <input type="text" id="sugestao-localidade" placeholder="Digite a localidade..." 
+                                       class="w-full px-3 md:px-4 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-green focus:border-transparent transition-all" 
+                                       autocomplete="off"
+                                       oninput="buscarLocalidadesSugestao(this.value)"
+                                       disabled>
+                                <div id="autocomplete-dropdown-sugestao-localidade" class="autocomplete-dropdown"></div>
+                            </div>
+                            <p class="text-xs text-gray-500 mt-1">Selecione primeiro um distrito para habilitar</p>
                         </div>
                     </div>
                     
@@ -1122,7 +1349,7 @@ try {
                     </div>
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-1.5">CPF *</label>
-                        <input type="text" name="cpf" required class="w-full px-3 md:px-4 py-2.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-green focus:border-transparent transition-all" placeholder="000.000.000-00">
+                        <input type="text" name="cpf" id="cpf-criar-usuario" required class="w-full px-3 md:px-4 py-2.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-green focus:border-transparent transition-all" placeholder="000.000.000-00" maxlength="14" oninput="formatarCPF(this)">
                     </div>
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-1.5">Email *</label>
@@ -1130,11 +1357,16 @@ try {
                     </div>
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-1.5">Telefone</label>
-                        <input type="text" name="telefone" class="w-full px-3 md:px-4 py-2.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-green focus:border-transparent transition-all" placeholder="(85) 99999-9999">
+                        <input type="text" name="telefone" id="telefone-criar-usuario" class="w-full px-3 md:px-4 py-2.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-green focus:border-transparent transition-all" placeholder="(85) 99999-9999" maxlength="15" oninput="formatarTelefone(this)">
                     </div>
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-1.5">Senha *</label>
-                        <input type="password" name="senha" required class="w-full px-3 md:px-4 py-2.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-green focus:border-transparent transition-all">
+                        <div class="relative">
+                            <input type="password" name="senha" id="senha-criar-usuario" required class="w-full px-3 md:px-4 py-2.5 pr-10 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-green focus:border-transparent transition-all">
+                            <button type="button" onclick="toggleSenha('senha-criar-usuario', 'toggle-senha-criar-usuario')" class="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors">
+                                <i id="toggle-senha-criar-usuario" class="fas fa-eye"></i>
+                            </button>
+                        </div>
                     </div>
                 </div>
                 <div class="mt-6 flex flex-col sm:flex-row justify-end gap-3">
@@ -1143,6 +1375,66 @@ try {
                     </button>
                     <button type="submit" class="btn-primary px-4 py-2.5 text-white rounded-lg text-sm font-medium">
                         <i class="fas fa-check mr-2"></i>Criar Usuário
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal Editar Usuário -->
+    <div id="modalEditarUsuario" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50 flex items-center justify-center p-4 modal-overlay">
+        <div class="bg-white rounded-xl p-4 md:p-6 max-w-md w-full modal-content shadow-2xl">
+            <div class="flex items-center justify-between mb-6">
+                <h3 class="text-lg md:text-xl font-bold text-gray-900">Editar Usuário</h3>
+                <button onclick="fecharModalEditarUsuario()" class="text-gray-400 hover:text-gray-600 transition-colors p-1 rounded-lg hover:bg-gray-100">
+                    <i class="fas fa-times text-xl"></i>
+                </button>
+            </div>
+            <form id="form-editar-usuario" onsubmit="event.preventDefault(); salvarEdicaoUsuario();">
+                <input type="hidden" id="editar-usuario-id" name="usuario_id">
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1.5">Nome Completo *</label>
+                        <input type="text" id="editar-nome" name="nome" required class="w-full px-3 md:px-4 py-2.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-green focus:border-transparent transition-all">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1.5">Username</label>
+                        <input type="text" id="editar-username" name="username" readonly class="w-full px-3 md:px-4 py-2.5 text-sm border border-gray-300 rounded-lg bg-gray-100 text-gray-600">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1.5">Tipo</label>
+                        <input type="text" id="editar-tipo" name="tipo" readonly class="w-full px-3 md:px-4 py-2.5 text-sm border border-gray-300 rounded-lg bg-gray-100 text-gray-600">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1.5">Email *</label>
+                        <input type="email" id="editar-email" name="email" required class="w-full px-3 md:px-4 py-2.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-green focus:border-transparent transition-all">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1.5">Telefone</label>
+                        <input type="text" id="editar-telefone" name="telefone" class="w-full px-3 md:px-4 py-2.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-green focus:border-transparent transition-all" placeholder="(85) 99999-9999" maxlength="15" oninput="formatarTelefone(this)">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1.5">Nova Senha (deixe em branco para manter a atual)</label>
+                        <div class="relative">
+                            <input type="password" id="editar-senha" name="senha" class="w-full px-3 md:px-4 py-2.5 pr-10 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-green focus:border-transparent transition-all">
+                            <button type="button" onclick="toggleSenha('editar-senha', 'toggle-senha-editar-usuario')" class="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors">
+                                <i id="toggle-senha-editar-usuario" class="fas fa-eye"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="flex items-center space-x-2">
+                            <input type="checkbox" id="editar-ativo" name="ativo" class="w-4 h-4 text-primary-green border-gray-300 rounded focus:ring-primary-green">
+                            <span class="text-sm font-medium text-gray-700">Usuário Ativo</span>
+                        </label>
+                    </div>
+                </div>
+                <div class="mt-6 flex flex-col sm:flex-row justify-end gap-3">
+                    <button type="button" onclick="fecharModalEditarUsuario()" class="px-4 py-2.5 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-all text-sm font-medium">
+                        Cancelar
+                    </button>
+                    <button type="submit" class="btn-primary px-4 py-2.5 text-white rounded-lg text-sm font-medium">
+                        <i class="fas fa-save mr-2"></i>Salvar Alterações
                     </button>
                 </div>
             </form>
@@ -1182,6 +1474,45 @@ try {
             }
         }
 
+        // Funções de formatação
+        function formatarCPF(input) {
+            let valor = input.value.replace(/\D/g, '');
+            if (valor.length <= 11) {
+                valor = valor.replace(/(\d{3})(\d)/, '$1.$2');
+                valor = valor.replace(/(\d{3})(\d)/, '$1.$2');
+                valor = valor.replace(/(\d{3})(\d{1,2})$/, '$1-$2');
+                input.value = valor;
+            }
+        }
+        
+        function formatarTelefone(input) {
+            let valor = input.value.replace(/\D/g, '');
+            if (valor.length <= 11) {
+                if (valor.length <= 10) {
+                    valor = valor.replace(/(\d{2})(\d)/, '($1) $2');
+                    valor = valor.replace(/(\d{4})(\d)/, '$1-$2');
+                } else {
+                    valor = valor.replace(/(\d{2})(\d)/, '($1) $2');
+                    valor = valor.replace(/(\d{5})(\d)/, '$1-$2');
+                }
+                input.value = valor;
+            }
+        }
+        
+        function toggleSenha(inputId, iconId) {
+            const input = document.getElementById(inputId);
+            const icon = document.getElementById(iconId);
+            if (input.type === 'password') {
+                input.type = 'text';
+                icon.classList.remove('fa-eye');
+                icon.classList.add('fa-eye-slash');
+            } else {
+                input.type = 'password';
+                icon.classList.remove('fa-eye-slash');
+                icon.classList.add('fa-eye');
+            }
+        }
+        
         // Modais
         function abrirModalCriarUsuario(tipo) {
             tipoUsuarioAtual = tipo;
@@ -1189,6 +1520,21 @@ try {
             const titulo = tipo === 'ADM_TRANSPORTE' ? 'Criar Administrador de Transporte' : 'Criar Usuário Transporte Aluno';
             document.getElementById('modalTituloUsuario').textContent = titulo;
             document.getElementById('modalCriarUsuario').classList.remove('hidden');
+            // Resetar campos e formatações
+            const form = document.getElementById('formCriarUsuario');
+            if (form) {
+                form.reset();
+                // Resetar ícone de senha
+                const senhaIcon = document.getElementById('toggle-senha-criar-usuario');
+                if (senhaIcon) {
+                    const senhaInput = document.getElementById('senha-criar-usuario');
+                    if (senhaInput) {
+                        senhaInput.type = 'password';
+                        senhaIcon.classList.remove('fa-eye-slash');
+                        senhaIcon.classList.add('fa-eye');
+                    }
+                }
+            }
         }
 
         function fecharModalCriarUsuario() {
@@ -1200,6 +1546,16 @@ try {
             if (form) {
                 form.reset();
                 tipoUsuarioAtual = null;
+                // Resetar ícone de senha
+                const senhaIcon = document.getElementById('toggle-senha-criar-usuario');
+                if (senhaIcon) {
+                    const senhaInput = document.getElementById('senha-criar-usuario');
+                    if (senhaInput) {
+                        senhaInput.type = 'password';
+                        senhaIcon.classList.remove('fa-eye-slash');
+                        senhaIcon.classList.add('fa-eye');
+                    }
+                }
             }
         }
         
@@ -1211,6 +1567,17 @@ try {
             const formData = new FormData(e.target);
             const tipo = tipoUsuarioAtual;
             const acao = tipo === 'ADM_TRANSPORTE' ? 'criar_usuario_adm_transporte' : 'criar_usuario_transporte_aluno';
+            
+            // Remover formatação do CPF e Telefone antes de enviar
+            const cpfInput = document.getElementById('cpf-criar-usuario');
+            const telefoneInput = document.getElementById('telefone-criar-usuario');
+            if (cpfInput) {
+                formData.set('cpf', cpfInput.value.replace(/\D/g, ''));
+            }
+            if (telefoneInput && telefoneInput.value) {
+                formData.set('telefone', telefoneInput.value.replace(/\D/g, ''));
+            }
+            
             formData.append('acao', acao);
             
             const submitBtn = e.target.querySelector('button[type="submit"]');
@@ -1435,6 +1802,15 @@ try {
                 document.getElementById('sugestao-distrito-value').value = distrito;
                 inputSugestaoDistrito.value = distrito;
                 dropdownSugestaoDistrito.classList.remove('show');
+                
+                // Habilitar campo de localidade e carregar localidades do distrito
+                const inputLocalidade = document.getElementById('sugestao-localidade');
+                if (inputLocalidade) {
+                    inputLocalidade.disabled = false;
+                    inputLocalidade.placeholder = 'Digite a localidade...';
+                    inputLocalidade.value = ''; // Limpar valor anterior
+                    carregarLocalidadesSugestao(distrito);
+                }
             };
         }
 
@@ -1494,12 +1870,17 @@ try {
                     
                     // Desktop table view
                     if (tbody) {
-                        tbody.innerHTML = data.dados.map(a => `
+                        tbody.innerHTML = data.dados.map(a => {
+                            // Garantir que distrito e localidade estão corretos
+                            const distrito = (a.distrito_transporte && a.distrito_transporte !== '-' && a.distrito_transporte !== null && a.distrito_transporte !== '') ? a.distrito_transporte : '-';
+                            const localidade = (a.localidade && a.localidade !== '-' && a.localidade !== null && a.localidade !== '') ? a.localidade : '-';
+                            
+                            return `
                             <tr class="table-row">
                                 <td class="px-4 md:px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${escapeHtml(a.nome)}</td>
                                 <td class="px-4 md:px-6 py-4 whitespace-nowrap text-sm text-gray-500">${escapeHtml(a.escola_nome)}</td>
-                                <td class="px-4 md:px-6 py-4 whitespace-nowrap text-sm text-gray-500">${escapeHtml(a.distrito_transporte)}</td>
-                                <td class="px-4 md:px-6 py-4 whitespace-nowrap text-sm text-gray-500">${escapeHtml(a.localidade)}</td>
+                                <td class="px-4 md:px-6 py-4 whitespace-nowrap text-sm text-gray-500">${escapeHtml(distrito)}</td>
+                                <td class="px-4 md:px-6 py-4 whitespace-nowrap text-sm text-gray-500">${escapeHtml(localidade)}</td>
                                 <td class="px-4 md:px-6 py-4 whitespace-nowrap">
                                     ${a.ja_lotado == 1 ? `
                                         <span class="px-2 py-1 text-xs rounded-full bg-blue-100 text-blue-800" title="Rota: ${escapeHtml(a.rota_nome || 'N/A')}">
@@ -1512,12 +1893,18 @@ try {
                                     `}
                                 </td>
                             </tr>
-                        `).join('');
+                            `;
+                        }).join('');
                     }
                     
                     // Mobile card view
                     if (mobileContainer) {
-                        mobileContainer.innerHTML = data.dados.map(a => `
+                        mobileContainer.innerHTML = data.dados.map(a => {
+                            // Garantir que distrito e localidade estão corretos
+                            const distrito = (a.distrito_transporte && a.distrito_transporte !== '-' && a.distrito_transporte !== null && a.distrito_transporte !== '') ? a.distrito_transporte : '-';
+                            const localidade = (a.localidade && a.localidade !== '-' && a.localidade !== null && a.localidade !== '') ? a.localidade : '-';
+                            
+                            return `
                             <div class="mobile-card">
                                 <div class="mobile-card-header">
                                     <div class="flex-1 min-w-0">
@@ -1537,15 +1924,16 @@ try {
                                 <div class="mobile-card-body">
                                     <div class="mobile-card-row">
                                         <span class="mobile-card-label"><i class="fas fa-map-marker-alt mr-1"></i>Distrito</span>
-                                        <span class="mobile-card-value">${escapeHtml(a.distrito_transporte)}</span>
+                                        <span class="mobile-card-value">${escapeHtml(distrito)}</span>
                                     </div>
                                     <div class="mobile-card-row">
                                         <span class="mobile-card-label"><i class="fas fa-home mr-1"></i>Localidade</span>
-                                        <span class="mobile-card-value">${escapeHtml(a.localidade)}</span>
+                                        <span class="mobile-card-value">${escapeHtml(localidade)}</span>
                                     </div>
                                 </div>
                             </div>
-                        `).join('');
+                            `;
+                        }).join('');
                     }
                 } else {
                     throw new Error(data.mensagem || 'Erro ao carregar alunos');
@@ -1913,10 +2301,212 @@ try {
             };
         }
 
+        // Função para editar usuário de transporte
+        window.editarUsuarioTransporte = function(usuarioId) {
+            const formData = new FormData();
+            formData.append('acao', 'editar_usuario_transporte');
+            formData.append('usuario_id', usuarioId);
+            
+            fetch('gestao_usuarios_transporte.php', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status && data.dados) {
+                    const usuario = data.dados;
+                    
+                    // Mapeamento de tipos para nomes amigáveis
+                    const tipoNomes = {
+                        'ADM_TRANSPORTE': 'Administrador de Transporte',
+                        'TRANSPORTE_ALUNO': 'Transporte Aluno'
+                    };
+                    
+                    // Preencher formulário de edição
+                    document.getElementById('editar-usuario-id').value = usuario.id;
+                    document.getElementById('editar-nome').value = usuario.nome || '';
+                    document.getElementById('editar-email').value = usuario.email || '';
+                    document.getElementById('editar-telefone').value = usuario.telefone || '';
+                    document.getElementById('editar-username').value = usuario.username || '';
+                    document.getElementById('editar-tipo').value = tipoNomes[usuario.tipo] || usuario.tipo || '';
+                    document.getElementById('editar-ativo').checked = usuario.ativo == 1;
+                    document.getElementById('editar-senha').value = '';
+                    
+                    // Resetar ícone de senha
+                    const senhaIcon = document.getElementById('toggle-senha-editar-usuario');
+                    if (senhaIcon) {
+                        const senhaInput = document.getElementById('editar-senha');
+                        if (senhaInput) {
+                            senhaInput.type = 'password';
+                            senhaIcon.classList.remove('fa-eye-slash');
+                            senhaIcon.classList.add('fa-eye');
+                        }
+                    }
+                    
+                    // Mostrar modal de edição
+                    document.getElementById('modalEditarUsuario').classList.remove('hidden');
+                } else {
+                    alert('Erro ao carregar dados do usuário: ' + (data.mensagem || 'Erro desconhecido'));
+                }
+            })
+            .catch(error => {
+                console.error('Erro:', error);
+                alert('Erro ao carregar dados do usuário.');
+            });
+        };
+        
+        // Função para excluir usuário de transporte
+        window.excluirUsuarioTransporte = function(usuarioId) {
+            if (!confirm('Tem certeza que deseja excluir este usuário? Esta ação não pode ser desfeita.')) {
+                return;
+            }
+            
+            const formData = new FormData();
+            formData.append('acao', 'excluir_usuario_transporte');
+            formData.append('usuario_id', usuarioId);
+            
+            fetch('gestao_usuarios_transporte.php', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status) {
+                    alert('Usuário excluído com sucesso!');
+                    carregarUsuariosTransporte();
+                } else {
+                    alert('Erro ao excluir usuário: ' + (data.mensagem || 'Erro desconhecido'));
+                }
+            })
+            .catch(error => {
+                console.error('Erro:', error);
+                alert('Erro ao excluir usuário.');
+            });
+        };
+        
+        // Função para salvar edição
+        function salvarEdicaoUsuario() {
+            const formData = new FormData();
+            formData.append('acao', 'atualizar_usuario_transporte');
+            formData.append('usuario_id', document.getElementById('editar-usuario-id').value);
+            formData.append('nome', document.getElementById('editar-nome').value);
+            formData.append('email', document.getElementById('editar-email').value);
+            formData.append('telefone', document.getElementById('editar-telefone').value);
+            
+            // Só enviar senha se foi preenchida
+            const senha = document.getElementById('editar-senha').value;
+            if (senha && senha.trim() !== '') {
+                formData.append('senha', senha);
+            }
+            
+            formData.append('ativo', document.getElementById('editar-ativo').checked ? 1 : 0);
+            
+            fetch('gestao_usuarios_transporte.php', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status) {
+                    alert('Usuário atualizado com sucesso!');
+                    document.getElementById('modalEditarUsuario').classList.add('hidden');
+                    carregarUsuariosTransporte();
+                } else {
+                    alert('Erro ao atualizar usuário: ' + (data.mensagem || 'Erro desconhecido'));
+                }
+            })
+            .catch(error => {
+                console.error('Erro:', error);
+                alert('Erro ao atualizar usuário.');
+            });
+        }
+        
+        // Função para fechar modal de edição
+        function fecharModalEditarUsuario() {
+            document.getElementById('modalEditarUsuario').classList.add('hidden');
+            document.getElementById('form-editar-usuario').reset();
+        }
+        
         // Event listeners
         document.getElementById('buscar-aluno-transporte')?.addEventListener('input', debounce(carregarAlunosTransporte, 500));
         document.getElementById('buscar-motorista-transporte')?.addEventListener('input', debounce(carregarMotoristasTransporte, 500));
         document.getElementById('buscar-usuario-transporte')?.addEventListener('input', debounce(carregarUsuariosTransporte, 500));
+
+        // Variáveis globais para sugestão de lotação
+        let distritoSugestaoSelecionado = null;
+        let localidadesSugestaoDisponiveis = [];
+        
+        // Funções para carregar localidades na sugestão de lotação
+        function carregarLocalidadesSugestao(distrito) {
+            if (!distrito) {
+                const inputLocalidade = document.getElementById('sugestao-localidade');
+                if (inputLocalidade) {
+                    inputLocalidade.disabled = true;
+                    inputLocalidade.value = '';
+                    inputLocalidade.placeholder = 'Selecione primeiro um distrito';
+                }
+                return;
+            }
+            
+            fetch(`?acao=buscar_localidades&distrito=${encodeURIComponent(distrito)}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success && data.localidades && data.localidades.length > 0) {
+                        localidadesSugestaoDisponiveis = data.localidades;
+                        distritoSugestaoSelecionado = distrito;
+                    } else {
+                        localidadesSugestaoDisponiveis = [];
+                        distritoSugestaoSelecionado = null;
+                    }
+                })
+                .catch(error => {
+                    console.error('Erro ao carregar localidades:', error);
+                    localidadesSugestaoDisponiveis = [];
+                });
+        }
+        
+        function buscarLocalidadesSugestao(query) {
+            const input = document.getElementById('sugestao-localidade');
+            const dropdown = document.getElementById('autocomplete-dropdown-sugestao-localidade');
+            if (!input || !dropdown || !distritoSugestaoSelecionado) return;
+            
+            const queryLower = query.trim().toLowerCase();
+            
+            if (queryLower.length === 0) {
+                dropdown.classList.remove('show');
+                return;
+            }
+            
+            const filteredLocalidades = localidadesSugestaoDisponiveis.filter(loc => 
+                loc.localidade.toLowerCase().includes(queryLower)
+            );
+            
+            if (filteredLocalidades.length === 0) {
+                dropdown.classList.remove('show');
+                return;
+            }
+            
+            dropdown.innerHTML = filteredLocalidades.map((loc) => `
+                <div class="autocomplete-item" onclick="selecionarLocalidadeSugestao('${loc.localidade.replace(/'/g, "\\'")}')">
+                    <div>${loc.localidade}</div>
+                </div>
+            `).join('');
+            dropdown.classList.add('show');
+        }
+        
+        window.selecionarLocalidadeSugestao = function(localidade) {
+            document.getElementById('sugestao-localidade').value = localidade;
+            document.getElementById('autocomplete-dropdown-sugestao-localidade').classList.remove('show');
+        };
+        
+        // Fechar dropdown ao clicar fora
+        document.addEventListener('click', function(e) {
+            const dropdown = document.getElementById('autocomplete-dropdown-sugestao-localidade');
+            const input = document.getElementById('sugestao-localidade');
+            if (dropdown && input && !input.contains(e.target) && !dropdown.contains(e.target)) {
+                dropdown.classList.remove('show');
+            }
+        });
 
         // Carregar dados iniciais e configurar eventos
         document.addEventListener('DOMContentLoaded', function() {
@@ -1930,12 +2520,25 @@ try {
                 });
             }
             
+            const modalEditar = document.getElementById('modalEditarUsuario');
+            if (modalEditar) {
+                modalEditar.addEventListener('click', function(e) {
+                    if (e.target === modalEditar) {
+                        fecharModalEditarUsuario();
+                    }
+                });
+            }
+            
             // Fechar modal com ESC
             document.addEventListener('keydown', function(e) {
                 if (e.key === 'Escape') {
                     const modal = document.getElementById('modalCriarUsuario');
                     if (modal && !modal.classList.contains('hidden')) {
                         fecharModalCriarUsuario();
+                    }
+                    const modalEditar = document.getElementById('modalEditarUsuario');
+                    if (modalEditar && !modalEditar.classList.contains('hidden')) {
+                        fecharModalEditarUsuario();
                     }
                 }
             });

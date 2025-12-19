@@ -108,6 +108,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['acao'])) {
         }
         
         try {
+            // Verificar se a coluna estoque_central_id existe
+            try {
+                $checkColumn = $conn->query("SHOW COLUMNS FROM pacote_escola_item LIKE 'estoque_central_id'");
+                $columnExists = $checkColumn->rowCount() > 0;
+            } catch (Exception $e) {
+                $columnExists = false;
+            }
+            
             // Primeiro, identificar quais produtos estão no estoque da escola (via pacote_escola)
             $sqlProdutosEscola = "SELECT DISTINCT p.id as produto_id
                                   FROM produto p
@@ -115,10 +123,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['acao'])) {
                                   INNER JOIN pacote_escola pe ON pei.pacote_id = pe.id
                                   WHERE p.ativo = 1 
                                   AND pe.escola_id = :escola_id
-                                  AND (SELECT COALESCE(SUM(pei2.quantidade), 0) 
-                                       FROM pacote_escola_item pei2 
-                                       INNER JOIN pacote_escola pe2 ON pei2.pacote_id = pe2.id 
-                                       WHERE pei2.produto_id = p.id AND pe2.escola_id = :escola_id) > 0";
+                                  AND pei.quantidade > 0";
             
             $stmtProdutosEscola = $conn->prepare($sqlProdutosEscola);
             $stmtProdutosEscola->bindParam(':escola_id', $escolaId, PDO::PARAM_INT);
@@ -130,13 +135,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['acao'])) {
                 exit;
             }
             
-            // Agora buscar todos os lotes desses produtos do estoque_central
-            // Usar parâmetros nomeados para evitar mistura com posicionais
-            if (empty($produtosEscola)) {
-                echo json_encode(['success' => true, 'produtos' => [], 'message' => 'Nenhum produto encontrado no estoque da escola']);
-                exit;
-            }
-            
+            // Agora buscar todos os lotes desses produtos
             $placeholders = [];
             $params = [':escola_id' => $escolaId];
             foreach ($produtosEscola as $index => $produtoId) {
@@ -147,33 +146,59 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['acao'])) {
             $placeholdersStr = implode(',', $placeholders);
             
             // Buscar produtos do pacote_escola_item com informações de lotes quando disponíveis
-            // Mostrar cada lote separadamente, mas também calcular a quantidade total por produto
-            $sql = "SELECT 
-                        p.id as produto_id,
-                        pei.id as item_id,
-                        COALESCE(pei.estoque_central_id, 0) as estoque_id,
-                        p.nome, 
-                        p.unidade_medida,
-                        pei.quantidade as estoque_quantidade,
-                        COALESCE(ec.validade, NULL) as validade,
-                        COALESCE(ec.lote, 'Sem lote') as lote,
-                        CONCAT(p.id, ':', COALESCE(pei.estoque_central_id, 0), ':', pei.id) as identificador_unico,
-                        (SELECT COALESCE(SUM(pei2.quantidade), 0)
-                         FROM pacote_escola_item pei2
-                         INNER JOIN pacote_escola pe2 ON pei2.pacote_id = pe2.id
-                         WHERE pei2.produto_id = p.id AND pe2.escola_id = :escola_id) as quantidade_total_produto
-                    FROM produto p
-                    INNER JOIN pacote_escola_item pei ON p.id = pei.produto_id
-                    INNER JOIN pacote_escola pe ON pei.pacote_id = pe.id
-                    LEFT JOIN estoque_central ec ON pei.estoque_central_id = ec.id
-                    WHERE p.id IN ($placeholdersStr)
-                    AND p.ativo = 1
-                    AND pe.escola_id = :escola_id
-                    AND pei.quantidade > 0
-                    ORDER BY p.nome ASC, 
-                             CASE WHEN ec.validade IS NULL THEN 1 ELSE 0 END ASC,
-                             ec.validade ASC,
-                             pei.id ASC";
+            if ($columnExists) {
+                // Se a coluna existe, buscar com LEFT JOIN no estoque_central
+                $sql = "SELECT 
+                            p.id as produto_id,
+                            pei.id as item_id,
+                            COALESCE(pei.estoque_central_id, 0) as estoque_id,
+                            p.nome, 
+                            p.unidade_medida,
+                            pei.quantidade as estoque_quantidade,
+                            COALESCE(ec.validade, NULL) as validade,
+                            COALESCE(ec.lote, 'Sem lote') as lote,
+                            CONCAT(p.id, ':', COALESCE(pei.estoque_central_id, 0), ':', pei.id) as identificador_unico,
+                            (SELECT COALESCE(SUM(pei2.quantidade), 0)
+                             FROM pacote_escola_item pei2
+                             INNER JOIN pacote_escola pe2 ON pei2.pacote_id = pe2.id
+                             WHERE pei2.produto_id = p.id AND pe2.escola_id = :escola_id) as quantidade_total_produto
+                        FROM produto p
+                        INNER JOIN pacote_escola_item pei ON p.id = pei.produto_id
+                        INNER JOIN pacote_escola pe ON pei.pacote_id = pe.id
+                        LEFT JOIN estoque_central ec ON pei.estoque_central_id = ec.id
+                        WHERE p.id IN ($placeholdersStr)
+                        AND p.ativo = 1
+                        AND pe.escola_id = :escola_id
+                        AND pei.quantidade > 0
+                        ORDER BY p.nome ASC, 
+                                 CASE WHEN ec.validade IS NULL THEN 1 ELSE 0 END ASC,
+                                 ec.validade ASC,
+                                 pei.id ASC";
+            } else {
+                // Se a coluna não existe, buscar diretamente do pacote_escola_item
+                $sql = "SELECT 
+                            p.id as produto_id,
+                            pei.id as item_id,
+                            0 as estoque_id,
+                            p.nome, 
+                            p.unidade_medida,
+                            pei.quantidade as estoque_quantidade,
+                            NULL as validade,
+                            'Sem lote' as lote,
+                            CONCAT(p.id, ':0:', pei.id) as identificador_unico,
+                            (SELECT COALESCE(SUM(pei2.quantidade), 0)
+                             FROM pacote_escola_item pei2
+                             INNER JOIN pacote_escola pe2 ON pei2.pacote_id = pe2.id
+                             WHERE pei2.produto_id = p.id AND pe2.escola_id = :escola_id) as quantidade_total_produto
+                        FROM produto p
+                        INNER JOIN pacote_escola_item pei ON p.id = pei.produto_id
+                        INNER JOIN pacote_escola pe ON pei.pacote_id = pe.id
+                        WHERE p.id IN ($placeholdersStr)
+                        AND p.ativo = 1
+                        AND pe.escola_id = :escola_id
+                        AND pei.quantidade > 0
+                        ORDER BY p.nome ASC, pei.id ASC";
+            }
             
             $stmt = $conn->prepare($sql);
             foreach ($params as $key => $value) {
@@ -208,7 +233,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['acao'])) {
             echo json_encode(['success' => true, 'produtos' => $produtos, 'debug' => [
                 'escola_id' => $escolaId,
                 'produtos_escola_count' => count($produtosEscola),
-                'produtos_estoque_count' => count($produtos)
+                'produtos_estoque_count' => count($produtos),
+                'column_exists' => $columnExists
             ]]);
         } catch (Exception $e) {
             error_log("Erro ao buscar produtos do estoque: " . $e->getMessage());

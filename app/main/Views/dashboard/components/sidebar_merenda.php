@@ -163,7 +163,8 @@ $nomeSistema = getNomeSistemaCurto();
         </ul>
     </nav>
 
-    <!-- Logout Button -->
+    <!-- Logout Button - Apenas no dashboard -->
+    <?php if (basename($_SERVER['PHP_SELF']) === 'dashboard.php'): ?>
     <div class="flex-shrink-0 p-4 border-t border-gray-200 bg-white">
         <button onclick="window.confirmLogout && window.confirmLogout()" class="w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-red-600 hover:bg-red-50 transition-colors duration-200">
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -172,4 +173,5 @@ $nomeSistema = getNomeSistemaCurto();
             <span>Sair</span>
         </button>
     </div>
+    <?php endif; ?>
 </aside>

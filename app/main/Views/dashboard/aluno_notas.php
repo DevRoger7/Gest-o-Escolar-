@@ -188,7 +188,99 @@ if ($alunoIdReal && $turmaId) {
 // Buscar TODAS as notas para calcular médias gerais por bimestre
 $todasNotas = [];
 if ($alunoIdReal && $turmaId) {
-    $todasNotas = $notaModel->buscarPorAluno($alunoIdReal, $turmaId);
+    // Buscar todas as notas do aluno na turma (sem filtro de disciplina ou bimestre)
+    $conn = Database::getInstance()->getConnection();
+    
+    // Primeiro, buscar notas com turma_id específico
+    $sql = "SELECT n.*, 
+            COALESCE(d.nome, 'Disciplina não identificada') as disciplina_nome, 
+            COALESCE(d.id, n.disciplina_id) as disciplina_id,
+            a.titulo as avaliacao_titulo,
+            a.tipo as avaliacao_tipo
+            FROM nota n
+            LEFT JOIN disciplina d ON n.disciplina_id = d.id
+            LEFT JOIN avaliacao a ON n.avaliacao_id = a.id
+            WHERE n.aluno_id = :aluno_id AND n.turma_id = :turma_id
+            ORDER BY COALESCE(d.nome, 'ZZZ') ASC, n.bimestre ASC, n.lancado_em DESC";
+    $stmt = $conn->prepare($sql);
+    $stmt->bindParam(':aluno_id', $alunoIdReal, PDO::PARAM_INT);
+    $stmt->bindParam(':turma_id', $turmaId, PDO::PARAM_INT);
+    $stmt->execute();
+    $todasNotas = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    
+    // Se não encontrou notas, tentar buscar sem filtro de turma (pode ser que a turma_id esteja diferente)
+    if (empty($todasNotas)) {
+        error_log("DEBUG aluno_notas - Nenhuma nota encontrada com turma_id=$turmaId, tentando buscar sem filtro de turma");
+        $sql2 = "SELECT n.*, 
+                COALESCE(d.nome, 'Disciplina não identificada') as disciplina_nome, 
+                COALESCE(d.id, n.disciplina_id) as disciplina_id,
+                a.titulo as avaliacao_titulo,
+                a.tipo as avaliacao_tipo
+                FROM nota n
+                LEFT JOIN disciplina d ON n.disciplina_id = d.id
+                LEFT JOIN avaliacao a ON n.avaliacao_id = a.id
+                WHERE n.aluno_id = :aluno_id
+                ORDER BY COALESCE(d.nome, 'ZZZ') ASC, n.bimestre ASC, n.lancado_em DESC";
+        $stmt2 = $conn->prepare($sql2);
+        $stmt2->bindParam(':aluno_id', $alunoIdReal, PDO::PARAM_INT);
+        $stmt2->execute();
+        $todasNotas = $stmt2->fetchAll(PDO::FETCH_ASSOC);
+        error_log("DEBUG aluno_notas - Notas encontradas sem filtro de turma: " . count($todasNotas));
+    }
+    
+    // Garantir que disciplina_id seja sempre um inteiro
+    foreach ($todasNotas as &$nota) {
+        if (isset($nota['disciplina_id'])) {
+            $nota['disciplina_id'] = (int)$nota['disciplina_id'];
+        }
+        if (isset($nota['bimestre'])) {
+            $nota['bimestre'] = (int)$nota['bimestre'];
+        }
+        if (isset($nota['aluno_id'])) {
+            $nota['aluno_id'] = (int)$nota['aluno_id'];
+        }
+        if (isset($nota['turma_id'])) {
+            $nota['turma_id'] = (int)$nota['turma_id'];
+        }
+    }
+    unset($nota); // Limpar referência
+    
+    // Debug: log das notas encontradas
+    error_log("DEBUG aluno_notas - alunoIdReal: $alunoIdReal, turmaId: $turmaId, total notas: " . count($todasNotas));
+    if (!empty($todasNotas)) {
+        error_log("DEBUG aluno_notas - Primeira nota: " . json_encode($todasNotas[0]));
+        foreach ($todasNotas as $idx => $nota) {
+            error_log("DEBUG aluno_notas - Nota $idx: id=" . ($nota['id'] ?? 'NULL') . ", disciplina_id=" . ($nota['disciplina_id'] ?? 'NULL') . ", bimestre=" . ($nota['bimestre'] ?? 'NULL') . ", nota=" . ($nota['nota'] ?? 'NULL') . ", recuperacao=" . ($nota['recuperacao'] ?? 'NULL'));
+        }
+    } else {
+        error_log("DEBUG aluno_notas - NENHUMA NOTA ENCONTRADA para alunoIdReal: $alunoIdReal, turmaId: $turmaId");
+        // Verificar se existem notas no banco para este aluno/turma
+        $sqlCheck = "SELECT COUNT(*) as total FROM nota WHERE aluno_id = :aluno_id AND turma_id = :turma_id";
+        $stmtCheck = $conn->prepare($sqlCheck);
+        $stmtCheck->bindParam(':aluno_id', $alunoIdReal, PDO::PARAM_INT);
+        $stmtCheck->bindParam(':turma_id', $turmaId, PDO::PARAM_INT);
+        $stmtCheck->execute();
+        $check = $stmtCheck->fetch(PDO::FETCH_ASSOC);
+        error_log("DEBUG aluno_notas - Total de notas no banco para este aluno/turma: " . ($check['total'] ?? 0));
+        
+        // Verificar também sem filtro de turma
+        $sqlCheck2 = "SELECT COUNT(*) as total FROM nota WHERE aluno_id = :aluno_id";
+        $stmtCheck2 = $conn->prepare($sqlCheck2);
+        $stmtCheck2->bindParam(':aluno_id', $alunoIdReal, PDO::PARAM_INT);
+        $stmtCheck2->execute();
+        $check2 = $stmtCheck2->fetch(PDO::FETCH_ASSOC);
+        error_log("DEBUG aluno_notas - Total de notas no banco para este aluno (sem filtro de turma): " . ($check2['total'] ?? 0));
+        
+        // Verificar turma_id das notas existentes
+        if (($check2['total'] ?? 0) > 0) {
+            $sqlCheck3 = "SELECT DISTINCT turma_id FROM nota WHERE aluno_id = :aluno_id";
+            $stmtCheck3 = $conn->prepare($sqlCheck3);
+            $stmtCheck3->bindParam(':aluno_id', $alunoIdReal, PDO::PARAM_INT);
+            $stmtCheck3->execute();
+            $turmasComNotas = $stmtCheck3->fetchAll(PDO::FETCH_COLUMN);
+            error_log("DEBUG aluno_notas - Turmas com notas para este aluno: " . implode(', ', $turmasComNotas));
+        }
+    }
 }
 
 // Inicializar estrutura com TODAS as disciplinas
@@ -202,32 +294,71 @@ foreach ($todasDisciplinas as $disciplina) {
             2 => [],
             3 => [],
             4 => []
-        ]
+        ],
+        'sem_bimestre' => [] // Para notas sem bimestre definido
     ];
 }
 
-// Preencher com TODAS as notas (para cálculo de médias)
+// Adicionar disciplinas que aparecem nas notas mas não estão na lista de disciplinas da turma
 foreach ($todasNotas as $nota) {
-    $disciplinaId = $nota['disciplina_id'];
-    $bimestre = $nota['bimestre'] ?? null;
-    
-    // Se a disciplina não estiver na lista, adicionar
-    if (!isset($notasAgrupadas[$disciplinaId])) {
+    $disciplinaId = $nota['disciplina_id'] ?? null;
+    if ($disciplinaId && !isset($notasAgrupadas[$disciplinaId])) {
         $notasAgrupadas[$disciplinaId] = [
-            'disciplina_nome' => $nota['disciplina_nome'],
+            'disciplina_nome' => $nota['disciplina_nome'] ?? 'Disciplina não identificada',
             'bimestres' => [
                 1 => [],
                 2 => [],
                 3 => [],
                 4 => []
-            ]
+            ],
+            'sem_bimestre' => []
+        ];
+    }
+}
+
+// Preencher com TODAS as notas (para cálculo de médias)
+foreach ($todasNotas as $nota) {
+    $disciplinaId = isset($nota['disciplina_id']) ? (int)$nota['disciplina_id'] : null;
+    $bimestre = isset($nota['bimestre']) ? (int)$nota['bimestre'] : null;
+    
+    // Pular notas sem disciplina_id
+    if (!$disciplinaId || $disciplinaId <= 0) {
+        error_log("DEBUG aluno_notas - Nota sem disciplina_id válido: " . json_encode($nota));
+        continue;
+    }
+    
+    // Se a disciplina não estiver na lista, adicionar
+    if (!isset($notasAgrupadas[$disciplinaId])) {
+        $notasAgrupadas[$disciplinaId] = [
+            'disciplina_nome' => $nota['disciplina_nome'] ?? 'Disciplina não identificada',
+            'bimestres' => [
+                1 => [],
+                2 => [],
+                3 => [],
+                4 => []
+            ],
+            'sem_bimestre' => [] // Para notas sem bimestre definido
         ];
     }
     
     // Adicionar nota ao bimestre correspondente (1-4)
     if ($bimestre && is_numeric($bimestre) && $bimestre >= 1 && $bimestre <= 4) {
         $notasAgrupadas[$disciplinaId]['bimestres'][$bimestre][] = $nota;
+    } else {
+        // Se a nota não tem bimestre válido, adicionar em "sem_bimestre" para exibição
+        $notasAgrupadas[$disciplinaId]['sem_bimestre'][] = $nota;
     }
+}
+
+// Debug: verificar notas agrupadas
+error_log("DEBUG aluno_notas - Total de disciplinas com notas agrupadas: " . count($notasAgrupadas));
+foreach ($notasAgrupadas as $discId => $dados) {
+    $totalNotas = 0;
+    for ($b = 1; $b <= 4; $b++) {
+        $totalNotas += count($dados['bimestres'][$b]);
+    }
+    $totalNotas += count($dados['sem_bimestre']);
+    error_log("DEBUG aluno_notas - Disciplina ID $discId ({$dados['disciplina_nome']}): $totalNotas notas");
 }
 
 // Calcular médias conforme o tipo selecionado
@@ -236,11 +367,13 @@ $mediaGeralBimestre = 0;
 $totalDisciplinasComNota = 0;
 
 foreach ($notasAgrupadas as $disciplinaId => $dados) {
+    $disciplinaIdInt = (int)$disciplinaId;
     if ($mostrarRecuperacao) {
         // Buscar notas de recuperação desta disciplina
         $notasRecuperacao = [];
         foreach ($todasNotas as $nota) {
-            if ($nota['disciplina_id'] == $disciplinaId && isset($nota['recuperacao']) && $nota['recuperacao']) {
+            $notaDiscId = isset($nota['disciplina_id']) ? (int)$nota['disciplina_id'] : 0;
+            if ($notaDiscId === $disciplinaIdInt && isset($nota['recuperacao']) && $nota['recuperacao']) {
                 $notasRecuperacao[] = $nota;
             }
         }
@@ -513,6 +646,24 @@ for ($b = 1; $b <= 4; $b++) {
             </div>
         <?php else: ?>
             
+            <!-- Debug Info (apenas se houver parâmetro debug) -->
+            <?php if (isset($_GET['debug'])): ?>
+            <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-4 text-sm">
+                <h4 class="font-semibold text-yellow-800 mb-2">Debug Info:</h4>
+                <p><strong>Aluno ID:</strong> <?= $alunoIdReal ?? 'NULL' ?></p>
+                <p><strong>Turma ID:</strong> <?= $turmaId ?? 'NULL' ?></p>
+                <p><strong>Total de Notas Encontradas:</strong> <?= count($todasNotas) ?></p>
+                <p><strong>Total de Disciplinas:</strong> <?= count($todasDisciplinas) ?></p>
+                <p><strong>Bimestre Selecionado:</strong> <?= $bimestreSelecionado ?></p>
+                <?php if (!empty($todasNotas)): ?>
+                    <div class="mt-2">
+                        <strong>Primeiras 3 Notas:</strong>
+                        <pre class="bg-white p-2 rounded text-xs overflow-auto"><?= htmlspecialchars(json_encode(array_slice($todasNotas, 0, 3), JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE)) ?></pre>
+                    </div>
+                <?php endif; ?>
+            </div>
+            <?php endif; ?>
+            
             <!-- Lista de Disciplinas -->
             <div class="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
                 <div class="divide-y divide-gray-200">
@@ -520,11 +671,13 @@ for ($b = 1; $b <= 4; $b++) {
                         // Calcular média conforme o tipo selecionado
                         $mediaBimestre = $mediasBimestre[$disciplinaId] ?? 0;
                         
-                        // Buscar notas conforme o tipo
+                        // Buscar notas conforme o tipo - usar comparação estrita com cast para int
+                        $disciplinaIdInt = (int)$disciplinaId;
                         if ($mostrarRecuperacao) {
                             $notasExibir = [];
                             foreach ($todasNotas as $nota) {
-                                if ($nota['disciplina_id'] == $disciplinaId && isset($nota['recuperacao']) && $nota['recuperacao']) {
+                                $notaDiscId = isset($nota['disciplina_id']) ? (int)$nota['disciplina_id'] : 0;
+                                if ($notaDiscId === $disciplinaIdInt && isset($nota['recuperacao']) && $nota['recuperacao']) {
                                     $notasExibir[] = $nota;
                                 }
                             }
@@ -540,15 +693,133 @@ for ($b = 1; $b <= 4; $b++) {
                                     }
                                 }
                             }
+                            // Adicionar notas sem bimestre também
+                            if (isset($dados['sem_bimestre']) && !empty($dados['sem_bimestre'])) {
+                                $notasSemBimestre = array_filter($dados['sem_bimestre'], function($nota) {
+                                    return !isset($nota['recuperacao']) || !$nota['recuperacao'];
+                                });
+                                $notasExibir = array_merge($notasExibir, $notasSemBimestre);
+                            }
                         } else {
-                            $notasExibir = $dados['bimestres'][$bimestreSelecionado] ?? [];
-                            // Filtrar apenas notas não de recuperação
-                            $notasExibir = array_filter($notasExibir, function($nota) {
-                                return !isset($nota['recuperacao']) || !$nota['recuperacao'];
-                            });
+                            // Buscar notas do bimestre selecionado - usar busca direta nas notas para garantir
+                            $notasExibir = [];
+                            
+                            // Primeiro: buscar diretamente nas notas do bimestre selecionado
+                            foreach ($todasNotas as $nota) {
+                                $notaDiscId = isset($nota['disciplina_id']) ? (int)$nota['disciplina_id'] : 0;
+                                $notaBimestre = isset($nota['bimestre']) ? (int)$nota['bimestre'] : 0;
+                                
+                                if ($notaDiscId === $disciplinaIdInt && 
+                                    $notaBimestre === $bimestreSelecionado &&
+                                    (!isset($nota['recuperacao']) || !$nota['recuperacao'])) {
+                                    $notasExibir[] = $nota;
+                                }
+                            }
+                            
+                            // Se não encontrou, buscar em todos os bimestres desta disciplina
+                            if (empty($notasExibir)) {
+                                foreach ($todasNotas as $nota) {
+                                    $notaDiscId = isset($nota['disciplina_id']) ? (int)$nota['disciplina_id'] : 0;
+                                    if ($notaDiscId === $disciplinaIdInt && 
+                                        (!isset($nota['recuperacao']) || !$nota['recuperacao'])) {
+                                        $notaBimestre = isset($nota['bimestre']) ? (int)$nota['bimestre'] : 0;
+                                        if ($notaBimestre > 0 && $notaBimestre <= 4) {
+                                            $nota['bimestre_exibicao'] = $notaBimestre;
+                                        }
+                                        $notasExibir[] = $nota;
+                                    }
+                                }
+                            }
+                            
+                            // Também adicionar do array agrupado (fallback)
+                            $notasAgrupadasBimestre = $dados['bimestres'][$bimestreSelecionado] ?? [];
+                            foreach ($notasAgrupadasBimestre as $nota) {
+                                if (!isset($nota['recuperacao']) || !$nota['recuperacao']) {
+                                    // Verificar se já não está na lista
+                                    $jaExiste = false;
+                                    foreach ($notasExibir as $notaExistente) {
+                                        if (isset($notaExistente['id']) && isset($nota['id']) && 
+                                            $notaExistente['id'] == $nota['id']) {
+                                            $jaExiste = true;
+                                            break;
+                                        }
+                                    }
+                                    if (!$jaExiste) {
+                                        $notasExibir[] = $nota;
+                                    }
+                                }
+                            }
+                            
+                            // Adicionar notas sem bimestre definido
+                            if (isset($dados['sem_bimestre']) && !empty($dados['sem_bimestre'])) {
+                                foreach ($dados['sem_bimestre'] as $nota) {
+                                    if (!isset($nota['recuperacao']) || !$nota['recuperacao']) {
+                                        // Verificar se já não está na lista
+                                        $jaExiste = false;
+                                        foreach ($notasExibir as $notaExistente) {
+                                            if (isset($notaExistente['id']) && isset($nota['id']) && 
+                                                $notaExistente['id'] == $nota['id']) {
+                                                $jaExiste = true;
+                                                break;
+                                            }
+                                        }
+                                        if (!$jaExiste) {
+                                            $notasExibir[] = $nota;
+                                        }
+                                    }
+                                }
+                            }
                         }
                         
-                        $temNota = $mediaBimestre > 0;
+                        // Debug para esta disciplina
+                        error_log("DEBUG aluno_notas - Disciplina ID $disciplinaIdInt ({$dados['disciplina_nome']}), Bimestre $bimestreSelecionado: " . count($notasExibir) . " notas para exibir");
+                        if (!empty($notasExibir)) {
+                            foreach ($notasExibir as $idx => $nota) {
+                                error_log("DEBUG aluno_notas - Nota $idx para exibir: id=" . ($nota['id'] ?? 'NULL') . ", nota=" . ($nota['nota'] ?? 'NULL') . ", bimestre=" . ($nota['bimestre'] ?? 'NULL'));
+                            }
+                        }
+                        
+                        // Considerar que tem nota se houver notas para exibir OU se a média for maior que 0
+                        // Verificar se há notas para exibir - priorizar verificação direta
+                        $temNota = !empty($notasExibir);
+                        
+                        // Se não tem notas mas tem média calculada, também considerar que tem nota
+                        if (!$temNota && $mediaBimestre > 0) {
+                            $temNota = true;
+                        }
+                        
+                        // Última verificação: se não tem notas mas há notas na disciplina em qualquer bimestre
+                        if (!$temNota) {
+                            $totalNotasDisciplina = 0;
+                            for ($b = 1; $b <= 4; $b++) {
+                                $totalNotasDisciplina += count($dados['bimestres'][$b] ?? []);
+                            }
+                            $totalNotasDisciplina += count($dados['sem_bimestre'] ?? []);
+                            if ($totalNotasDisciplina > 0) {
+                                $temNota = true;
+                                // Forçar busca em todos os bimestres
+                                $notasExibir = [];
+                                for ($b = 1; $b <= 4; $b++) {
+                                    $notasBimestre = $dados['bimestres'][$b] ?? [];
+                                    foreach ($notasBimestre as $nota) {
+                                        if (!isset($nota['recuperacao']) || !$nota['recuperacao']) {
+                                            $nota['bimestre_exibicao'] = $b;
+                                            $notasExibir[] = $nota;
+                                        }
+                                    }
+                                }
+                                if (isset($dados['sem_bimestre']) && !empty($dados['sem_bimestre'])) {
+                                    foreach ($dados['sem_bimestre'] as $nota) {
+                                        if (!isset($nota['recuperacao']) || !$nota['recuperacao']) {
+                                            $notasExibir[] = $nota;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        
+                        // Debug final
+                        error_log("DEBUG aluno_notas - Disciplina $disciplinaIdInt ({$dados['disciplina_nome']}): temNota=$temNota, mediaBimestre=$mediaBimestre, count notasExibir=" . count($notasExibir));
                         
                         // Determinar método de cálculo (por padrão, aritmética - pode ser ajustado depois)
                         $metodoCalculo = 'Média Aritmética';
