@@ -831,75 +831,6 @@ $funcionarios = $funcionarioModel->listar(['ativo' => 1]);
                             </div>
                         </div>
                     </div>
-                    
-                    <!-- Escolas Vinculadas -->
-                    <div>
-                        <h3 class="text-lg font-semibold text-gray-800 mb-4 pb-2 border-b border-gray-200">Escolas Vinculadas</h3>
-                        <div class="mb-4">
-                            <div class="grid grid-cols-1 md:grid-cols-3 gap-2 mb-3">
-                                <select id="editar_escola_lotacao" 
-                                        class="md:col-span-2 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent">
-                                    <option value="">Selecione uma escola</option>
-                                    <?php 
-                                    $sqlEscolas = "SELECT id, nome FROM escola WHERE ativo = 1 ORDER BY nome ASC";
-                                    $stmtEscolas = $conn->prepare($sqlEscolas);
-                                    $stmtEscolas->execute();
-                                    $escolas = $stmtEscolas->fetchAll(PDO::FETCH_ASSOC);
-                                    foreach ($escolas as $escola): 
-                                    ?>
-                                        <option value="<?= $escola['id'] ?>"><?= htmlspecialchars($escola['nome']) ?></option>
-                                    <?php endforeach; ?>
-                                </select>
-                                <input type="text" id="editar_setor_lotacao" 
-                                       placeholder="Setor (opcional)"
-                                       class="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent">
-                                <button type="button" onclick="adicionarEscolaFuncionario()" 
-                                        class="bg-teal-600 hover:bg-teal-700 text-white px-4 py-2 rounded-lg flex items-center justify-center">
-                                    <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
-                                    </svg>
-                                    Adicionar
-                                </button>
-                            </div>
-                            <div class="border border-gray-200 rounded-lg overflow-hidden">
-                                <table class="w-full">
-                                    <thead class="bg-gray-100">
-                                        <tr>
-                                            <th class="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase">ESCOLA</th>
-                                            <th class="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase">SETOR</th>
-                                            <th class="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase">INÍCIO</th>
-                                            <th class="px-4 py-3 text-right text-xs font-bold text-gray-700 uppercase">AÇÃO</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody id="tabela-escolas-funcionario" class="bg-white">
-                                        <tr>
-                                            <td colspan="4" class="text-center py-4 text-gray-500 text-sm">
-                                                Nenhuma escola vinculada
-                                            </td>
-                                        </tr>
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <!-- Informações de Acesso -->
-                    <div>
-                        <h3 class="text-lg font-semibold text-gray-800 mb-4 pb-2 border-b border-gray-200">Informações de Acesso</h3>
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-2">Nova Senha (deixe em branco para manter a atual)</label>
-                                <input type="password" name="senha" id="editar_senha"
-                                       class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent">
-                                <p class="text-xs text-gray-500 mt-1">Deixe em branco para manter a senha atual</p>
-                            </div>
-                            <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-2">Username</label>
-                                <input type="text" id="editar_username_preview" readonly
-                                       class="w-full px-4 py-2 border border-gray-300 rounded-lg bg-gray-50">
-                            </div>
-                        </div>
-                    </div>
                 </form>
             </div>
             
@@ -1014,72 +945,6 @@ $funcionarios = $funcionarioModel->listar(['ativo' => 1]);
                             </div>
                         </div>
                     </div>
-                    
-                    <!-- Escolas Vinculadas -->
-                    <div>
-                        <h3 class="text-lg font-semibold text-gray-800 mb-4 pb-2 border-b border-gray-200">Escolas Vinculadas</h3>
-                        <div class="mb-4">
-                            <div class="grid grid-cols-1 md:grid-cols-3 gap-2 mb-3">
-                                <select id="nova_escola_lotacao" 
-                                        class="md:col-span-2 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent">
-                                    <option value="">Selecione uma escola</option>
-                                    <?php 
-                                    foreach ($escolas as $escola): 
-                                    ?>
-                                        <option value="<?= $escola['id'] ?>"><?= htmlspecialchars($escola['nome']) ?></option>
-                                    <?php endforeach; ?>
-                                </select>
-                                <input type="text" id="nova_setor_lotacao" 
-                                       placeholder="Setor (opcional)"
-                                       class="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent">
-                                <button type="button" onclick="adicionarEscolaNovoFuncionario()" 
-                                        class="bg-teal-600 hover:bg-teal-700 text-white px-4 py-2 rounded-lg flex items-center justify-center">
-                                    <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
-                                    </svg>
-                                    Adicionar
-                                </button>
-                            </div>
-                            <div class="border border-gray-200 rounded-lg overflow-hidden">
-                                <table class="w-full">
-                                    <thead class="bg-gray-100">
-                                        <tr>
-                                            <th class="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase">ESCOLA</th>
-                                            <th class="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase">SETOR</th>
-                                            <th class="px-4 py-3 text-right text-xs font-bold text-gray-700 uppercase">AÇÃO</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody id="tabela-escolas-novo-funcionario" class="bg-white">
-                                        <tr>
-                                            <td colspan="3" class="text-center py-4 text-gray-500 text-sm">
-                                                Nenhuma escola vinculada
-                                            </td>
-                                        </tr>
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <!-- Informações de Acesso -->
-                    <div>
-                        <h3 class="text-lg font-semibold text-gray-800 mb-4 pb-2 border-b border-gray-200">Informações de Acesso</h3>
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-2">Senha Padrão</label>
-                                <input type="password" name="senha" id="senha" value="123456"
-                                       class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent">
-                                <p class="text-xs text-gray-500 mt-1">Senha padrão: 123456 (pode ser alterada pelo funcionário após o primeiro login)</p>
-                            </div>
-                            <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-2">Username</label>
-                                <input type="text" id="username_preview" readonly
-                                       class="w-full px-4 py-2 border border-gray-300 rounded-lg bg-gray-50"
-                                       placeholder="Será gerado automaticamente">
-                                <p class="text-xs text-gray-500 mt-1">O username será gerado automaticamente baseado no primeiro nome</p>
-                            </div>
-                        </div>
-                    </div>
                 </form>
             </div>
             
@@ -1111,7 +976,7 @@ $funcionarios = $funcionarioModel->listar(['ativo' => 1]);
                 </div>
                 <div>
                     <h3 class="text-lg font-semibold text-gray-900">Confirmar Saída</h3>
-                    <p class="text-sm text-gray-600">Tem certeza que deseja sair do sistema?</p>
+                    <p class="text-sm text-gray-600">Tem certeza que deseja sair do sistema??</p>
                 </div>
             </div>
             <div class="flex space-x-3">

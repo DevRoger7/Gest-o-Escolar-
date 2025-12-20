@@ -2594,17 +2594,11 @@ if (!defined('BASE_URL')) {
                 <button onclick="mostrarAba('validacao')" id="tab-validacao" class="tab-button py-4 px-1 border-b-2 border-transparent font-medium text-sm text-gray-500 hover:text-gray-700 hover:border-gray-300">
                     Validação
                 </button>
-                <button onclick="mostrarAba('cadastros')" id="tab-cadastros" class="tab-button py-4 px-1 border-b-2 border-transparent font-medium text-sm text-gray-500 hover:text-gray-700 hover:border-gray-300">
-                    Cadastros
-                </button>
-                <button onclick="mostrarAba('alunos')" id="tab-alunos" class="tab-button py-4 px-1 border-b-2 border-transparent font-medium text-sm text-gray-500 hover:text-gray-700 hover:border-gray-300">
-                    Alunos
-                </button>
                 <button onclick="mostrarAba('responsaveis')" id="tab-responsaveis" class="tab-button py-4 px-1 border-b-2 border-transparent font-medium text-sm text-gray-500 hover:text-gray-700 hover:border-gray-300">
                     Responsáveis
                 </button>
                 <button onclick="mostrarAba('relatorios')" id="tab-relatorios" class="tab-button py-4 px-1 border-b-2 border-transparent font-medium text-sm text-gray-500 hover:text-gray-700 hover:border-gray-300">
-                    Relatórios
+                    Boletim
                 </button>
             </nav>
         </div>
@@ -3448,21 +3442,6 @@ if (!defined('BASE_URL')) {
                         </button>
                     </div>
 
-                    <!-- Boletim Final -->
-                    <div class="bg-white rounded-lg shadow-sm border-2 border-gray-200 p-6 hover:border-primary-green transition-colors">
-                        <div class="flex items-center justify-between mb-4">
-                            <div class="w-14 h-14 bg-green-100 rounded-lg flex items-center justify-center">
-                                <svg class="w-7 h-7 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z"></path>
-                                </svg>
-                            </div>
-                        </div>
-                        <h3 class="text-lg font-semibold text-gray-900 mb-2">Boletim Final</h3>
-                        <p class="text-sm text-gray-600 mb-4">Gere boletim final com média anual e situação do aluno</p>
-                        <button onclick="abrirModalBoletimFinal()" class="w-full bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-medium transition-colors">
-                            Gerar Boletim Final
-                        </button>
-                    </div>
                 </div>
             </div>
         </div>
@@ -3524,50 +3503,6 @@ if (!defined('BASE_URL')) {
                             Gerar Boletim
                         </button>
                         <button type="button" onclick="fecharModalBoletimBimestral()" class="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-700 px-4 py-2 rounded-lg font-medium transition-colors">
-                            Cancelar
-                        </button>
-                    </div>
-                </form>
-            </div>
-        </div>
-    </div>
-
-    <!-- Modal Boletim Final -->
-    <div id="modal-boletim-final" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
-        <div class="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-            <div class="sticky top-0 bg-green-600 text-white p-6 rounded-t-lg flex justify-between items-center">
-                <h3 class="text-xl font-bold">Gerar Boletim Final</h3>
-                <button onclick="fecharModalBoletimFinal()" class="text-white hover:text-gray-200 transition-colors">
-                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-                    </svg>
-                </button>
-            </div>
-            <div class="p-6">
-                <form id="form-boletim-final" onsubmit="event.preventDefault(); gerarBoletimFinal();">
-                    <div class="space-y-4">
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-2">Turma <span class="text-red-500">*</span></label>
-                            <select id="boletim-final-turma" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-green focus:border-primary-green">
-                                <option value="">Selecione uma turma...</option>
-                                <?php foreach ($turmas as $turma): ?>
-                                    <option value="<?= $turma['id'] ?>">
-                                        <?= htmlspecialchars($turma['escola_nome']) ?> - <?= htmlspecialchars($turma['serie']) ?> <?= htmlspecialchars($turma['letra']) ?> (<?= htmlspecialchars($turma['turno']) ?>)
-                                    </option>
-                                <?php endforeach; ?>
-                            </select>
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-2">Ano Letivo <span class="text-red-500">*</span></label>
-                            <input type="number" id="boletim-final-ano" required min="2020" max="2099" value="<?= date('Y') ?>" 
-                                   class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-green focus:border-primary-green">
-                        </div>
-                    </div>
-                    <div class="mt-6 flex gap-3">
-                        <button type="submit" class="flex-1 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-medium transition-colors">
-                            Gerar Boletim Final
-                        </button>
-                        <button type="button" onclick="fecharModalBoletimFinal()" class="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-700 px-4 py-2 rounded-lg font-medium transition-colors">
                             Cancelar
                         </button>
                     </div>
@@ -6691,6 +6626,20 @@ if (!defined('BASE_URL')) {
     </div>
     
     <script>
+        // Verificar parâmetro de URL para abrir aba específica
+        document.addEventListener('DOMContentLoaded', function() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const tab = urlParams.get('tab');
+            
+            if (tab) {
+                // Encontrar o botão da aba correspondente e clicar nele
+                const tabButton = document.querySelector(`[onclick*="mostrarAba('${tab}')"]`);
+                if (tabButton) {
+                    tabButton.click();
+                }
+            }
+        });
+
         // Funções para modal de sucesso
         function mostrarModalSucesso(mensagem) {
             const modal = document.getElementById('modal-sucesso');

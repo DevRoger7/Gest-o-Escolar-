@@ -289,14 +289,23 @@ $distritos = [
             
             <!-- Seleção de Distrito -->
             <div class="bg-white rounded-lg shadow p-4 mb-6">
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-2">Selecionar Distrito</label>
-                    <select id="select-distrito" onchange="carregarDistrito()" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
-                        <option value="">Selecione um distrito</option>
-                        <?php foreach ($distritos as $distrito): ?>
-                            <option value="<?= htmlspecialchars($distrito) ?>"><?= htmlspecialchars($distrito) ?></option>
-                        <?php endforeach; ?>
-                    </select>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Selecionar Distrito</label>
+                        <select id="select-distrito" onchange="carregarDistrito()" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                            <option value="">Selecione um distrito</option>
+                            <?php foreach ($distritos as $distrito): ?>
+                                <option value="<?= htmlspecialchars($distrito) ?>"><?= htmlspecialchars($distrito) ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+                    <?php if ($podeEditar): ?>
+                    <!-- <div class="flex items-end">
+                        <button onclick="abrirModalPontoCentral()" class="w-full bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors">
+                            <i class="fas fa-map-marker-alt mr-2"></i>Definir Ponto Central
+                        </button>
+                    </div> -->
+                    <?php endif; ?>
                 </div>
             </div>
             

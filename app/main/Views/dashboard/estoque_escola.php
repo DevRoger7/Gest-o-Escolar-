@@ -236,15 +236,33 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['acao'])) {
             $params[':produto_id'] = $_GET['produto_id'];
         }
         
-        // Não agrupar - mostrar cada item separadamente (incluindo lotes diferentes)
-        // A ordenação já está incluída na query principal, então não precisa adicionar novamente
+        // A ordenação padrão já está incluída na consulta SQL
+        // Se a coluna existir, substituir a ordenação para incluir a validade
+        if ($columnExists) {
+            $sql = str_replace(
+                "ORDER BY p.nome ASC, pei.id ASC", 
+                "ORDER BY p.nome ASC, 
+                 CASE WHEN ec1.validade IS NULL THEN 1 ELSE 0 END ASC,
+                 ec1.validade ASC,
+                 pei.id ASC", 
+                $sql
+            );
+        }
         
         try {
             $stmt = $conn->prepare($sql);
+            if (!$stmt) {
+                throw new Exception('Erro ao preparar a consulta SQL: ' . implode(' ', $conn->errorInfo()));
+            }
+            
             foreach ($params as $key => $value) {
                 $stmt->bindValue($key, $value);
             }
-            $stmt->execute();
+            
+            if (!$stmt->execute()) {
+                throw new Exception('Erro ao executar a consulta SQL: ' . implode(' ', $stmt->errorInfo()));
+            }
+            
             $estoque = $stmt->fetchAll(PDO::FETCH_ASSOC);
             
             // Limpar valores vazios e formatar dados
@@ -265,36 +283,45 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['acao'])) {
                 $item['criado_em'] = $item['data_envio'];
             }
             
-            // Limpar qualquer output antes de enviar JSON
+            // Limpar qualquer saída anterior
             while (ob_get_level()) {
                 ob_end_clean();
             }
             
-            echo json_encode(['success' => true, 'estoque' => $estoque], JSON_UNESCAPED_UNICODE);
-            exit;
-        } catch (PDOException $e) {
-            // Limpar qualquer output antes de enviar JSON de erro
-            while (ob_get_level()) {
-                ob_end_clean();
-            }
-            error_log("Erro ao listar estoque: " . $e->getMessage());
+            header('Content-Type: application/json; charset=utf-8');
             echo json_encode([
-                'success' => false, 
-                'message' => 'Erro ao carregar estoque: ' . $e->getMessage(),
-                'estoque' => []
-            ], JSON_UNESCAPED_UNICODE);
+                'success' => true, 
+                'estoque' => $estoque,
+                'debug' => [
+                    'sql' => $sql,
+                    'params' => $params,
+                    'count' => count($estoque)
+                ]
+            ]);
             exit;
+            
         } catch (Exception $e) {
-            // Limpar qualquer output antes de enviar JSON de erro
+            // Log do erro
+            error_log('Erro ao listar estoque: ' . $e->getMessage());
+            
+            // Limpar qualquer saída anterior
             while (ob_get_level()) {
                 ob_end_clean();
             }
-            error_log("Erro ao listar estoque: " . $e->getMessage());
+            
+            // Retornar erro como JSON
+            header('HTTP/1.1 500 Internal Server Error');
+            header('Content-Type: application/json; charset=utf-8');
             echo json_encode([
-                'success' => false, 
-                'message' => 'Erro ao carregar estoque: ' . $e->getMessage(),
-                'estoque' => []
-            ], JSON_UNESCAPED_UNICODE);
+                'success' => false,
+                'message' => 'Erro ao carregar o estoque. Por favor, tente novamente.',
+                'error' => $e->getMessage(),
+                'debug' => [
+                    'sql' => $sql,
+                    'params' => $params,
+                    'trace' => $e->getTraceAsString()
+                ]
+            ]);
             exit;
         }
     }
@@ -326,16 +353,225 @@ $produtos = $stmtProdutos->fetchAll(PDO::FETCH_ASSOC);
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="global-theme.css">
     <script>
-        tailwind.config = {
-            theme: {
-                extend: {
-                    colors: {
-                        'primary-green': '#2D5A27',
-                    }
-                }
-            }
+        // 1. Primeiro, definimos a função filtrarEstoque
+function filtrarEstoque() {
+    const tbody = document.getElementById('lista-estoque');
+    const produtoSelect = document.getElementById('filtro-produto');
+    
+    if (!produtoSelect) {
+        console.error('Elemento filtro-produto não encontrado');
+        return;
+    }
+    
+    const produtoId = produtoSelect.value;
+    
+    // Mostrar indicador de carregamento
+    tbody.innerHTML = `
+        <tr>
+            <td colspan="6" class="text-center py-16">
+                <div class="flex flex-col items-center justify-center text-gray-400">
+                    <div class="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary-green mb-4"></div>
+                    <p class="text-lg font-medium">Carregando estoque...</p>
+                </div>
+            </td>
+        </tr>`;
+    
+    // Construir URL da requisição
+    let url = 'estoque_escola.php?acao=listar_estoque';
+    if (produtoId) {
+        url += '&produto_id=' + encodeURIComponent(produtoId);
+    }
+    
+    // Adicionar timestamp para evitar cache
+    url += '&_=' + new Date().getTime();
+    
+    console.log('Fazendo requisição para:', url);
+    
+    // Fazer a requisição
+    fetch(url, {
+        headers: {
+            'Cache-Control': 'no-cache, no-store, must-revalidate',
+            'Pragma': 'no-cache',
+            'Expires': '0'
         }
-    </script>
+    })
+    .then(async response => {
+        console.log('Resposta recebida. Status:', response.status);
+        const text = await response.text();
+        console.log('Conteúdo da resposta:', text.substring(0, 500)); // Mostrar os primeiros 500 caracteres
+        
+        // Tentar fazer parse do JSON
+        try {
+            return JSON.parse(text);
+        } catch (e) {
+            console.error('Erro ao fazer parse do JSON:', e);
+            throw new Error('Resposta inválida do servidor');
+        }
+    })
+    .then(data => {
+        console.log('Dados processados:', data);
+        
+        if (data.success && Array.isArray(data.estoque)) {
+            // Limpar a tabela
+            tbody.innerHTML = '';
+            
+            if (data.estoque.length > 0) {
+                // Preencher a tabela com os itens do estoque
+                data.estoque.forEach((item, index) => {
+                    const validade = item.validade ? new Date(item.validade + 'T00:00:00') : null;
+                    const hoje = new Date();
+                    hoje.setHours(0, 0, 0, 0);
+                    
+                    // Determinar a classe de cor com base na validade
+                    let corValidade = '';
+                    let iconeValidade = '';
+                    let textoValidade = item.validade ? new Date(item.validade + 'T00:00:00').toLocaleDateString('pt-BR') : '-';
+                    
+                    if (validade) {
+                        validade.setHours(0, 0, 0, 0);
+                        const diffTime = validade - hoje;
+                        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                        
+                        if (diffDays < 0) {
+                            corValidade = 'bg-red-100 text-red-800 border-red-200';
+                            iconeValidade = '<svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>';
+                        } else if (diffDays <= 7) {
+                            corValidade = 'bg-yellow-100 text-yellow-800 border-yellow-200';
+                            iconeValidade = '<svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>';
+                        } else {
+                            corValidade = 'bg-green-100 text-green-800 border-green-200';
+                            iconeValidade = '<svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>';
+                        }
+                    } else {
+                        corValidade = 'bg-gray-100 text-gray-800 border-gray-200';
+                        iconeValidade = '';
+                    }
+                    
+                    // Formatar data de entrada
+                    const dataEntrada = item.data_envio ? new Date(item.data_envio + 'T00:00:00').toLocaleDateString('pt-BR') : '-';
+                    
+                    // Adicionar linha à tabela
+                    tbody.innerHTML += `
+                        <tr class="hover:bg-gray-50 transition-colors duration-150 ${index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}">
+                            <td class="py-4 px-6">
+                                <div class="flex items-center">
+                                    <div class="flex-shrink-0 w-10 h-10 bg-primary-green bg-opacity-10 rounded-lg flex items-center justify-center mr-3">
+                                        <svg class="w-5 h-5 text-primary-green" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path>
+                                        </svg>
+                                    </div>
+                                    <div>
+                                        <div class="font-semibold text-gray-900">${escapeHtml(item.produto_nome || '-')}</div>
+                                        <div class="text-sm text-gray-500 mt-0.5">${escapeHtml(item.unidade_medida || '-')}</div>
+                                    </div>
+                                </div>
+                            </td>
+                            <td class="py-4 px-6 text-center">
+                                <span class="inline-flex items-center px-4 py-2 bg-blue-100 text-blue-800 rounded-lg font-bold text-sm border border-blue-200">
+                                    ${formatarQuantidade(item.quantidade || 0, item.unidade_medida)}
+                                </span>
+                            </td>
+                            <td class="py-4 px-6">
+                                ${item.lote ? `<span class="inline-flex items-center px-3 py-1 bg-gray-100 text-gray-800 rounded-lg text-sm font-medium">${escapeHtml(item.lote)}</span>` : '<span class="text-gray-400">-</span>'}
+                            </td>
+                            <td class="py-4 px-6">
+                                ${item.fornecedor_nome ? `<span class="text-gray-700">${escapeHtml(item.fornecedor_nome)}</span>` : '<span class="text-gray-400">-</span>'}
+                            </td>
+                            <td class="py-4 px-6 text-center">
+                                ${item.validade ? `<span class="inline-flex items-center px-3 py-1 rounded-lg text-sm font-medium border ${corValidade}">${iconeValidade}${textoValidade}</span>` : '<span class="inline-flex items-center px-3 py-1 bg-gray-100 text-gray-800 rounded-lg text-sm font-medium border border-gray-200">-</span>'}
+                            </td>
+                            <td class="py-4 px-6 text-center">
+                                <span class="text-gray-600 font-medium">${dataEntrada}</span>
+                            </td>
+                        </tr>`;
+                });
+            } else {
+                // Exibir mensagem quando não há itens
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="6" class="text-center py-16">
+                            <div class="flex flex-col items-center justify-center text-gray-400">
+                                <svg class="w-20 h-20 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"></path>
+                                </svg>
+                                <p class="text-lg font-medium">Nenhum item encontrado no estoque</p>
+                                <p class="text-sm mt-2">${produtoId ? 'Nenhum item encontrado para o produto selecionado' : 'Tente alterar os filtros de busca'}</p>
+                            </div>
+                        </td>
+                    </tr>`;
+            }
+        } else {
+            throw new Error(data.message || 'Resposta inválida do servidor');
+        }
+    })
+    .catch(error => {
+        console.error('Erro ao carregar estoque:', error);
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="6" class="text-center py-16">
+                    <div class="flex flex-col items-center justify-center text-red-500">
+                        <svg class="w-20 h-20 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
+                        </svg>
+                        <p class="text-lg font-medium">Erro ao carregar o estoque</p>
+                        <p class="text-sm mt-2">${error.message || 'Tente novamente mais tarde'}</p>
+                        <button onclick="filtrarEstoque()" class="mt-4 px-4 py-2 bg-primary-green text-white rounded-lg hover:bg-green-600 transition-colors">
+                            Tentar novamente
+                        </button>
+                        <button onclick="window.location.reload()" class="mt-2 px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors text-sm">
+                            Recarregar a página
+                        </button>
+                    </div>
+                </td>
+            </tr>`;
+    });
+}
+
+// Função auxiliar para escapar HTML
+function escapeHtml(unsafe) {
+    return unsafe
+        .toString()
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+}
+
+// Função auxiliar para formatar quantidade
+function formatarQuantidade(quantidade, unidadeMedida) {
+    if (!quantidade && quantidade !== 0) return '0';
+    
+    const unidade = (unidadeMedida || '').toUpperCase().trim();
+    const qtd = parseFloat(quantidade);
+    
+    // Se for número inteiro, mostrar sem casas decimais
+    if (Number.isInteger(qtd)) {
+        return qtd.toLocaleString('pt-BR') + (unidade ? ` ${unidade}` : '');
+    }
+    
+    // Se for número decimal, mostrar com 2 casas decimais
+    return qtd.toLocaleString('pt-BR', {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
+    }) + (unidade ? ` ${unidade}` : '');
+}
+
+// Chamar a função quando a página carregar
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('Página carregada, chamando filtrarEstoque()');
+    filtrarEstoque();
+    
+    // Adicionar evento de clique ao botão de filtrar
+    const btnFiltrar = document.querySelector('button[onclick="filtrarEstoque()"]');
+    if (btnFiltrar) {
+        btnFiltrar.addEventListener('click', function(e) {
+            e.preventDefault();
+            console.log('Botão de filtrar clicado');
+            filtrarEstoque();
+        });
+    }
+});</script>
     <style>
         .sidebar-transition { transition: all 0.3s ease-in-out; }
         .content-transition { transition: margin-left 0.3s ease-in-out; }
@@ -582,13 +818,25 @@ $produtos = $stmtProdutos->fetchAll(PDO::FETCH_ASSOC);
             // Atualizar nome da escola exibido
             atualizarNomeEscola();
             
-            // Carregar estoque inicial
-            filtrarEstoque();
+            // Função para inicializar o carregamento do estoque
+            function inicializarCarregamentoEstoque() {
+                const filtroProduto = document.getElementById('filtro-produto');
+                if (filtroProduto) {
+                    // Carregar estoque inicial
+                    filtrarEstoque();
+                    
+                    // Verificar mudanças na escola a cada 2 segundos (quando a escola é alterada no dashboard)
+                    setInterval(function() {
+                        verificarMudancaEscola();
+                    }, 2000);
+                } else {
+                    // Se o filtro de produto ainda não estiver disponível, tentar novamente em 100ms
+                    setTimeout(inicializarCarregamentoEstoque, 100);
+                }
+            }
             
-            // Verificar mudanças na escola a cada 2 segundos (quando a escola é alterada no dashboard)
-            setInterval(function() {
-                verificarMudancaEscola();
-            }, 2000);
+            // Iniciar o carregamento do estoque
+            inicializarCarregamentoEstoque();
         });
         
         let ultimaEscolaId = <?= $escolaGestorId ?>;
@@ -601,11 +849,16 @@ $produtos = $stmtProdutos->fetchAll(PDO::FETCH_ASSOC);
                     if (data.success && data.escola_id && data.escola_id !== ultimaEscolaId) {
                         ultimaEscolaId = data.escola_id;
                         atualizarNomeEscola();
-                        filtrarEstoque();
+                        
+                        // Verificar se o filtro de produto existe antes de chamar filtrarEstoque
+                        const filtroProduto = document.getElementById('filtro-produto');
+                        if (filtroProduto) {
+                            filtrarEstoque();
+                        }
                     }
                 })
                 .catch(error => {
-                    // Silenciar erros de verificação
+                    console.error('Erro ao verificar mudança de escola:', error);
                 });
         }
         
@@ -628,150 +881,68 @@ $produtos = $stmtProdutos->fetchAll(PDO::FETCH_ASSOC);
             }
         }
         
-        function filtrarEstoque() {
-            const tbody = document.getElementById('lista-estoque');
-            const produtoId = document.getElementById('filtro-produto').value;
-            
-            tbody.innerHTML = '<tr><td colspan="6" class="text-center py-16"><div class="flex flex-col items-center justify-center text-gray-400"><svg class="w-20 h-20 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"></path></svg><p class="text-lg font-medium">Carregando estoque...</p></div></td></tr>';
-            
-            let url = 'estoque_escola.php?acao=listar_estoque';
-            if (produtoId) {
-                url += '&produto_id=' + produtoId;
-            }
-            
-            fetch(url)
-                .then(response => {
-                    if (!response.ok) {
-                        throw new Error('Erro na resposta do servidor: ' + response.status);
-                    }
-                    const contentType = response.headers.get('content-type');
-                    if (!contentType || !contentType.includes('application/json')) {
-                        return response.text().then(text => {
-                            console.error('Resposta não é JSON:', text.substring(0, 500));
-                            throw new Error('Resposta do servidor não é JSON válido');
-                        });
-                    }
-                    return response.json();
-                })
-                .then(data => {
-                    if (!data.success) {
-                        throw new Error(data.message || 'Erro ao carregar estoque');
-                    }
-                    
-                    if (data.estoque && data.estoque.length > 0) {
-                        tbody.innerHTML = '';
-                        data.estoque.forEach((item, index) => {
-                            const validade = item.validade ? new Date(item.validade + 'T00:00:00') : null;
-                            const hoje = new Date();
-                            hoje.setHours(0, 0, 0, 0);
-                            
-                            let corValidade = '';
-                            let iconeValidade = '';
-                            let textoValidade = item.validade ? new Date(item.validade + 'T00:00:00').toLocaleDateString('pt-BR') : '-';
-                            
-                            if (validade) {
-                                validade.setHours(0, 0, 0, 0);
-                                const diffTime = validade - hoje;
-                                const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-                                
-                                if (diffDays < 0) {
-                                    corValidade = 'bg-red-100 text-red-800 border-red-200';
-                                    iconeValidade = '<svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>';
-                                } else if (diffDays <= 7) {
-                                    corValidade = 'bg-yellow-100 text-yellow-800 border-yellow-200';
-                                    iconeValidade = '<svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>';
-                                } else {
-                                    corValidade = 'bg-green-100 text-green-800 border-green-200';
-                                    iconeValidade = '<svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>';
-                                }
-                            } else {
-                                corValidade = 'bg-gray-100 text-gray-800 border-gray-200';
-                                iconeValidade = '';
-                            }
-                            
-                            const dataEntrada = item.data_envio ? new Date(item.data_envio + 'T00:00:00').toLocaleDateString('pt-BR') : '-';
-                            
-                            tbody.innerHTML += `
-                                <tr class="hover:bg-gray-50 transition-colors duration-150 ${index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}">
-                                    <td class="py-4 px-6">
-                                        <div class="flex items-center">
-                                            <div class="flex-shrink-0 w-10 h-10 bg-primary-green bg-opacity-10 rounded-lg flex items-center justify-center mr-3">
-                                                <svg class="w-5 h-5 text-primary-green" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path>
-                                                </svg>
-                                            </div>
-                                            <div>
-                                                <div class="font-semibold text-gray-900">${item.produto_nome || '-'}</div>
-                                                <div class="text-sm text-gray-500 mt-0.5">${item.unidade_medida || '-'}</div>
-                                            </div>
-                                        </div>
-                                    </td>
-                                    <td class="py-4 px-6 text-center">
-                                        <span class="inline-flex items-center px-4 py-2 bg-blue-100 text-blue-800 rounded-lg font-bold text-sm border border-blue-200">
-                                            ${formatarQuantidade(item.quantidade || 0, item.unidade_medida)}
-                                        </span>
-                                    </td>
-                                    <td class="py-4 px-6">
-                                        ${item.lote ? `<span class="inline-flex items-center px-3 py-1 bg-gray-100 text-gray-800 rounded-lg text-sm font-medium">${item.lote}</span>` : '<span class="text-gray-400">-</span>'}
-                                    </td>
-                                    <td class="py-4 px-6">
-                                        ${item.fornecedor_nome ? `<span class="text-gray-700">${item.fornecedor_nome}</span>` : '<span class="text-gray-400">-</span>'}
-                                    </td>
-                                    <td class="py-4 px-6 text-center">
-                                        ${item.validade ? `<span class="inline-flex items-center px-3 py-1 rounded-lg text-sm font-medium border ${corValidade}">${iconeValidade}${textoValidade}</span>` : '<span class="inline-flex items-center px-3 py-1 bg-gray-100 text-gray-800 rounded-lg text-sm font-medium border border-gray-200">-</span>'}
-                                    </td>
-                                    <td class="py-4 px-6 text-center">
-                                        <span class="text-gray-600 font-medium">${dataEntrada}</span>
-                                    </td>
-                                </tr>
-                            `;
-                        });
-                    } else {
-                        tbody.innerHTML = `
-                            <tr>
-                                <td colspan="6" class="text-center py-16">
-                                    <div class="flex flex-col items-center justify-center text-gray-400">
-                                        <svg class="w-20 h-20 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"></path>
-                                        </svg>
-                                        <p class="text-lg font-medium">Nenhum produto encontrado no estoque</p>
-                                        <p class="text-sm mt-1">Os produtos aparecerão aqui quando pacotes forem enviados para sua escola</p>
-                                    </div>
-                                </td>
-                            </tr>
-                        `;
-                    }
-                })
-                .catch(error => {
-                    console.error('Erro ao carregar estoque:', error);
-                    const errorMessage = error.message || 'Erro desconhecido ao carregar estoque';
-                    tbody.innerHTML = `
-                        <tr>
-                            <td colspan="6" class="text-center py-16">
-                                <div class="flex flex-col items-center justify-center text-red-400">
-                                    <svg class="w-20 h-20 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                                    </svg>
-                                    <p class="text-lg font-medium">Erro ao carregar estoque</p>
-                                    <p class="text-sm mt-1">${errorMessage}</p>
-                                    <button onclick="filtrarEstoque()" class="mt-4 px-4 py-2 bg-primary-green text-white rounded-lg hover:bg-green-700 transition-colors">
-                                        Tentar Novamente
-                                    </button>
-                                </div>
-                            </td>
-                        </tr>
-                    `;
-                });
-        }
-    </script>
+   
+// Inicialização quando o DOM estiver pronto
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('DOM carregado - Iniciando carregamento do estoque');
+    inicializarCarregamentoEstoque();
+});
+function inicializarCarregamentoEstoque() {
+    console.log('Inicializando carregamento do estoque...');
+    const filtroProduto = document.getElementById('filtro-produto');
     
-    <!-- Logout Confirmation Modal -->
-    <div id="logoutModal" class="fixed inset-0 bg-black bg-opacity-50 z-[60] hidden items-center justify-center p-4" style="display: none;">
-        <div class="bg-white rounded-2xl p-6 max-w-md w-full mx-4 shadow-2xl">
-            <div class="flex items-center space-x-3 mb-4">
-                <div class="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center">
-                    <svg class="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z"></path>
+    if (filtroProduto) {
+        console.log('Filtro de produto encontrado, carregando estoque...');
+        // Carregar estoque inicial
+        filtrarEstoque();
+        
+        // Verificar mudanças na escola a cada 2 segundos (quando a escola é alterada no dashboard)
+        setInterval(function() {
+            verificarMudancaEscola();
+        }, 2000);
+    } else {
+        console.log('Filtro de produto não encontrado, tentando novamente em 100ms...');
+        // Se o filtro de produto ainda não estiver disponível, tentar novamente em 100ms
+        setTimeout(inicializarCarregamentoEstoque, 100);
+    }
+}
+function verificarMudancaEscola() {
+    console.log('Verificando mudança de escola...');
+    // Buscar a escola atual da sessão via AJAX
+    fetch('estoque_escola.php?acao=verificar_escola')
+        .then(response => response.json())
+        .then(data => {
+            if (data.success && data.escola_id && data.escola_id !== ultimaEscolaId) {
+                console.log('Escola alterada para:', data.escola_id);
+                ultimaEscolaId = data.escola_id;
+                atualizarNomeEscola();
+                
+                // Verificar se o filtro de produto existe antes de chamar filtrarEstoque
+                const filtroProduto = document.getElementById('filtro-produto');
+                if (filtroProduto) {
+                    console.log('Atualizando estoque para a nova escola...');
+                    filtrarEstoque();
+                }
+            }
+        })
+        .catch(error => {
+            console.error('Erro ao verificar mudança de escola:', error);
+        });
+}
+  
+        // Logout Confirmation Modal
+        <div id="logoutModal" class="fixed inset-0 bg-black bg-opacity-50 z-[60] hidden items-center justify-center p-4" style="display: none;">
+            <div class="bg-white rounded-2xl p-6 max-w-md w-full mx-4 shadow-2xl">
+                <div class="flex items-center space-x-3 mb-4">
+                    <div class="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center">
+                        <svg class="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
+                        </svg>
+                    </div>
+                    <div>
+                        <h3 class="text-lg font-semibold text-gray-900">Confirmar Saída</h3>
+                        <p class="text-sm text-gray-600">Tem certeza que deseja sair do sistema?</p>
+                    </div>
                     </svg>
                 </div>
                 <div>

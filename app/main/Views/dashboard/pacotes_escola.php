@@ -426,6 +426,41 @@ $pacotes = $pacoteModel->listar();
     </div>
     
     <script>
+        // Inicializar variáveis globais
+        window.modoEdicao = false;
+        window.pacoteIdEdicao = null;
+        window.itensPacote = [];
+        window.contadorItens = 0;
+        window.estoquesProdutos = {};
+        window.produtosDisponiveis = [];
+        
+        // Função global para abrir o modal de novo pacote
+        window.abrirModalNovoPacote = function() {
+            console.log('Função abrirModalNovoPacote() chamada');
+            window.modoEdicao = false;
+            window.pacoteIdEdicao = null;
+            document.getElementById('modal-titulo').textContent = 'Novo Pacote de Alimentos';
+            document.getElementById('modal-novo-pacote').classList.remove('hidden');
+            document.getElementById('form-acao').value = 'criar';
+            document.getElementById('form-pacote-id').value = '';
+            document.getElementById('btn-salvar-pacote').textContent = 'Salvar Pacote';
+            document.getElementById('form-novo-pacote').reset();
+            window.itensPacote = [];
+            window.contadorItens = 0;
+            
+            // Recarregar estoques ao abrir o modal
+            fetch('?acao=buscar_estoques_todos')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        window.estoquesProdutos = data.estoques;
+                    }
+                })
+                .catch(error => {
+                    console.error('Erro ao carregar estoques:', error);
+                });
+        }
+        
         // Função para formatar quantidade baseado na unidade de medida
         function formatarQuantidade(quantidade, unidadeMedida) {
             if (!quantidade && quantidade !== 0) return '0';
@@ -478,71 +513,8 @@ $pacotes = $pacoteModel->listar();
             }
         };
 
-        // Variáveis globais
-        let itensPacote = [];
-        let produtosDisponiveis = <?= json_encode($produtos) ?>;
-        let contadorItens = 0;
-        let estoquesProdutos = {}; // Armazenar estoques de todos os produtos
-        let modoEdicao = false;
-        let pacoteIdEdicao = null;
-        
-        // Carregar estoques de todos os produtos ao iniciar
-        fetch('?acao=buscar_estoques_todos')
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    estoquesProdutos = data.estoques;
-                }
-            })
-            .catch(error => {
-                console.error('Erro ao carregar estoques:', error);
-            });
-
-        function abrirModalNovoPacote() {
-            try {
-                modoEdicao = false;
-                pacoteIdEdicao = null;
-                
-                const modal = document.getElementById('modal-novo-pacote');
-                if (!modal) {
-                    console.error('Modal não encontrado');
-                    alert('Erro: Modal não encontrado. Recarregue a página.');
-                    return;
-                }
-                
-                document.getElementById('modal-titulo').textContent = 'Novo Pacote de Alimentos';
-                document.getElementById('form-acao').value = 'criar';
-                document.getElementById('form-pacote-id').value = '';
-                document.getElementById('btn-salvar-pacote').textContent = 'Salvar Pacote';
-                document.getElementById('form-novo-pacote').reset();
-                itensPacote = [];
-                contadorItens = 0;
-                
-                // Recarregar estoques ao abrir o modal
-                fetch('?acao=buscar_estoques_todos')
-                    .then(response => {
-                        if (!response.ok) {
-                            throw new Error('Erro na resposta do servidor');
-                        }
-                        return response.json();
-                    })
-                    .then(data => {
-                        if (data.success) {
-                            estoquesProdutos = data.estoques;
-                            atualizarListaItens();
-                        }
-                    })
-                    .catch(error => {
-                        console.error('Erro ao carregar estoques:', error);
-                        atualizarListaItens();
-                    });
-                
-                modal.classList.remove('hidden');
-            } catch (error) {
-                console.error('Erro ao abrir modal:', error);
-                alert('Erro ao abrir modal. Verifique o console para mais detalhes.');
-            }
-        }
+        // Inicializar produtos disponíveis
+        window.produtosDisponiveis = <?= json_encode($produtos) ?>;
         
         function editarPacote(id) {
             try {

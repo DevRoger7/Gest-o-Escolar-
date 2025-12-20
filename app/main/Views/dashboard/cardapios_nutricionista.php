@@ -797,17 +797,21 @@ $cardapios = $cardapioModel->listar($filtrosInicial);
         
         // Função para encontrar o próximo domingo disponível
         function encontrarProximoDomingo(mes, ano) {
-            const primeiroDia = new Date(ano, mes - 1, 1);
-            const diaSemana = primeiroDia.getDay(); // 0 = Domingo, 1 = Segunda, etc.
+            const dataAtual = new Date(ano, mes - 1, 1); // Primeiro dia do mês
+            let diaDaSemana = dataAtual.getDay(); // 0 = Domingo, 1 = Segunda, etc.
             
-            // Se não for domingo, encontrar o próximo
-            let proximoDomingo = new Date(primeiroDia);
-            if (diaSemana !== 0) {
-                const diasParaDomingo = 7 - diaSemana;
-                proximoDomingo.setDate(primeiroDia.getDate() + diasParaDomingo);
+            // Se não for domingo, calcular quantos dias faltam para o próximo domingo
+            if (diaDaSemana !== 0) {
+                const diasParaDomingo = 7 - diaDaSemana;
+                dataAtual.setDate(dataAtual.getDate() + diasParaDomingo);
             }
             
-            return proximoDomingo.toISOString().split('T')[0];
+            // Se a data for no mês seguinte, ajustar para o último domingo do mês
+            if (dataAtual.getMonth() !== mes - 1) {
+                dataAtual.setDate(dataAtual.getDate() - 7);
+            }
+            
+            return dataAtual.toISOString().split('T')[0];
         }
         
         function adicionarSemana() {
@@ -856,7 +860,7 @@ $cardapios = $cardapioModel->listar($filtrosInicial);
                         <h5 class="font-semibold text-gray-900 mb-2">Semana ${proximaSemana}</h5>
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
                             <div>
-                                <label class="block text-xs font-medium text-gray-700 mb-1">Domingo da Semana *</label>
+                                <label class="block text-xs font-medium text-gray-700 mb-1">Segunda da Semana *</label>
                                 <input 
                                     type="date" 
                                     class="data-domingo-input w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent" 
@@ -907,11 +911,19 @@ $cardapios = $cardapioModel->listar($filtrosInicial);
             
             // Validar se é domingo
             const data = new Date(dataDomingo);
-            if (data.getDay() !== 0) {
-                alert('Por favor, selecione um domingo. A data será ajustada automaticamente.');
-                // Ajustar para o domingo anterior
-                const diasAjuste = data.getDay();
-                data.setDate(data.getDate() - diasAjuste);
+            const diaDaSemana = data.getDay();
+            
+            if (diaDaSemana !== 0) {
+                // Se não for domingo, calcular o próximo domingo
+                const diasParaDomingo = 7 - diaDaSemana;
+                data.setDate(data.getDate() + diasParaDomingo);
+                
+                // Se a data for no mês seguinte, ajustar para o domingo da semana seguinte
+                const mesOriginal = new Date(dataDomingo).getMonth();
+                if (data.getMonth() !== mesOriginal) {
+                    data.setDate(data.getDate() - 7); // Voltar para o domingo da semana anterior
+                }
+                
                 dataDomingo = data.toISOString().split('T')[0];
                 
                 // Atualizar o input

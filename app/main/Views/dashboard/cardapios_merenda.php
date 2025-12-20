@@ -8,9 +8,10 @@ $session = new sessions();
 $session->autenticar_session();
 $session->tempo_session();
 
-// Permitir acesso para ADM (geral), ADM_MERENDA e NUTRICIONISTA
-$tipoUsuario = strtolower($_SESSION['tipo'] ?? '');
-if (!isset($_SESSION['tipo']) || (!eAdm() && $tipoUsuario !== 'adm_merenda' && $tipoUsuario !== 'nutricionista')) {
+// Permitir acesso para ADM (geral), ADM_MERENDA, NUTRICIONISTA e GESTAO
+$tipoUsuario = strtoupper($_SESSION['tipo'] ?? '');
+$tiposPermitidos = ['ADM', 'ADM_MERENDA', 'NUTRICIONISTA', 'GESTAO'];
+if (!isset($_SESSION['tipo']) || !in_array($tipoUsuario, $tiposPermitidos)) {
     header('Location: dashboard.php?erro=sem_permissao');
     exit;
 }
@@ -440,13 +441,8 @@ if ($tipoUsuario === 'adm_merenda') {
 </head>
 <body class="bg-gray-50">
     <?php 
-    if (eAdm()) {
-        include 'components/sidebar_adm.php';
-    } elseif ($tipoUsuario === 'nutricionista') {
-        include 'components/sidebar_nutricionista.php';
-    } else {
-        include 'components/sidebar_merenda.php';
-    }
+    // Usar sempre a sidebar de gestão para esta página
+    include 'components/sidebar_gestao.php';
     ?>
     
     <!-- Main Content -->

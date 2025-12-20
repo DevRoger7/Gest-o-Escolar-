@@ -929,7 +929,7 @@ $totalGeral = array_sum(array_column($totaisMes, 'total_custos'));
                             </p>
                         </div>
                         <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-2">Quantidade *</label>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Quantidade (Kg) *</label>
                             <input type="number" step="0.001" min="0" id="entrada-quantidade" required class="w-full px-4 py-2 border border-gray-300 rounded-lg">
                         </div>
                         <div>
