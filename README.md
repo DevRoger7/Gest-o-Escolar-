@@ -113,7 +113,7 @@ Interface **intuitiva, moderna e responsiva**.
 
 - **PHP** (Back-end)  
 - **MySQL** (Banco de Dados)  
-- **HTML5, CSS3 e JavaScript**  
+- **HTML5, CSS3, Tailwind e JavaScript**  
 - **Bootstrap** (Interface responsiva)  
 - **Git & GitHub** (Versionamento)  
 - **XAMPP** (Ambiente de desenvolvimento local)  
